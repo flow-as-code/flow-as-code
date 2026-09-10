@@ -27,10 +27,11 @@ the `npx flow-cli` lines in the root README work from a checkout. `build` then
 builds the studio and its demo bundle and ends with `scripts/chmod-bins.mjs`,
 which owns the mode of every file a workspace packs out of `dist`.
 
-All five packages are on npm (0.1.1, published 2026-09-09), but inside this
-repository `@flow-as-code/*` resolves through the workspace and nowhere else, so
-a checkout never reads the registry copies. Build first or the imports do not
-exist.
+All five packages are on npm, but inside this repository `@flow-as-code/*`
+resolves through the workspace and nowhere else, so a checkout never reads the
+registry copies. Build first or the imports do not exist. For the version the
+registry currently serves, read the package pages rather than this file:
+<https://www.npmjs.com/package/@flow-as-code/cli>.
 
 ## What CI runs
 
@@ -134,7 +135,7 @@ release already merged:
 ```
 npx changeset version   # consumes .changeset/*.md, bumps all five, writes CHANGELOGs
 npm install             # refresh package-lock.json for the new versions
-git commit -am "release: 0.1.1"
+git commit -am "release: <the version changeset just wrote>"
 git push origin main
 ```
 

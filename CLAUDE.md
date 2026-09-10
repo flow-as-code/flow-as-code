@@ -23,13 +23,16 @@ Status only where it changes what you should do. The work record is `tasks/`.
 - The site is live: https://flow-as-code.dev/ and the read-only studio at
   https://flow-as-code.dev/studio/, deployed by `.github/workflows/pages.yml`
   on push to main. A change under `site/` or in the studio ships on merge.
-- The packages are on npm at 0.1.1. 0.1.0 went out by hand on 2026-09-09,
-  because npm trusted publishing cannot create a package that does not yet
-  exist; 0.1.1 followed the same day through the workflow below, which is the
-  run that proved the OIDC exchange and the SLSA provenance attestations.
-  Inside the repo the workspace still resolves `@flow-as-code/*`, and
-  `npm run build` before `npm test` is what makes that true, so a registry
-  install is never the path a contributor takes here.
+- The packages are on npm. For the version the registry serves, read
+  `npm view @flow-as-code/cli version`, not a number written down here. History
+  worth keeping: 0.1.0 went out by hand on 2026-09-09, because npm trusted
+  publishing cannot create a package that does not yet exist, and 0.1.1
+  followed the same day through the workflow below, the run that proved the
+  OIDC exchange and the SLSA provenance attestations. Both are being
+  unpublished, so treat them as history and never point a reader at either as
+  something to install. Inside the repo the workspace still resolves
+  `@flow-as-code/*`, and `npm run build` before `npm test` is what makes that
+  true, so a registry install is never the path a contributor takes here.
 - Releases go through `.github/workflows/release.yml`, dispatched by hand,
   publishing over OIDC with no npm token anywhere. The filename is fixed by the
   Trusted Publisher configured for each package on npmjs.com. CONTRIBUTING.md,
@@ -78,4 +81,4 @@ Same as the product repo: restate acceptance criteria before starting a task, sm
 
 `flow-cli studio` opens the demo FlowDoc, a change on the canvas regenerates demo.flow.ts, editing demo.flow.ts updates the canvas within a second, `flow-cli emit --target tf` and `--target cdk` both produce deployable output for the demo flow, and lint plus the round-trip invariant tests are green in CI.
 
-Met, and verified from a clean clone rather than from a developer tree. "Deployable" is not an argument from the emitted text: the Terraform side is `tofu validate`-clean in CI against OpenTofu 1.7.0 and 1.12.6, and the CDK side was deployed to a live Amazon Connect sandbox on 2026-09-02 and read back with `DescribeContactFlow` (`tasks/A07-flow-cdk.md`). Phase A is closed: 0.1.1 is the release.
+Met, and verified from a clean clone rather than from a developer tree. "Deployable" is not an argument from the emitted text: the Terraform side is `tofu validate`-clean in CI against OpenTofu 1.7.0 and 1.12.6, and the CDK side was deployed to a live Amazon Connect sandbox on 2026-09-02 and read back with `DescribeContactFlow` (`tasks/A07-flow-cdk.md`). Phase A is closed, and its result is what the `@flow-as-code` scope has served on npm since 2026-09-09.
