@@ -140,10 +140,14 @@ git push origin main
 
 Review the bumped manifests and the generated CHANGELOGs before committing. All
 five packages are `fixed` in `.changeset/config.json`, so they move together:
-every package takes the new version whether or not a changeset named it. This is
-not the same as `linked`, which the config used until 0.1.2 and which bumps only
-the packages a changeset actually names. That difference is why a release once
-went out with `cli` bumped and the other four left behind.
+every package takes the new version whether or not a changeset named it. That is
+deliberate, and it is why every published version so far exists for all five.
+
+`fixed` is not `linked`, which the config carried earlier: `linked` gives the
+packages a common version but bumps only the ones a changeset actually names, so
+a changeset touching the CLI alone leaves the other four behind. If `changeset
+version` ever bumps fewer than five manifests, that is the setting to check
+before committing.
 
 **Step 2, the operator, on GitHub.** Actions, "Release", "Run workflow", branch
 `main`. Nothing else. There is no npm token to supply and none exists: the
