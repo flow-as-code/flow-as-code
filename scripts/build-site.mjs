@@ -124,6 +124,13 @@ const ROOT_ASSETS = [
  * something a reader of the site wants. README.md is not here either:
  * the landing page already says what it says, and two pages competing to be the
  * project's front door helps nobody.
+ *
+ * The list stays explicit rather than a glob because `title` and `description`
+ * are written per page and are what a search result shows, and because the
+ * groups here are the order the /docs/ index reads in. What a glob would have
+ * bought is bought instead by a test: tests/site.test.ts fails if any markdown
+ * file under docs/ is missing from this list, so a doc added to the tree cannot
+ * go unpublished by omission the way docs/adr/0004 did.
  */
 const PAGES = [
   {
@@ -245,6 +252,14 @@ const PAGES = [
     title: "ADR-0003: Synth preserves declaration order",
     description:
       "Why synth emits actions in the order the author declared them rather than in graph reachability order, and what that buys the codegen round trip.",
+  },
+  {
+    source: "docs/adr/0004-prior-art-aws-l2-cdk-library.md",
+    slug: "docs/adr-prior-art-aws-l2-cdk-library",
+    group: "Decisions",
+    title: "ADR-0004: Prior art, and why this is not Amazon's L2 CDK library",
+    description:
+      "The technical difference against the L2 CDK construct library the AWS Contact Center blog described: references that stay ${cdref:type:name} tokens through to deploy time rather than ARNs written in by a centralized mapping table, and a Terraform path alongside the CDK one.",
   },
 ];
 
