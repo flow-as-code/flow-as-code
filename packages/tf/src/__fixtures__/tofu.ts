@@ -381,9 +381,22 @@ export function prewarmTofuCache(): void {
         `tofu init failed while warming the provider cache from ${testCase.name}:\n${run.output}`,
       );
     }
-    for (const provider of resolvedProviders(dir)) resolved.set(provider.source, provider);
+    // Keyed by source AND version, not by source alone. Distinct provider sets
+    // can resolve the same source to different versions: mid-bump, one fixture
+    // says 6.63.0 while the others say 6.64.0, and under a `~> 7.0` alongside a
+    // `~> 6.0` float mode would do it too. Keyed by source, the last init to
+    // finish silently overwrote the others and the report named one version as
+    // though it were the only one, which is the opposite of what a canary is
+    // for. Confirmed by running the pinned suite with the fixtures split across
+    // 6.63.0 and 6.64.0: the report named only 6.64.0.
+    for (const provider of resolvedProviders(dir)) {
+      resolved.set(`${provider.source}@${provider.version}`, provider);
+    }
   }
-  reportResolvedProviders([...resolved.values()].sort((a, b) => (a.source < b.source ? -1 : 1)));
+  const key = (p: ResolvedProvider): string => `${p.source}@${p.version}`;
+  reportResolvedProviders(
+    [...resolved.values()].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0)),
+  );
 }
 
 /**
@@ -410,11 +423,6 @@ export function emitTfCiJob(): string {
 }
 
 /**
- * The OpenTofu versions the emit-tf job runs the gated suite against, read from
- * its matrix. packages/tf/src/validate.test.ts asserts this still covers the
- * floor the emitter promises, so the job cannot silently stop testing it.
- */
-/**
  * .github/workflows/provider-drift.yml, the non-blocking float lane.
  *
  * packages/tf/src/validate.test.ts holds its shape in the default suite: the
@@ -426,6 +434,11 @@ export function driftCanaryWorkflow(): string {
   return readFileSync(new URL(".github/workflows/provider-drift.yml", REPO_ROOT), "utf8");
 }
 
+/**
+ * The OpenTofu versions the emit-tf job runs the gated suite against, read from
+ * its matrix. packages/tf/src/validate.test.ts asserts this still covers the
+ * floor the emitter promises, so the job cannot silently stop testing it.
+ */
 export function emitTfCiTofuVersions(): string[] {
   const matrix = /^\s*tofu_version:\s*\[(?<list>[^\]]*)\]\s*$/m.exec(emitTfCiJob());
   if (matrix?.groups?.list === undefined) {
