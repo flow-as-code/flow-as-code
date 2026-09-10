@@ -33,6 +33,8 @@ import {
   TOFU_ENABLED,
   emitTfCiJob,
   materializeFiles,
+  providerSites,
+  providersForMode,
   tofu,
 } from "../packages/tf/src/__fixtures__/tofu.js";
 import { buildApp } from "../examples/promote-across-environments/cdk/app.js";
@@ -157,6 +159,23 @@ describe("one FlowDoc, two Terraform trees", () => {
       expect(job).toContain('RUN_TOFU_VALIDATE: "1"');
       expect(job).toContain("--project repo");
     });
+
+    // The gated case below reads two providers.tf out of the example and hands
+    // them to `tofu init`. The prewarm has to have fetched what they resolve to
+    // before any worker starts, and it works from providerSites(), so the two
+    // have to be talking about the same files. Asserted by path rather than
+    // trusted: this file reading one path while the registry scans another is
+    // precisely the shape of the miss being fixed.
+    it.each(["dev", "prod"] as const)(
+      "has %s's providers.tf named by the harness's provider registry",
+      (name) => {
+        const path = `examples/promote-across-environments/terraform/${name}/providers.tf`;
+        const site = providerSites().find((candidate) => candidate.path === path);
+        expect(site, path).toBeDefined();
+        expect(site?.surface).toBe("example");
+        expect(site?.committed).toBe(readExample(`terraform/${name}/providers.tf`));
+      },
+    );
   });
 
   describe.skipIf(!TOFU_ENABLED)("tofu (RUN_TOFU_VALIDATE=1)", () => {
@@ -167,12 +186,21 @@ describe("one FlowDoc, two Terraform trees", () => {
     it.each(["dev", "prod"] as const)(
       "validates the %s tree against that environment's own configuration",
       (name) => {
-        const support = Object.fromEntries(
-          ["providers.tf", "resources.tf"].map((file) => [
-            file,
-            readExample(`terraform/${name}/${file}`),
-          ]),
-        );
+        // providers.tf goes through the TOFU_PROVIDER_MODE seam like every
+        // other gated init. It was the one site fc369c5 missed: this file names
+        // none of the seam's exports, so `~> 6.0` reached tofu unchanged and
+        // resolved whatever was newest that morning, cold, beside a suite that
+        // had just been pinned to stop doing exactly that. In `pinned` the seam
+        // narrows it to the version the conformance fixtures adopted; in
+        // `float` it leaves it alone, because unlike a fixture this file is the
+        // advice the repository publishes and `~> 6.0` is what a reader copies.
+        const support = {
+          "providers.tf": providersForMode(
+            readExample(`terraform/${name}/providers.tf`),
+            "example",
+          ),
+          "resources.tf": readExample(`terraform/${name}/resources.tf`),
+        };
         const workspace = materializeFiles({ ...(name === "dev" ? dev : prod), ...support });
 
         const init = tofu(["init", "-backend=false", "-input=false", "-no-color"], workspace);

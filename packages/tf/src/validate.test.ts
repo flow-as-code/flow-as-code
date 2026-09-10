@@ -15,17 +15,22 @@ import { renderHclTemplate } from "./__fixtures__/hcl-template.js";
 import {
   PROVIDER_MODE,
   TOFU_ENABLED,
+  coveredProviderSets,
+  distinctResolutions,
   driftCanaryWorkflow,
   emitTfCiJob,
   emitTfCiTofuVersions,
   materializeFiles as materialize,
   pinnedProviders,
+  providerRequirements,
+  providerSetKey,
+  providerSites,
   providersForMode,
   supportFor,
   tofu,
   tofuEvaluateString,
 } from "./__fixtures__/tofu.js";
-import { CORE_VERSION_FLOOR, emitTf } from "./emit.js";
+import { CORE_VERSION_FLOOR, EMITTED_PROVIDER_CONSTRAINTS, emitTf } from "./emit.js";
 
 const enabled = TOFU_ENABLED;
 const cases = loadCases();
@@ -107,39 +112,131 @@ describe("the tofu gate", () => {
 // .github/workflows/provider-drift.yml buys that back on a schedule, and these
 // hold the two properties that make it worth having rather than worth muting.
 describe("the provider drift canary", () => {
-  it("floats the fixture pins without touching what the pin guard reads", () => {
-    const withProviders = cases.filter((c) => c.support["providers.tf"] !== undefined);
-    // A filter that matched nothing would make every assertion below vacuous.
-    expect(withProviders.length).toBeGreaterThan(0);
+  const sites = providerSites();
+  const fixtureSites = sites.filter((site) => site.surface === "fixture");
+  const exampleSites = sites.filter((site) => site.surface === "example");
+  const major = (version: string): number => Number.parseInt(version.split(".")[0] ?? "", 10);
 
-    for (const testCase of withProviders) {
-      const committed = testCase.support["providers.tf"] ?? "";
-      const floated = providersForMode(committed, "float");
+  // A filter that matched nothing would make the assertions below vacuous, and
+  // both halves of the design need a surface of each kind to say anything.
+  it("knows about both kinds of surface", () => {
+    expect(fixtureSites.map((s) => s.path)).toEqual(
+      cases
+        .filter((c) => c.support["providers.tf"] !== undefined)
+        .map((c) => `conformance/emit-tf/${c.name}/validate/providers.tf`),
+    );
+    expect(exampleSites.length).toBeGreaterThan(0);
+    for (const site of exampleSites) {
+      expect(site.path).toMatch(/^examples\/[^/]+\/terraform\/[^/]+\/providers\.tf$/);
+    }
+  });
 
-      expect(floated, testCase.name).not.toBe(committed);
-      expect(floated, testCase.name).not.toMatch(/\bversion\s*=\s*"\d+\.\d+\.\d+"/);
-      expect(providersForMode(committed, "pinned"), testCase.name).toBe(committed);
-      // Derived from the pin's own major, so a pin bump carries the canary with
-      // it instead of leaving a second place to remember.
-      for (const pin of pinnedProviders().filter((p) => p.case === testCase.name)) {
-        expect(floated, `${testCase.name} ${pin.source}`).toContain(
-          `~> ${pin.version.split(".")[0] ?? ""}.0`,
+  // The distinction the whole design rests on. "What a user actually gets" is
+  // not one constraint: it differs by surface, so float mode asks each surface
+  // the question its own user-facing artifact asks.
+  it("floats a test fixture under the range the emitter publishes", () => {
+    for (const testCase of cases.filter((c) => c.support["providers.tf"] !== undefined)) {
+      const site = { path: testCase.name, committed: testCase.support["providers.tf"] ?? "" };
+      const floated = providersForMode(site.committed, "fixture", "float");
+
+      expect(floated, site.path).not.toBe(site.committed);
+      // Not merely "not the pin": no exact version at all, and specifically the
+      // emitter's own range for each source. Widening the pin to its own major
+      // (`6.64.0` to `~> 6.0`) also passes the first of these and is exactly
+      // the blindness being fixed, so the second is the one that matters.
+      expect(floated, site.path).not.toMatch(/\bversion\s*=\s*"\d+\.\d+\.\d+"/);
+      for (const requirement of providerRequirements(floated)) {
+        expect(requirement.version, `${site.path} ${requirement.source}`).toBe(
+          EMITTED_PROVIDER_CONSTRAINTS[requirement.source],
         );
       }
-      // The seam runs on the text on its way to a temp directory. This is the
-      // only route a test takes to those files, so nothing else can be reading
-      // the committed pins by accident.
-      expect(supportFor(testCase)["providers.tf"], testCase.name).toBe(
-        providersForMode(committed, PROVIDER_MODE),
+      // Pinned leaves a fixture exactly as committed: it is already the exact
+      // version this repository adopted, and the pin guard above reads the same
+      // bytes whichever mode this process was started in.
+      expect(providersForMode(site.committed, "fixture", "pinned"), site.path).toBe(site.committed);
+      // The only route a test takes to these files, so nothing can be reading
+      // the committed text by accident.
+      expect(supportFor(testCase)["providers.tf"], site.path).toBe(
+        providersForMode(site.committed, "fixture", PROVIDER_MODE),
       );
     }
+  });
 
-    // The trap. Both guards above read the committed fixtures through
-    // loadCases(), so they are exactly as strict during a canary run as during
-    // any other, whatever TOFU_PROVIDER_MODE this process was started with.
-    // A seam that rewrote the fixtures in place would fail them before ever
-    // reaching tofu; a seam bought by relaxing them would throw away the
-    // protection they exist for.
+  it("floats a published example under its own committed range and leaves the file alone", () => {
+    for (const site of exampleSites) {
+      // An example IS the user-facing file. Pinning it on disk would be bad
+      // advice to copy and would rot the first time nobody bumps it, so the
+      // committed text has to stay a range.
+      const committed = providerRequirements(site.committed);
+      expect(committed.length, site.path).toBeGreaterThan(0);
+      for (const requirement of committed) {
+        expect(requirement.version, `${site.path} ${requirement.source}`).not.toMatch(
+          /^\d+\.\d+\.\d+$/,
+        );
+      }
+
+      // Float asks what that published range resolves to, which is the question
+      // a reader who copies it asks.
+      expect(providersForMode(site.committed, "example", "float"), site.path).toBe(site.committed);
+
+      // Pinned narrows it to the exact version this repository adopted, in the
+      // temp directory only, so a blocking lane resolves one known version at
+      // every site rather than three quarters of them.
+      const pinned = providersForMode(site.committed, "example", "pinned");
+      expect(pinned, site.path).not.toBe(site.committed);
+      for (const requirement of providerRequirements(pinned)) {
+        expect(requirement.version, `${site.path} ${requirement.source}`).toMatch(
+          /^\d+\.\d+\.\d+$/,
+        );
+        expect(
+          pinnedProviders().map((pin) => `${pin.source} ${pin.version}`),
+          `${site.path} ${requirement.source}`,
+        ).toContain(`${requirement.source} ${requirement.version}`);
+      }
+    }
+  });
+
+  // Derived from the emitter rather than restated beside the seam. A second
+  // copy of `>= 5.0` could drift from what emit.ts writes, and the canary would
+  // then be watching a range nobody is actually given.
+  it("watches the range the emitter actually writes into versions.tf.example", () => {
+    const seen = new Set<string>();
+    for (const testCase of cases) {
+      const example = emitTf(testCase.docs, testCase.options).files["versions.tf.example"] ?? "";
+      const requirements = providerRequirements(example);
+      expect(requirements.length, testCase.name).toBeGreaterThan(0);
+      for (const requirement of requirements) {
+        expect(requirement.version, `${testCase.name} ${requirement.source}`).toBe(
+          EMITTED_PROVIDER_CONSTRAINTS[requirement.source],
+        );
+        seen.add(requirement.source);
+      }
+    }
+    // No entry in the constant that no emitted file ever writes.
+    expect([...seen].sort()).toEqual(Object.keys(EMITTED_PROVIDER_CONSTRAINTS).sort());
+  });
+
+  // The release most likely to stop accepting the emitted HCL is a new major,
+  // and it is the one a user with no lock file gets first. A canary capped at
+  // the pin's own major would report nothing that day, so this asserts the
+  // constraint float resolves under genuinely spans more than one major: today
+  // `>= 5.0` resolves 6.x, which is already a crossing rather than a claim
+  // about a version that does not exist yet.
+  it("resolves fixtures under a constraint that crosses a major", () => {
+    const crossings = pinnedProviders().filter((pin) => {
+      const constraint = EMITTED_PROVIDER_CONSTRAINTS[pin.source] ?? "";
+      expect(constraint, pin.source).toMatch(/^>=/);
+      return major(constraint.replace(">=", "").trim()) < major(pin.version);
+    });
+    expect(crossings.length).toBeGreaterThan(0);
+  });
+
+  // The trap. Both pin guards above read the committed fixtures, so they are
+  // exactly as strict during a canary run as during any other, whatever
+  // TOFU_PROVIDER_MODE this process was started with. A seam that rewrote the
+  // fixtures in place would fail them before ever reaching tofu; a seam bought
+  // by relaxing them would throw away the protection they exist for.
+  it("leaves the committed pins exactly as strict in either mode", () => {
     expect(PROVIDER_MODE === "pinned" || PROVIDER_MODE === "float").toBe(true);
     for (const pin of pinnedProviders()) {
       expect(pin.version, `${pin.case} ${pin.source}`).toMatch(/^\d+\.\d+\.\d+$/);
@@ -177,6 +274,129 @@ describe("the provider drift canary", () => {
     // diagnose, and the registry may have moved by then.
     expect(workflow).toContain("TOFU_RESOLVED_REPORT");
     expect(workflow).toContain("GITHUB_STEP_SUMMARY");
+  });
+
+  // The step summary is the whole diagnostic, so a constraint written into it
+  // by hand is a second place to remember exactly like the one this design
+  // removed from the seam. It said `aws ~> 6.0, awscc ~> 1.0` and no test held
+  // it; float mode now resolves under the emitter's ranges, so that line was
+  // about to describe a run that never happened. Build it from the report the
+  // run itself wrote.
+  it("names the constraints it resolved under from the run's own report", () => {
+    const workflow = driftCanaryWorkflow();
+    // The reporting step alone. The header above is prose for a maintainer and
+    // is free to name a constraint; what must not name one is the text the run
+    // writes as its own account of what it did.
+    const start = workflow.indexOf("- name: Report the resolved versions");
+    expect(start, "the canary has no reporting step to check").toBeGreaterThan(-1);
+    const report = workflow.slice(start);
+
+    for (const constraint of [...Object.values(EMITTED_PROVIDER_CONSTRAINTS), "~> 6.0", "~> 1.0"]) {
+      expect(report, constraint).not.toContain(constraint);
+    }
+    // `.constraints` is the lock file's own record of what init resolved under,
+    // which is the only answer that cannot disagree with the run.
+    expect(report).toMatch(/jq[^\n]*\.constraints/);
+  });
+});
+
+// fc369c5 pinned the four conformance fixtures and left the example's two
+// environments floating, because nothing tied "a gated test runs `tofu init`"
+// to "the prewarm fetched what it resolves". These two hold that tie, so the
+// next test to be added cannot repeat it quietly.
+describe("provider coverage", () => {
+  it("covers every committed provider set in both modes", () => {
+    for (const mode of ["pinned", "float"] as const) {
+      const covered = coveredProviderSets(mode);
+      expect(covered.size, mode).toBeGreaterThan(0);
+      for (const site of providerSites()) {
+        const key = providerSetKey(
+          providerRequirements(providersForMode(site.committed, site.surface, mode)),
+        );
+        expect(covered, `${mode} ${site.path}`).toContain(key);
+      }
+    }
+    // The two modes ask different questions, so they cover different sets. If
+    // these ever matched, the seam would be doing nothing and every agreement
+    // between the lanes would be meaningless.
+    expect([...coveredProviderSets("float")].sort()).not.toEqual(
+      [...coveredProviderSets("pinned")].sort(),
+    );
+  });
+
+  it("refuses a gated init against a provider set the prewarm never fetched", () => {
+    const uncovered = materialize({
+      "providers.tf": [
+        "terraform {",
+        "  required_providers {",
+        "    aws = {",
+        '      source  = "hashicorp/aws"',
+        '      version = "0.0.1"',
+        "    }",
+        "  }",
+        "}",
+        "",
+      ].join("\n"),
+    });
+    // Throws rather than spawning, so this runs in the default suite: the guard
+    // is worth nothing if it only exists on a machine with a tofu binary.
+    expect(() => tofu(["init", "-backend=false", "-input=false", "-no-color"], uncovered)).toThrow(
+      /does not cover[\s\S]*hashicorp\/aws 0\.0\.1/,
+    );
+
+    // And it is not simply always throwing. A workspace built the way the
+    // gated tests build one is covered, and a directory with no
+    // `required_providers` at all (what the template-rendering tests init) has
+    // nothing to download and nothing to race over.
+    for (const testCase of cases.filter((c) => c.support["providers.tf"] !== undefined)) {
+      const key = providerSetKey(providerRequirements(supportFor(testCase)["providers.tf"] ?? ""));
+      expect(key, testCase.name).not.toBe("");
+      expect(coveredProviderSets(), testCase.name).toContain(key);
+    }
+    expect(providerRequirements('output "x" {\n  value = "y"\n}\n')).toEqual([]);
+  });
+
+  // A `required_providers` entry the regex cannot read is the dangerous case:
+  // it would be a provider the prewarm never fetched AND a provider the
+  // coverage guard never noticed, so the workspace would look covered and go
+  // cold anyway. Loud instead. The fixtures are `tofu fmt` clean so the regex
+  // is enough for what is committed, but "enough for what is committed" has to
+  // fail rather than shrug when that stops being true.
+  it("refuses to read a required_providers entry it cannot parse", () => {
+    const reordered = [
+      "terraform {",
+      "  required_providers {",
+      "    aws = {",
+      '      version = "6.64.0"',
+      '      source  = "hashicorp/aws"',
+      "    }",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+    expect(() => providerRequirements(reordered)).toThrow(/1 source arguments but 0 parse as/);
+  });
+
+  // The step summary is the whole diagnostic, so a row that vanishes from it
+  // costs the re-run the report exists to avoid. Two rows can now share a
+  // source and a version and differ only in the constraint they were resolved
+  // under, and in float mode that is the ordinary case rather than an edge:
+  // the fixtures ask the emitter's open-ended range, the examples ask their
+  // own, and today both land on the same version. The open-ended one is the
+  // row worth reading, because it is the one whose answer can move to a new
+  // major.
+  it("reports a resolution under two constraints as two rows", () => {
+    const rows = distinctResolutions([
+      { source: "hashicorp/aws", version: "6.64.0", constraints: "~> 6.0" },
+      { source: "hashicorp/aws", version: "6.64.0", constraints: ">= 5.0.0" },
+      { source: "hashicorp/aws", version: "6.64.0", constraints: ">= 5.0.0" },
+      { source: "hashicorp/aws", version: "6.63.0", constraints: "6.63.0" },
+    ]);
+    expect(rows).toEqual([
+      { source: "hashicorp/aws", version: "6.63.0", constraints: "6.63.0" },
+      { source: "hashicorp/aws", version: "6.64.0", constraints: ">= 5.0.0" },
+      { source: "hashicorp/aws", version: "6.64.0", constraints: "~> 6.0" },
+    ]);
   });
 });
 

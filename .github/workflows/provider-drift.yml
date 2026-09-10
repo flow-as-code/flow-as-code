@@ -1,14 +1,33 @@
 name: Provider drift canary
 
-# Does the HCL this emitter writes still work against the NEWEST aws and awscc
-# providers, rather than against the ones the tests pin?
+# Does the HCL this emitter writes still work against whatever a user's own
+# `tofu init` would install today, rather than against the versions the tests
+# pin?
+#
+# "What a user gets" is not one constraint, so this job does not ask one
+# question. Each surface floats under the range its OWN user-facing artifact
+# declares:
+#
+#   - conformance/emit-tf/*/validate/providers.tf are test-only files nobody
+#     reads. Their user-facing counterpart is the `versions.tf.example` the
+#     emitter writes, which asks for `>= 5.0` and `>= 1.74`. Those are
+#     open-ended, so this job installs a NEW MAJOR the day one ships, which is
+#     both the release most likely to stop accepting the emitted HCL and
+#     exactly what a reader with no lock file would get. Widening each pin to
+#     its own major instead, which is what this did until 2026-09-10, capped
+#     the job at 6.x and made it blind to the only release worth waking up for.
+#   - examples/*/terraform/*/providers.tf ARE the user-facing files. They ask
+#     `~> 6.0` because that is the advice the repository publishes, and this
+#     job resolves them under exactly that. They keep their range on disk: an
+#     exact pin is bad advice in an example and rots.
 #
 # .github/workflows/ci.yml answers a different question on purpose. Its emit-tf
-# job pins conformance/emit-tf/*/validate/providers.tf to exact versions so that
-# a blocking lane depends on this repository and not on a third party's release
-# day. The cost, paid knowingly, is that the gated tests no longer notice the
-# day a newer provider stops accepting what the emitter produces. This job is
-# that noticing, moved somewhere it cannot block anyone.
+# job resolves every one of those surfaces at the exact versions
+# conformance/emit-tf/*/validate/providers.tf pins, so that a blocking lane
+# depends on this repository and not on a third party's release day. The cost,
+# paid knowingly, is that the gated tests no longer notice the day a newer
+# provider stops accepting what the emitter produces. This job is that noticing,
+# moved somewhere it cannot block anyone.
 #
 # THIS JOB NEVER GATES. It is not referenced by ci.yml or release.yml, it is not
 # a required check, and it has no `workflow_call` trigger, so it cannot be wired
@@ -138,11 +157,12 @@ jobs:
         id: drift
         env:
           RUN_TOFU_VALIDATE: "1"
-          # The seam. It widens each committed pin to its own major on the way
-          # to a temp directory (`6.64.0` becomes `~> 6.0`, `1.101.0` becomes
-          # `~> 1.0`) and leaves the files in the working tree alone, so the two
-          # ungated guards that assert those files are pinned exactly stay just
-          # as strict during this run as during any other.
+          # The seam. On the way to a temp directory it rewrites each committed
+          # `providers.tf` to the constraint that file's own user-facing
+          # artifact declares (the header above has which is which) and leaves
+          # the working tree alone, so the ungated guards that assert the
+          # fixtures are pinned exactly stay just as strict during this run as
+          # during any other.
           # packages/tf/src/__fixtures__/tofu.ts, providersForMode().
           TOFU_PROVIDER_MODE: float
           TOFU_RESOLVED_REPORT: ${{ env.DRIFT_REPORT }}
@@ -169,10 +189,18 @@ jobs:
             echo "Floating constraints, no provider cache, resolved fresh from the registry."
             echo
             echo "- $(tofu version | head -n 1)"
-            echo "- constraints: \`aws ~> 6.0\`, \`awscc ~> 1.0\` (widened from the committed pins)"
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # The constraints come out of the report the run itself wrote, read
+          # from the `.terraform.lock.hcl` each init produced. They used to be
+          # two literals on the line above, which no test held and which the
+          # seam then stopped agreeing with: float mode resolves each surface
+          # under the range its own user-facing artifact declares, and the
+          # header of this file has which is which. A summary that names a
+          # constraint the run did not use is worse than one that names none,
+          # and a test in packages/tf/src/validate.test.ts now keeps every
+          # constraint out of this step.
           if [ -f "$DRIFT_REPORT" ]; then
             {
               echo "| provider | resolved today | constraint |"

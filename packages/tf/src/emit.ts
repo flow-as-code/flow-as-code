@@ -10,8 +10,11 @@
 // `writeTf` (write.ts) is the thin wrapper that puts them on disk.
 //
 // Verified provider arguments (checked 2026-08-31 against the provider docs and
-// against `tofu validate` with hashicorp/aws 6.62.0 and hashicorp/awscc 1.99.0,
-// see src/validate.test.ts):
+// against `tofu validate`, which src/validate.test.ts runs on every commit at
+// hashicorp/aws 6.64.0 and hashicorp/awscc 1.101.0. Those two versions are a
+// copy of what conformance/emit-tf/*/validate/providers.tf pins; this line said
+// 6.62.0 and 1.99.0 until 2026-09-10 because a pin bump does not know about it,
+// so the fixtures are the answer if the two ever disagree again):
 // https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/connect_contact_flow
 // https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/connect_contact_flow_module
 // https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/connect_contact_flow_module_version
@@ -40,6 +43,25 @@ import { renderTemplate } from "./template.js";
  * promise and the thing that checks the promise cannot drift apart.
  */
 export const CORE_VERSION_FLOOR = "1.7.0";
+
+/**
+ * The provider version constraints every emitted `versions.tf.example` asks
+ * for, by registry source.
+ *
+ * This is the promise to users, and it is open-ended on purpose: a reader who
+ * copies the example into their own configuration and runs `tofu init` with no
+ * lock file gets whatever is newest above the floor, across a major boundary
+ * included. `versionsExample` below writes these, and
+ * `packages/tf/src/__fixtures__/tofu.ts` reads them so that the drift canary
+ * asks the registry the same question a user's `init` asks. One constant rather
+ * than two literals: a second copy beside the seam could drift from what the
+ * emitter actually writes, and the canary would then be watching a range
+ * nobody is given.
+ */
+export const EMITTED_PROVIDER_CONSTRAINTS: Readonly<Record<string, string>> = {
+  "hashicorp/aws": ">= 5.0",
+  "hashicorp/awscc": ">= 1.74",
+};
 
 /** Emission refused. Every problem found is listed, not just the first. */
 export class EmitTfError extends Error {
@@ -429,17 +451,15 @@ function variablesTf(): string {
 }
 
 function versionsExample(needsAwscc: boolean): string {
-  const providers: HclLine[] = [
-    objectArg("aws", [arg("source", quote("hashicorp/aws")), arg("version", quote(">= 5.0"))]),
-  ];
+  const required = (name: string, source: string): HclLine =>
+    objectArg(name, [
+      arg("source", quote(source)),
+      arg("version", quote(EMITTED_PROVIDER_CONSTRAINTS[source] ?? "")),
+    ]);
+
+  const providers: HclLine[] = [required("aws", "hashicorp/aws")];
   if (needsAwscc) {
-    providers.push(
-      blank(),
-      objectArg("awscc", [
-        arg("source", quote("hashicorp/awscc")),
-        arg("version", quote(">= 1.74")),
-      ]),
-    );
+    providers.push(blank(), required("awscc", "hashicorp/awscc"));
   }
 
   const lines: HclLine[] = GENERATED_BY.map(comment);
