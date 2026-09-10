@@ -62,17 +62,44 @@
 // Neither half alone is enough. Without the prewarm, the first run after a pin
 // bump races and fails, and actions/cache does not save on a failed job, so
 // that red would be permanent.
+//
+// The cost of that pin is that the gated lane stopped noticing the day a newer
+// aws or awscc provider stops accepting the HCL this emitter writes: it now
+// only ever asks for 6.64.0. TOFU_PROVIDER_MODE below is the seam that buys
+// that back, and .github/workflows/provider-drift.yml is the job that uses it.
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { REPO_ROOT, loadCases } from "./cases.js";
+import { type EmitCase, REPO_ROOT, loadCases } from "./cases.js";
 
 /** True when the gated tofu tests should run. */
 export const TOFU_ENABLED = process.env.RUN_TOFU_VALIDATE === "1";
+
+/**
+ * How a run constrains the providers the validate fixtures ask for.
+ *
+ * `pinned` is what the committed fixtures say and what every blocking lane
+ * runs. `float` widens each exact pin to its major before the files reach a
+ * temp directory, so the run resolves whatever is newest today.
+ */
+export type ProviderMode = "pinned" | "float";
+
+/** This run's mode, from TOFU_PROVIDER_MODE. Unset means `pinned`. */
+export const PROVIDER_MODE = readProviderMode();
+
+function readProviderMode(): ProviderMode {
+  const raw = process.env.TOFU_PROVIDER_MODE ?? "pinned";
+  if (raw !== "pinned" && raw !== "float") {
+    // Loud rather than defaulting: a typo that silently ran the pinned suite
+    // would make the drift canary green for the wrong reason forever.
+    throw new Error(`TOFU_PROVIDER_MODE must be "pinned" or "float", not ${JSON.stringify(raw)}.`);
+  }
+  return raw;
+}
 
 const cacheDir = fileURLToPath(new URL(".tofu-cache/", REPO_ROOT));
 
@@ -222,6 +249,101 @@ export function pinnedProviders(): PinnedProvider[] {
   return pins;
 }
 
+/** An exact `x.y.z` pin, with the major captured so it can be widened. */
+const EXACT_VERSION = /^(?<major>\d+)\.\d+\.\d+$/;
+
+/**
+ * A `providers.tf` as this run should use it.
+ *
+ * The seam the drift canary runs through, and it works on the TEXT on its way
+ * to a temp directory rather than on the file in the working tree. That
+ * placement is the whole point: `pinnedProviders()` below reads the committed
+ * fixtures through `loadCases()`, so the two ungated guards in validate.test.ts
+ * still see `6.64.0` and stay exactly as strict in either mode. A seam that
+ * rewrote the fixtures in place would make the canary fail its own pin guard
+ * before it ever reached tofu, and relaxing that guard to tolerate a range
+ * would throw away the protection it exists for.
+ *
+ * In `float` mode an exact pin widens to its own major (`6.64.0` becomes
+ * `~> 6.0`), so the constraint follows a pin bump instead of being a second
+ * place to remember. A constraint that is already a range is left alone: it is
+ * already floating, and examples/promote-across-environments ships two of them.
+ */
+export function providersForMode(providers: string, mode: ProviderMode = PROVIDER_MODE): string {
+  if (mode === "pinned") return providers;
+  // `\b` so `required_version` is not read as a `version` argument.
+  return providers.replace(
+    /(\bversion\s*=\s*")([^"]+)(")/g,
+    (all, open, version: string, close) => {
+      const major = EXACT_VERSION.exec(version)?.groups?.major;
+      return major === undefined
+        ? (all as string)
+        : `${open as string}~> ${major}.0${close as string}`;
+    },
+  );
+}
+
+/** A case's validate support files, with `providers.tf` put through the mode. */
+export function supportFor(testCase: EmitCase): Record<string, string> {
+  const providers = testCase.support["providers.tf"];
+  if (providers === undefined) return testCase.support;
+  return { ...testCase.support, "providers.tf": providersForMode(providers) };
+}
+
+/** One entry of a `.terraform.lock.hcl`, which is what `init` actually chose. */
+export interface ResolvedProvider {
+  /** The registry address without its host, e.g. `hashicorp/aws`. */
+  source: string;
+  /** The version `init` selected. */
+  version: string;
+  /** The constraint it selected it under, `""` when the lock records none. */
+  constraints: string;
+}
+
+const LOCKED_PROVIDER =
+  /provider\s+"(?<address>[^"]+)"\s*\{\s*version\s*=\s*"(?<version>[^"]+)"(?:\s*constraints\s*=\s*"(?<constraints>[^"]+)")?/g;
+
+/**
+ * What `tofu init` resolved in `dir`, read from the lock file it wrote.
+ *
+ * The lock file is the only honest answer to "which version is this run
+ * actually testing": in `float` mode the constraint in the configuration names
+ * a range, and the answer is decided by the registry on the day of the run.
+ */
+export function resolvedProviders(dir: string): ResolvedProvider[] {
+  const lock = join(dir, ".terraform.lock.hcl");
+  if (!existsSync(lock)) return [];
+  return [...readFileSync(lock, "utf8").matchAll(LOCKED_PROVIDER)].map((match) => ({
+    source: (match.groups?.address ?? "").split("/").slice(-2).join("/"),
+    version: match.groups?.version ?? "",
+    constraints: match.groups?.constraints ?? "",
+  }));
+}
+
+/**
+ * Says which mode the run used and which versions it resolved.
+ *
+ * A drift failure that does not name the version costs a re-run to diagnose,
+ * and by then the registry may have moved. Always to stdout, so it is in the
+ * log; also to JSON when TOFU_RESOLVED_REPORT names a path, which is how
+ * .github/workflows/provider-drift.yml builds its step summary.
+ */
+function reportResolvedProviders(providers: ResolvedProvider[]): void {
+  const lines = [
+    `[tofu] provider mode: ${PROVIDER_MODE}`,
+    ...providers.map(
+      (p) =>
+        `[tofu] resolved ${p.source} ${p.version} (constraint ${p.constraints === "" ? "none" : p.constraints})`,
+    ),
+  ];
+  process.stdout.write(`${lines.join("\n")}\n`);
+
+  const target = process.env.TOFU_RESOLVED_REPORT;
+  if (target === undefined || target === "") return;
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify({ mode: PROVIDER_MODE, providers }, null, 2)}\n`, "utf8");
+}
+
 /**
  * Downloads every provider the gated tests need into the shared plugin cache,
  * one `tofu init` at a time, before any test worker starts.
@@ -232,15 +354,21 @@ export function pinnedProviders(): PinnedProvider[] {
  * Once this returns, every init the tests run finds its provider already in the
  * cache and only reads, which is safe on both versions in the CI matrix.
  *
+ * It is also where the run says what it resolved, because this is the first
+ * and only place a version is chosen sequentially, with one constraint per
+ * init and nothing else in the log.
+ *
  * A no-op unless RUN_TOFU_VALIDATE=1, so the default suite pays nothing.
  */
 export function prewarmTofuCache(): void {
   if (!TOFU_ENABLED) return;
   // Deduplicated by content: three of the four cases share one aws-only
-  // fixture, and re-initializing an identical set would just be slower.
+  // fixture, and re-initializing an identical set would just be slower. Keyed
+  // on the text this run will actually use, so the dedup follows the mode.
   const seen = new Set<string>();
+  const resolved = new Map<string, ResolvedProvider>();
   for (const testCase of loadCases()) {
-    const providers = testCase.support["providers.tf"];
+    const providers = supportFor(testCase)["providers.tf"];
     if (providers === undefined || seen.has(providers)) continue;
     seen.add(providers);
     // Only the provider block. `init` needs nothing else to resolve and
@@ -253,7 +381,9 @@ export function prewarmTofuCache(): void {
         `tofu init failed while warming the provider cache from ${testCase.name}:\n${run.output}`,
       );
     }
+    for (const provider of resolvedProviders(dir)) resolved.set(provider.source, provider);
   }
+  reportResolvedProviders([...resolved.values()].sort((a, b) => (a.source < b.source ? -1 : 1)));
 }
 
 /**
@@ -284,6 +414,18 @@ export function emitTfCiJob(): string {
  * its matrix. packages/tf/src/validate.test.ts asserts this still covers the
  * floor the emitter promises, so the job cannot silently stop testing it.
  */
+/**
+ * .github/workflows/provider-drift.yml, the non-blocking float lane.
+ *
+ * packages/tf/src/validate.test.ts holds its shape in the default suite: the
+ * design that makes it worth having (float mode, no provider cache, and not on
+ * the version with the cold-init race) is not something to rediscover from a
+ * red Monday morning.
+ */
+export function driftCanaryWorkflow(): string {
+  return readFileSync(new URL(".github/workflows/provider-drift.yml", REPO_ROOT), "utf8");
+}
+
 export function emitTfCiTofuVersions(): string[] {
   const matrix = /^\s*tofu_version:\s*\[(?<list>[^\]]*)\]\s*$/m.exec(emitTfCiJob());
   if (matrix?.groups?.list === undefined) {

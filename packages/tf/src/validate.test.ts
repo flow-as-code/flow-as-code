@@ -13,11 +13,15 @@ import { describe, expect, it } from "vitest";
 import { type EmitCase, loadCases } from "./__fixtures__/cases.js";
 import { renderHclTemplate } from "./__fixtures__/hcl-template.js";
 import {
+  PROVIDER_MODE,
   TOFU_ENABLED,
+  driftCanaryWorkflow,
   emitTfCiJob,
   emitTfCiTofuVersions,
   materializeFiles as materialize,
   pinnedProviders,
+  providersForMode,
+  supportFor,
   tofu,
   tofuEvaluateString,
 } from "./__fixtures__/tofu.js";
@@ -28,7 +32,7 @@ const cases = loadCases();
 
 /** Emitted output plus the case's test-only providers and stub resources. */
 function workspaceFor(testCase: EmitCase): string {
-  return materialize({ ...emitTf(testCase.docs, testCase.options).files, ...testCase.support });
+  return materialize({ ...emitTf(testCase.docs, testCase.options).files, ...supportFor(testCase) });
 }
 
 describe("the tofu gate", () => {
@@ -94,6 +98,85 @@ describe("the tofu gate", () => {
       const short = pin.source.split("/").at(-1) ?? "";
       expect(key).toContain(`${short}${pin.version}`);
     }
+  });
+});
+
+// The pins above bought a lane that does not depend on a third party's release
+// day. What they cost is the day a newer provider stops accepting the HCL this
+// emitter writes: the gated lane only ever asks for 6.64.0 now.
+// .github/workflows/provider-drift.yml buys that back on a schedule, and these
+// hold the two properties that make it worth having rather than worth muting.
+describe("the provider drift canary", () => {
+  it("floats the fixture pins without touching what the pin guard reads", () => {
+    const withProviders = cases.filter((c) => c.support["providers.tf"] !== undefined);
+    // A filter that matched nothing would make every assertion below vacuous.
+    expect(withProviders.length).toBeGreaterThan(0);
+
+    for (const testCase of withProviders) {
+      const committed = testCase.support["providers.tf"] ?? "";
+      const floated = providersForMode(committed, "float");
+
+      expect(floated, testCase.name).not.toBe(committed);
+      expect(floated, testCase.name).not.toMatch(/\bversion\s*=\s*"\d+\.\d+\.\d+"/);
+      expect(providersForMode(committed, "pinned"), testCase.name).toBe(committed);
+      // Derived from the pin's own major, so a pin bump carries the canary with
+      // it instead of leaving a second place to remember.
+      for (const pin of pinnedProviders().filter((p) => p.case === testCase.name)) {
+        expect(floated, `${testCase.name} ${pin.source}`).toContain(
+          `~> ${pin.version.split(".")[0] ?? ""}.0`,
+        );
+      }
+      // The seam runs on the text on its way to a temp directory. This is the
+      // only route a test takes to those files, so nothing else can be reading
+      // the committed pins by accident.
+      expect(supportFor(testCase)["providers.tf"], testCase.name).toBe(
+        providersForMode(committed, PROVIDER_MODE),
+      );
+    }
+
+    // The trap. Both guards above read the committed fixtures through
+    // loadCases(), so they are exactly as strict during a canary run as during
+    // any other, whatever TOFU_PROVIDER_MODE this process was started with.
+    // A seam that rewrote the fixtures in place would fail them before ever
+    // reaching tofu; a seam bought by relaxing them would throw away the
+    // protection they exist for.
+    expect(PROVIDER_MODE === "pinned" || PROVIDER_MODE === "float").toBe(true);
+    for (const pin of pinnedProviders()) {
+      expect(pin.version, `${pin.case} ${pin.source}`).toMatch(/^\d+\.\d+\.\d+$/);
+    }
+  });
+
+  it("runs float mode cold, on a version without the init race", () => {
+    const workflow = driftCanaryWorkflow();
+    expect(workflow).toContain('RUN_TOFU_VALIDATE: "1"');
+    expect(workflow).toContain("TOFU_PROVIDER_MODE: float");
+
+    // No provider cache, on purpose: a job that resolves yesterday's provider
+    // out of a restored cache is not resolving anything, and that is the whole
+    // signal. `cache: npm` on setup-node is a different cache and is fine, so
+    // this asks about the step that would restore the plugin directory.
+    expect(workflow).not.toContain("uses: actions/cache");
+    expect(workflow).not.toContain(".tofu-cache");
+
+    // Cold plus 1.7.0 is the plugin-cache race the header of
+    // ./__fixtures__/tofu.ts records, which fails 3 to 4 of 6 concurrent cold
+    // inits every time. A floating job is cold by definition, so running it on
+    // 1.7.0 would produce failures about OpenTofu rather than about the
+    // provider, and a canary that cries wolf gets muted. The floor stays
+    // covered by the pinned, prewarmed, cached lane in ci.yml.
+    const versions = [...workflow.matchAll(/tofu_version:\s*"(?<v>[^"]+)"/g)].map(
+      (m) => m.groups?.v ?? "",
+    );
+    expect(versions).toHaveLength(1);
+    expect(versions).not.toContain(CORE_VERSION_FLOOR);
+    // The same version a blocking lane runs, so a difference between the two is
+    // about the provider and never about OpenTofu.
+    expect(emitTfCiTofuVersions()).toContain(versions[0]);
+
+    // A failure that does not name the resolved version costs a re-run to
+    // diagnose, and the registry may have moved by then.
+    expect(workflow).toContain("TOFU_RESOLVED_REPORT");
+    expect(workflow).toContain("GITHUB_STEP_SUMMARY");
   });
 });
 

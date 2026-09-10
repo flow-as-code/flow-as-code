@@ -40,7 +40,10 @@ exist.
   `build:site`, test. `lint` includes the header check.
 - `emit-tf goldens / tofu 1.7.0` and `1.12.6`: the emitted HCL has to be
   `tofu validate`-clean against a real OpenTofu, on the floor and the current
-  release.
+  release. It asks for exact provider versions, pinned in
+  `conformance/emit-tf/*/validate/providers.tf`, so a blocking lane never turns
+  red because a third party published that morning. The canary below is what
+  watches the newest ones instead.
 - `publish dry-run`: `npm publish --dry-run` once per package, which is what
   catches a packaging defect before a release does.
 
@@ -55,6 +58,35 @@ this repository names a full commit SHA with its version in a trailing comment,
 never a floating tag. `.github/dependabot.yml` is what moves those SHAs; a
 reference into `./.github/` needs no pin. `.github/workflows/release.yml` says
 why.
+
+`.github/workflows/provider-drift.yml`, weekly on Monday and on dispatch, runs
+the same three test projects the `emit-tf` job runs, on OpenTofu 1.12.6, with
+every provider pin widened to its major and no provider cache, so it resolves
+whatever the registry serves that morning. It is the other half of those pins:
+they buy a lane that does not depend on a third party's release day, and this
+buys back the noticing.
+
+It gates nothing. It is not called by `ci.yml` or `release.yml`, it is not a
+required check, and it has no `workflow_call` trigger, all of which
+`tests/releaseGates.test.ts` holds. When it goes red, no merge and no release is
+blocked, and the answer is a considered pin bump rather than a scramble: read
+the resolved version and the first error from the run's step summary, then move
+`conformance/emit-tf/*/validate/providers.tf` and the matching `emit-tf` cache
+key in `ci.yml` together, in one commit. A test holds those two in step.
+
+The seam it runs through is `TOFU_PROVIDER_MODE=float`, read by
+`packages/tf/src/__fixtures__/tofu.ts`. It widens the constraint on the text's
+way to a temp directory and never touches the files in the working tree, so the
+guards that assert those files are pinned exactly are as strict during a canary
+run as during any other. To reproduce one locally:
+
+```sh
+RUN_TOFU_VALIDATE=1 TOFU_PROVIDER_MODE=float npx vitest run \
+  --project @flow-as-code/tf --project @flow-as-code/studio --project repo
+```
+
+Either mode prints which one it used and which versions it resolved before the
+first test runs.
 
 `.github/workflows/integration.yml`, on push to main and on dispatch, is the
 live Amazon Connect sandbox run, which is where `id-token: write` is needed for

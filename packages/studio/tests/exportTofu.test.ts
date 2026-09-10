@@ -17,6 +17,7 @@ import {
   TOFU_ENABLED,
   emitTfCiJob,
   materializeFiles,
+  supportFor,
   tofu,
 } from "../../tf/src/__fixtures__/tofu.js";
 import { exportTf } from "../src/export/targets.js";
@@ -47,7 +48,7 @@ describe.skipIf(!TOFU_ENABLED)("the studio's terraform export (RUN_TOFU_VALIDATE
       docs: testCase.docs,
       addressMap: testCase.options.addressMap ?? {},
     });
-    const dir = materializeFiles({ ...bundle.files, ...testCase.support });
+    const dir = materializeFiles({ ...bundle.files, ...supportFor(testCase) });
 
     const init = tofu(["init", "-backend=false", "-input=false", "-no-color"], dir);
     expect(init.output).toContain("initialized");
@@ -65,7 +66,7 @@ describe.skipIf(!TOFU_ENABLED)("the studio's terraform export (RUN_TOFU_VALIDATE
       docs: testCase.docs,
       addressMap: testCase.options.addressMap ?? {},
     });
-    const dir = materializeFiles({ ...bundle.files, ...testCase.support });
+    const dir = materializeFiles({ ...bundle.files, ...supportFor(testCase) });
 
     expect(tofu(["init", "-backend=false", "-input=false", "-no-color"], dir).status).toBe(0);
     const validate = tofu(["validate", "-no-color"], dir);

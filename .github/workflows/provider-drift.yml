@@ -1,0 +1,221 @@
+name: Provider drift canary
+
+# Does the HCL this emitter writes still work against the NEWEST aws and awscc
+# providers, rather than against the ones the tests pin?
+#
+# .github/workflows/ci.yml answers a different question on purpose. Its emit-tf
+# job pins conformance/emit-tf/*/validate/providers.tf to exact versions so that
+# a blocking lane depends on this repository and not on a third party's release
+# day. The cost, paid knowingly, is that the gated tests no longer notice the
+# day a newer provider stops accepting what the emitter produces. This job is
+# that noticing, moved somewhere it cannot block anyone.
+#
+# THIS JOB NEVER GATES. It is not referenced by ci.yml or release.yml, it is not
+# a required check, and it has no `workflow_call` trigger, so it cannot be wired
+# into the release path even by accident. tests/releaseGates.test.ts fails a
+# change that puts it there. When it goes red, nothing is blocked: the intended
+# response is a deliberate pin bump, described in this run's step summary.
+#
+# Two GitHub behaviours worth knowing here rather than rediscovering:
+#
+#   - A `schedule` trigger only ever runs the workflow file that is on the
+#     DEFAULT BRANCH. Editing this file on a branch changes nothing about what
+#     runs on Monday; use `workflow_dispatch` to try a change before merging it.
+#   - GitHub disables a scheduled workflow automatically after 60 days of
+#     repository inactivity, and mails the owner when it does. On a quiet repo
+#     that is the most likely way this job stops running, and a canary nobody
+#     notices has stopped is worse than none. If a scheduled run has not
+#     appeared in a while, check the Actions tab before trusting the silence.
+#
+# https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule
+
+on:
+  # Weekly, not nightly.
+  #
+  # The signal changes slowly: what is being watched is a provider dropping or
+  # tightening an argument, which happens on the order of a major release, not
+  # daily. A nightly run would multiply runner minutes by seven and multiply the
+  # chance of an unrelated red (a registry blip, a runner image change) by the
+  # same, on a repository with one maintainer whose only lever is to stop
+  # reading the mail. Weekly still catches drift within days of it landing,
+  # which is fast enough for something that blocks nobody.
+  #
+  # Monday morning UTC, so a red arrives at the start of a week rather than
+  # decaying over a weekend. :17 rather than :00 because "the schedule event can
+  # be delayed during periods of high loads of GitHub Actions workflow runs",
+  # and the top of the hour is exactly that peak.
+  schedule:
+    - cron: "17 6 * * 1"
+  # Dispatch is the whole debugging story for this job. There is nothing to
+  # reproduce locally that a dispatch does not reproduce better, and after a
+  # deliberate pin bump this is how you confirm the bump was the right one.
+  workflow_dispatch:
+
+# Read-only, and nothing more is needed or wanted.
+#
+# The job reads this repository and the public OpenTofu registry. It reports
+# through the run's step summary and the failure mail GitHub already sends the
+# owner of a scheduled workflow, both of which cost no permission.
+#
+# Opening an issue was considered and rejected. It needs `issues: write` on a
+# scheduled job, which is a token with write access running unattended every
+# week for a report a human already receives by mail. Keeping it to one open
+# issue rather than one per run then needs search-and-reuse logic that is itself
+# untested code in the one place nothing else is watching, and its failure mode
+# is silence. The step summary below carries strictly more than an issue title
+# would: the resolved version, the first error, and what to do about it.
+permissions:
+  contents: read
+
+concurrency:
+  # A dispatch during a scheduled run should not race it into the same registry.
+  # Not cancel-in-progress: a cold resolve is most of the run, and throwing one
+  # away to start it again gains nothing.
+  group: provider-drift
+  cancel-in-progress: false
+
+# Pinned to full commit SHAs with the tag in a trailing comment, the rule
+# .github/workflows/release.yml states and tests/releaseGates.test.ts enforces
+# across every workflow in this repository.
+
+jobs:
+  float:
+    name: emit-tf against the newest providers
+    runs-on: ubuntu-latest
+    # A cold resolve of two providers with no cache at all. 45 minutes is a
+    # ceiling for a hang, not a budget.
+    timeout-minutes: 45
+    env:
+      # Read by the reporting step below; written by prewarmTofuCache() in
+      # packages/tf/src/__fixtures__/tofu.ts.
+      DRIFT_REPORT: ${{ github.workspace }}/provider-drift-resolved.json
+      DRIFT_LOG: ${{ github.workspace }}/provider-drift.log
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          # The npm registry, which is not what this job is watching, so a warm
+          # dependency cache is free speed and changes no answer.
+          cache: npm
+
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          # 1.12.6 only, and deliberately NOT the emitter's 1.7.0 floor.
+          #
+          # A floating job is cold by definition, and OpenTofu 1.7.0 has a
+          # plugin-cache concurrency bug that corrupts the dependency lock file
+          # when parallel inits download the same not-yet-cached provider: six
+          # concurrent cold inits fail 3 to 4 times out of 6, every time, and 0
+          # of 6 on 1.12.6. Pinning does not fix it; only removing the
+          # concurrency does. Running this canary on 1.7.0 would therefore
+          # produce weekly failures about OpenTofu rather than about the
+          # provider, and a canary that cries wolf gets muted, which costs more
+          # than never having built it.
+          #
+          # 1.7.0 remains the emitter's declared floor (CORE_VERSION_FLOOR in
+          # packages/tf/src/emit.ts) and remains covered by the pinned,
+          # prewarmed, cached lane in ci.yml, which is where a floor belongs:
+          # somewhere deterministic. A test in packages/tf/src/validate.test.ts
+          # holds this to one version, holds it away from the floor, and holds
+          # it to a version ci.yml also runs, so a difference between the two
+          # lanes is about the provider and never about OpenTofu.
+          tofu_version: "1.12.6"
+          # Same reason as ci.yml: the action's default wrapper breaks stdin and
+          # flattens exit codes the assertions read.
+          tofu_wrapper: false
+
+      - run: npm ci
+      - run: npm run build
+
+      # NO PROVIDER CACHE STEP, and that is the design rather than an omission.
+      # Restoring a provider directory would let this job resolve last week's
+      # version and report a pass about a version nothing is asking about. Cold
+      # every time is the entire point, and it is affordable precisely because
+      # this runs weekly and blocks nothing.
+      - name: Validate the emitted HCL against whatever is newest today
+        id: drift
+        env:
+          RUN_TOFU_VALIDATE: "1"
+          # The seam. It widens each committed pin to its own major on the way
+          # to a temp directory (`6.64.0` becomes `~> 6.0`, `1.101.0` becomes
+          # `~> 1.0`) and leaves the files in the working tree alone, so the two
+          # ungated guards that assert those files are pinned exactly stay just
+          # as strict during this run as during any other.
+          # packages/tf/src/__fixtures__/tofu.ts, providersForMode().
+          TOFU_PROVIDER_MODE: float
+          TOFU_RESOLVED_REPORT: ${{ env.DRIFT_REPORT }}
+        run: |
+          set -euo pipefail
+          # The same three projects the blocking emit-tf job runs, so the only
+          # difference between the two lanes is the constraint.
+          npx vitest run \
+            --project @flow-as-code/tf \
+            --project @flow-as-code/studio \
+            --project repo 2>&1 | tee "$DRIFT_LOG"
+
+      - name: Report the resolved versions and what to do
+        if: always()
+        env:
+          # A fixed set of strings from GitHub, not user text.
+          OUTCOME: ${{ steps.drift.outcome }}
+        run: |
+          set -uo pipefail
+
+          {
+            echo "## Provider drift canary"
+            echo
+            echo "Floating constraints, no provider cache, resolved fresh from the registry."
+            echo
+            echo "- $(tofu version | head -n 1)"
+            echo "- constraints: \`aws ~> 6.0\`, \`awscc ~> 1.0\` (widened from the committed pins)"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -f "$DRIFT_REPORT" ]; then
+            {
+              echo "| provider | resolved today | constraint |"
+              echo "| --- | --- | --- |"
+              jq -r '.providers[] | "| `\(.source)` | **\(.version)** | `\(.constraints)` |"' \
+                "$DRIFT_REPORT"
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+            # Also as an annotation, which shows at the top of the run page
+            # without opening the summary.
+            resolved="$(jq -r '[.providers[] | "\(.source) \(.version)"] | join(", ")' "$DRIFT_REPORT")"
+            echo "::notice title=Resolved providers::$resolved"
+          else
+            echo "The run failed before any provider version was resolved, so there is nothing to name here. Read the log." >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$OUTCOME" = "success" ]; then
+            echo "**Pass.** The emitted HCL is still accepted by the versions above." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "**Fail.**"
+            echo
+            echo "### First error"
+            echo
+            echo '```'
+            if [ -f "$DRIFT_LOG" ]; then
+              awk '/Error: /{seen=1} seen{print; n++} n>=25{exit}' "$DRIFT_LOG"
+            else
+              echo "(no log was captured)"
+            fi
+            echo '```'
+            echo
+            echo "### Nothing is blocked"
+            echo
+            echo "This workflow gates nothing. It is not referenced by \`ci.yml\` or \`release.yml\`, it is not a required check, and \`tests/releaseGates.test.ts\` fails a change that puts it in the release path. No merge and no release is held by this red."
+            echo
+            echo "The intended response is a deliberate pin bump, not a scramble to unblock:"
+            echo
+            echo "1. Read the resolved version above against the error. It names the version that stopped accepting the emitter's output."
+            echo "2. If the emitter needs to change, that is the finding, and the blocking lane is where the fix gets proved."
+            echo "3. Bump \`conformance/emit-tf/*/validate/providers.tf\` and the matching \`emit-tf\` cache key in \`.github/workflows/ci.yml\` together, in one commit. A test holds the two in step."
+            echo "4. Re-dispatch this workflow to confirm the bump was the right one."
+          } >> "$GITHUB_STEP_SUMMARY"
