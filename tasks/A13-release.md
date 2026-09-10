@@ -589,10 +589,18 @@ and `npm view @flow-as-code/core@0.1.1 dist.attestations` returns a
 
 `docs/04-release-and-positioning.md` and `docs/drafts/positioning-post.md` are no
 longer in the working tree. Both were internal release-planning and marketing
-material and they now live in the private product repo. Nothing an open-source
+material, which does not belong in this repository. Nothing an open-source
 consumer needs, and on launch day a reader who clicks `docs/` would have met
 internal planning before the FlowDoc spec. What each file said is deliberately
-not restated here; the copies in the product repo are the record.
+not restated here.
+
+This note previously said the two files "now live in the private product repo".
+That was written as though the deletion had been a move, and it had not been:
+nothing had copied them anywhere, and the sentence made a pair of unrecovered
+files look filed. They were recovered on 2026-09-10 from the pre-rewrite history
+and are held outside this repository. The correction worth keeping is the
+general one: deleting a file because it belongs somewhere else is only a move
+once the copy exists, and this record cannot vouch for what is outside it.
 
 Neither file is in the tree, and neither is to be retrieved from anywhere in
 this repository or described as retrievable from it. A GitHub Support request

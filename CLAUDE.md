@@ -65,10 +65,13 @@ Status only where it changes what you should do. The work record is `tasks/`.
 - Simulate harness respects documented limits: 5 concurrent, 100 queued, 5-minute duration. Verify API names in current AWS docs at implementation time; record doc URLs in comments.
 - Studio is local-first: no telemetry, no network calls except AWS SDK when the user connects an instance. It must work fully offline on FlowDoc files.
 - Release strategy, competitive positioning, and marketing drafts belong in the
-  private product repo, not here. Two such files left the working tree on
-  2026-09-10; `tasks/A13-release.md` names them and where they live now. Do not
-  restate their contents here or anywhere else public, and do not write a
-  pointer telling a reader where a copy might still be retrieved. The prior-art
+  private product repo, not here. Two such files were removed from the working
+  tree on 2026-09-10; `tasks/A13-release.md` names them. Removing a file from
+  this repo is not the same as filing it somewhere else, and nothing here can
+  assert that a copy exists elsewhere. Confirm a copy is held before deleting
+  anything on the grounds that it belongs elsewhere. Do not restate their
+  contents here or anywhere else public, and do not write a pointer telling a
+  reader where a copy might still be retrieved. The prior-art
   comparison that stayed, `docs/adr/0004-prior-art-aws-l2-cdk-library.md`, is
   the shape a public version of that argument takes: a technical difference, no
   timing, no marketing directive, no pointer to a private decision record.
