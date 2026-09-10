@@ -594,10 +594,10 @@ consumer needs, and on launch day a reader who clicks `docs/` would have met
 internal planning before the FlowDoc spec. What each file said is deliberately
 not restated here; the copies in the product repo are the record.
 
-Both files remain readable in this repository's published history at `d0ffa6b`,
-which is on `main`. The move takes them out of the working tree, not out of the
-history, and rewriting published history would invalidate every existing clone
-and the release tags. Describe them as out of the tree, not as unpublished.
+Neither file is in the tree, and neither is to be retrieved from anywhere in
+this repository or described as retrievable from it. A GitHub Support request
+to purge the objects was filed on 2026-09-10. The copies in the product repo
+are the record; this note is the record that they moved and why.
 
 What stayed public is the part of the first file a reader of this repository
 genuinely asks about: the prior-art comparison against Amazon's internal L2 CDK

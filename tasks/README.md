@@ -39,8 +39,10 @@ The private product repo's Phase 0 resumes after A08 (its tenant-stack consumes 
 - The site went live at https://flow-as-code.dev/ with the read-only studio at /studio/, deployed by `.github/workflows/pages.yml`. A14 records the four operator actions it needed, all closed by 2026-09-09.
 - The publish happened on 2026-09-09: all five packages at 0.1.0 by hand, then
   0.1.1 through `.github/workflows/release.yml`, which is the run that proved
-  the OIDC exchange and the provenance attestations. A13 records it.
+  the OIDC exchange and the provenance attestations. A13 records it. Both of
+  those versions are being unpublished, so neither is a version to install or
+  to name in public text; what the registry serves is what
+  `npm view @flow-as-code/cli version` says.
 - 2026-09-10: the release plan and the unposted positioning draft moved to the
-  private product repo. Nothing under `docs/` is a marketing document now,
-  though both files stay readable in the published history. A13 records what
-  went, what stayed, and that caveat.
+  private product repo. Nothing under `docs/` is a marketing document now. A13
+  records what went and what stayed.
