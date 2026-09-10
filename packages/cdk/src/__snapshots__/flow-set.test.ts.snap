@@ -1,0 +1,630 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`FlowSet over the demo doc > creates one ContactFlow with binder tokens and no cdref tokens 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "FlowsFlowappointmentlineE83A204D": {
+      "Properties": {
+        "Content": "{
+  "Version": "2019-10-30",
+  "StartAction": "enable-logging",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 170
+    },
+    "ActionMetadata": {
+      "announce-busy": {
+        "Position": {
+          "x": 1840,
+          "y": 150
+        }
+      },
+      "announce-closed": {
+        "Position": {
+          "x": 1840,
+          "y": 20
+        }
+      },
+      "apologize": {
+        "Position": {
+          "x": 1840,
+          "y": 250
+        }
+      },
+      "check-hours": {
+        "Position": {
+          "x": 540,
+          "y": 50
+        }
+      },
+      "enable-logging": {
+        "Position": {
+          "x": 20,
+          "y": 170
+        }
+      },
+      "hang-up": {
+        "Position": {
+          "x": 2100,
+          "y": 110
+        }
+      },
+      "look-up-appointment": {
+        "Position": {
+          "x": 1060,
+          "y": 140
+        }
+      },
+      "record-lookup-result": {
+        "Position": {
+          "x": 1320,
+          "y": 100
+        }
+      },
+      "set-working-queue": {
+        "Position": {
+          "x": 800,
+          "y": 180
+        }
+      },
+      "transfer": {
+        "Position": {
+          "x": 1580,
+          "y": 140
+        }
+      },
+      "welcome": {
+        "Position": {
+          "x": 280,
+          "y": 170
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "enable-logging",
+      "Type": "UpdateFlowLoggingBehavior",
+      "Parameters": {
+        "FlowLoggingBehavior": "Enabled"
+      },
+      "Transitions": {
+        "NextAction": "welcome",
+        "Errors": [],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "welcome",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Thanks for calling. Let's get you to the right place."
+      },
+      "Transitions": {
+        "NextAction": "check-hours",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "check-hours",
+      "Type": "CheckHoursOfOperation",
+      "Parameters": {
+        "HoursOfOperationId": "HOURS_TOKEN[main-line]"
+      },
+      "Transitions": {
+        "NextAction": "announce-closed",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": [
+          {
+            "NextAction": "set-working-queue",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "True"
+              ]
+            }
+          },
+          {
+            "NextAction": "announce-closed",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "False"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "set-working-queue",
+      "Type": "UpdateContactTargetQueue",
+      "Parameters": {
+        "QueueId": "QUEUE_TOKEN[appointments]"
+      },
+      "Transitions": {
+        "NextAction": "look-up-appointment",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "look-up-appointment",
+      "Type": "InvokeLambdaFunction",
+      "Parameters": {
+        "InvocationTimeLimitSeconds": 8,
+        "InvocationType": "SYNCHRONOUS",
+        "LambdaFunctionARN": "LAMBDA_TOKEN[appointment-lookup]",
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Transitions": {
+        "NextAction": "record-lookup-result",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "transfer"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "record-lookup-result",
+      "Type": "UpdateContactAttributes",
+      "Parameters": {
+        "Attributes": {
+          "appointmentFound": "$.External.appointmentFound"
+        },
+        "TargetContact": "Current"
+      },
+      "Transitions": {
+        "NextAction": "transfer",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "transfer"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "transfer",
+      "Type": "TransferContactToQueue",
+      "Parameters": {},
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "QueueAtCapacity",
+            "NextAction": "announce-busy"
+          },
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "announce-closed",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "We are closed right now. Please call back during business hours."
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "announce-busy",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "All of our lines are busy. Please try again shortly."
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "apologize",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Something went wrong on our end. Please try again later."
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}
+",
+        "InstanceArn": "INSTANCE_ARN_TOKEN",
+        "Name": "appointment-line",
+        "Type": "CONTACT_FLOW",
+      },
+      "Type": "AWS::Connect::ContactFlow",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`FlowSet with a module (acceptance stack) > creates flow, module, module version, and module alias 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "FlowsFlowcallbackrouterEC7AA8E7": {
+      "DependsOn": [
+        "FlowsModulecallbackofferAliasliveA1C91130",
+      ],
+      "Properties": {
+        "Content": {
+          "Fn::Join": [
+            "",
+            [
+              "{
+  "Version": "2019-10-30",
+  "StartAction": "check-hours",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "check-hours": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "goodbye": {
+        "Position": {
+          "x": 1060,
+          "y": 20
+        }
+      },
+      "look-up": {
+        "Position": {
+          "x": 540,
+          "y": 80
+        }
+      },
+      "offer": {
+        "Position": {
+          "x": 800,
+          "y": 110
+        }
+      },
+      "set-queue": {
+        "Position": {
+          "x": 280,
+          "y": 50
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "check-hours",
+      "Type": "CheckHoursOfOperation",
+      "Parameters": {
+        "HoursOfOperationId": "HOURS_TOKEN[main-line]"
+      },
+      "Transitions": {
+        "NextAction": "goodbye",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "goodbye"
+          }
+        ],
+        "Conditions": [
+          {
+            "NextAction": "set-queue",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "True"
+              ]
+            }
+          },
+          {
+            "NextAction": "goodbye",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "False"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "set-queue",
+      "Type": "UpdateContactTargetQueue",
+      "Parameters": {
+        "QueueId": "QUEUE_TOKEN[appointments]"
+      },
+      "Transitions": {
+        "NextAction": "look-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "goodbye"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "look-up",
+      "Type": "InvokeLambdaFunction",
+      "Parameters": {
+        "InvocationTimeLimitSeconds": 8,
+        "InvocationType": "SYNCHRONOUS",
+        "LambdaFunctionARN": "LAMBDA_TOKEN[appointment-lookup]"
+      },
+      "Transitions": {
+        "NextAction": "offer",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "goodbye"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "offer",
+      "Type": "InvokeFlowModule",
+      "Parameters": {
+        "FlowModuleId": "",
+              {
+                "Fn::GetAtt": [
+                  "FlowsModulecallbackofferAliasliveA1C91130",
+                  "ContactFlowModuleAliasARN",
+                ],
+              },
+              ""
+      },
+      "Transitions": {
+        "NextAction": "goodbye",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "goodbye"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "goodbye",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}
+",
+            ],
+          ],
+        },
+        "InstanceArn": "INSTANCE_ARN_TOKEN",
+        "Name": "callback-router",
+        "Type": "CONTACT_FLOW",
+      },
+      "Type": "AWS::Connect::ContactFlow",
+    },
+    "FlowsModulecallbackoffer23912589": {
+      "Properties": {
+        "Content": "{
+  "Version": "2019-10-30",
+  "StartAction": "offer-callback",
+  "Settings": {},
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "done": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      },
+      "offer-callback": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "offer-callback",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "We can call you back instead."
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "done",
+      "Type": "EndFlowModuleExecution",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}
+",
+        "InstanceArn": "INSTANCE_ARN_TOKEN",
+        "Name": "callback-offer",
+      },
+      "Type": "AWS::Connect::ContactFlowModule",
+    },
+    "FlowsModulecallbackofferAliasliveA1C91130": {
+      "DependsOn": [
+        "FlowsModulecallbackofferVersionb7d22f251D1D3ABC",
+      ],
+      "Properties": {
+        "ContactFlowModuleId": {
+          "Fn::GetAtt": [
+            "FlowsModulecallbackoffer23912589",
+            "ContactFlowModuleArn",
+          ],
+        },
+        "ContactFlowModuleVersion": {
+          "Fn::GetAtt": [
+            "FlowsModulecallbackofferVersionb7d22f251D1D3ABC",
+            "Version",
+          ],
+        },
+        "Name": "live",
+      },
+      "Type": "AWS::Connect::ContactFlowModuleAlias",
+    },
+    "FlowsModulecallbackofferVersionb7d22f251D1D3ABC": {
+      "DependsOn": [
+        "FlowsModulecallbackoffer23912589",
+      ],
+      "Properties": {
+        "ContactFlowModuleId": {
+          "Fn::GetAtt": [
+            "FlowsModulecallbackoffer23912589",
+            "ContactFlowModuleArn",
+          ],
+        },
+      },
+      "Type": "AWS::Connect::ContactFlowModuleVersion",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;

@@ -1,0 +1,5 @@
+{
+  "description": "The canonical demo flow with an address for every reference. Emits no TODO placeholder and validates clean.",
+  "docs": ["../../demo/appointment-line.flowdoc.json"],
+  "validate": "pass"
+}

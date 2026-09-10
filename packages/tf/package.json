@@ -1,0 +1,68 @@
+{
+  "name": "@flow-as-code/tf",
+  "version": "0.1.2",
+  "description": "Terraform/OpenTofu emitter: FlowDoc to aws_connect_* resources, .tftpl content, and an awscc version/alias scaffold. One-way in v1.",
+  "keywords": [
+    "amazon-connect",
+    "contact-flow",
+    "contact-center",
+    "ivr",
+    "infrastructure-as-code",
+    "aws",
+    "typescript",
+    "terraform",
+    "opentofu"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./emit": {
+      "types": "./dist/emit.d.ts",
+      "import": "./dist/emit.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!**/__fixtures__",
+    "!**/__generated__",
+    "!**/*.tsbuildinfo",
+    "!**/__snapshots__",
+    "!**/*.snap",
+    "!**/test-helpers.ts",
+    "!**/test-helpers.tsx"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flow-as-code/core": "0.1.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flow-as-code/flow-as-code.git",
+    "directory": "packages/tf"
+  },
+  "homepage": "https://flow-as-code.dev/docs/package-tf/",
+  "bugs": {
+    "url": "https://github.com/flow-as-code/flow-as-code/issues"
+  }
+}

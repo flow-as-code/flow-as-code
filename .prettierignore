@@ -1,0 +1,23 @@
+node_modules/
+.claude/
+dist/
+dist-demo/
+dist-site/
+coverage/
+package-lock.json
+
+# Scratch directories the tests write generated sources into and delete again.
+.vitest/
+
+# Golden files are byte-compared; formatting them would break the tests.
+conformance/
+
+# A byte copy of conformance/schema/flowdoc-0.1.schema.json, shipped inside the
+# CLI because conformance/ is not published. Formatting it would make it stop
+# being a copy, which packages/cli/src/schema.test.ts asserts it is.
+packages/cli/schema/
+
+# Same again for the document `flow-cli init` writes: a byte copy of
+# conformance/demo/appointment-line.flowdoc.json, held to that by
+# packages/cli/src/init.test.ts.
+packages/cli/template/

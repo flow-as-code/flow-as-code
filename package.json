@@ -1,0 +1,43 @@
+{
+  "name": "flow-oss-monorepo",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm rebuild --workspaces --ignore-scripts && npm run build --workspace @flow-as-code/studio && npm run build:demo && node scripts/chmod-bins.mjs",
+    "build:demo": "npm run build:demo --workspace @flow-as-code/studio",
+    "build:site": "node scripts/build-site.mjs",
+    "build:logo": "node design/build-logo.mjs",
+    "build:raster": "node design/build-raster.mjs",
+    "typecheck": "tsc -b && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p packages/studio && tsc --noEmit -p tsconfig.examples.json",
+    "test": "vitest run",
+    "test:roundtrip": "vitest run --project @flow-as-code/core -t roundtrip",
+    "lint": "eslint . && prettier --check . && npm run headers",
+    "format": "prettier --write .",
+    "headers": "node scripts/license-headers.mjs",
+    "headers:fix": "node scripts/license-headers.mjs --fix",
+    "test:integration": "vitest run integration.test",
+    "sync:schema": "cp conformance/schema/flowdoc-0.1.schema.json conformance/schema/scenario-0.1.schema.json packages/cli/schema/ && cp conformance/demo/appointment-line.flowdoc.json packages/cli/template/",
+    "sync:license": "cp LICENSE packages/core/LICENSE && cp LICENSE packages/cdk/LICENSE && cp LICENSE packages/cli/LICENSE && cp LICENSE packages/tf/LICENSE && cp LICENSE packages/studio/LICENSE"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.1",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.11.0",
+    "marked": "^18.0.12",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

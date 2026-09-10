@@ -1,0 +1,52 @@
+{
+  "flowdoc": "0.1",
+  "kind": "module",
+  "name": "satisfaction-question",
+  "connectType": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "ask",
+    "Actions": [
+      {
+        "Identifier": "ask",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": "5",
+          "StoreInput": "True",
+          "Text": "Press 1 if we solved your problem, or 2 if we did not."
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "ask": {
+      "x": 20,
+      "y": 20
+    },
+    "done": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": []
+}

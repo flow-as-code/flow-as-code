@@ -1,0 +1,32 @@
+version: 2
+
+# Every third-party action in .github/workflows/ is pinned to a full commit
+# SHA (release.yml says why), which buys immutability at the cost of the patch
+# releases a floating major tag used to deliver on its own. This is what pays
+# that cost back: Dependabot opens a pull request per update, rewriting the SHA
+# and the trailing version comment together, so the change arrives through
+# review and the gate set instead of silently at run time.
+#
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot
+updates:
+  - package-ecosystem: github-actions
+    # Not the workflow directory. "The directory must be set to '/' to check
+    # for workflow files in .github/workflows", per the page above.
+    #
+    # The npm fallback pinned inside .github/actions/ensure-npm/action.yml is a
+    # shell command rather than a `uses:`, so nothing here moves it either way;
+    # that one stays a hand edit with the nodejs.org distribution index cited
+    # beside it.
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      # Conventional commits, like the rest of the history.
+      prefix: ci
+    groups:
+      # One pull request a week rather than one per action. These land together
+      # in practice and each one costs a full gate run.
+      actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5

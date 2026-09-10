@@ -1,0 +1,30 @@
+{
+  "scenario": "0.1",
+  "name": "appointment-lookup-transfer",
+  "description": "A caller in hours reaches the appointments queue after the lookup Lambda runs. The production queue is substituted so the simulated contact cannot reach a live agent.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:appointment-line}"
+  },
+  "substitutions": [
+    {
+      "actionType": "TransferContactToQueue",
+      "actionParameters": { "QueueId": "${cdref:queue:appointments}" },
+      "substitute": "${cdref:queue:overflow}"
+    }
+  ],
+  "steps": [
+    { "kind": "expect-hours-check", "hours": "${cdref:hours:main-line}" },
+    { "kind": "expect-prompt", "contains": "get you to the right place" },
+    { "kind": "send-dtmf", "value": "1" },
+    { "kind": "expect-lambda", "lambda": "${cdref:lambda:appointment-lookup}" },
+    { "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" },
+    {
+      "kind": "assert",
+      "path": "$.Attributes.appointmentFound",
+      "operator": "Equals",
+      "value": "false"
+    },
+    { "kind": "expect-queue", "name": "Appointments" }
+  ]
+}

@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # .github/workflows/release.yml calls this workflow as its gate set, so a
+  # release passes exactly the gates a pull request passes and there is only one
+  # definition of green. That workflow, not this one, runs `npm publish`;
+  # delegating a publish to a called workflow would break npm's trusted
+  # publishing, which matches the OIDC token against the CALLING workflow's
+  # filename. https://docs.npmjs.com/trusted-publishers/
+  #
+  # No inputs. What runs here is the same whoever asks for it.
+  workflow_call:
+
+# Read-only by default, and every job in this file must stay within it.
+#
+# A release calls this workflow granting `contents: read` and nothing else, and
+# "The `GITHUB_TOKEN` permissions passed from the caller workflow can be only
+# downgraded (not elevated) by the called workflow"
+# (https://docs.github.com/en/actions/reference/workflows-and-actions/reusable-workflows).
+# GitHub checks that statically, so a job here that asks for more does not fail
+# at run time: it rejects the whole release run before any job starts. That is
+# why the live sandbox job, which needs `id-token: write` for the AWS role,
+# lives in .github/workflows/integration.yml and not here.
+# tests/releaseGates.test.ts fails the build if any job in this file starts
+# asking for more than the release grants.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every third-party action below is pinned to a full commit SHA, with the tag
+# that SHA carried when it was written in a trailing comment. The reasoning is
+# in release.yml, which is the file the pinning is actually for; this workflow
+# follows it so the four are not inconsistent, and because release.yml calls
+# this one as its gate set. `.github/dependabot.yml` is what moves the SHAs
+# forward. `tests/releaseGates.test.ts` fails on an unpinned `uses:`.
+#
+# The major each pin came from is the one whose `action.yml` declares
+# `using: node24`. The first run on a real runner warned on every job that
+# "Node 20 is being deprecated. This workflow is running with Node 24 by
+# default", which is about the runtime the runner hands an action, not about
+# the build matrix below.
+# https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+# node24 arrived in checkout v5, setup-node v5, cache v5,
+# configure-aws-credentials v6, and setup-opentofu v2; each needs runner
+# v2.327.1 or later, which ubuntu-latest has. A pin below one of those majors
+# would take the node20 runtime back, so a Dependabot PR that lowers a major is
+# not one to merge.
+
+jobs:
+  build:
+    name: build / node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # `engines.node` is >=22.12, so 22 is the floor. Node 20 went end of
+        # life on 2026-04-30 and is no longer a gate here. 24 is the Active
+        # LTS and is what a new contributor gets from nodejs.org; 26 is the
+        # current release, and gating on it keeps the next LTS from arriving
+        # as a surprise. CONTRIBUTING.md and CLAUDE.md name the same three.
+        node: [22, 24, 26]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      # The Pages deploy path (.github/workflows/pages.yml) runs this too, but
+      # only on push to main. This is where the site assembler and its
+      # staleness gate are exercised on a pull request, before a merge can
+      # publish a stale canvas.
+      - run: npm run build:site
+      - run: npm test
+
+  # Task A09: emitted HCL must be `tofu validate`-clean with a complete address
+  # map, and must fail loudly on TODO placeholders with an incomplete one.
+  # Task A12 adds the same check one level up: what the studio's Terraform
+  # export button produces has to validate too, so the studio project runs here
+  # as well.
+  #
+  # Those tests run a real `tofu init`, which downloads the aws and awscc
+  # providers over the network and takes minutes on a cold cache, so the default
+  # suite skips them and this job turns them on with RUN_TOFU_VALIDATE=1. A test
+  # in packages/tf/src/validate.test.ts, one in
+  # packages/studio/tests/exportTofu.test.ts, and one in
+  # tests/promoteAcrossEnvironments.test.ts assert that this job still sets it
+  # and still names their project, so no gate can go quiet. Another asserts the
+  # version matrix below still covers the emitter's declared floor.
+  #
+  # The `repo` project is here for the last of those: the promotion example
+  # emits two trees and validates each against that environment's own
+  # configuration, which is the half a byte comparison cannot check. Its other
+  # tests are offline and cheap, so running the whole project costs a second.
+  emit-tf:
+    name: emit-tf goldens / tofu ${{ matrix.tofu_version }}
+    runs-on: ubuntu-latest
+    # A cold `tofu init` downloads two providers; 30 minutes is a ceiling for a
+    # hang, not a budget.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both ends of the range docs/03-tf-emitter.md promises, because a
+        # regression at either end is a regression, and until 2026-09-04 the
+        # floor was pinned here but had never actually been exercised. The floor
+        # is CORE_VERSION_FLOOR in packages/tf/src/emit.ts, which is what every
+        # emitted versions.tf.example tells users they may run; a test asserts
+        # this list still contains it. The upper entry is a current release,
+        # pinned rather than `latest` so a run is reproducible and the provider
+        # cache key means something. The two run in parallel, so wall time is
+        # unchanged and only runner minutes double.
+        tofu_version: ["1.7.0", "1.12.6"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: ${{ matrix.tofu_version }}
+          # Run the real binary. The action's default wrapper (input
+          # `tofu_wrapper`, default true) puts a node script named `tofu` on
+          # PATH that runs the binary through @actions/exec without passing
+          # `options.input`, so the child's stdin is a pipe the wrapper never
+          # writes to and never closes. Anything reading stdin then waits for an
+          # EOF that never comes, which is what hung `tofu console` for its full
+          # timeout on every call on 2026-09-03. The wrapper also reports exit
+          # code 1 for any non-zero exit, losing the status the gate asserts on,
+          # and we use none of the stdout/stderr/exitcode outputs it exists for.
+          tofu_wrapper: false
+      - name: Cache OpenTofu providers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tofu-cache
+          # Keyed per version: the matrix entries run concurrently, so one
+          # shared key means both miss, both download, and whichever finishes
+          # second fails to save.
+          key: tofu-plugins-${{ runner.os }}-tofu${{ matrix.tofu_version }}-aws6-awscc1
+      - run: npm ci
+      - run: npm run build
+      - run: npx vitest run --project @flow-as-code/tf --project @flow-as-code/studio --project repo
+        env:
+          RUN_TOFU_VALIDATE: "1"
+
+  # What each package would actually publish. Two defects (no LICENSE in any
+  # tarball, and source maps naming a src that was not shipped) were invisible
+  # until the dry run was actually executed.
+  packaging:
+    name: publish dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx vitest run --project repo
+      - name: Dry-run publish every package
+        run: |
+          for p in core cdk cli tf studio; do
+            npm publish --dry-run --workspace "@flow-as-code/$p"
+          done

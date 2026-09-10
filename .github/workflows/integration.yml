@@ -1,0 +1,120 @@
+name: Integration
+
+# Live Amazon Connect sandbox. This is deliberately NOT a job in ci.yml.
+#
+# ci.yml is reused as the gate set of a release (`uses: ./.github/workflows/ci.yml`
+# in release.yml), and GitHub validates a called workflow's job permissions
+# against what the caller granted: "The `GITHUB_TOKEN` permissions passed from
+# the caller workflow can be only downgraded (not elevated) by the called
+# workflow."
+# https://docs.github.com/en/actions/reference/workflows-and-actions/reusable-workflows
+#
+# The check is static, so it rejects the run before any job starts, with "The
+# workflow is requesting 'id-token: write', but is only allowed 'id-token:
+# none'." This job needs `id-token: write` to assume the sandbox role, and a
+# release must not hold that permission, so the two cannot share a file.
+#
+# Keeping this job here rather than granting the extra permission at the call
+# site also makes the property structural instead of conditional: a release
+# cannot depend on a reachable AWS account, because the job that reaches for one
+# is not in the workflow a release calls. tests/releaseGates.test.ts fails the
+# build if any job in ci.yml starts asking for more than the release grants, so
+# the next job of this shape cannot reintroduce the problem at dispatch time.
+#
+# This runs on a push to main and on a workflow_dispatch of this workflow, which
+# is what it did as a job in ci.yml. Every pull request, fork or not, and every
+# release, gets the same fully green CI without it.
+#
+# What this covers, exactly: the whole-instance live export in
+# packages/core/src/integration.test.ts (read-only, gated on
+# FLOW_TEST_INSTANCE_ARN alone) and the A07 live deploy in
+# packages/cdk/src/integration.test.ts (gated on FLOW_TEST_DEPLOY).
+#
+# What it does NOT cover: the simulate suite and the lossless export of the
+# deployed demo flow. Both are gated on FLOW_TEST_SIMULATE and
+# FLOW_TEST_RESOURCE_MAP, which this job deliberately does not set, because
+# both need a superset stack deployed first (hours, queues, Lambda, and its
+# integration association) and a resource map written from that stack's
+# outputs. That stays an operator run; tasks/A06-export-and-simulate.md
+# records the procedure and the results.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only by default. The one job here raises what it needs for itself.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: sandbox integration
+    # Two gates, both needed:
+    #
+    # 1. CONNECT_SANDBOX_ENABLED=true in repo variables. A variable rather than
+    #    a secret, because the secrets context is not available in job-level
+    #    `if`.
+    # 2. The event. GitHub does not pass secrets to a workflow triggered from a
+    #    forked repository, and does not grant it id-token, so on a fork PR
+    #    configure-aws-credentials would fail the run for a contributor who can
+    #    do nothing about it. The `vars` context is not documented as withheld
+    #    from fork PRs, so gate 1 alone would not skip them. This workflow has
+    #    no `pull_request` trigger, so gate 2 is belt and braces against one
+    #    being added later.
+    #    https://docs.github.com/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions
+    if: >-
+      vars.CONNECT_SANDBOX_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    # The deploy test allows 30 minutes for a CloudFormation deploy and 14 for
+    # the teardown wait, so the job needs headroom above that.
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      # Pinned to a commit SHA, with the tag it carried in the comment, the same
+      # way every workflow here pins and for the reason release.yml gives. This
+      # job assumes an AWS role, so a mutable third-party tag would be a path to
+      # that role as well as to the registry.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        with:
+          role-to-assume: ${{ secrets.AWS_SANDBOX_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SANDBOX_REGION }}
+      # cancel-in-progress above applies to this job too, so a superseded push
+      # can kill the run mid-deploy, before the test's own teardown runs. Make
+      # the next run's teardown idempotent instead of relying on that: delete
+      # any leftover stack before deploying. Both commands already succeed when
+      # there is no such stack: DeleteStack is a no-op, and the CLI's
+      # stack-delete-complete waiter accepts ValidationError as success.
+      # `|| true` is for the one case they do not cover, a stack left in
+      # DELETE_FAILED, where the deploy below is the step that should report
+      # the problem rather than a bare waiter timeout.
+      - name: Delete any leftover integration stack
+        env:
+          AWS_REGION: ${{ vars.AWS_SANDBOX_REGION }}
+        run: |
+          aws cloudformation delete-stack --stack-name flow-as-code-a07-integration
+          aws cloudformation wait stack-delete-complete \
+            --stack-name flow-as-code-a07-integration || true
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:integration --if-present
+        env:
+          FLOW_TEST_INSTANCE_ARN: ${{ secrets.CONNECT_SANDBOX_INSTANCE_ARN }}
+          # The A07 deploy test writes to the account, so it needs this on top
+          # of the instance ARN. Set here because this job's instance is a
+          # dedicated sandbox; a local run against some other instance gets the
+          # read-only export half and nothing else.
+          FLOW_TEST_DEPLOY: "1"

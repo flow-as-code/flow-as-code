@@ -1,0 +1,18 @@
+{
+  "scenario": "0.1",
+  "name": "chat-greeting",
+  "description": "A chat contact is greeted, answers, sees the lookup start, and disconnects before the transfer.",
+  "entryPoint": {
+    "channel": "chat",
+    "flow": "${cdref:flow:appointment-line}"
+  },
+  "steps": [
+    {
+      "kind": "expect-prompt",
+      "similarTo": "Thanks for calling. Let's get you to the right place."
+    },
+    { "kind": "send-text", "text": "I need to reschedule" },
+    { "kind": "expect-lambda", "lambda": "${cdref:lambda:appointment-lookup}" },
+    { "kind": "disconnect" }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "welcome",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "hang-up": {
+        "Position": {
+          "x": 800,
+          "y": 20
+        }
+      },
+      "set-queue": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      },
+      "survey": {
+        "Position": {
+          "x": 540,
+          "y": 20
+        }
+      },
+      "welcome": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "welcome",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Thanks for calling support."
+      },
+      "Transitions": {
+        "NextAction": "set-queue",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "survey"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "set-queue",
+      "Type": "UpdateContactTargetQueue",
+      "Parameters": {
+        "QueueId": "${queue_appointments_arn}"
+      },
+      "Transitions": {
+        "NextAction": "survey",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "survey"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "survey",
+      "Type": "InvokeFlowModule",
+      "Parameters": {
+        "FlowModuleId": "${module_after_call_survey_prod_arn}"
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

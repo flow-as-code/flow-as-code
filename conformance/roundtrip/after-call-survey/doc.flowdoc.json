@@ -1,0 +1,75 @@
+{
+  "flowdoc": "0.1",
+  "kind": "module",
+  "name": "after-call-survey",
+  "connectType": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "intro",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "intro",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Before you go, a one-question survey."
+        },
+        "Transitions": {
+          "NextAction": "ask-question",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "wrap-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ask-question",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:satisfaction-question@prod}"
+        },
+        "Transitions": {
+          "NextAction": "wrap-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "wrap-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "wrap-up",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "ask-question": {
+      "x": 280,
+      "y": 50
+    },
+    "intro": {
+      "x": 20,
+      "y": 20
+    },
+    "wrap-up": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:module:satisfaction-question@prod}",
+      "type": "module",
+      "name": "satisfaction-question",
+      "alias": "prod"
+    }
+  ]
+}

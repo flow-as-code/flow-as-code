@@ -1,0 +1,60 @@
+{
+  "expect": [
+    {
+      "rule": "recording-consent-before-record",
+      "blockId": "record",
+      "messageIncludes": "plays no message first"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "record",
+      "Actions": [
+        {
+          "Identifier": "record",
+          "Type": "UpdateContactRecordingBehavior",
+          "Parameters": {
+            "RecordingBehavior": {
+              "RecordedParticipants": [
+                "Agent",
+                "Customer"
+              ]
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "record": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

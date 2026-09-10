@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="flow-simulate" tests="5" failures="2" errors="1" skipped="1" time="348.600">
+  <testsuite name="flow-simulate" tests="5" failures="2" errors="1" skipped="1" time="348.600" timestamp="2026-08-31T12:00:00.000Z">
+    <testcase name="after-hours-message" classname="flow-simulate" time="12.500" />
+    <testcase name="appointment-lookup-transfer" classname="flow-simulate" time="31.250">
+      <failure message="2 of 7 observations failed." type="FAILED">2 of 7 observations failed.&#10;Assert $.Queue.Name Equals &quot;Overflow&quot; but the contact reached &lt;Appointments&gt; &amp; waited&#10;MessageReceived did not match: expected inclusion of &apos;right place&apos;&#10;record � with � control bytes&#10;and a newline&#9;and a tab</failure>
+    </testcase>
+    <testcase name="chat-greeting" classname="flow-simulate" time="300.000">
+      <failure message="No terminal status within 300000 ms." type="TIMED_OUT">No terminal status within 300000 ms.</failure>
+    </testcase>
+    <testcase name="lex-handoff" classname="flow-simulate" time="0.850">
+      <error message="InvalidTestCaseException: Problems: [Observation observation-2 references an unknown ActionType]" type="ERRORED">InvalidTestCaseException: Problems: [Observation observation-2 references an unknown ActionType]</error>
+    </testcase>
+    <testcase name="callback-offer" classname="flow-simulate" time="4.000">
+      <skipped message="Execution was stopped." />
+    </testcase>
+  </testsuite>
+</testsuites>

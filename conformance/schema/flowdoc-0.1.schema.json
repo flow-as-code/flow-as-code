@@ -1,0 +1,669 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flow-as-code.dev/schema/flowdoc-0.1.schema.json",
+  "title": "FlowDoc 0.1",
+  "description": "Interchange format for Amazon Connect flows. See docs/01-flowdoc-spec.md and conformance/flow-language/actions.md. This schema is part of the cross-language contract: the future Go provider validates against it.",
+  "type": "object",
+  "required": [
+    "flowdoc",
+    "kind",
+    "name",
+    "connectType",
+    "content"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "flowdoc": {
+      "const": "0.1"
+    },
+    "kind": {
+      "enum": [
+        "flow",
+        "module"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "connectType": {
+      "enum": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "CUSTOMER_HOLD",
+        "CUSTOMER_WHISPER",
+        "AGENT_HOLD",
+        "AGENT_WHISPER",
+        "OUTBOUND_WHISPER",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ]
+    },
+    "content": {
+      "$ref": "#/$defs/flowContent"
+    },
+    "layout": {
+      "description": "Canvas positions keyed by Action Identifier. Projected into content.Metadata.ActionMetadata at materialization; never stored in content.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/point"
+      }
+    },
+    "refs": {
+      "description": "Derived index of every token in content. Regenerated on save.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ref"
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "generator": {
+          "type": "string"
+        },
+        "sourceHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "token": {
+      "description": "A reference token. Occupies the entire field value; never interpolated into a longer string, because Connect requires these fields to be fully static or a single JSONPath identifier.",
+      "type": "string",
+      "pattern": "^\\$\\{cdref:(queue|hours|lambda|lex|prompt|flow|module):[a-z0-9]+(-[a-z0-9]+)*(@[a-z0-9]+(-[a-z0-9]+)*)?\\}$"
+    },
+    "ref": {
+      "type": "object",
+      "required": [
+        "token",
+        "type",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "token": {
+          "$ref": "#/$defs/token"
+        },
+        "type": {
+          "enum": [
+            "queue",
+            "hours",
+            "lambda",
+            "lex",
+            "prompt",
+            "flow",
+            "module"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "alias": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        }
+      }
+    },
+    "identifier": {
+      "description": "Unique within the flow, up to 50 chars. Connect forbids % : ( \\ / ) = $ , ; [ ] { } and a set of prototype-pollution names.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50,
+      "pattern": "^[^%:(\\\\/)=$,;\\[\\]{}]+$",
+      "not": {
+        "enum": [
+          "__proto__",
+          "constructor",
+          "__defineGetter__",
+          "__defineSetter__",
+          "toString",
+          "hasOwnProperty",
+          "isPrototypeOf",
+          "propertyIsEnumerable",
+          "toLocaleString",
+          "valueOf"
+        ]
+      }
+    },
+    "flowContent": {
+      "type": "object",
+      "required": [
+        "Version",
+        "StartAction",
+        "Actions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "Version": {
+          "const": "2019-10-30"
+        },
+        "StartAction": {
+          "$ref": "#/$defs/identifier"
+        },
+        "Metadata": {
+          "description": "Not authored in FlowDoc. Materialization writes positions here from `layout`.",
+          "type": "object"
+        },
+        "Actions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 250,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "Settings": {
+          "type": "object",
+          "description": "Module configuration. Required (may be empty) in a module's content; absent in a flow's."
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "Identifier",
+        "Type",
+        "Parameters",
+        "Transitions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "Identifier": {
+          "$ref": "#/$defs/identifier"
+        },
+        "Type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "Parameters": {
+          "type": "object"
+        },
+        "Transitions": {
+          "$ref": "#/$defs/transitions"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactTargetQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CheckHoursOfOperation"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "HoursOfOperationId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "InvokeLambdaFunction"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "LambdaFunctionARN": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "InvokeFlowModule"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "FlowModuleId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "TransferToFlow"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ContactFlowId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "MessageParticipant"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PromptId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactTargetQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "MessageParticipant"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "oneOf": [
+                  {
+                    "required": [
+                      "PromptId"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "Text"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "SSML"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "Text"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "PromptId"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "SSML"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "SSML"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "PromptId"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "Text"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "InvokeLambdaFunction"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "InvocationTimeLimitSeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "InvocationType": {
+                    "enum": [
+                      "SYNCHRONOUS",
+                      "ASYNCHRONOUS"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "GetParticipantInput"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PromptId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "StoreInput": {
+                    "enum": [
+                      "True",
+                      "False"
+                    ]
+                  },
+                  "InputTimeLimitSeconds": {
+                    "oneOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]*$"
+                      }
+                    ]
+                  }
+                },
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "PromptId",
+                        "Text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "PromptId",
+                        "SSML"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "Text",
+                        "SSML"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "transitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "NextAction": {
+          "$ref": "#/$defs/identifier"
+        },
+        "Errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ErrorType",
+              "NextAction"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ErrorType": {
+                "type": "string",
+                "minLength": 1
+              },
+              "NextAction": {
+                "$ref": "#/$defs/identifier"
+              }
+            }
+          }
+        },
+        "Conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "NextAction",
+              "Condition"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "NextAction": {
+                "$ref": "#/$defs/identifier"
+              },
+              "Condition": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          }
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": [
+        "Operator",
+        "Operands"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "Operator": {
+          "enum": [
+            "Equals",
+            "TextStartsWith",
+            "TextEndsWith",
+            "TextContains",
+            "NumberGreaterThan",
+            "NumberGreaterOrEqualTo",
+            "NumberLessThan",
+            "NumberLessOrEqualTo"
+          ]
+        },
+        "Operands": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10
+        }
+      }
+    },
+    "jsonPath": {
+      "description": "A single JSONPath identifier, e.g. $.Attributes.queueId",
+      "type": "string",
+      "pattern": "^\\$\\.[A-Za-z0-9_$.\\[\\]'-]+$"
+    },
+    "refField": {
+      "description": "A reference-bearing parameter: either a cdref token or a single JSONPath identifier. Never a literal ARN.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/token"
+        },
+        {
+          "$ref": "#/$defs/jsonPath"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "module"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "connectType": {
+            "const": "MODULE"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "connectType": {
+            "not": {
+              "const": "MODULE"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "say",
+      "messageIncludes": "NoMatchingError"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "say",
+      "Actions": [
+        {
+          "Identifier": "say",
+          "Type": "MessageParticipant",
+          "Parameters": {
+            "Text": "Hello."
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "say": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

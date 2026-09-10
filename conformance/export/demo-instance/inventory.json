@@ -1,0 +1,74 @@
+{
+  "contactFlows": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000001",
+      "id": "cccc3333-0000-4000-8000-000000000001",
+      "name": "Appointment Line",
+      "contactFlowType": "CONTACT_FLOW",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    },
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000002",
+      "id": "cccc3333-0000-4000-8000-000000000002",
+      "name": "Draft Line",
+      "contactFlowType": "CONTACT_FLOW",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "SAVED"
+    },
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000003",
+      "id": "cccc3333-0000-4000-8000-000000000003",
+      "name": "Outbound Campaign",
+      "contactFlowType": "CAMPAIGN",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    }
+  ],
+  "contactFlowModules": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/flow-module/eeee5555-0000-4000-8000-000000000001",
+      "id": "eeee5555-0000-4000-8000-000000000001",
+      "name": "Recording Consent",
+      "state": "ACTIVE"
+    }
+  ],
+  "queues": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/queue/aaaa1111-0000-4000-8000-000000000001",
+      "id": "aaaa1111-0000-4000-8000-000000000001",
+      "name": "Appointments"
+    },
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/queue/aaaa1111-0000-4000-8000-000000000002",
+      "id": "aaaa1111-0000-4000-8000-000000000002",
+      "name": "Overflow"
+    }
+  ],
+  "hoursOfOperations": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/operating-hours/bbbb2222-0000-4000-8000-000000000001",
+      "id": "bbbb2222-0000-4000-8000-000000000001",
+      "name": "Main Line"
+    }
+  ],
+  "prompts": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/prompt/dddd4444-0000-4000-8000-000000000001",
+      "id": "dddd4444-0000-4000-8000-000000000001",
+      "name": "Consent Notice"
+    }
+  ],
+  "lambdaFunctions": ["arn:aws:lambda:us-east-1:111122223333:function:appointment-lookup"],
+  "lexBots": [
+    {
+      "lexVersion": "V2",
+      "aliasArn": "arn:aws:lex:us-east-1:111122223333:bot-alias/ABCDEF1234/TSTALIASID"
+    },
+    {
+      "lexVersion": "V1",
+      "name": "LegacyBot",
+      "lexRegion": "us-east-1"
+    }
+  ]
+}

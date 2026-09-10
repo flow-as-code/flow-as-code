@@ -1,0 +1,9 @@
+{
+  "description": "A flow invoking a module by alias, that module invoking a second module by alias, and a queue from the address map. Exercises the awscc version and alias resources and in-set reference resolution: a module reference this set emits resolves to the alias resource, not to a map entry.",
+  "docs": [
+    "support-line.flowdoc.json",
+    "../../roundtrip/after-call-survey/doc.flowdoc.json",
+    "satisfaction-question.flowdoc.json"
+  ],
+  "validate": "pass"
+}

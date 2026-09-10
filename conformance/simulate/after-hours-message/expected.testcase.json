@@ -1,0 +1,116 @@
+{
+  "name": "after-hours-message",
+  "description": "A chat contact outside business hours receives the closed message and the flow ends. The main-line hours are substituted with a never-open hours resource so the scenario does not depend on the wall-clock time. Chat rather than voice: on voice the closed prompt is reported at the end of playback and races the flow's own disconnect (tasks/A06-export-and-simulate.md).",
+  "entryPoint": {
+    "Type": "CHAT",
+    "ChatEntryPointParameters": {
+      "FlowId": "${cdref:flow:appointment-line}"
+    }
+  },
+  "content": {
+    "Version": "2019-10-30",
+    "Metadata": {},
+    "Observations": [
+      {
+        "Identifier": "observation-1",
+        "Event": {
+          "Identifier": "observation-1-event",
+          "Type": "TestInitiated",
+          "Actor": "System",
+          "Properties": {}
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-1-action-1",
+            "Type": "OverrideSystemBehavior",
+            "Parameters": {
+              "ActionType": "OverrideSystemBehavior",
+              "Behavior": {
+                "Type": "FlowAction",
+                "Properties": {
+                  "ActionType": "CheckHoursOfOperation",
+                  "ActionParameters": {
+                    "HoursOfOperationId": "${cdref:hours:main-line}"
+                  },
+                  "Strategy": {
+                    "Type": "SubstituteResource",
+                    "SubstituteArn": "${cdref:hours:closed}"
+                  }
+                }
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": [
+            "observation-2"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-2",
+        "Event": {
+          "Identifier": "observation-2-event",
+          "Type": "FlowActionStarted",
+          "Actor": "System",
+          "Properties": {
+            "ActionType": "CheckHoursOfOperation",
+            "ActionParameters": {
+              "HoursOfOperationId": "${cdref:hours:main-line}"
+            }
+          }
+        },
+        "Actions": [],
+        "Transitions": {
+          "NextObservations": [
+            "observation-3"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-3",
+        "Event": {
+          "Identifier": "observation-3-event",
+          "Type": "MessageReceived",
+          "Actor": "System",
+          "Properties": {
+            "Text": "We are closed right now",
+            "MatchingCriteria": {
+              "Type": "Inclusion"
+            }
+          }
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-3-action-1",
+            "Type": "Assert",
+            "Parameters": {
+              "Namespace": "$.Attributes.locale",
+              "Operator": "Equals",
+              "Operand": "en-US"
+            },
+            "Transitions": {
+              "NextAction": "observation-3-action-2"
+            }
+          },
+          {
+            "Identifier": "observation-3-action-2",
+            "Type": "TestControl",
+            "Parameters": {
+              "ActionType": "TestControl",
+              "Command": {
+                "Type": "EndTest"
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": []
+        }
+      }
+    ]
+  },
+  "initializationData": "{\"Attributes\":{\"locale\":\"en-US\",\"testRun\":\"after-hours\"},\"SegmentAttributes\":{}}"
+}

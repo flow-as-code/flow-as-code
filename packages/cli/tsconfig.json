@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../cdk"
+    },
+    {
+      "path": "../tf"
+    }
+  ],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}

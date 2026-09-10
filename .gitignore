@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test and coverage
+coverage/
+.vitest/
+# Codegen output written and imported by roundtrip.test.ts, removed after the run
+packages/core/src/__generated__/
+packages/core/src/__generated__tsc__/
+
+# Studio build
+packages/studio/dist/
+# Hosted read-only demo (npm run build:demo, docs/05-hosted-demo.md)
+packages/studio/dist-demo/
+# Assembled Pages tree (npm run build:site): site/ plus dist-demo/ under studio/
+dist-site/
+
+# Terraform / OpenTofu scratch (emitter output under test)
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+# Provider plugin cache for the gated emit-tf validate tests (RUN_TOFU_VALIDATE=1)
+.tofu-cache/
+
+# Output the examples/ walkthroughs generate. Those directories track inputs
+# only: a checked-in emitted tree would rot, and a checked-in generated .ts
+# would be asked for a copyright header it deliberately does not carry.
+examples/**/build/
+cdk.out/
+
+# Editor and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local env; never commit AWS credentials or sandbox instance ARNs
+.env
+.env.*
+!.env.example
+
+# Session worktrees
+.claude/worktrees/

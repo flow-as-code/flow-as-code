@@ -1,0 +1,480 @@
+name: Release
+
+# The filename is load-bearing and must stay `release.yml`.
+#
+# Each of the five packages has a Trusted Publisher configured on npmjs.com
+# naming this repository and the workflow filename `release.yml`. npm validates
+# the OIDC token's workflow claim against that string: "first verify that the
+# workflow filename matches exactly what you configured on npmjs.com, including
+# the .yml extension. All fields are case-sensitive and must be exact."
+# Renaming this file breaks every publish until all five configurations are
+# recreated, and "existing trusted publisher connections cannot be changed".
+# https://docs.npmjs.com/trusted-publishers/
+#
+# For the same reason the `npx changeset publish` step lives in THIS file and is
+# not delegated to a called workflow. In a reusable workflow "the github context
+# is always associated with the caller workflow"
+# (https://docs.github.com/en/actions/reference/workflows-and-actions/reusable-workflows),
+# and npm records the matching hazard: with `workflow_call` or `workflow_dispatch`
+# "validation checks the calling workflow's name instead of the workflow that
+# actually contains the publish command, which can cause configuration
+# mismatches". The `gates` job below does call ci.yml, which is safe precisely
+# because that workflow never publishes.
+
+on:
+  # Deliberate manual dispatch only, never a push to main.
+  #
+  # A publish cannot be taken back. npm's unpublish policy allows removing a
+  # version within 72 hours of publishing and, past that, only when nothing
+  # depends on it; and "once a package is unpublished, the package name is not
+  # immediately available for reuse" with the exact version number never
+  # reusable. https://docs.npmjs.com/policies/unpublish
+  #
+  # On a push trigger, any merge to main that happened to carry bumped versions
+  # would ship. Dispatching makes the release the operator's second, separate
+  # act: bump and commit first, then come here.
+  workflow_dispatch:
+
+# Read-only by default. The publish job raises exactly what it needs, and the
+# preflight job takes id-token so a broken permissions block fails in a minute
+# instead of after the full gate set.
+permissions:
+  contents: read
+
+concurrency:
+  # Two releases must never overlap, and a release must never be cancelled
+  # part-way through a publish, so this group does not cancel in progress.
+  #
+  # The group name is deliberately not `${{ github.workflow }}-...`: ci.yml uses
+  # that form, and when ci.yml runs as this workflow's gate its `github.workflow`
+  # is the caller's name. Naming this group after the action rather than the
+  # workflow keeps the two from ever landing in the same group.
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+# Every third-party action in this repository is pinned to a full commit SHA,
+# with the tag that SHA carried when it was written in a trailing comment. This
+# is the file that makes it worth doing: it is the one that holds npm publish
+# rights, and `uses: actions/checkout@v7` is a request for whatever commit that
+# major tag points at on the day the workflow runs. A major tag is mutable and
+# lives in a repository this project does not control, so an upstream account
+# compromise is a supply-chain path straight into a job that mints an OIDC
+# token npm will accept. GitHub's own hardening guidance is to pin to a full
+# length commit SHA, which "is currently the only way to use an action as an
+# immutable release".
+# https://docs.github.com/en/actions/reference/security/secure-use
+#
+# It is the same reasoning `.github/actions/ensure-npm/action.yml` already
+# gives for pinning its npm fallback rather than installing `npm@latest`:
+# a floating version of a tool that is about to hold a publish credential is a
+# supply-chain surface for no benefit.
+#
+# The cost is that patch releases no longer arrive on their own, so
+# `.github/dependabot.yml` opens a PR per update and the SHAs move by review.
+# `tests/releaseGates.test.ts` fails when a `uses:` in any workflow names
+# anything but a 40-character SHA; a local `./.github/` reference needs no pin,
+# because it is this repository's own tree at the commit already checked out.
+
+jobs:
+  # Everything that can be known to be wrong before spending 30 minutes of
+  # runners on the gate set, or before anything reaches the registry. A
+  # confusing half-publish is the failure mode this job exists to prevent.
+  preflight:
+    name: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Not used to mint a token here. It is what makes the "OIDC is available"
+      # check below able to fail: ACTIONS_ID_TOKEN_REQUEST_URL is exported only
+      # for a job that holds this permission, so a workflow that lost the
+      # permissions block fails here rather than at the publish step.
+      # https://docs.github.com/en/actions/reference/security/oidc
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Tags, so the "a tag already exists for this version" check below can
+          # see local tags as well as remote ones.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - uses: ./.github/actions/ensure-npm
+
+      # Both of the steps below read their context value from `env:` rather
+      # than interpolating `${{ }}` into the script. A ref name may contain a
+      # double quote (git forbids space, `~^:?*[\`, `..` and `@{`, not `"`), so
+      # an interpolated `github.ref` is shell text an attacker could close and
+      # continue. GitHub's hardening guidance is to bind the value to an
+      # environment variable and quote the variable, which is what this does.
+      # https://docs.github.com/en/actions/concepts/security/script-injections
+      - name: Releases come from main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::Dispatched on $REF. Release from refs/heads/main." >&2
+            exit 1
+          fi
+
+      - name: OIDC must be available to this run
+        run: |
+          set -euo pipefail
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::error::ACTIONS_ID_TOKEN_REQUEST_URL is unset, so this job does not hold id-token: write and npm's OIDC exchange would fail with ENEEDAUTH. Restore the permissions block." >&2
+            exit 1
+          fi
+          echo "id-token: write is in effect"
+
+      - name: This workflow must still be release.yml
+        env:
+          # github.workflow_ref is "the ref path to the workflow", and its
+          # filename half is what npm matches against every Trusted Publisher
+          # configuration for these packages. It ends in the ref, so it carries
+          # the same injection surface as github.ref above.
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="$WORKFLOW_REF"
+          echo "workflow_ref: $ref"
+          case "$ref" in
+            */.github/workflows/release.yml@*) ;;
+            *)
+              echo "::error::This workflow is not .github/workflows/release.yml. All five Trusted Publisher configurations name that filename, and they cannot be edited, only deleted and recreated." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: No unconsumed changesets
+        run: |
+          set -euo pipefail
+          # `changeset version` consumes these files as it bumps. One still
+          # present means the versions in the manifests were never bumped for
+          # it, and `changeset publish` would find nothing new on the registry
+          # and exit 0 having published nothing: a silent no-op release.
+          left="$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' -print)"
+          if [ -n "$left" ]; then
+            echo "::error::Unconsumed changesets are still present. Run 'npx changeset version', commit the result to main, then dispatch this workflow." >&2
+            echo "$left" >&2
+            exit 1
+          fi
+          echo "no unconsumed changesets"
+
+      - name: At least one package version is new to the registry
+        run: |
+          set -euo pipefail
+          new=0
+          {
+            echo "| package | version | on registry | tag |"
+            echo "| --- | --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for dir in packages/*/; do
+            manifest="$dir/package.json"
+            [ -f "$manifest" ] || continue
+            private="$(jq -r '.private // false' "$manifest")"
+            [ "$private" = "false" ] || continue
+            name="$(jq -r .name "$manifest")"
+            version="$(jq -r .version "$manifest")"
+            # `/` must be percent-encoded in the scope segment.
+            path="$(printf '%s' "$name" | sed 's#/#%2f#')"
+            code="$(curl -sS -o /dev/null -w '%{http_code}' \
+              "https://registry.npmjs.org/$path/$version")"
+
+            tag="$name@$version"
+            tag_state="absent"
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null \
+              || [ -n "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then
+              tag_state="present"
+            fi
+
+            case "$code" in
+              404)
+                new=$((new + 1))
+                state="no"
+                # changesets creates the tag after a successful publish and
+                # `git tag` refuses to overwrite. A tag that exists for a
+                # version that is not on the registry would therefore turn a
+                # successful publish into a failed job, which reads exactly like
+                # a failed publish. Catch it here instead.
+                if [ "$tag_state" = "present" ]; then
+                  echo "::error::$tag already exists as a git tag but $version is not on the registry. Delete the stale tag (locally and on the remote) before releasing." >&2
+                  exit 1
+                fi
+                ;;
+              200)
+                state="yes"
+                ;;
+              *)
+                echo "::error::registry.npmjs.org answered $code for $name@$version. Cannot tell what is published; refusing to run." >&2
+                exit 1
+                ;;
+            esac
+            echo "| $name | $version | $state | $tag_state |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          if [ "$new" -eq 0 ]; then
+            echo "::error::Every package version in this commit is already on the registry. There is nothing to publish. Bump versions with 'npx changeset version' first." >&2
+            exit 1
+          fi
+          echo "$new package version(s) are new to the registry"
+
+  # One definition of "green". This calls ci.yml rather than restating its jobs,
+  # so the gate set a release passes is exactly the gate set a pull request
+  # passes, and it cannot drift. `./`-relative means "the same commit as the
+  # caller", so this runs the CI in this commit, not CI on some other ref.
+  # https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows
+  #
+  # `contents: read` and nothing else, and that is a ceiling on the whole called
+  # workflow, not a default it can raise: "The `GITHUB_TOKEN` permissions passed
+  # from the caller workflow can be only downgraded (not elevated) by the called
+  # workflow."
+  # https://docs.github.com/en/actions/reference/workflows-and-actions/reusable-workflows
+  # GitHub enforces that statically, so a job in ci.yml that asks for more fails
+  # the release before any job starts, with "The workflow is requesting
+  # 'id-token: write', but is only allowed 'id-token: none'." The live sandbox
+  # job is in .github/workflows/integration.yml for exactly that reason, and
+  # tests/releaseGates.test.ts fails a pull request that would reintroduce the
+  # problem, so it cannot be discovered at dispatch time.
+  #
+  # That placement is also what makes "a release does not depend on a reachable
+  # AWS account" structural rather than conditional: the job that reaches for
+  # one is not in the workflow a release calls, so no edit to an `if` can put it
+  # back in the path.
+  #
+  # No `secrets: inherit`: nothing in the gate set needs a secret.
+  gates:
+    name: gates
+    needs: preflight
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: publish to npm
+    # Both, and in this order: nothing reaches the registry until the
+    # preconditions hold and the whole gate set is green. A release that ships a
+    # red build is worse than no release.
+    needs: [preflight, gates]
+    # GitHub-hosted. "Self-hosted runners are not currently supported."
+    # https://docs.npmjs.com/trusted-publishers/
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The OIDC exchange with npm. "The critical requirement is the
+      # id-token: write permission." https://docs.npmjs.com/trusted-publishers/
+      id-token: write
+      # `changeset publish` creates a git tag per published package. Pushing
+      # them needs write.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # Node 24, the Active LTS. Verified against
+          # https://nodejs.org/dist/index.json on 2026-09-09: Node 24.21.0
+          # bundles npm 11.19.0, above npm's 11.5.1 floor, while the newest
+          # Node 22 bundles 10.9.8, below it. ensure-npm below is the check that
+          # this is still true at run time rather than an assumption.
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          # "never use caching in release builds", the comment npm carries on
+          # this input in its own example workflow.
+          # https://docs.npmjs.com/trusted-publishers/
+          package-manager-cache: false
+
+      - uses: ./.github/actions/ensure-npm
+
+      - name: OIDC, not a token
+        run: |
+          set -euo pipefail
+          # setup-node's registry-url does NOT write a project .npmrc. It writes
+          # a USER-level one at $RUNNER_TEMP/.npmrc holding
+          # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` and points npm
+          # at it by exporting NPM_CONFIG_USERCONFIG
+          # (actions/setup-node v7, src/authutil.ts: `path.resolve(
+          # process.env['RUNNER_TEMP'] || process.cwd(), '.npmrc')` then
+          # `core.exportVariable('NPM_CONFIG_USERCONFIG', fileLocation)`).
+          # The distinction decides who wins: npm reads a project .npmrc ahead
+          # of the user one, so an .npmrc committed to this repository would
+          # override setup-node's, not the other way round. There is none, and
+          # there should not be.
+          #
+          # That file reads auth from NODE_AUTH_TOKEN. Nothing sets it here and
+          # nothing should: these
+          # packages have no private dependencies, so `npm ci` needs no token
+          # either. npm resolves this in OIDC's favour on its own ("The npm CLI
+          # automatically detects OIDC environments and uses them for
+          # authentication before falling back to traditional tokens"), so a
+          # leftover token would not silently win; this check exists so that a
+          # future edit adding one has to be a deliberate one.
+          # https://docs.npmjs.com/trusted-publishers/
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NODE_AUTH_TOKEN is set. This job publishes over OIDC and wants no publish token in its environment." >&2
+            exit 1
+          fi
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::error::ACTIONS_ID_TOKEN_REQUEST_URL is unset: this job does not hold id-token: write." >&2
+            exit 1
+          fi
+          echo "publishing over OIDC, no NODE_AUTH_TOKEN present"
+
+      - run: npm ci
+
+      # The tarballs are built from dist/, so this is not optional. The gate
+      # job built on its own runners; this one has to build on its own.
+      - run: npm run build
+
+      # `changeset publish` tags each published package, and the tags are
+      # ANNOTATED: @changesets/git's `tag()` runs
+      # `git tag <name>@<version> -m <name>@<version>`, and `-m` "implies -a if
+      # none of -a, -s, or -u <keyid> is given"
+      # (https://git-scm.com/docs/git-tag). An annotated tag is a real object
+      # with a tagger, so it needs a committer identity, and actions/checkout
+      # configures none: it sets only the auth extraheader.
+      #
+      # Getting this wrong is silent rather than loud, which is why it is worth
+      # this much comment. @changesets/git runs git through spawndamnit, which
+      # resolves with the exit code instead of rejecting and keeps the child's
+      # stderr in a buffer nothing prints. `tag()` therefore returns false, and
+      # `tagPublish` ignores the return value (@changesets/cli 2.31.1:
+      # `await git.tag(tag, cwd)`). So `changeset publish` would log "New tag:"
+      # for all five packages, create none of them, print no error and exit 0.
+      # The registry would be five versions ahead of the repository and this job
+      # would be green. Reproduced against the installed 2.31.1 in a repository
+      # with no identity: tag() returned false, no tag existed afterwards, and
+      # node exited 0.
+      #
+      # github-actions[bot] with its numeric noreply address is the identity
+      # GitHub attributes GITHUB_TOKEN's own commits to (user id 41898282), so
+      # the tags are attributed to the app that actually made them and no
+      # secret is involved.
+      - name: Identity for the tags changeset publish creates
+        run: |
+          set -euo pipefail
+          # Local to this checkout rather than --global: it belongs to this
+          # working copy and should not outlive it.
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # Prove annotated tagging works BEFORE anything is published, because
+          # afterwards is too late: npm allows unpublishing a version only
+          # within 72 hours and never lets the number be reused, so a publish
+          # that cannot be tagged is not something to discover after the fact.
+          # The probe tag is deleted immediately and never pushed.
+          probe='release-workflow-tagging-probe'
+          git tag -d "$probe" >/dev/null 2>&1 || true
+          if ! git tag -a "$probe" -m "$probe"; then
+            echo "::error::Cannot create an annotated tag. 'changeset publish' would publish all five packages and then silently fail to tag them. Fix the committer identity in this step." >&2
+            exit 1
+          fi
+          git tag -d "$probe" >/dev/null
+          echo "annotated tags will be made by $(git config user.name) <$(git config user.email)>"
+
+      - name: changeset publish
+        run: |
+          set -uo pipefail
+
+          # GitHub runs a `run:` block as `bash -e`, so this step turns -e off
+          # around the publish on purpose: the tags of whatever did publish have
+          # to be pushed even when the publish fails part-way, and the job then
+          # fails with the publish's own status.
+
+          # No --access flag. All five manifests carry
+          # publishConfig.access: "public", which @changesets/cli 2.31.1 prefers
+          # over its own config (`access: publishConfig?.access || access` in
+          # publishPackages), and .changeset/config.json sets "access": "public"
+          # as the fallback, so `--access public` is passed either way without
+          # this workflow naming it. npm's own default would also be harmless
+          # here: "'public' for new packages, existing packages it will not
+          # change the current level", and all five are already public at 0.1.0.
+          # https://docs.npmjs.com/cli/v11/commands/npm-publish
+          #
+          # No --provenance flag either. Under trusted publishing "npm
+          # automatically generates and publishes provenance attestations ...
+          # you don't need to add the --provenance flag", and the three
+          # conditions it lists all hold: OIDC, a public repository, public
+          # packages. https://docs.npmjs.com/trusted-publishers/
+          #
+          # `changeset publish` publishes only the versions `npm info` does not
+          # already show on the registry, so re-dispatching after a partial
+          # failure republishes nothing and completes the rest. It publishes
+          # them through a concurrency-limited queue rather than in dependency
+          # order (@changesets/cli 2.31.1, NPM_PUBLISH_CONCURRENCY_LIMIT = 10),
+          # so for a moment a dependent can be on the registry ahead of its
+          # dependency. With five linked packages that window is seconds, and
+          # re-dispatch is the fix if one of them fails.
+          before="$(git tag --list | sort)"
+          set +e
+          npx changeset publish
+          status=$?
+          after="$(git tag --list | sort)"
+
+          # Push whatever tags were actually created even when the publish
+          # failed part-way, so the tags match the registry, then fail the job
+          # with the publish's own status. Dropping the tags on failure would
+          # leave a published version with no tag, which is the harder state to
+          # recover from.
+          new="$(comm -13 <(printf '%s\n' "$before") <(printf '%s\n' "$after") | sed '/^$/d')"
+          if [ -n "$new" ]; then
+            echo "new tags:"
+            printf '%s\n' "$new"
+            if ! printf '%s\n' "$new" | xargs -r git push origin; then
+              echo "::error::Packages published but their tags did not push. Push them by hand from a checkout of this commit." >&2
+              status=1
+            fi
+          else
+            echo "no new tags"
+          fi
+
+          # The end state this job must never reach quietly: a version on the
+          # registry with no tag on the remote. `changeset publish` cannot be
+          # trusted to report that, because a tag it fails to create is not an
+          # error it raises (see the identity step above), and a tag it creates
+          # but fails to push is caught only by the branch above. So assert the
+          # invariant directly against both sides rather than inferring it.
+          #
+          # Only a version the registry actually serves is required to have a
+          # tag, so a package that failed to publish is not reported here, and a
+          # 404 from a CDN that has not caught up yet fails open rather than
+          # turning a good release red.
+          untagged=""
+          for dir in packages/*/; do
+            manifest="${dir}package.json"
+            [ -f "$manifest" ] || continue
+            [ "$(jq -r '.private // false' "$manifest")" = "false" ] || continue
+            name="$(jq -r .name "$manifest")"
+            version="$(jq -r .version "$manifest")"
+            path="$(printf '%s' "$name" | sed 's#/#%2f#')"
+            code="$(curl -sS -o /dev/null -w '%{http_code}' \
+              "https://registry.npmjs.org/$path/$version" || echo 000)"
+            [ "$code" = "200" ] || continue
+            tag="$name@$version"
+            if [ -z "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then
+              untagged="$untagged $tag"
+            fi
+          done
+          if [ -n "$untagged" ]; then
+            echo "::error::On the registry but not tagged on the remote:$untagged. The registry is ahead of the repository. Create and push those annotated tags from a checkout of this commit." >&2
+            status=1
+          fi
+
+          {
+            echo "### Published"
+            echo
+            if [ -n "$new" ]; then
+              printf '%s\n' "$new" | sed 's/^/- /'
+            else
+              echo "No new tags, so this run published nothing new."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$status"

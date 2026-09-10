@@ -1,0 +1,64 @@
+{
+  "expect": [
+    {
+      "rule": "no-unresolved-token",
+      "blockId": "cmp",
+      "messageIncludes": "must be the entire value"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "cmp",
+      "Actions": [
+        {
+          "Identifier": "cmp",
+          "Type": "Compare",
+          "Parameters": {
+            "ComparisonValue": "$.Attributes.tier"
+          },
+          "Transitions": {
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingCondition",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": [
+              {
+                "NextAction": "bye",
+                "Condition": {
+                  "Operator": "Equals",
+                  "Operands": [
+                    "prefix-${cdref:queue:appointments}"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "cmp": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

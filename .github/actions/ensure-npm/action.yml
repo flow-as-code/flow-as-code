@@ -1,0 +1,60 @@
+name: Ensure npm can use trusted publishing
+description: >-
+  Assert the runner's Node and npm meet the floor npm's OIDC trusted publishing
+  documents, upgrading npm when the bundled one is too old, and fail naming the
+  version found when it cannot be brought up.
+
+runs:
+  using: composite
+  steps:
+    - name: Check Node and npm against the trusted-publishing floor
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # "Trusted publishing requires npm CLI version 11.5.1 or later and Node
+        # version 22.14.0 or higher."
+        # https://docs.npmjs.com/trusted-publishers/
+        npm_floor=11.5.1
+        node_floor=22.14.0
+
+        # The fallback npm is pinned rather than `npm@latest`, because
+        # installing a floating version of the tool that is about to hold a
+        # publish credential is a supply-chain surface for no benefit. 11.19.0
+        # is what Node 24.21.0 bundles, read from
+        # https://nodejs.org/dist/index.json on 2026-09-09.
+        npm_fallback=11.19.0
+
+        # `sort -V` puts the lower version first, so the floor is met exactly
+        # when the floor sorts first. A tie also sorts the floor first.
+        at_least() {
+          [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" ]
+        }
+
+        node_have="$(node --version)"
+        node_have="${node_have#v}"
+        echo "node $node_have (floor $node_floor)"
+        if ! at_least "$node_floor" "$node_have"; then
+          echo "::error::Node $node_have is below $node_floor, the floor npm trusted publishing documents. Raise node-version in the calling workflow." >&2
+          exit 1
+        fi
+
+        npm_have="$(npm --version)"
+        echo "npm $npm_have (floor $npm_floor)"
+        if ! at_least "$npm_floor" "$npm_have"; then
+          # Not hypothetical. Read from https://nodejs.org/dist/index.json on
+          # 2026-09-09: the newest Node 22 (v22.23.2) bundles npm 10.9.8, below
+          # the floor, so a workflow pinned to Node 22 lands here every time.
+          # Node 24.21.0 bundles npm 11.19.0 and Node 26.8.2 bundles 11.19.1,
+          # both above it, which is why the release job pins Node 24 and this
+          # branch is a guard rather than the normal path.
+          echo "npm $npm_have is below $npm_floor; installing npm@$npm_fallback"
+          npm install --global "npm@$npm_fallback"
+          npm_have="$(npm --version)"
+          echo "npm is now $npm_have"
+        fi
+
+        if ! at_least "$npm_floor" "$npm_have"; then
+          echo "::error::npm $npm_have is below $npm_floor. The npm CLI would not perform the OIDC exchange, and the publish would fall back to token auth it does not have." >&2
+          exit 1
+        fi

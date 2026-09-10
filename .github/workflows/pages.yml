@@ -1,0 +1,67 @@
+name: Pages
+
+# Publishes the project site: the landing page in site/ at the apex, and the
+# read-only studio demo (packages/studio/dist-demo, docs/05-hosted-demo.md)
+# under /studio/. scripts/build-site.mjs assembles both into dist-site/.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never cancel one in flight: a cancelled
+# deploy-pages can leave the Pages environment holding a half-applied
+# deployment, and the next push is only seconds behind anyway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: build and deploy
+    # GitHub Pages cannot serve a private repository on the free plan. The
+    # repository is public now and this job deploys on every push to main; the
+    # gate is kept because it is what made every run SKIPPED and green rather
+    # than failed on configure-pages while the repository was private, and it
+    # would do the same again. `push` and `workflow_dispatch` both carry the
+    # repository object in their payload, so this reads the live visibility
+    # rather than a variable someone has to remember to set.
+    # tasks/A14-hosted-demo.md records the operator settings this needed.
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # Pinned to a commit SHA, with the tag it carried in the comment, the same
+      # way every workflow here pins and for the reason release.yml gives.
+      #
+      # Each SHA comes from the major whose action.yml declares `using: node24`.
+      # Verified on 2026-09-04: checkout v7, setup-node v7, configure-pages v6,
+      # and deploy-pages v5 declare node24 directly; upload-pages-artifact v5 is
+      # a composite that delegates to actions/upload-artifact v7.0.0, which does.
+      # https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The full build, not `npm run build:demo`: on a clean checkout the studio
+      # resolves @flow-as-code/core to packages/core/dist, which only the full
+      # build produces. build:site refuses to assemble a stale dist-demo, so a
+      # regression here fails the run instead of publishing an old canvas.
+      - run: npm run build
+      - run: npm run build:site
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist-site
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,0 +1,73 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "intro",
+  "Settings": {},
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "ask-question": {
+        "Position": {
+          "x": 280,
+          "y": 50
+        }
+      },
+      "intro": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "wrap-up": {
+        "Position": {
+          "x": 540,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "intro",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Before you go, a one-question survey."
+      },
+      "Transitions": {
+        "NextAction": "ask-question",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "wrap-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "ask-question",
+      "Type": "InvokeFlowModule",
+      "Parameters": {
+        "FlowModuleId": "${module_satisfaction_question_prod_arn}"
+      },
+      "Transitions": {
+        "NextAction": "wrap-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "wrap-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "wrap-up",
+      "Type": "EndFlowModuleExecution",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

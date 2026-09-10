@@ -1,0 +1,61 @@
+{
+  "expect": [
+    {
+      "rule": "unique-names",
+      "blockId": "bye",
+      "messageIncludes": "Duplicate Identifier"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "say",
+      "Actions": [
+        {
+          "Identifier": "say",
+          "Type": "MessageParticipant",
+          "Parameters": {
+            "Text": "Hello."
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "say": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

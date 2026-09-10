@@ -1,0 +1,185 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "2222bbbb-0000-4000-8000-000000000029",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": 15,
+      "y": 234
+    },
+    "snapToGrid": false,
+    "name": "Sample AB test",
+    "description": "Distributes traffic for A/B tests",
+    "type": "contactFlow",
+    "status": "published",
+    "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "ActionMetadata": {
+      "2222bbbb-0000-4000-8000-000000000012": {
+        "position": {
+          "x": 1890,
+          "y": 1137
+        }
+      },
+      "2222bbbb-0000-4000-8000-000000000018": {
+        "position": {
+          "x": 657,
+          "y": 52
+        },
+        "useDynamic": false
+      },
+      "2222bbbb-0000-4000-8000-000000000019": {
+        "position": {
+          "x": 671,
+          "y": 245
+        },
+        "useDynamic": false
+      },
+      "2222bbbb-0000-4000-8000-000000000020": {
+        "position": {
+          "x": 686,
+          "y": 424
+        },
+        "useDynamic": false
+      },
+      "2222bbbb-0000-4000-8000-000000000028": {
+        "position": {
+          "x": 663,
+          "y": 1755
+        },
+        "useDynamic": false
+      },
+      "2222bbbb-0000-4000-8000-000000000029": {
+        "position": {
+          "x": 381,
+          "y": 446
+        },
+        "conditionMetadata": [
+          {
+            "id": "2222bbbb-0000-4000-8000-000000000030",
+            "percent": {
+              "value": 1,
+              "display": "1%"
+            },
+            "name": "2",
+            "value": "3"
+          },
+          {
+            "id": "2222bbbb-0000-4000-8000-000000000031",
+            "percent": {
+              "value": 1,
+              "display": "1%"
+            },
+            "name": "3",
+            "value": "6"
+          },
+          {
+            "id": "2222bbbb-0000-4000-8000-000000000032",
+            "percent": {
+              "value": 1,
+              "display": "1%"
+            },
+            "name": "4",
+            "value": "8"
+          }
+        ]
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "2222bbbb-0000-4000-8000-000000000012",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    },
+    {
+      "Identifier": "2222bbbb-0000-4000-8000-000000000018",
+      "Parameters": {
+        "Text": "You rolled a 2!"
+      },
+      "Transitions": {
+        "NextAction": "2222bbbb-0000-4000-8000-000000000017",
+        "Errors": [],
+        "Conditions": []
+      },
+      "Type": "MessageParticipant"
+    },
+    {
+      "Identifier": "2222bbbb-0000-4000-8000-000000000019",
+      "Parameters": {
+        "Text": "You rolled a 3!"
+      },
+      "Transitions": {
+        "NextAction": "2222bbbb-0000-4000-8000-000000000011",
+        "Errors": [],
+        "Conditions": []
+      },
+      "Type": "MessageParticipant"
+    },
+    {
+      "Identifier": "2222bbbb-0000-4000-8000-000000000020",
+      "Parameters": {
+        "Text": "You rolled a 4!"
+      },
+      "Transitions": {
+        "NextAction": "2222bbbb-0000-4000-8000-000000000002",
+        "Errors": [],
+        "Conditions": []
+      },
+      "Type": "MessageParticipant"
+    },
+    {
+      "Identifier": "2222bbbb-0000-4000-8000-000000000028",
+      "Parameters": {
+        "Text": "You rolled a 12!"
+      },
+      "Transitions": {
+        "NextAction": "2222bbbb-0000-4000-8000-000000000005",
+        "Errors": [],
+        "Conditions": []
+      },
+      "Type": "MessageParticipant"
+    },
+    {
+      "Identifier": "2222bbbb-0000-4000-8000-000000000029",
+      "Transitions": {
+        "NextAction": "2222bbbb-0000-4000-8000-000000000028",
+        "Errors": [
+          {
+            "NextAction": "2222bbbb-0000-4000-8000-000000000028",
+            "ErrorType": "NoMatchingCondition"
+          }
+        ],
+        "Conditions": [
+          {
+            "NextAction": "2222bbbb-0000-4000-8000-000000000018",
+            "Condition": {
+              "Operator": "NumberLessThan",
+              "Operands": [
+                "4"
+              ]
+            }
+          },
+          {
+            "NextAction": "2222bbbb-0000-4000-8000-000000000019",
+            "Condition": {
+              "Operator": "NumberLessThan",
+              "Operands": [
+                "10"
+              ]
+            }
+          },
+          {
+            "NextAction": "2222bbbb-0000-4000-8000-000000000020",
+            "Condition": {
+              "Operator": "NumberLessThan",
+              "Operands": [
+                "18"
+              ]
+            }
+          }
+        ]
+      },
+      "Type": "DistributeByPercentage"
+    }
+  ]
+}

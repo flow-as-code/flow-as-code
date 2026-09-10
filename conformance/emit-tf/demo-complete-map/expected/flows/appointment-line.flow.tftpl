@@ -1,0 +1,280 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "enable-logging",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 170
+    },
+    "ActionMetadata": {
+      "announce-busy": {
+        "Position": {
+          "x": 1840,
+          "y": 150
+        }
+      },
+      "announce-closed": {
+        "Position": {
+          "x": 1840,
+          "y": 20
+        }
+      },
+      "apologize": {
+        "Position": {
+          "x": 1840,
+          "y": 250
+        }
+      },
+      "check-hours": {
+        "Position": {
+          "x": 540,
+          "y": 50
+        }
+      },
+      "enable-logging": {
+        "Position": {
+          "x": 20,
+          "y": 170
+        }
+      },
+      "hang-up": {
+        "Position": {
+          "x": 2100,
+          "y": 110
+        }
+      },
+      "look-up-appointment": {
+        "Position": {
+          "x": 1060,
+          "y": 140
+        }
+      },
+      "record-lookup-result": {
+        "Position": {
+          "x": 1320,
+          "y": 100
+        }
+      },
+      "set-working-queue": {
+        "Position": {
+          "x": 800,
+          "y": 180
+        }
+      },
+      "transfer": {
+        "Position": {
+          "x": 1580,
+          "y": 140
+        }
+      },
+      "welcome": {
+        "Position": {
+          "x": 280,
+          "y": 170
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "enable-logging",
+      "Type": "UpdateFlowLoggingBehavior",
+      "Parameters": {
+        "FlowLoggingBehavior": "Enabled"
+      },
+      "Transitions": {
+        "NextAction": "welcome",
+        "Errors": [],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "welcome",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Thanks for calling. Let's get you to the right place."
+      },
+      "Transitions": {
+        "NextAction": "check-hours",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "check-hours",
+      "Type": "CheckHoursOfOperation",
+      "Parameters": {
+        "HoursOfOperationId": "${hours_main_line_arn}"
+      },
+      "Transitions": {
+        "NextAction": "announce-closed",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": [
+          {
+            "NextAction": "set-working-queue",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "True"
+              ]
+            }
+          },
+          {
+            "NextAction": "announce-closed",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "False"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "set-working-queue",
+      "Type": "UpdateContactTargetQueue",
+      "Parameters": {
+        "QueueId": "${queue_appointments_arn}"
+      },
+      "Transitions": {
+        "NextAction": "look-up-appointment",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "look-up-appointment",
+      "Type": "InvokeLambdaFunction",
+      "Parameters": {
+        "InvocationTimeLimitSeconds": 8,
+        "InvocationType": "SYNCHRONOUS",
+        "LambdaFunctionARN": "${lambda_appointment_lookup_arn}",
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Transitions": {
+        "NextAction": "record-lookup-result",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "transfer"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "record-lookup-result",
+      "Type": "UpdateContactAttributes",
+      "Parameters": {
+        "Attributes": {
+          "appointmentFound": "$.External.appointmentFound"
+        },
+        "TargetContact": "Current"
+      },
+      "Transitions": {
+        "NextAction": "transfer",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "transfer"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "transfer",
+      "Type": "TransferContactToQueue",
+      "Parameters": {},
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "QueueAtCapacity",
+            "NextAction": "announce-busy"
+          },
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "apologize"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "announce-closed",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "We are closed right now. Please call back during business hours."
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "announce-busy",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "All of our lines are busy. Please try again shortly."
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "apologize",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Something went wrong on our end. Please try again later."
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="64" height="64" role="img" aria-label="flow-as-code">
+  <title>flow-as-code</title>
+  <style>
+    path { fill: #16181d; }
+    @media (prefers-color-scheme: dark) { path { fill: #e9e7e1; } }
+  </style>
+  <path d="M2 0h3v2H4v12h1v2H2V9H0V7h2z" />
+  <path d="M14 0h-3v2h1v12h-1v2h3V9h2V7h-2z" />
+  <path d="M5 7h3v2H5z" />
+  <path d="M8 5l3 3-3 3z" />
+</svg>

@@ -1,0 +1,83 @@
+{
+  "name": "@flow-as-code/core",
+  "version": "0.1.2",
+  "description": "Typed builder, synthesizer, codegen, lint engine, map and binder materialization, export reverse-mapping, and simulate client for Amazon Connect Flow language. IaC-agnostic; references are abstract tokens.",
+  "keywords": [
+    "amazon-connect",
+    "contact-flow",
+    "contact-center",
+    "ivr",
+    "infrastructure-as-code",
+    "aws",
+    "typescript"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./lint": {
+      "types": "./dist/lint/index.d.ts",
+      "import": "./dist/lint/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "SPEC.md",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!**/__fixtures__",
+    "!**/__generated__",
+    "!**/*.tsbuildinfo",
+    "!**/__snapshots__",
+    "!**/*.snap",
+    "!**/test-helpers.ts",
+    "!**/test-helpers.tsx"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dagre": "^0.8.5"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-connect": "^3.600.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-connect": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aws-sdk/client-connect": "^3.925.0",
+    "@types/dagre": "^0.7.54",
+    "ajv": "^8.20.0",
+    "eslint": "^10.9.1",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flow-as-code/flow-as-code.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://flow-as-code.dev/docs/package-core/",
+  "bugs": {
+    "url": "https://github.com/flow-as-code/flow-as-code/issues"
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "expect": [
+    {
+      "rule": "module-depth-5",
+      "messageIncludes": "Recursive module invocation"
+    }
+  ],
+  "docs": [
+    {
+      "flowdoc": "0.1",
+      "kind": "flow",
+      "name": "entry",
+      "connectType": "CONTACT_FLOW",
+      "content": {
+        "Version": "2019-10-30",
+        "StartAction": "call",
+        "Actions": [
+          {
+            "Identifier": "call",
+            "Type": "InvokeFlowModule",
+            "Parameters": {
+              "FlowModuleId": "${cdref:module:m1@prod}"
+            },
+            "Transitions": {
+              "NextAction": "bye",
+              "Errors": [
+                {
+                  "ErrorType": "NoMatchingError",
+                  "NextAction": "bye"
+                }
+              ],
+              "Conditions": []
+            }
+          },
+          {
+            "Identifier": "bye",
+            "Type": "DisconnectParticipant",
+            "Parameters": {},
+            "Transitions": {}
+          }
+        ]
+      },
+      "layout": {
+        "call": {
+          "x": 0,
+          "y": 0
+        },
+        "bye": {
+          "x": 200,
+          "y": 0
+        }
+      },
+      "refs": [
+        {
+          "token": "${cdref:module:m1@prod}",
+          "type": "module",
+          "name": "m1",
+          "alias": "prod"
+        }
+      ]
+    },
+    {
+      "flowdoc": "0.1",
+      "kind": "module",
+      "name": "m1",
+      "connectType": "MODULE",
+      "content": {
+        "Version": "2019-10-30",
+        "StartAction": "call",
+        "Actions": [
+          {
+            "Identifier": "call",
+            "Type": "InvokeFlowModule",
+            "Parameters": {
+              "FlowModuleId": "${cdref:module:m2@prod}"
+            },
+            "Transitions": {
+              "NextAction": "done",
+              "Errors": [
+                {
+                  "ErrorType": "NoMatchingError",
+                  "NextAction": "done"
+                }
+              ],
+              "Conditions": []
+            }
+          },
+          {
+            "Identifier": "done",
+            "Type": "EndFlowModuleExecution",
+            "Parameters": {},
+            "Transitions": {}
+          }
+        ]
+      },
+      "layout": {
+        "call": {
+          "x": 0,
+          "y": 0
+        },
+        "done": {
+          "x": 200,
+          "y": 0
+        }
+      },
+      "refs": [
+        {
+          "token": "${cdref:module:m2@prod}",
+          "type": "module",
+          "name": "m2",
+          "alias": "prod"
+        }
+      ]
+    },
+    {
+      "flowdoc": "0.1",
+      "kind": "module",
+      "name": "m2",
+      "connectType": "MODULE",
+      "content": {
+        "Version": "2019-10-30",
+        "StartAction": "call",
+        "Actions": [
+          {
+            "Identifier": "call",
+            "Type": "InvokeFlowModule",
+            "Parameters": {
+              "FlowModuleId": "${cdref:module:m1@prod}"
+            },
+            "Transitions": {
+              "NextAction": "done",
+              "Errors": [
+                {
+                  "ErrorType": "NoMatchingError",
+                  "NextAction": "done"
+                }
+              ],
+              "Conditions": []
+            }
+          },
+          {
+            "Identifier": "done",
+            "Type": "EndFlowModuleExecution",
+            "Parameters": {},
+            "Transitions": {}
+          }
+        ]
+      },
+      "layout": {
+        "call": {
+          "x": 0,
+          "y": 0
+        },
+        "done": {
+          "x": 200,
+          "y": 0
+        }
+      },
+      "refs": [
+        {
+          "token": "${cdref:module:m1@prod}",
+          "type": "module",
+          "name": "m1",
+          "alias": "prod"
+        }
+      ]
+    }
+  ]
+}

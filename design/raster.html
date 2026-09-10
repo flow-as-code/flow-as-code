@@ -1,0 +1,237 @@
+<!doctype html>
+<!--
+  The raster half of the logo build. design/build-raster.mjs serves this page
+  and writes what it posts back; see that file for how to run it.
+
+  Why a browser: this repository has no image dependency and does not need one.
+  A canvas is a rasterizer that is already installed, it draws the same Path2D
+  data the SVGs are made of, and it is the only thing here that can set type in
+  a system font. Nothing is fetched: the module imports below are files from
+  this repository, served by the same local process that receives the results.
+
+  Everything drawn here comes from design/mark.mjs, design/wordmark.mjs,
+  design/lockup.mjs and design/palette.mjs, so a change to the mark reaches the
+  PNGs by rerunning the build and by nothing else.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>flow-as-code raster build</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #23262b;
+        color: #e9e7e1;
+        font:
+          13px/1.6 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      canvas {
+        display: block;
+        margin: 8px 0 20px;
+        max-width: 100%;
+        background: repeating-conic-gradient(#3a3f46 0% 25%, #2b2f35 0% 50%) 0 0 / 16px 16px;
+      }
+      #log {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="log">drawing...</div>
+    <div id="sheet"></div>
+    <script type="module">
+      import { MARK_PATHS, MARK_SIZE } from "./mark.mjs";
+      import { lockup } from "./lockup.mjs";
+      import { PALETTE } from "./palette.mjs";
+      import { WORDMARK_PATH } from "./wordmark.mjs";
+
+      const log = (line) => {
+        document.getElementById("log").textContent += `\n${line}`;
+      };
+
+      const MARK = MARK_PATHS.map((d) => new Path2D(d));
+      const WORD = new Path2D(WORDMARK_PATH);
+
+      /** The mark, filled into a box of `size` at (x, y). */
+      function drawMark(ctx, x, y, size, fill) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(size / MARK_SIZE, size / MARK_SIZE);
+        ctx.fillStyle = fill;
+        for (const path of MARK) ctx.fill(path);
+        ctx.restore();
+      }
+
+      /** The lockup, its ink box `height` tall, with its top left at (x, y). */
+      function drawLockup(ctx, x, y, height, markFill, wordFill) {
+        const box = lockup(100);
+        const scale = height / box.height;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        drawMark(ctx, box.markX, box.markY, box.markHeight, markFill);
+        ctx.translate(box.wordX, box.baseline);
+        ctx.fillStyle = wordFill;
+        ctx.fill(WORD);
+        ctx.restore();
+        return box.width * scale;
+      }
+
+      /**
+       * A canvas drawn at `supersample` times the final size and scaled down,
+       * which is how a curve gets a clean edge without an image library. The
+       * icons deliberately do not use it: they are drawn at exactly their pixel
+       * size so the mark's whole-number grid lands on whole pixels.
+       */
+      function render(width, height, supersample, draw) {
+        const big = document.createElement("canvas");
+        big.width = width * supersample;
+        big.height = height * supersample;
+        const ctx = big.getContext("2d");
+        ctx.scale(supersample, supersample);
+        draw(ctx);
+        if (supersample === 1) return big;
+        const out = document.createElement("canvas");
+        out.width = width;
+        out.height = height;
+        const flat = out.getContext("2d");
+        flat.imageSmoothingEnabled = true;
+        flat.imageSmoothingQuality = "high";
+        flat.drawImage(big, 0, 0, width, height);
+        return out;
+      }
+
+      function show(name, canvas) {
+        const sheet = document.getElementById("sheet");
+        const label = document.createElement("div");
+        label.textContent = `${name} ${canvas.width}x${canvas.height}`;
+        sheet.append(label, canvas);
+      }
+
+      /** A rounded rectangle, because a plate with square corners is a slab. */
+      function plate(ctx, width, height, radius, fill) {
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, width, height, radius);
+        ctx.fill();
+      }
+
+      // --- the card a link preview shows -----------------------------------
+      // 1200x630 is the Open Graph size scripts/build-site.mjs asserts.
+      const og = render(1200, 630, 2, (ctx) => {
+        ctx.fillStyle = PALETTE.BG;
+        ctx.fillRect(0, 0, 1200, 630);
+        ctx.fillStyle = PALETTE.ACCENT;
+        ctx.fillRect(0, 0, 16, 630);
+
+        drawLockup(ctx, 96, 92, 84, PALETTE.ACCENT, PALETTE.INK);
+
+        const sans = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        const mono = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
+
+        ctx.fillStyle = PALETTE.ACCENT;
+        ctx.font = `600 34px ${sans}`;
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("Flow as code for Amazon Connect.", 96, 272);
+
+        ctx.fillStyle = PALETTE.MUTED;
+        ctx.font = `30px ${sans}`;
+        // The card carries the landing page's lead, not the feature list: a
+        // preview in a chat client is often the whole read, so it says what the
+        // tooling is for. site/index.html and scripts/build-site.mjs
+        // (OG_IMAGE.alt) have to agree with these three lines.
+        const lines = [
+          "A Connect flow is JSON full of ARNs that differ per",
+          "account and region. Here references are tokens, so one",
+          "document reaches dev and prod through CDK or Terraform.",
+        ];
+        lines.forEach((line, i) => ctx.fillText(line, 96, 362 + i * 46));
+
+        ctx.strokeStyle = PALETTE.RULE;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(96, 524);
+        ctx.lineTo(1104, 524);
+        ctx.stroke();
+
+        ctx.fillStyle = PALETTE.INK;
+        ctx.font = `500 26px ${mono}`;
+        ctx.fillText("flow-as-code.dev", 96, 578);
+        ctx.fillStyle = PALETTE.MUTED;
+        ctx.font = `26px ${sans}`;
+        ctx.textAlign = "right";
+        ctx.fillText("Open source, Apache-2.0", 1104, 578);
+      });
+      show("og.png", og);
+
+      // --- the banner a README shows ---------------------------------------
+      // A plate, because a README is read on a light page and on a dark one and
+      // ink on transparent disappears into one of them.
+      const BANNER = { width: 480, height: 88, pad: 24 };
+      const banner = render(BANNER.width, BANNER.height, 3, (ctx) => {
+        plate(ctx, BANNER.width, BANNER.height, 10, PALETTE.ACCENT);
+        const height = ((BANNER.width - BANNER.pad * 2) * lockup(100).height) / lockup(100).width;
+        drawLockup(
+          ctx,
+          BANNER.pad,
+          (BANNER.height - height) / 2,
+          height,
+          PALETTE.ACCENT_DARK,
+          PALETTE.BG,
+        );
+      });
+      show("logo.png", banner);
+
+      // --- the icon iOS puts on a home screen ------------------------------
+      // Opaque and full bleed: iOS applies its own corner mask, and a
+      // transparent apple-touch-icon is composited onto black.
+      const touch = render(180, 180, 3, (ctx) => {
+        ctx.fillStyle = PALETTE.ACCENT;
+        ctx.fillRect(0, 0, 180, 180);
+        drawMark(ctx, 34, 34, 112, PALETTE.ACCENT_DARK);
+      });
+      show("apple-touch-icon.png", touch);
+
+      // --- the tab icon ----------------------------------------------------
+      // Drawn at 1x at each size, so every stroke of the 16 unit mark is a
+      // whole number of pixels and only the arrowhead is antialiased.
+      const ICO_SIZES = [16, 32, 48];
+      const icons = ICO_SIZES.map((size) => {
+        const canvas = render(size, size, 1, (ctx) => {
+          drawMark(ctx, 0, 0, size, PALETTE.ICON);
+        });
+        show(`favicon.ico ${String(size)}`, canvas);
+        return { size, canvas };
+      });
+
+      // --- hand it all back ------------------------------------------------
+      const base64 = (bytes) => {
+        let binary = "";
+        for (const byte of bytes) binary += String.fromCharCode(byte);
+        return btoa(binary);
+      };
+      const post = async (path, body) => {
+        const response = await fetch(path, { method: "POST", body });
+        log(`${path}: ${await response.text()}`);
+      };
+
+      for (const [name, canvas] of [
+        ["og.png", og],
+        ["logo.png", banner],
+        ["apple-touch-icon.png", touch],
+      ]) {
+        await post(`/png/${name}`, canvas.toDataURL("image/png").split(",")[1]);
+      }
+      for (const { size, canvas } of icons) {
+        const pixels = canvas.getContext("2d").getImageData(0, 0, size, size).data;
+        await post(`/rgba/${String(size)}`, base64(pixels));
+      }
+      await post("/done", "");
+      log("done. This page can be closed.");
+    </script>
+  </body>
+</html>

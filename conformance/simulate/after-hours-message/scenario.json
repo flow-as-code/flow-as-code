@@ -1,0 +1,25 @@
+{
+  "scenario": "0.1",
+  "name": "after-hours-message",
+  "description": "A chat contact outside business hours receives the closed message and the flow ends. The main-line hours are substituted with a never-open hours resource so the scenario does not depend on the wall-clock time. Chat rather than voice: on voice the closed prompt is reported at the end of playback and races the flow's own disconnect (tasks/A06-export-and-simulate.md).",
+  "entryPoint": {
+    "channel": "chat",
+    "flow": "${cdref:flow:appointment-line}"
+  },
+  "attributes": {
+    "locale": "en-US",
+    "testRun": "after-hours"
+  },
+  "substitutions": [
+    {
+      "actionType": "CheckHoursOfOperation",
+      "actionParameters": { "HoursOfOperationId": "${cdref:hours:main-line}" },
+      "substitute": "${cdref:hours:closed}"
+    }
+  ],
+  "steps": [
+    { "kind": "expect-hours-check", "hours": "${cdref:hours:main-line}" },
+    { "kind": "expect-prompt", "contains": "We are closed right now" },
+    { "kind": "assert", "path": "$.Attributes.locale", "operator": "Equals", "value": "en-US" }
+  ]
+}

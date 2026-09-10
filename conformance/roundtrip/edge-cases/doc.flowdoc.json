@@ -1,0 +1,155 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "edge-cases",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "ssml-greeting",
+    "Actions": [
+      {
+        "Identifier": "odd-message",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "You reached the odd path.",
+          "Unmodeled": "true"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ssml-greeting",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "SSML": "<speak>Welcome to <emphasis level=\"strong\">the appointment line</emphasis>.</speak>"
+        },
+        "Transitions": {
+          "NextAction": "compare-tier",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "prompt-fallback"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "compare-tier",
+        "Type": "Compare",
+        "Parameters": {
+          "ComparisonValue": "$.Attributes.tier"
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "odd-message"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "prompt-fallback",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "gold"
+                ]
+              }
+            },
+            {
+              "NextAction": "queue-by-attribute",
+              "Condition": {
+                "Operator": "NumberGreaterThan",
+                "Operands": [
+                  "3"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "prompt-fallback",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "PromptId": "${cdref:prompt:welcome-prompt}"
+        },
+        "Transitions": {
+          "NextAction": "queue-by-attribute",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "queue-by-attribute",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "$.Attributes.queueId"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "compare-tier": {
+      "x": 320,
+      "y": 40
+    },
+    "hang-up": {
+      "x": 1160,
+      "y": 160
+    },
+    "odd-message": {
+      "x": 40,
+      "y": 320
+    },
+    "prompt-fallback": {
+      "x": 600,
+      "y": 160
+    },
+    "queue-by-attribute": {
+      "x": 880,
+      "y": 40
+    },
+    "ssml-greeting": {
+      "x": 40,
+      "y": 40
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:prompt:welcome-prompt}",
+      "type": "prompt",
+      "name": "welcome-prompt"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "binder-passthrough",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "set-working-queue",
+    "Actions": [
+      {
+        "Identifier": "set-working-queue",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "${cdref:queue:front-desk}"
+        },
+        "Transitions": {
+          "NextAction": "look-up-caller",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "look-up-caller",
+        "Type": "InvokeLambdaFunction",
+        "Parameters": {
+          "InvocationTimeLimitSeconds": 8,
+          "InvocationType": "SYNCHRONOUS",
+          "LambdaFunctionARN": "${cdref:lambda:screen-pop}",
+          "ResponseValidation": {
+            "ResponseType": "STRING_MAP"
+          }
+        },
+        "Transitions": {
+          "NextAction": "transfer",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "transfer"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "transfer",
+        "Type": "TransferContactToQueue",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "hang-up"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "hang-up": {
+      "x": 800,
+      "y": 20
+    },
+    "look-up-caller": {
+      "x": 280,
+      "y": 50
+    },
+    "set-working-queue": {
+      "x": 20,
+      "y": 20
+    },
+    "transfer": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:lambda:screen-pop}",
+      "type": "lambda",
+      "name": "screen-pop"
+    },
+    {
+      "token": "${cdref:queue:front-desk}",
+      "type": "queue",
+      "name": "front-desk"
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+<!doctype html>
+<!--
+  Served by GitHub Pages for any path that does not exist
+  (https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-custom-404-page-for-your-github-pages-site).
+
+  This is the one page whose links are ROOT-relative rather than relative. It is
+  served for an unknown URL at any depth, so `./studio/` from /docs/typo/ would
+  point at /docs/typo/studio/ and be a second dead end. tests/site.test.ts
+  encodes that exception and still resolves every link against the built tree.
+
+  It is also the one page with no canonical URL: it has no URL of its own, and
+  `noindex` keeps it out of the index it would otherwise pollute.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page not found | flow-as-code</title>
+    <meta
+      name="description"
+      content="That URL is not part of this site. The landing page, the documentation index, and the read-only studio demo are all one link away."
+    />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <style>
+      :root {
+        --bg: #fbfaf7;
+        --ink: #16181d;
+        --muted: #5a6070;
+        --accent: #1f5f4b;
+        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101216;
+          --ink: #e9e7e1;
+          --muted: #9aa1ae;
+          --accent: #6ee7b7;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 4rem 1.25rem;
+      }
+
+      h1 {
+        font-family: var(--mono);
+        font-size: clamp(1.6rem, 6vw, 2.2rem);
+        margin: 0 0 1rem;
+      }
+
+      p {
+        margin: 0 0 1rem;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--accent);
+        color: var(--bg);
+        padding: 0.6rem 1rem;
+      }
+
+      .skip:focus {
+        left: 0;
+      }
+
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 1.4rem;
+        margin-top: 2rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <main id="content">
+      <h1>Page not found</h1>
+      <p>
+        There is nothing at that address. Nothing here is behind a login, so this is a wrong or an
+        old URL rather than a page you are missing.
+      </p>
+      <nav aria-label="Site">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/studio/">Studio demo</a>
+        <a href="https://github.com/flow-as-code/flow-as-code">Source on GitHub</a>
+      </nav>
+    </main>
+  </body>
+</html>

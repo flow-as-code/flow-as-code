@@ -1,0 +1,499 @@
+<!doctype html>
+<!--
+  The landing page for the project site (docs/05-hosted-demo.md, tasks/A14).
+
+  It leads with promotion between environments, which is what the tooling is
+  for, rather than with the list of what it is. The order is the one a stranger
+  needs: the ARN table a Connect flow forces on you, the token that removes it,
+  the example that runs the argument, then the distinction between that table
+  and the address map the Terraform path does take. Every claim in the copy is
+  checkable in this repository.
+
+  Hand-authored, dependency-free, and deliberately so: one file, inline CSS, no
+  external font, no external script, no analytics, no build step. The studio
+  demo it links to is proven to load nothing beyond its own origin, and a
+  landing page in front of it that phoned home would undo that in the first
+  second of the visit.
+
+  The mark in the h1 is inline SVG, not an <img>: it is four paths, so a second
+  request for 400 bytes would cost more than it saves, and inline it takes the
+  heading's own colour in both themes. Those paths are the ones in
+  design/mark.mjs and scripts/build-site.mjs fails the build if they drift from
+  it. The icon links are the only subresource on this page; the browser asks the
+  origin for /favicon.ico whether or not they are here, and they add the SVG and
+  the Apple icon to that.
+
+  Every internal link is relative (`./studio/`), so the tree serves from the
+  apex and from any subpath without an edit. tests/site.test.ts is the guard.
+
+  The absolute URLs in the head are the exception, and they are absolute because
+  their meaning is: a canonical URL, an Open Graph URL, or an image a chat client
+  fetches from its own servers cannot be relative to the reader. They all point
+  at the host in site/CNAME, and tests/site.test.ts checks they still do. The
+  JSON-LD block is data, not behaviour: it is the only <script> on any page of
+  this site, it has no src, and nothing executes.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>flow-as-code: Amazon Connect flows as typed code</title>
+    <meta
+      name="description"
+      content="One Amazon Connect flow reaches dev and prod with no ARN mapping table. References stay tokens until your IaC resolves them, per environment."
+    />
+    <link rel="canonical" href="https://flow-as-code.dev/" />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="flow-as-code" />
+    <meta property="og:title" content="flow-as-code: Amazon Connect flows as typed code" />
+    <meta
+      property="og:description"
+      content="One Amazon Connect flow, a dev and a prod environment, no per-environment ARN table. References stay ${cdref:type:name} tokens through authoring, lint and review; your IaC resolves them at deploy."
+    />
+    <meta property="og:url" content="https://flow-as-code.dev/" />
+    <meta property="og:image" content="https://flow-as-code.dev/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="flow-as-code: flow as code for Amazon Connect. A Connect flow is JSON full of ARNs that differ per account and region; here references are tokens, so one document reaches dev and prod through CDK or Terraform."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="flow-as-code: Amazon Connect flows as typed code" />
+    <meta
+      name="twitter:description"
+      content="One Amazon Connect flow, a dev and a prod environment, no per-environment ARN table. References stay ${cdref:type:name} tokens through authoring, lint and review; your IaC resolves them at deploy."
+    />
+    <meta name="twitter:image" content="https://flow-as-code.dev/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "flow-as-code",
+        "description": "Open-source tooling that moves an Amazon Connect flow between accounts, regions and instances without a per-environment ARN mapping table: references are held as ${cdref:type:name} tokens and resolved by AWS CDK or Terraform/OpenTofu at deploy. Typed authoring, a visual editor, lint, simulate-based testing and export from a live instance all round-trip through one interchange format.",
+        "url": "https://flow-as-code.dev/",
+        "codeRepository": "https://github.com/flow-as-code/flow-as-code",
+        "programmingLanguage": "TypeScript",
+        "runtimePlatform": "Node.js",
+        "license": "https://www.apache.org/licenses/LICENSE-2.0"
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #fbfaf7;
+        --panel: #ffffff;
+        --ink: #16181d;
+        --muted: #5a6070;
+        --rule: #e3e0d8;
+        --accent: #1f5f4b;
+        --accent-ink: #ffffff;
+        --code-bg: #f3f1ea;
+        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101216;
+          --panel: #171a20;
+          --ink: #e9e7e1;
+          --muted: #9aa1ae;
+          --rule: #262a33;
+          --accent: #6ee7b7;
+          --accent-ink: #0c1a15;
+          --code-bg: #0b0d11;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 3.5rem 1.25rem 4rem;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      h1 {
+        font-family: var(--mono);
+        font-size: clamp(1.9rem, 7vw, 2.6rem);
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+
+      /* The mark is as tall as the ascenders of the word beside it and sits on
+         the same baseline, which is the lockup in site/logo.svg, set in the
+         heading's own type instead of drawn. */
+      h1 .mark {
+        width: 0.76em;
+        height: 0.76em;
+        margin-right: 0.38em;
+        vertical-align: baseline;
+      }
+
+      h2 {
+        font-size: 0.82rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 600;
+        margin: 3rem 0 0.85rem;
+      }
+
+      p {
+        margin: 0 0 1rem;
+      }
+
+      .tagline {
+        color: var(--muted);
+        margin: 0.6rem 0 0;
+      }
+
+      .thesis {
+        font-size: clamp(1.15rem, 3.6vw, 1.4rem);
+        line-height: 1.45;
+        margin: 2.25rem 0 0;
+        padding-left: 1rem;
+        border-left: 3px solid var(--accent);
+      }
+
+      .cta {
+        margin: 2.25rem 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.75rem 1.1rem;
+      }
+
+      .button {
+        display: inline-block;
+        background: var(--accent);
+        color: var(--accent-ink);
+        text-decoration: none;
+        font-weight: 600;
+        padding: 0.7rem 1.3rem;
+        border-radius: 6px;
+      }
+
+      .button:hover,
+      .button:focus-visible {
+        filter: brightness(1.08);
+      }
+
+      .cta small {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 0.9rem 1rem;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 0.83rem;
+        line-height: 1.55;
+        margin: 0 0 1rem;
+      }
+
+      /* A terraform address or a test path run inline is one long word wider
+         than a phone, and a word that cannot break makes the whole page scroll
+         sideways. Breaking one is only permitted where it would otherwise
+         overflow, so nothing moves on a wide screen. Inside <pre> the
+         white-space rule wins and the block scrolls on its own instead. */
+      code {
+        font-family: var(--mono);
+        font-size: 0.9em;
+        overflow-wrap: break-word;
+      }
+
+      /* The two facts the promotion test holds. Marked rather than bulleted:
+         the argument is that there are exactly two of them. */
+      ul.proof {
+        list-style: none;
+        margin: 0 0 1rem;
+        padding: 0;
+      }
+
+      ul.proof li {
+        border-left: 3px solid var(--rule);
+        padding: 0 0 0 1rem;
+        margin: 0 0 1rem;
+      }
+
+      ul.packages {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--rule);
+      }
+
+      ul.packages li {
+        border-bottom: 1px solid var(--rule);
+        padding: 0.7rem 0;
+        display: grid;
+        grid-template-columns: 11rem 1fr;
+        gap: 0.25rem 1rem;
+      }
+
+      ul.packages b {
+        font-family: var(--mono);
+        font-weight: 500;
+        font-size: 0.86rem;
+        color: var(--accent);
+      }
+
+      ul.packages span {
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      @media (max-width: 34rem) {
+        ul.packages li {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      footer {
+        margin-top: 3.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+        color: var(--muted);
+        font-size: 0.92rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 1.4rem;
+      }
+
+      footer a {
+        text-decoration-color: var(--rule);
+      }
+
+      .skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--accent);
+        color: var(--accent-ink);
+        padding: 0.6rem 1rem;
+        border-radius: 0 0 6px 0;
+      }
+
+      .skip:focus {
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <main id="content">
+      <h1>
+        <svg
+          class="mark"
+          viewBox="0 0 16 16"
+          width="16"
+          height="16"
+          fill="currentColor"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M2 0h3v2H4v12h1v2H2V9H0V7h2z" />
+          <path d="M14 0h-3v2h1v12h-1v2h3V9h2V7h-2z" />
+          <path d="M5 7h3v2H5z" />
+          <path d="M8 5l3 3-3 3z" /></svg
+        >flow-as-code
+      </h1>
+      <p class="tagline">Flow as code for Amazon Connect.</p>
+
+      <p class="thesis">
+        An Amazon Connect flow is a JSON document full of ARNs, and the ARNs differ per account, per
+        region, per instance. So moving one flow from dev to prod means maintaining a mapping from
+        "the queue I mean" to "the ARN it has in this environment", and something has to walk the
+        flow and swap one for the other before deployment. That mapping table is the thing this
+        tooling deletes.
+      </p>
+
+      <p class="cta">
+        <a class="button" href="./studio/">Open the studio demo</a>
+        <a href="./docs/promote-across-environments/">See it promote across environments</a>
+        <a href="./docs/">Read the docs</a>
+        <small
+          >The demo needs a desktop-width screen. It is read-only, in your browser, no account and
+          no network calls.</small
+        >
+      </p>
+
+      <h2>References are tokens</h2>
+      <p>A flow refers to a queue by name, not by ARN:</p>
+      <pre>
+new UpdateContactTargetQueue({
+  id: "set-working-queue",
+  queue: Refs.queue("appointments"),
+  next: "look-up-appointment",
+  onError: "apologize",
+});</pre>
+      <p>
+        <code>Refs.queue("appointments")</code> becomes <code>${cdref:queue:appointments}</code> in
+        the document. It stays a token through authoring, lint, version control and review. It
+        becomes an ARN at exactly one moment: when your IaC tool resolves it, per environment. Under
+        CDK the binding is a CloudFormation intrinsic, a <code>Fn::GetAtt</code> at a resource the
+        stack creates or an <code>Fn::ImportValue</code> of one it does not. Under Terraform it is a
+        <code>templatefile</code> variable your own resource addresses fill in.
+      </p>
+      <p>
+        That is a lint rule, not a convention: a literal ARN in authored content fails a hard rule,
+        and in the studio a failing hard rule disables saving.
+      </p>
+
+      <h2>One flow, two environments</h2>
+      <p>
+        <a href="./docs/promote-across-environments/">The promotion example</a> is that argument as
+        commands rather than prose: one FlowDoc reaching a dev and a prod environment, on both
+        deploy paths. Two facts about it are worth stating because a test asserts each, on every
+        push to main and every pull request.
+      </p>
+      <ul class="proof">
+        <li>
+          Emitting the same document for dev and for prod produces two Terraform trees that differ
+          in exactly one file, <code>flow_refs.tf</code>. The rendered flow template,
+          <code>flows.tf</code> and <code>variables.tf</code> are byte-identical, because the
+          template names its variables after the tokens rather than after what they resolve to. No
+          byte of either tree matches <code>arn:aws</code>.
+        </li>
+        <li>
+          The CDK path takes no map at all. Each stack's binder hands <code>FlowSet</code> a value
+          the app already holds: a construct attribute in the environment that creates its
+          supporting resources, an <code>Fn.importValue</code> in the environment where a platform
+          team owns them. Neither synthesized template names a Connect ARN.
+        </li>
+      </ul>
+      <p>
+        <code>tests/promoteAcrossEnvironments.test.ts</code> runs the example's own inputs and holds
+        both. The example's README also names what it does not show.
+      </p>
+
+      <h2>The map that is not that table</h2>
+      <p>
+        The Terraform path does take an <code>--address-map</code>, one small JSON file per
+        environment, and it looks like the table described above. It is a different object. Its
+        values are Terraform addresses of resources your own configuration manages,
+        <code>aws_connect_queue.appointments.arn</code> where the environment creates the queue and
+        <code>data.terraform_remote_state.platform.outputs.appointments_queue_arn</code> where a
+        platform team owns it. The emitter refuses any value matching <code>/arn:aws/i</code>
+        outright, telling you to map it to a terraform address instead, so the file cannot decay
+        into an ARN table.
+      </p>
+      <p>
+        The CDK path needs no such file because the flows and the resources are objects in one
+        program, so the app already holds the reference and there is nothing to name. HCL has no
+        equivalent, so something has to name the address in text. That, and only that, is why one
+        path takes a map and the other takes none.
+      </p>
+
+      <h2>What it is</h2>
+      <p>
+        Open-source tooling for Amazon Connect flows: typed flow authoring, lint, simulate-based
+        testing, export from a live instance, and a visual editor, all round-tripping through one
+        interchange format, with CDK and Terraform/OpenTofu code as outputs. Everything but the live
+        commands works offline.
+      </p>
+      <p>
+        FlowDoc is the pivot. It is a JSON document holding Connect Flow-language content with
+        <code>${cdref:type:name}</code> reference tokens, plus layout and metadata. Every tool in
+        the set reads and writes it, so there is no second format to keep in sync.
+      </p>
+      <pre>
+typed TS builder --synth--&gt; FlowDoc --codegen--&gt; typed TS builder
+studio canvas   &lt;--edit--&gt; FlowDoc
+FlowDoc --cdk--&gt; CDK stacks (CloudFormation tokens)
+FlowDoc --tf--&gt;  .tf + .tftpl files (resource references)
+live instance --export--&gt; FlowDoc (+ codegen to TS)</pre>
+
+      <h2>Packages</h2>
+      <ul class="packages">
+        <li>
+          <b>@flow-as-code/core</b>
+          <span
+            >Typed builder, synthesizer, codegen, lint engine, FlowDoc interchange, export, and the
+            simulate client.</span
+          >
+        </li>
+        <li>
+          <b>@flow-as-code/cli</b>
+          <span
+            >lint, codegen, synth, render, emit, studio, plus the live export and simulate.</span
+          >
+        </li>
+        <li>
+          <b>@flow-as-code/studio</b>
+          <span>Visual editor over FlowDoc, served locally by <code>flow-cli studio</code>.</span>
+        </li>
+        <li>
+          <b>@flow-as-code/cdk</b>
+          <span>CDK token binding and the FlowSet construct.</span>
+        </li>
+        <li>
+          <b>@flow-as-code/tf</b>
+          <span>Terraform/OpenTofu emitter: FlowDoc to .tf and .tftpl files.</span>
+        </li>
+      </ul>
+
+      <h2>Try it</h2>
+      <p>
+        Published on npm under the <b>@flow-as-code</b> scope. The five packages version together
+        and are released as a set, so install them at matching versions. Node 22.12 or newer.
+      </p>
+      <pre>
+npm i -D @flow-as-code/cli
+npx flow-cli init flows/              # a first flow to open: FlowDoc + .flow.ts
+
+npx flow-cli studio flows/            # visual editor, live-synced
+npx flow-cli lint flows/              # the rule set over the document set
+npx flow-cli emit flows/ --target tf  # or --target cdk</pre>
+      <p>
+        Every command after the install works on a directory of FlowDocs, so <code>init</code> comes
+        first: it writes a small demo flow and the typed <code>.flow.ts</code> that synthesizes to
+        it. If nothing above the directory is already a package it adds a package.json marking the
+        pair as modules; inside a project that has one it leaves yours alone, and the pair loads
+        either way. Edit either side and the studio keeps them in step.
+      </p>
+      <p>
+        <code>@flow-as-code/cli</code> depends on the other four, so installing it alone is enough
+        for the CLI. The studio demo above needs no install at all, and
+        <a href="./docs/promote-across-environments/">the promotion example</a> runs from a clone of
+        the repository.
+      </p>
+
+      <footer>
+        <a href="./studio/">Studio demo</a>
+        <a href="./docs/promote-across-environments/">Promotion example</a>
+        <a href="./docs/">Docs</a>
+        <a href="https://github.com/flow-as-code/flow-as-code">Source on GitHub</a>
+        <a href="./llms.txt">llms.txt</a>
+        <span>Apache-2.0</span>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,221 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "default-queue-transfer",
+  "connectType": "QUEUE_TRANSFER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "1111aaaa-0000-4000-8000-000000000001",
+    "Metadata": {
+      "ActionMetadata": {
+        "1111aaaa-0000-4000-8000-000000000002": {
+          "useDynamic": false
+        },
+        "1111aaaa-0000-4000-8000-000000000003": {
+          "useDynamic": false
+        },
+        "1111aaaa-0000-4000-8000-000000000005": {
+          "useDynamic": false
+        },
+        "1111aaaa-0000-4000-8000-000000000006": {
+          "useDynamic": false
+        },
+        "1111aaaa-0000-4000-8000-000000000007": {
+          "useDynamic": false
+        },
+        "1111aaaa-0000-4000-8000-000000000008": {
+          "useDynamic": false
+        }
+      },
+      "description": "Default flow used to transfer to a queue.",
+      "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "Default queue transfer",
+      "snapToGrid": false,
+      "status": "published",
+      "type": "queueTransfer"
+    },
+    "Actions": [
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000002",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "We are currently out of hours. Goodbye."
+        },
+        "Transitions": {
+          "NextAction": "1111aaaa-0000-4000-8000-000000000004",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000003",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "There are currently no agents staffed. Goodbye."
+        },
+        "Transitions": {
+          "NextAction": "1111aaaa-0000-4000-8000-000000000004",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000004",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      },
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000001",
+        "Type": "CheckHoursOfOperation",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "1111aaaa-0000-4000-8000-000000000005",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "1111aaaa-0000-4000-8000-000000000005"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "1111aaaa-0000-4000-8000-000000000007",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "True"
+                ]
+              }
+            },
+            {
+              "NextAction": "1111aaaa-0000-4000-8000-000000000002",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "False"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000005",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Failed to transfer to queue. Goodbye."
+        },
+        "Transitions": {
+          "NextAction": "1111aaaa-0000-4000-8000-000000000004",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000006",
+        "Type": "TransferContactToQueue",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "1111aaaa-0000-4000-8000-000000000005",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "1111aaaa-0000-4000-8000-000000000005"
+            },
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "1111aaaa-0000-4000-8000-000000000005"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000007",
+        "Type": "CheckMetricData",
+        "Parameters": {
+          "MetricType": "NumberOfAgentsStaffed"
+        },
+        "Transitions": {
+          "NextAction": "1111aaaa-0000-4000-8000-000000000005",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "1111aaaa-0000-4000-8000-000000000005"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "1111aaaa-0000-4000-8000-000000000003"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "1111aaaa-0000-4000-8000-000000000008",
+              "Condition": {
+                "Operator": "NumberGreaterThan",
+                "Operands": [
+                  "0"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "1111aaaa-0000-4000-8000-000000000008",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Now transferring."
+        },
+        "Transitions": {
+          "NextAction": "1111aaaa-0000-4000-8000-000000000006",
+          "Errors": [],
+          "Conditions": []
+        }
+      }
+    ]
+  },
+  "layout": {
+    "1111aaaa-0000-4000-8000-000000000001": {
+      "x": 205,
+      "y": 127
+    },
+    "1111aaaa-0000-4000-8000-000000000002": {
+      "x": 450,
+      "y": 297
+    },
+    "1111aaaa-0000-4000-8000-000000000003": {
+      "x": 697,
+      "y": 229
+    },
+    "1111aaaa-0000-4000-8000-000000000004": {
+      "x": 1328,
+      "y": 411
+    },
+    "1111aaaa-0000-4000-8000-000000000005": {
+      "x": 1138,
+      "y": 232
+    },
+    "1111aaaa-0000-4000-8000-000000000006": {
+      "x": 918,
+      "y": 37
+    },
+    "1111aaaa-0000-4000-8000-000000000007": {
+      "x": 466.8238220214844,
+      "y": 26.44894027709961
+    },
+    "1111aaaa-0000-4000-8000-000000000008": {
+      "x": 692,
+      "y": 40
+    }
+  },
+  "refs": [],
+  "meta": {
+    "generator": "core@0.1",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000011",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Default queue transfer"
+    }
+  }
+}

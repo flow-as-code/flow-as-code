@@ -1,0 +1,83 @@
+{
+  "name": "@flow-as-code/cdk",
+  "version": "0.1.2",
+  "description": "CDK binding for @flow-as-code/core: materialize FlowDoc refs as CloudFormation tokens; FlowSet construct with module version/alias publishing; a CDK stack scaffold generator on the /scaffold subpath.",
+  "keywords": [
+    "amazon-connect",
+    "contact-flow",
+    "contact-center",
+    "ivr",
+    "infrastructure-as-code",
+    "aws",
+    "typescript",
+    "aws-cdk"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./scaffold": {
+      "types": "./dist/scaffold.d.ts",
+      "import": "./dist/scaffold.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!**/__fixtures__",
+    "!**/__generated__",
+    "!**/*.tsbuildinfo",
+    "!**/__snapshots__",
+    "!**/*.snap",
+    "!**/test-helpers.ts",
+    "!**/test-helpers.tsx"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flow-as-code/core": "0.1.2"
+  },
+  "peerDependencies": {
+    "aws-cdk-lib": "^2.267.0",
+    "constructs": "^10.8.1"
+  },
+  "peerDependenciesMeta": {
+    "aws-cdk-lib": {
+      "optional": true
+    },
+    "constructs": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "aws-cdk-lib": "^2.267.0",
+    "constructs": "^10.8.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flow-as-code/flow-as-code.git",
+    "directory": "packages/cdk"
+  },
+  "homepage": "https://flow-as-code.dev/docs/package-cdk/",
+  "bugs": {
+    "url": "https://github.com/flow-as-code/flow-as-code/issues"
+  }
+}

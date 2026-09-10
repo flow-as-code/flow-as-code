@@ -1,0 +1,67 @@
+{
+  "schema": "flow-simulate-report/0.1",
+  "startedAt": "2026-08-31T12:00:00.000Z",
+  "finishedAt": "2026-08-31T12:01:30.000Z",
+  "totals": {
+    "total": 5,
+    "passed": 1,
+    "failed": 1,
+    "timedOut": 1,
+    "errored": 1,
+    "stopped": 1
+  },
+  "results": [
+    {
+      "name": "after-hours-message",
+      "status": "PASSED",
+      "durationMs": 12500,
+      "testCaseId": "tc-0000-0001",
+      "executionId": "ex-0000-0001",
+      "observations": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "name": "appointment-lookup-transfer",
+      "status": "FAILED",
+      "durationMs": 31250,
+      "testCaseId": "tc-0000-0002",
+      "executionId": "ex-0000-0002",
+      "observations": {
+        "total": 7,
+        "passed": 5,
+        "failed": 2
+      },
+      "message": "2 of 7 observations failed.",
+      "details": [
+        "Assert $.Queue.Name Equals \"Overflow\" but the contact reached <Appointments> & waited",
+        "MessageReceived did not match: expected inclusion of 'right place'",
+        "record \u0001 with \u0007 control bytes\nand a newline\tand a tab"
+      ]
+    },
+    {
+      "name": "chat-greeting",
+      "status": "TIMED_OUT",
+      "durationMs": 300000,
+      "testCaseId": "tc-0000-0003",
+      "executionId": "ex-0000-0003",
+      "message": "No terminal status within 300000 ms."
+    },
+    {
+      "name": "lex-handoff",
+      "status": "ERRORED",
+      "durationMs": 850,
+      "message": "InvalidTestCaseException: Problems: [Observation observation-2 references an unknown ActionType]"
+    },
+    {
+      "name": "callback-offer",
+      "status": "STOPPED",
+      "durationMs": 4000,
+      "testCaseId": "tc-0000-0005",
+      "executionId": "ex-0000-0005",
+      "message": "Execution was stopped."
+    }
+  ]
+}

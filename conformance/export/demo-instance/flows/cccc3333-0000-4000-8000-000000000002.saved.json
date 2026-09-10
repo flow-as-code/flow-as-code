@@ -1,0 +1,29 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "greet",
+  "Actions": [
+    {
+      "Identifier": "greet",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "This flow has never been published."
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

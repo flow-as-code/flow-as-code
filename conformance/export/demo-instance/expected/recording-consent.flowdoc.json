@@ -1,0 +1,67 @@
+{
+  "flowdoc": "0.1",
+  "kind": "module",
+  "name": "recording-consent",
+  "connectType": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "notify",
+    "Metadata": {
+      "ActionMetadata": {
+        "notify": {
+          "useDynamic": false
+        }
+      }
+    },
+    "Actions": [
+      {
+        "Identifier": "notify",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "PromptId": "${cdref:prompt:consent-notice}"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "done": {
+      "x": 420,
+      "y": 40
+    },
+    "notify": {
+      "x": 160,
+      "y": 40
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:prompt:consent-notice}",
+      "type": "prompt",
+      "name": "consent-notice"
+    }
+  ],
+  "meta": {
+    "generator": "core@0.1",
+    "source": {
+      "id": "eeee5555-0000-4000-8000-000000000001",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Recording Consent"
+    }
+  }
+}

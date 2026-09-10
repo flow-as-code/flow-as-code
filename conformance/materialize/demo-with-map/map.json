@@ -1,0 +1,5 @@
+{
+  "${cdref:hours:main-line}": "arn:aws:connect:us-east-1:111122223333:instance/EXAMPLE/operating-hours/EXAMPLE",
+  "${cdref:lambda:appointment-lookup}": "arn:aws:lambda:us-east-1:111122223333:function:appointment-lookup",
+  "${cdref:queue:appointments}": "arn:aws:connect:us-east-1:111122223333:instance/EXAMPLE/queue/EXAMPLE"
+}

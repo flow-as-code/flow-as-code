@@ -1,0 +1,75 @@
+{
+  "name": "@flow-as-code/studio",
+  "version": "0.1.2",
+  "description": "Local-first visual editor for Amazon Connect FlowDocs with live code round-trip. Served by `flow-cli studio`.",
+  "keywords": [
+    "amazon-connect",
+    "contact-flow",
+    "contact-center",
+    "ivr",
+    "infrastructure-as-code",
+    "aws",
+    "typescript",
+    "visual-editor"
+  ],
+  "license": "Apache-2.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!**/__fixtures__",
+    "!**/__generated__",
+    "!**/*.tsbuildinfo",
+    "!**/__snapshots__",
+    "!**/*.snap",
+    "!**/test-helpers.ts",
+    "!**/test-helpers.tsx"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "vite build",
+    "build:demo": "vite build --mode demo",
+    "dev": "vite",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@flow-as-code/cdk": "0.1.2",
+    "@flow-as-code/core": "0.1.2",
+    "@flow-as-code/tf": "0.1.2",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@xyflow/react": "^12.11.5",
+    "ajv": "^8.20.0",
+    "happy-dom": "^20.12.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flow-as-code/flow-as-code.git",
+    "directory": "packages/studio"
+  },
+  "homepage": "https://flow-as-code.dev/docs/package-studio/",
+  "bugs": {
+    "url": "https://github.com/flow-as-code/flow-as-code/issues"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "flowdoc": "0.1",
+  "kind": "module",
+  "name": "greeting",
+  "connectType": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "greet",
+    "Actions": [
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Thanks for calling."
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "greet": {
+      "x": 0,
+      "y": 0
+    },
+    "done": {
+      "x": 200,
+      "y": 0
+    }
+  },
+  "refs": []
+}

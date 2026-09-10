@@ -1,0 +1,106 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "check-hours",
+  "Actions": [
+    {
+      "Identifier": "check-hours",
+      "Type": "CheckHoursOfOperation",
+      "Parameters": {
+        "HoursOfOperationId": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/operating-hours/deleted-00-0000-0000-000000000001"
+      },
+      "Transitions": {
+        "NextAction": "set-queue",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": [
+          {
+            "NextAction": "set-queue",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": ["True"]
+            }
+          },
+          {
+            "NextAction": "hang-up",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": ["False"]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "set-queue",
+      "Type": "UpdateContactTargetQueue",
+      "Parameters": {
+        "QueueId": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/queue/deleted-00-0000-0000-000000000002"
+      },
+      "Transitions": {
+        "NextAction": "look-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "look-up",
+      "Type": "InvokeLambdaFunction",
+      "Parameters": {
+        "InvocationTimeLimitSeconds": 8,
+        "InvocationType": "SYNCHRONOUS",
+        "LambdaFunctionARN": "arn:aws:lambda:us-east-1:111122223333:function:deleted-lookup",
+        "LambdaInvocationAttributes": {
+          "note": "calls arn:aws:lambda:us-east-1:111122223333:function:embedded-in-prose when it fails"
+        }
+      },
+      "Transitions": {
+        "NextAction": "wrap-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "wrap-up",
+      "Type": "ShowView",
+      "Parameters": {
+        "ViewResource": {
+          "Id": "arn:aws:connect:us-east-1:aws:view/after-contact-work:1"
+        },
+        "InvocationTimeLimitSeconds": "480",
+        "ViewData": {
+          "CustomerName": "Jane Doe"
+        }
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

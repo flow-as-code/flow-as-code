@@ -1,0 +1,55 @@
+{
+  "expect": [
+    {
+      "rule": "no-literal-arn",
+      "blockId": "say",
+      "messageIncludes": "literal ARN"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "say",
+      "Actions": [
+        {
+          "Identifier": "say",
+          "Type": "MessageParticipant",
+          "Parameters": {
+            "PromptId": "arn:aws:connect:us-east-1:111122223333:instance/a/prompt/b"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "say": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

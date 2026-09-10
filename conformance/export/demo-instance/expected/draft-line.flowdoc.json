@@ -1,0 +1,55 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "draft-line",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "greet",
+    "Actions": [
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "This flow has never been published."
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "greet": {
+      "x": 20,
+      "y": 20
+    },
+    "hang-up": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [],
+  "meta": {
+    "generator": "core@0.1",
+    "source": {
+      "alias": "$SAVED",
+      "id": "cccc3333-0000-4000-8000-000000000002",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Draft Line"
+    }
+  }
+}

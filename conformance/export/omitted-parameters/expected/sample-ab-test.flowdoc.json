@@ -1,0 +1,197 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "sample-ab-test",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "2222bbbb-0000-4000-8000-000000000029",
+    "Metadata": {
+      "ActionMetadata": {
+        "2222bbbb-0000-4000-8000-000000000018": {
+          "useDynamic": false
+        },
+        "2222bbbb-0000-4000-8000-000000000019": {
+          "useDynamic": false
+        },
+        "2222bbbb-0000-4000-8000-000000000020": {
+          "useDynamic": false
+        },
+        "2222bbbb-0000-4000-8000-000000000028": {
+          "useDynamic": false
+        },
+        "2222bbbb-0000-4000-8000-000000000029": {
+          "conditionMetadata": [
+            {
+              "id": "2222bbbb-0000-4000-8000-000000000030",
+              "name": "2",
+              "percent": {
+                "display": "1%",
+                "value": 1
+              },
+              "value": "3"
+            },
+            {
+              "id": "2222bbbb-0000-4000-8000-000000000031",
+              "name": "3",
+              "percent": {
+                "display": "1%",
+                "value": 1
+              },
+              "value": "6"
+            },
+            {
+              "id": "2222bbbb-0000-4000-8000-000000000032",
+              "name": "4",
+              "percent": {
+                "display": "1%",
+                "value": 1
+              },
+              "value": "8"
+            }
+          ]
+        }
+      },
+      "description": "Distributes traffic for A/B tests",
+      "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "Sample AB test",
+      "snapToGrid": false,
+      "status": "published",
+      "type": "contactFlow"
+    },
+    "Actions": [
+      {
+        "Identifier": "2222bbbb-0000-4000-8000-000000000012",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      },
+      {
+        "Identifier": "2222bbbb-0000-4000-8000-000000000018",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "You rolled a 2!"
+        },
+        "Transitions": {
+          "NextAction": "2222bbbb-0000-4000-8000-000000000017",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "2222bbbb-0000-4000-8000-000000000019",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "You rolled a 3!"
+        },
+        "Transitions": {
+          "NextAction": "2222bbbb-0000-4000-8000-000000000011",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "2222bbbb-0000-4000-8000-000000000020",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "You rolled a 4!"
+        },
+        "Transitions": {
+          "NextAction": "2222bbbb-0000-4000-8000-000000000002",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "2222bbbb-0000-4000-8000-000000000028",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "You rolled a 12!"
+        },
+        "Transitions": {
+          "NextAction": "2222bbbb-0000-4000-8000-000000000005",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "2222bbbb-0000-4000-8000-000000000029",
+        "Type": "DistributeByPercentage",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "2222bbbb-0000-4000-8000-000000000028",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "2222bbbb-0000-4000-8000-000000000028"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "2222bbbb-0000-4000-8000-000000000018",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "4"
+                ]
+              }
+            },
+            {
+              "NextAction": "2222bbbb-0000-4000-8000-000000000019",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "10"
+                ]
+              }
+            },
+            {
+              "NextAction": "2222bbbb-0000-4000-8000-000000000020",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "18"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "layout": {
+    "2222bbbb-0000-4000-8000-000000000012": {
+      "x": 1890,
+      "y": 1137
+    },
+    "2222bbbb-0000-4000-8000-000000000018": {
+      "x": 657,
+      "y": 52
+    },
+    "2222bbbb-0000-4000-8000-000000000019": {
+      "x": 671,
+      "y": 245
+    },
+    "2222bbbb-0000-4000-8000-000000000020": {
+      "x": 686,
+      "y": 424
+    },
+    "2222bbbb-0000-4000-8000-000000000028": {
+      "x": 663,
+      "y": 1755
+    },
+    "2222bbbb-0000-4000-8000-000000000029": {
+      "x": 381,
+      "y": 446
+    }
+  },
+  "refs": [],
+  "meta": {
+    "generator": "core@0.1",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000012",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Sample AB test"
+    }
+  }
+}

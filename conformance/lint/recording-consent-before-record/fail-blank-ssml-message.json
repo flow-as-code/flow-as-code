@@ -1,0 +1,81 @@
+{
+  "expect": [
+    {
+      "rule": "recording-consent-before-record",
+      "blockId": "record",
+      "messageIncludes": "plays no message first"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "announce",
+      "Actions": [
+        {
+          "Identifier": "announce",
+          "Type": "MessageParticipant",
+          "Parameters": {
+            "SSML": "  "
+          },
+          "Transitions": {
+            "NextAction": "record",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "record"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "record",
+          "Type": "UpdateContactRecordingBehavior",
+          "Parameters": {
+            "RecordingBehavior": {
+              "RecordedParticipants": [
+                "Agent",
+                "Customer"
+              ]
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "announce": {
+        "x": 0,
+        "y": 0
+      },
+      "record": {
+        "x": 200,
+        "y": 0
+      },
+      "bye": {
+        "x": 400,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

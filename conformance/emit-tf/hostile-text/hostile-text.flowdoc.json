@@ -1,0 +1,157 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "hostile-text",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "interpolation-lookalike",
+    "Actions": [
+      {
+        "Identifier": "interpolation-lookalike",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Your balance is ${amount} and your next payment of ${due} is owed now."
+        },
+        "Transitions": {
+          "NextAction": "directive-lookalike",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "directive-lookalike",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Template directives read %{ if open } and %{ for name in list }."
+        },
+        "Transitions": {
+          "NextAction": "already-escaped",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "already-escaped",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Doubled already: $${literal} and %%{directive} stay exactly so."
+        },
+        "Transitions": {
+          "NextAction": "sentinel-lookalike",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "sentinel-lookalike",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Sentinels CDREF_TF_SENTINEL_0_ and CDREF_TF_SENTINELX_0_ are caller text."
+        },
+        "Transitions": {
+          "NextAction": "quotes-and-slashes",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "quotes-and-slashes",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "She said \"${it is fine}\" and wrote C:\\temp\\%{x} on the form."
+        },
+        "Transitions": {
+          "NextAction": "set-queue",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-queue",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "${cdref:queue:appointments}"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "already-escaped": {
+      "x": 540,
+      "y": 20
+    },
+    "directive-lookalike": {
+      "x": 280,
+      "y": 20
+    },
+    "hang-up": {
+      "x": 1580,
+      "y": 20
+    },
+    "interpolation-lookalike": {
+      "x": 20,
+      "y": 20
+    },
+    "quotes-and-slashes": {
+      "x": 1060,
+      "y": 20
+    },
+    "sentinel-lookalike": {
+      "x": 800,
+      "y": 20
+    },
+    "set-queue": {
+      "x": 1320,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:queue:appointments}",
+      "type": "queue",
+      "name": "appointments"
+    }
+  ]
+}

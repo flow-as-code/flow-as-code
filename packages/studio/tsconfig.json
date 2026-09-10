@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    // Not a composite project: nothing references it (the root tsconfig builds
+    // the four node packages) and it emits nothing. Composite would also
+    // impose a rootDir, which the export tests break on purpose by importing
+    // @flow-as-code/tf's conformance case loader across the package boundary rather
+    // than copying the harness. tsconfig.test.json does the same for the
+    // node packages' tests.
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src", "tests"]
+}

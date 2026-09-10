@@ -1,0 +1,5 @@
+{
+  "hours:main-line": "data.terraform_remote_state.platform.outputs.main_line_hours_arn",
+  "lambda:appointment-lookup": "data.terraform_remote_state.platform.outputs.appointment_lookup_arn",
+  "queue:appointments": "data.terraform_remote_state.platform.outputs.appointments_queue_arn"
+}

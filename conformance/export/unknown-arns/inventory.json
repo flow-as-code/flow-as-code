@@ -1,0 +1,18 @@
+{
+  "contactFlows": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000009",
+      "id": "cccc3333-0000-4000-8000-000000000009",
+      "name": "Stale Refs",
+      "contactFlowType": "CONTACT_FLOW",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    }
+  ],
+  "contactFlowModules": [],
+  "queues": [],
+  "hoursOfOperations": [],
+  "prompts": [],
+  "lambdaFunctions": [],
+  "lexBots": []
+}

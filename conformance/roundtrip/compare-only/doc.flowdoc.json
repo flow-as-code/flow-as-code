@@ -1,0 +1,106 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "compare-only",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "route-tier",
+    "Actions": [
+      {
+        "Identifier": "route-tier",
+        "Type": "Compare",
+        "Parameters": {
+          "ComparisonValue": "$.Attributes.tier"
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "greet-standard"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "greet-gold",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "gold"
+                ]
+              }
+            },
+            {
+              "NextAction": "greet-standard",
+              "Condition": {
+                "Operator": "TextStartsWith",
+                "Operands": [
+                  "s"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "greet-gold",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Welcome back."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "greet-standard",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Hello."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 540,
+      "y": 70
+    },
+    "greet-gold": {
+      "x": 280,
+      "y": 20
+    },
+    "greet-standard": {
+      "x": 280,
+      "y": 120
+    },
+    "route-tier": {
+      "x": 20,
+      "y": 70
+    }
+  },
+  "refs": []
+}

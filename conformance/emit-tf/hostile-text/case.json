@@ -1,0 +1,8 @@
+{
+  "description": "Caller text containing every sequence that would otherwise be read as template syntax, plus sentinel lookalikes. Also covers instanceIdExpression: the instance comes from a resource address, so no variables.tf is emitted.",
+  "docs": ["hostile-text.flowdoc.json"],
+  "options": {
+    "instanceIdExpression": "aws_connect_instance.main.id"
+  },
+  "validate": "pass"
+}

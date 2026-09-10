@@ -1,0 +1,44 @@
+{
+  "expect": [
+    {
+      "rule": "terminal-blocks",
+      "messageIncludes": "cannot end"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "say",
+      "Actions": [
+        {
+          "Identifier": "say",
+          "Type": "MessageParticipant",
+          "Parameters": {
+            "Text": "Hi."
+          },
+          "Transitions": {
+            "NextAction": "say",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "say"
+              }
+            ],
+            "Conditions": []
+          }
+        }
+      ]
+    },
+    "layout": {
+      "say": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

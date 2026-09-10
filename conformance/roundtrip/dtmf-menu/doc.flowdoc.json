@@ -1,0 +1,246 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "dtmf-menu",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "menu",
+    "Actions": [
+      {
+        "Identifier": "menu",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": "5",
+          "StoreInput": "False",
+          "Text": "For sales, press 1. For support, press 2. To hear this again, press star."
+        },
+        "Transitions": {
+          "NextAction": "no-match",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "timeout-notice"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "no-match"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "sales",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "1"
+                ]
+              }
+            },
+            {
+              "NextAction": "support",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "2"
+                ]
+              }
+            },
+            {
+              "NextAction": "menu",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "*"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "timeout-notice",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "We did not hear a selection."
+        },
+        "Transitions": {
+          "NextAction": "menu",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "no-match",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "That is not a valid option."
+        },
+        "Transitions": {
+          "NextAction": "menu",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "sales",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": "10",
+          "PromptId": "${cdref:prompt:sales-confirm}",
+          "StoreInput": "False"
+        },
+        "Transitions": {
+          "NextAction": "menu",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "menu"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "menu"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "sales-transfer",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "1"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "sales-transfer",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Connecting you to sales."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "support",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": "30",
+          "SSML": "<speak>Press any key when you have your account number ready.</speak>",
+          "StoreInput": "False"
+        },
+        "Transitions": {
+          "NextAction": "support-transfer",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "support-transfer"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "support-transfer"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "support-transfer",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Connecting you to support."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 800,
+      "y": 148
+    },
+    "menu": {
+      "x": 20,
+      "y": 120
+    },
+    "no-match": {
+      "x": 280,
+      "y": 120
+    },
+    "sales": {
+      "x": 280,
+      "y": 220
+    },
+    "sales-transfer": {
+      "x": 540,
+      "y": 250
+    },
+    "support": {
+      "x": 280,
+      "y": 340
+    },
+    "support-transfer": {
+      "x": 540,
+      "y": 370
+    },
+    "timeout-notice": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:prompt:sales-confirm}",
+      "type": "prompt",
+      "name": "sales-confirm"
+    }
+  ]
+}

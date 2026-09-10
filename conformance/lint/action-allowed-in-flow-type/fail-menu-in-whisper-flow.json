@@ -1,0 +1,75 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "menu",
+      "messageIncludes": "GetParticipantInput is not allowed in a OUTBOUND_WHISPER"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "OUTBOUND_WHISPER",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "menu",
+      "Actions": [
+        {
+          "Identifier": "menu",
+          "Type": "GetParticipantInput",
+          "Parameters": {
+            "Text": "Press 1 to accept the call.",
+            "InputTimeLimitSeconds": "5",
+            "StoreInput": "False"
+          },
+          "Transitions": {
+            "NextAction": "end",
+            "Errors": [
+              {
+                "ErrorType": "InputTimeLimitExceeded",
+                "NextAction": "end"
+              },
+              {
+                "ErrorType": "NoMatchingCondition",
+                "NextAction": "end"
+              },
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "end"
+              }
+            ],
+            "Conditions": [
+              {
+                "NextAction": "end",
+                "Condition": {
+                  "Operator": "Equals",
+                  "Operands": [
+                    "1"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Identifier": "end",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "menu": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

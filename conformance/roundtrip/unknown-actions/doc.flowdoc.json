@@ -1,0 +1,136 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "unknown-actions",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "get-input",
+    "Actions": [
+      {
+        "Identifier": "get-input",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": 5,
+          "Text": "Press 1 for sales or 2 for support."
+        },
+        "Transitions": {
+          "NextAction": "hand-off",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hand-off"
+            },
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "hand-off"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "sales-bot",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "1"
+                ]
+              }
+            },
+            {
+              "NextAction": "callback",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "2"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "sales-bot",
+        "Type": "ConnectParticipantWithLexBot",
+        "Parameters": {
+          "LexV2Bot": "${cdref:lex:sales-bot}",
+          "Text": "Connecting you to sales."
+        },
+        "Transitions": {
+          "NextAction": "hand-off",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hand-off"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "callback",
+        "Type": "UpdateContactCallbackNumber",
+        "Parameters": {
+          "CallbackNumber": "$.StoredCustomerInput",
+          "Routing": {
+            "Depth": 2,
+            "Queues": [
+              "${cdref:queue:support}",
+              "${cdref:queue:overflow}"
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "hand-off",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hand-off"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hand-off",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "callback": {
+      "x": 280,
+      "y": 120
+    },
+    "get-input": {
+      "x": 20,
+      "y": 20
+    },
+    "hand-off": {
+      "x": 540,
+      "y": 20
+    },
+    "sales-bot": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:lex:sales-bot}",
+      "type": "lex",
+      "name": "sales-bot"
+    },
+    {
+      "token": "${cdref:queue:overflow}",
+      "type": "queue",
+      "name": "overflow"
+    },
+    {
+      "token": "${cdref:queue:support}",
+      "type": "queue",
+      "name": "support"
+    }
+  ]
+}

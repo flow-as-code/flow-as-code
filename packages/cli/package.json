@@ -1,0 +1,96 @@
+{
+  "name": "@flow-as-code/cli",
+  "version": "0.1.2",
+  "description": "CLI over @flow-as-code/core: lint, codegen, synth, render, emit, the local studio server, and export, simulate, and diff against a live Amazon Connect instance.",
+  "keywords": [
+    "amazon-connect",
+    "contact-flow",
+    "contact-center",
+    "ivr",
+    "infrastructure-as-code",
+    "aws",
+    "typescript"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./synth": {
+      "types": "./dist/synth.d.ts",
+      "import": "./dist/synth.js"
+    },
+    "./watch": {
+      "types": "./dist/watch.d.ts",
+      "import": "./dist/watch.js"
+    },
+    "./bridge": {
+      "types": "./dist/bridge/server.d.ts",
+      "import": "./dist/bridge/server.js"
+    }
+  },
+  "bin": {
+    "flow-cli": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "schema",
+    "template",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!**/__fixtures__",
+    "!**/__generated__",
+    "!**/*.tsbuildinfo",
+    "!**/__snapshots__",
+    "!**/*.snap",
+    "!**/test-helpers.ts",
+    "!**/test-helpers.tsx"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "node ../../scripts/chmod-bins.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flow-as-code/cdk": "0.1.2",
+    "@flow-as-code/core": "0.1.2",
+    "@flow-as-code/studio": "0.1.2",
+    "@flow-as-code/tf": "0.1.2",
+    "ajv": "^8.20.0",
+    "chokidar": "^5.0.0",
+    "commander": "^14.0.3",
+    "tsx": "^4.23.13",
+    "yaml": "^2.9.0"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-connect": "^3.600.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-connect": {
+      "optional": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flow-as-code/flow-as-code.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://flow-as-code.dev/docs/package-cli/",
+  "bugs": {
+    "url": "https://github.com/flow-as-code/flow-as-code/issues"
+  }
+}

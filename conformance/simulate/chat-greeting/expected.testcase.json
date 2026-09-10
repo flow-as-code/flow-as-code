@@ -1,0 +1,111 @@
+{
+  "name": "chat-greeting",
+  "description": "A chat contact is greeted, answers, sees the lookup start, and disconnects before the transfer.",
+  "entryPoint": {
+    "Type": "CHAT",
+    "ChatEntryPointParameters": {
+      "FlowId": "${cdref:flow:appointment-line}"
+    }
+  },
+  "content": {
+    "Version": "2019-10-30",
+    "Metadata": {},
+    "Observations": [
+      {
+        "Identifier": "observation-1",
+        "Event": {
+          "Identifier": "observation-1-event",
+          "Type": "TestInitiated",
+          "Actor": "System",
+          "Properties": {}
+        },
+        "Actions": [],
+        "Transitions": {
+          "NextObservations": [
+            "observation-2"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-2",
+        "Event": {
+          "Identifier": "observation-2-event",
+          "Type": "MessageReceived",
+          "Actor": "System",
+          "Properties": {
+            "Text": "Thanks for calling. Let's get you to the right place.",
+            "MatchingCriteria": {
+              "Type": "Similarity"
+            }
+          }
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-2-action-1",
+            "Type": "SendInstruction",
+            "Parameters": {
+              "ActionType": "SendInstruction",
+              "Actor": "Customer",
+              "Instruction": {
+                "Type": "Utterance",
+                "Properties": {
+                  "Value": "I need to reschedule"
+                }
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": [
+            "observation-3"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-3",
+        "Event": {
+          "Identifier": "observation-3-event",
+          "Type": "FlowActionStarted",
+          "Actor": "System",
+          "Properties": {
+            "ActionType": "InvokeLambdaFunction",
+            "ActionParameters": {
+              "LambdaFunctionARN": "${cdref:lambda:appointment-lookup}"
+            }
+          }
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-3-action-1",
+            "Type": "SendInstruction",
+            "Parameters": {
+              "ActionType": "SendInstruction",
+              "Actor": "Customer",
+              "Instruction": {
+                "Type": "Disconnect"
+              }
+            },
+            "Transitions": {
+              "NextAction": "observation-3-action-2"
+            }
+          },
+          {
+            "Identifier": "observation-3-action-2",
+            "Type": "TestControl",
+            "Parameters": {
+              "ActionType": "TestControl",
+              "Command": {
+                "Type": "EndTest"
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": []
+        }
+      }
+    ]
+  }
+}

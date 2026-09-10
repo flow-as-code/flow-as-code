@@ -1,0 +1,304 @@
+{
+  "description": "Scenarios that must be rejected, with the finding paths validateScenario is expected to report. Every one is also rejected by conformance/schema/scenario-0.1.schema.json except the cross-field rules the schema does not express (live-agent-risk, dtmf-on-a-chat-entry-point, substitution-parameter-of-the-wrong-type, substitution-parameter-token-of-the-wrong-type, substitution-parameter-under-the-wrong-key). The cases marked as verified were rejected by CreateTestCase against a live instance on 2026-09-01, in exactly that shape; a rationale explains a rule that was never sent live.",
+  "cases": [
+    {
+      "name": "literal-arn-instead-of-token",
+      "schemaRejects": true,
+      "expectedPaths": ["entryPoint.flow"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "literal-arn",
+        "entryPoint": {
+          "channel": "voice",
+          "flow": "arn:aws:connect:us-east-1:111122223333:instance/i/contact-flow/f"
+        },
+        "steps": [{ "kind": "expect-prompt", "contains": "hello" }]
+      }
+    },
+    {
+      "name": "prompt-with-both-matchers",
+      "schemaRejects": true,
+      "expectedPaths": ["steps[0]"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "both-matchers",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "steps": [{ "kind": "expect-prompt", "contains": "hi", "similarTo": "hi" }]
+      }
+    },
+    {
+      "name": "phone-numbers-on-a-chat-entry-point",
+      "schemaRejects": true,
+      "expectedPaths": ["entryPoint.sourcePhoneNumber"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "chat-with-phone",
+        "entryPoint": {
+          "channel": "chat",
+          "flow": "${cdref:flow:appointment-line}",
+          "sourcePhoneNumber": "+15550100"
+        },
+        "steps": [{ "kind": "send-text", "text": "hi" }]
+      }
+    },
+    {
+      "name": "destination-phone-number-with-a-flow",
+      "schemaRejects": true,
+      "expectedPaths": ["entryPoint.destinationPhoneNumber"],
+      "verified": "CreateTestCase rejects VoiceCallEntryPointParameters that carry both FlowId and DestinationPhoneNumber.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "flow-and-destination",
+        "entryPoint": {
+          "channel": "voice",
+          "flow": "${cdref:flow:appointment-line}",
+          "sourcePhoneNumber": "+15550100",
+          "destinationPhoneNumber": "+15550199"
+        },
+        "steps": [{ "kind": "disconnect" }]
+      }
+    },
+    {
+      "name": "source-phone-number-that-is-not-e164",
+      "schemaRejects": true,
+      "expectedPaths": ["entryPoint.sourcePhoneNumber"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "bad-source-number",
+        "entryPoint": {
+          "channel": "voice",
+          "flow": "${cdref:flow:appointment-line}",
+          "sourcePhoneNumber": "555-0100"
+        },
+        "steps": [{ "kind": "disconnect" }]
+      }
+    },
+    {
+      "name": "source-phone-number-with-a-leading-zero",
+      "schemaRejects": true,
+      "expectedPaths": ["entryPoint.sourcePhoneNumber"],
+      "rationale": "The API reference gives SourcePhoneNumber the pattern \\+[1-9]\\d{1,14}$, so a country code cannot start with 0; this case is digits-only after the plus and the right length, so the leading digit is the only thing wrong with it. Not sent live.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "leading-zero-source-number",
+        "entryPoint": {
+          "channel": "voice",
+          "flow": "${cdref:flow:appointment-line}",
+          "sourcePhoneNumber": "+05550100"
+        },
+        "steps": [{ "kind": "disconnect" }]
+      }
+    },
+    {
+      "name": "dtmf-that-is-not-dtmf",
+      "schemaRejects": true,
+      "expectedPaths": ["steps[0].value"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "bad-dtmf",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "steps": [{ "kind": "send-dtmf", "value": "one" }]
+      }
+    },
+    {
+      "name": "dtmf-on-a-chat-entry-point",
+      "schemaRejects": false,
+      "expectedPaths": ["steps[1]"],
+      "verified": "CreateTestCase rejects a DtmfInput instruction under a CHAT entry point.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "chat-dtmf",
+        "entryPoint": { "channel": "chat", "flow": "${cdref:flow:appointment-line}" },
+        "steps": [
+          { "kind": "send-text", "text": "hi" },
+          { "kind": "send-dtmf", "value": "1" }
+        ]
+      }
+    },
+    {
+      "name": "assert-missing-its-operand",
+      "schemaRejects": true,
+      "expectedPaths": ["steps[0].value"],
+      "verified": "CreateTestCase rejects an Equals Assert without an Operand (Invalid operand parameter for AssertAction). The other operators were only sent with one, so the validator requires a value for all of them.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "no-operand",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "steps": [{ "kind": "assert", "path": "$.Queue.Name", "operator": "Equals" }]
+      }
+    },
+    {
+      "name": "assert-with-the-documented-exists-operator",
+      "schemaRejects": true,
+      "expectedPaths": ["steps[0].operator"],
+      "verified": "CreateTestCase rejects Operator Exists, with or without an Operand, although the assertion doc lists it. The case carries an Operand so the operator is the only thing wrong with it.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "exists-operator",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "steps": [
+          {
+            "kind": "assert",
+            "path": "$.Attributes.appointmentFound",
+            "operator": "Exists",
+            "value": "true"
+          }
+        ]
+      }
+    },
+    {
+      "name": "substitution-without-action-parameters",
+      "schemaRejects": true,
+      "expectedPaths": ["substitutions[0].actionParameters"],
+      "rationale": "A missing map compiles to no ActionParameters member at all; the empty map below is the shape that was sent live.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "bare-substitution",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "substitutions": [
+          { "actionType": "TransferContactToQueue", "substitute": "${cdref:queue:overflow}" }
+        ],
+        "steps": [{ "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" }]
+      }
+    },
+    {
+      "name": "substitution-with-empty-action-parameters",
+      "schemaRejects": true,
+      "expectedPaths": ["substitutions[0].actionParameters"],
+      "verified": "CreateTestCase rejects an OverrideSystemBehavior whose ActionParameters is an empty map.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "empty-substitution",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "substitutions": [
+          {
+            "actionType": "TransferContactToQueue",
+            "actionParameters": {},
+            "substitute": "${cdref:queue:overflow}"
+          }
+        ],
+        "steps": [{ "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" }]
+      }
+    },
+    {
+      "name": "substitution-parameter-that-is-a-literal",
+      "schemaRejects": true,
+      "expectedPaths": ["substitutions[0].actionParameters.Extra"],
+      "rationale": "actionParameters is copied verbatim into Content, so a value that is not a token would be a literal ARN in the test case.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "literal-in-substitution",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "substitutions": [
+          {
+            "actionType": "TransferContactToQueue",
+            "actionParameters": {
+              "QueueId": "${cdref:queue:appointments}",
+              "Extra": "arn:aws:connect:us-east-1:111122223333:instance/i/queue/q"
+            },
+            "substitute": "${cdref:queue:overflow}"
+          }
+        ],
+        "steps": [{ "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" }]
+      }
+    },
+    {
+      "name": "substitution-parameter-of-the-wrong-type",
+      "schemaRejects": false,
+      "expectedPaths": ["substitutions[0].actionParameters", "substitutions[0].substitute"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "hours-for-a-queue",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "substitutions": [
+          {
+            "actionType": "TransferContactToQueue",
+            "actionParameters": { "HoursOfOperationId": "${cdref:hours:main-line}" },
+            "substitute": "${cdref:hours:closed}"
+          }
+        ],
+        "steps": [{ "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" }]
+      }
+    },
+    {
+      "name": "substitution-parameter-token-of-the-wrong-type",
+      "schemaRejects": false,
+      "expectedPaths": ["substitutions[0].actionParameters"],
+      "rationale": "The key is the one TransferContactToQueue reads and the substitute is a queue, so the only fault is the hours token under QueueId; the schema accepts any token there and cannot express which ref type the key takes. Not sent live.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "hours-token-under-queue-id",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "substitutions": [
+          {
+            "actionType": "TransferContactToQueue",
+            "actionParameters": { "QueueId": "${cdref:hours:main-line}" },
+            "substitute": "${cdref:queue:overflow}"
+          }
+        ],
+        "steps": [{ "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" }]
+      }
+    },
+    {
+      "name": "substitution-with-an-unknown-action-type",
+      "schemaRejects": true,
+      "expectedPaths": ["substitutions[0].actionType"],
+      "rationale": "validateScenario is called on its own as well as beside the schema, so it must reject an action type outside the substitution table itself rather than fall through and accept the scenario. Not sent live.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "unknown-action-type",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "substitutions": [
+          {
+            "actionType": "Nope",
+            "actionParameters": { "QueueId": "${cdref:queue:appointments}" },
+            "substitute": "${cdref:queue:overflow}"
+          }
+        ],
+        "steps": [{ "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" }]
+      }
+    },
+    {
+      "name": "substitution-parameter-under-the-wrong-key",
+      "schemaRejects": false,
+      "expectedPaths": ["substitutions[0].actionParameters"],
+      "rationale": "The override names the resource it replaces under the key the action type reads (QueueId for TransferContactToQueue); a queue token under any other key does not name it, and the schema cannot know which key that is. Not sent live.",
+      "scenario": {
+        "scenario": "0.1",
+        "name": "queue-under-the-wrong-key",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "substitutions": [
+          {
+            "actionType": "TransferContactToQueue",
+            "actionParameters": { "Queue": "${cdref:queue:appointments}" },
+            "substitute": "${cdref:queue:overflow}"
+          }
+        ],
+        "steps": [{ "kind": "expect-hours-check", "hours": "${cdref:hours:main-line}" }]
+      }
+    },
+    {
+      "name": "name-that-is-not-a-slug",
+      "schemaRejects": true,
+      "expectedPaths": ["name"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "After Hours",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "steps": [{ "kind": "disconnect" }]
+      }
+    },
+    {
+      "name": "live-agent-risk",
+      "schemaRejects": false,
+      "expectedPaths": ["endTest"],
+      "scenario": {
+        "scenario": "0.1",
+        "name": "transfer-without-ending",
+        "entryPoint": { "channel": "voice", "flow": "${cdref:flow:appointment-line}" },
+        "endTest": false,
+        "steps": [{ "kind": "expect-transfer", "queue": "${cdref:queue:appointments}" }]
+      }
+    }
+  ]
+}

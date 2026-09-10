@@ -1,0 +1,39 @@
+{
+  "expect": [
+    {
+      "rule": "no-literal-arn",
+      "messageIncludes": "refs[0].token"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "bye",
+      "Actions": [
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "bye": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "refs": [
+      {
+        "token": "arn:aws:connect:us-east-1:111122223333:instance/EXAMPLE/queue/EXAMPLE",
+        "type": "queue",
+        "name": "appointments"
+      }
+    ]
+  }
+}

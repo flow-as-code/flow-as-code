@@ -1,0 +1,41 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "notify",
+  "Metadata": {
+    "entryPointPosition": { "x": 40, "y": 40 },
+    "ActionMetadata": {
+      "notify": {
+        "position": { "x": 160, "y": 40 },
+        "useDynamic": false
+      },
+      "done": {
+        "position": { "x": 420, "y": 40 }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "notify",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "PromptId": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/prompt/dddd4444-0000-4000-8000-000000000001"
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "done",
+      "Type": "EndFlowModuleExecution",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

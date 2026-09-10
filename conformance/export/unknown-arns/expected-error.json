@@ -1,0 +1,9 @@
+{
+  "unknownArns": [
+    "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/operating-hours/deleted-00-0000-0000-000000000001",
+    "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/queue/deleted-00-0000-0000-000000000002",
+    "arn:aws:connect:us-east-1:aws:view/after-contact-work:1",
+    "arn:aws:lambda:us-east-1:111122223333:function:deleted-lookup"
+  ],
+  "interpolatedArns": ["arn:aws:lambda:us-east-1:111122223333:function:embedded-in-prose"]
+}

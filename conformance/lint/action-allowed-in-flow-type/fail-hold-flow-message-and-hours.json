@@ -1,0 +1,94 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "check-hours",
+      "messageIncludes": "CheckHoursOfOperation is not allowed in a CUSTOMER_HOLD"
+    },
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "hold-message",
+      "messageIncludes": "MessageParticipant is not allowed in a CUSTOMER_HOLD"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.1",
+    "kind": "flow",
+    "name": "hold-music",
+    "connectType": "CUSTOMER_HOLD",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "hold-message",
+      "Actions": [
+        {
+          "Identifier": "hold-message",
+          "Type": "MessageParticipant",
+          "Parameters": {
+            "Text": "Thanks for holding."
+          },
+          "Transitions": {
+            "NextAction": "check-hours",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "resume"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "check-hours",
+          "Type": "CheckHoursOfOperation",
+          "Parameters": {},
+          "Transitions": {
+            "NextAction": "resume",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "resume"
+              }
+            ],
+            "Conditions": [
+              {
+                "NextAction": "resume",
+                "Condition": {
+                  "Operator": "Equals",
+                  "Operands": ["True"]
+                }
+              },
+              {
+                "NextAction": "resume",
+                "Condition": {
+                  "Operator": "Equals",
+                  "Operands": ["False"]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Identifier": "resume",
+          "Type": "ResumeContact",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "hold-message": {
+        "x": 0,
+        "y": 0
+      },
+      "check-hours": {
+        "x": 200,
+        "y": 0
+      },
+      "resume": {
+        "x": 400,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

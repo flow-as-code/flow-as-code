@@ -1,0 +1,184 @@
+{
+  "name": "appointment-lookup-transfer",
+  "description": "A caller in hours reaches the appointments queue after the lookup Lambda runs. The production queue is substituted so the simulated contact cannot reach a live agent.",
+  "entryPoint": {
+    "Type": "VOICE_CALL",
+    "VoiceCallEntryPointParameters": {
+      "SourcePhoneNumber": "+15550100",
+      "FlowId": "${cdref:flow:appointment-line}"
+    }
+  },
+  "content": {
+    "Version": "2019-10-30",
+    "Metadata": {},
+    "Observations": [
+      {
+        "Identifier": "observation-1",
+        "Event": {
+          "Identifier": "observation-1-event",
+          "Type": "TestInitiated",
+          "Actor": "System",
+          "Properties": {}
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-1-action-1",
+            "Type": "OverrideSystemBehavior",
+            "Parameters": {
+              "ActionType": "OverrideSystemBehavior",
+              "Behavior": {
+                "Type": "FlowAction",
+                "Properties": {
+                  "ActionType": "TransferContactToQueue",
+                  "ActionParameters": {
+                    "QueueId": "${cdref:queue:appointments}"
+                  },
+                  "Strategy": {
+                    "Type": "SubstituteResource",
+                    "SubstituteArn": "${cdref:queue:overflow}"
+                  }
+                }
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": [
+            "observation-2"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-2",
+        "Event": {
+          "Identifier": "observation-2-event",
+          "Type": "FlowActionStarted",
+          "Actor": "System",
+          "Properties": {
+            "ActionType": "CheckHoursOfOperation",
+            "ActionParameters": {
+              "HoursOfOperationId": "${cdref:hours:main-line}"
+            }
+          }
+        },
+        "Actions": [],
+        "Transitions": {
+          "NextObservations": [
+            "observation-3"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-3",
+        "Event": {
+          "Identifier": "observation-3-event",
+          "Type": "MessageReceived",
+          "Actor": "System",
+          "Properties": {
+            "Text": "get you to the right place",
+            "MatchingCriteria": {
+              "Type": "Inclusion"
+            }
+          }
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-3-action-1",
+            "Type": "SendInstruction",
+            "Parameters": {
+              "ActionType": "SendInstruction",
+              "Actor": "Customer",
+              "Instruction": {
+                "Type": "DtmfInput",
+                "Properties": {
+                  "Value": "1"
+                }
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": [
+            "observation-4"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-4",
+        "Event": {
+          "Identifier": "observation-4-event",
+          "Type": "FlowActionStarted",
+          "Actor": "System",
+          "Properties": {
+            "ActionType": "InvokeLambdaFunction",
+            "ActionParameters": {
+              "LambdaFunctionARN": "${cdref:lambda:appointment-lookup}"
+            }
+          }
+        },
+        "Actions": [],
+        "Transitions": {
+          "NextObservations": [
+            "observation-5"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-5",
+        "Event": {
+          "Identifier": "observation-5-event",
+          "Type": "FlowActionStarted",
+          "Actor": "System",
+          "Properties": {
+            "ActionType": "TransferContactToQueue",
+            "ActionParameters": {
+              "QueueId": "${cdref:queue:appointments}"
+            }
+          }
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-5-action-1",
+            "Type": "Assert",
+            "Parameters": {
+              "Namespace": "$.Attributes.appointmentFound",
+              "Operator": "Equals",
+              "Operand": "false"
+            },
+            "Transitions": {
+              "NextAction": "observation-5-action-2"
+            }
+          },
+          {
+            "Identifier": "observation-5-action-2",
+            "Type": "Assert",
+            "Parameters": {
+              "Namespace": "$.Queue.Name",
+              "Operator": "Equals",
+              "Operand": "Appointments"
+            },
+            "Transitions": {
+              "NextAction": "observation-5-action-3"
+            }
+          },
+          {
+            "Identifier": "observation-5-action-3",
+            "Type": "TestControl",
+            "Parameters": {
+              "ActionType": "TestControl",
+              "Command": {
+                "Type": "EndTest"
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": []
+        }
+      }
+    ]
+  }
+}

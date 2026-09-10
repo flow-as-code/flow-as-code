@@ -1,0 +1,271 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "appointment-line",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "enable-logging",
+    "Actions": [
+      {
+        "Identifier": "enable-logging",
+        "Type": "UpdateFlowLoggingBehavior",
+        "Parameters": {
+          "FlowLoggingBehavior": "Enabled"
+        },
+        "Transitions": {
+          "NextAction": "welcome",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "welcome",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Thanks for calling. Let's get you to the right place."
+        },
+        "Transitions": {
+          "NextAction": "check-hours",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "check-hours",
+        "Type": "CheckHoursOfOperation",
+        "Parameters": {
+          "HoursOfOperationId": "${cdref:hours:main-line}"
+        },
+        "Transitions": {
+          "NextAction": "announce-closed",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "set-working-queue",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": ["True"]
+              }
+            },
+            {
+              "NextAction": "announce-closed",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": ["False"]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "set-working-queue",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "${cdref:queue:appointments}"
+        },
+        "Transitions": {
+          "NextAction": "look-up-appointment",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "look-up-appointment",
+        "Type": "InvokeLambdaFunction",
+        "Parameters": {
+          "InvocationTimeLimitSeconds": 8,
+          "InvocationType": "SYNCHRONOUS",
+          "LambdaFunctionARN": "${cdref:lambda:appointment-lookup}",
+          "ResponseValidation": {
+            "ResponseType": "STRING_MAP"
+          }
+        },
+        "Transitions": {
+          "NextAction": "record-lookup-result",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "transfer"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "record-lookup-result",
+        "Type": "UpdateContactAttributes",
+        "Parameters": {
+          "Attributes": {
+            "appointmentFound": "$.External.appointmentFound"
+          },
+          "TargetContact": "Current"
+        },
+        "Transitions": {
+          "NextAction": "transfer",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "transfer"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "transfer",
+        "Type": "TransferContactToQueue",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "announce-busy"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "announce-closed",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "We are closed right now. Please call back during business hours."
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "announce-busy",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "All of our lines are busy. Please try again shortly."
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "apologize",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Something went wrong on our end. Please try again later."
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "announce-busy": {
+      "x": 1840,
+      "y": 150
+    },
+    "announce-closed": {
+      "x": 1840,
+      "y": 20
+    },
+    "apologize": {
+      "x": 1840,
+      "y": 250
+    },
+    "check-hours": {
+      "x": 540,
+      "y": 50
+    },
+    "enable-logging": {
+      "x": 20,
+      "y": 170
+    },
+    "hang-up": {
+      "x": 2100,
+      "y": 110
+    },
+    "look-up-appointment": {
+      "x": 1060,
+      "y": 140
+    },
+    "record-lookup-result": {
+      "x": 1320,
+      "y": 100
+    },
+    "set-working-queue": {
+      "x": 800,
+      "y": 180
+    },
+    "transfer": {
+      "x": 1580,
+      "y": 140
+    },
+    "welcome": {
+      "x": 280,
+      "y": 170
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:hours:main-line}",
+      "type": "hours",
+      "name": "main-line"
+    },
+    {
+      "token": "${cdref:lambda:appointment-lookup}",
+      "type": "lambda",
+      "name": "appointment-lookup"
+    },
+    {
+      "token": "${cdref:queue:appointments}",
+      "type": "queue",
+      "name": "appointments"
+    }
+  ]
+}
