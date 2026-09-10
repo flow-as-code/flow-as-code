@@ -44,14 +44,17 @@ how it is deployed, and how the "loads nothing else" claim is tested.
 
 ## Install
 
-Node 22.12 or newer. The five packages version together and are released as a
-set, so install them at matching versions:
+Node 22.12 or newer. `@flow-as-code/cli` depends on the other four, so
+installing it alone brings the whole set:
 
 ```
-npm i -D @flow-as-code/cli @flow-as-code/core \
-         @flow-as-code/cdk @flow-as-code/tf \
-         @flow-as-code/studio
+npm i -D @flow-as-code/cli
 ```
+
+Name the others in your own manifest when you import from them (the core
+builder in your `.flow.ts` files, `FlowSet` from `@flow-as-code/cdk` in your
+CDK app). That installs nothing further: the five version together and are
+released as a set, so the versions the CLI pulls in already match.
 
 To work on the tools themselves, or to run
 [`examples/promote-across-environments/`](examples/promote-across-environments/),
@@ -62,11 +65,6 @@ git clone https://github.com/flow-as-code/flow-as-code
 cd flow-as-code
 npm ci && npm run build
 ```
-
-`@flow-as-code/cli` depends on the other four, so installing it alone
-is enough for the CLI; name the rest when you import from them (the core
-builder in your `.flow.ts` files, `FlowSet` from `@flow-as-code/cdk` in your
-CDK app).
 
 `@aws-sdk/client-connect` is an optional peer of `@flow-as-code/cli`, needed
 only by `export`, `simulate`, and `diff`. `@flow-as-code/cdk` peers on
@@ -79,17 +77,26 @@ and the floor.
 
 ## Quick start
 
-From a built clone, as above; `npx` reaches the workspace copy, not the
-registry.
+Every command works on a directory of FlowDocs, so `init` comes first: it writes
+a demo flow and the typed `.flow.ts` that synthesizes to it, and the rest of the
+block operates on that pair. The same block runs after either install above,
+from the npm project or from the built clone.
 
 ```
+npx flow-cli init flows/                # writes appointment-line.{flowdoc.json,flow.ts}
 npx flow-cli --help                     # every command, with its flags
-npx flow-cli studio flows/              # visual editor over a directory, live-synced
+npx flow-cli studio flows/              # visual editor over the directory, live-synced
 npx flow-cli lint flows/                # the rule set over the whole document set
-npx flow-cli codegen flows/x.flowdoc.json   # FlowDoc -> typed builder TypeScript
-npx flow-cli synth flows/x.flow.ts      # and back
+npx flow-cli codegen flows/appointment-line.flowdoc.json   # FlowDoc -> typed builder TypeScript
+npx flow-cli synth flows/appointment-line.flow.ts          # and back
 npx flow-cli emit flows/ --target tf    # or --target cdk
 ```
+
+`init` never replaces a file that is already there; name a different directory
+to write a second pair. If nothing above the directory is already a package it
+adds a `package.json` marking the pair as modules; inside a project that has one
+it leaves yours alone, and the pair loads either way. Edit either side and
+`studio` keeps them in step.
 
 Everything but `export`, `simulate`, and `diff` works offline and makes no
 network calls. See `packages/cli/README.md` for the exit codes and the
@@ -104,7 +111,7 @@ packages/cli      Thin CLI: lint, codegen, synth, render, emit, studio, and the 
 packages/tf       Terraform/OpenTofu emitter: FlowDoc -> .tf + .tftpl files
 packages/studio   Visual editor (@xyflow/react) over FlowDoc; served by `flow-cli studio`
 conformance/           Cross-language fixtures: the contract for schema, flow language, lint, roundtrip, materialize, emit-tf, export, and simulate
-docs/                  FlowDoc spec, studio design, TF emitter design, release plan, hosted demo, ADRs, drafts
+docs/                  FlowDoc spec, studio design, TF emitter design, hosted demo, ADRs
 examples/              Runnable walkthroughs, inputs only; the tools generate the rest
 tasks/                 Sequenced work items with acceptance criteria
 ```

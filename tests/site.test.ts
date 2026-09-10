@@ -35,8 +35,9 @@
 //     points at that apex, the repository, or a license or vocabulary;
 //   - the studio is present and identical to packages/studio/dist-demo apart
 //     from that one enumerated block of link-preview tags;
-//   - the quick start the landing page prints names only commands the CLI has,
-//     in an order that works;
+//   - the quick start each on-ramp prints, the landing page's and the root
+//     README's, installs one package, names only commands the CLI has, and runs
+//     them in an order that works;
 //   - every markdown file under docs/ reaches a URL, so a doc left off the
 //     hand-written page list is a failure rather than a page nobody can find.
 //
@@ -797,20 +798,25 @@ describe("the docs pages", () => {
   });
 });
 
-describe("the quick start the landing page prints", () => {
-  // This block is a script a stranger pastes into a terminal, and until 0.1.2
-  // it dead-ended at its second line: it opened `flow-cli studio flows/` with
-  // nothing in the tool that could create flows/, so the first thing a visitor
-  // who tried it saw was "No such directory". Nothing caught that, because no
-  // rule tied the copy to the CLI. These two do. The command list comes from
+describe("the quick start the on-ramps print", () => {
+  // These blocks are scripts a stranger pastes into a terminal, and both
+  // on-ramps dead-ended in the same way at different times: they opened
+  // `flow-cli studio flows/` with nothing in the tool that could create flows/,
+  // so the first thing a visitor who tried it saw was "No such directory". The
+  // landing page was fixed for 0.1.2 and the root README was not, which is the
+  // reason both are read here now rather than one. The command list comes from
   // packages/cli/README.md, which packages/cli/src/cli.test.ts holds equal to
   // the output of `flow-cli --help`, so a command named here is a command the
   // installed binary really has.
   //
-  // Read from site/index.html rather than the assembled tree: the copy is the
-  // subject, and a rule about whether a command exists should not go quiet
-  // because someone has not run `npm run build`.
-  const landing = (): string => readFileSync(join(ROOT, "site", "index.html"), "utf8");
+  // Read from the sources rather than from the assembled tree: the copy is the
+  // subject, README.md is not published to the site at all, and a rule about
+  // whether a command exists should not go quiet because someone has not run
+  // `npm run build`.
+  const ON_RAMPS = [
+    { name: "site/index.html", path: join(ROOT, "site", "index.html") },
+    { name: "README.md", path: join(ROOT, "README.md") },
+  ];
 
   /** The commands packages/cli/README.md's opening usage block lists. */
   function cliCommands(): string[] {
@@ -820,38 +826,57 @@ describe("the quick start the landing page prints", () => {
     return usage.split("\n").flatMap((line) => /^flow-cli (\S+)/.exec(line)?.[1] ?? []);
   }
 
-  /** The `flow-cli` command names in the install block, in the order printed. */
-  function blockCommands(): string[] {
-    const blocks = [...landing().matchAll(/<pre>\n([\s\S]*?)<\/pre>/g)].map((m) => m[1]!);
-    const block = blocks.find((text) => text.includes("npm i -D @flow-as-code/cli"));
-    expect(block, "no block on the landing page installs the CLI").toBeTruthy();
+  /** Every shell block in a piece of copy, whether it is HTML or markdown. */
+  function codeBlocks(copy: string): string[] {
+    return [
+      ...[...copy.matchAll(/<pre>\n([\s\S]*?)<\/pre>/g)].map((m) => m[1]!),
+      ...[...copy.matchAll(/^```[a-z]*\n([\s\S]*?)^```$/gm)].map((m) => m[1]!),
+    ];
+  }
+
+  /** The `flow-cli` command names in the quick-start block, in the order printed. */
+  function blockCommands(copy: string, name: string): string[] {
+    const block = codeBlocks(copy).find((text) => text.includes("flow-cli init"));
+    expect(block, `no block in ${name} runs flow-cli init`).toBeTruthy();
     return block!.split("\n").flatMap((line) => /flow-cli ([a-z][a-z-]*)/.exec(line)?.[1] ?? []);
   }
 
-  it("names only commands the CLI has, everywhere in the copy", () => {
-    const named = [...landing().matchAll(/flow-cli ([a-z][a-z-]*)/g)].map((m) => m[1]!);
+  it.each(ON_RAMPS)("names only commands the CLI has, everywhere in $name", ({ name, path }) => {
+    const named = [...readFileSync(path, "utf8").matchAll(/flow-cli ([a-z][a-z-]*)/g)].map(
+      (m) => m[1]!,
+    );
     expect(named.length).toBeGreaterThan(3);
     const commands = cliCommands();
     expect(commands.length).toBeGreaterThan(0);
-    for (const name of new Set(named)) {
-      expect(commands, `the landing page tells a reader to run "flow-cli ${name}"`).toContain(name);
+    for (const command of new Set(named)) {
+      expect(commands, `${name} tells a reader to run "flow-cli ${command}"`).toContain(command);
     }
   });
 
-  it("creates the directory before it opens it", () => {
+  it.each(ON_RAMPS)("creates the directory before it opens it, in $name", ({ name, path }) => {
     // The order is the whole point: every command after the install takes a
     // directory of FlowDocs, so whichever one runs first has to be the one
     // that writes them.
-    const ordered = blockCommands();
+    const ordered = blockCommands(readFileSync(path, "utf8"), name);
     expect(ordered.length).toBeGreaterThan(2);
-    expect(ordered[0], "the first flow-cli command in the block must create the flows").toBe(
-      "init",
-    );
-    for (const name of ordered.slice(1)) {
-      expect(name, `"flow-cli ${name}" runs before anything has written a FlowDoc`).not.toBe(
+    expect(ordered[0], `the first flow-cli command in ${name} must create the flows`).toBe("init");
+    for (const command of ordered.slice(1)) {
+      expect(command, `"flow-cli ${command}" runs before anything has written a FlowDoc`).not.toBe(
         "init",
       );
     }
+  });
+
+  it.each(ON_RAMPS)("installs the CLI and nothing else, in $name", ({ name, path }) => {
+    // @flow-as-code/cli depends on the other four, so naming all five installs
+    // the same 25 MB tree and only gives a reader more to get wrong. Both
+    // on-ramps said both things at once before this rule existed.
+    const install = codeBlocks(readFileSync(path, "utf8")).find((text) =>
+      /npm i(nstall)? .*@flow-as-code\//.test(text),
+    );
+    expect(install, `no block in ${name} installs a @flow-as-code package`).toBeTruthy();
+    const named = [...install!.matchAll(/@flow-as-code\/([a-z]+)/g)].map((m) => m[1]!);
+    expect(named, `the install block in ${name}`).toEqual(["cli"]);
   });
 });
 
