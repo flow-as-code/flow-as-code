@@ -238,3 +238,100 @@ describe("every third-party action is pinned to a commit", () => {
     expect(dependabot).toMatch(/^\s*interval:\s*\w+/m);
   });
 });
+
+/** The non-blocking float lane. Its own header records why it must stay that way. */
+const DRIFT = "provider-drift.yml";
+
+/**
+ * Every workflow a release run actually executes: release.yml, plus whatever it
+ * calls, transitively.
+ *
+ * Reachability rather than a text search, for the same reason
+ * "keeps the live sandbox job out of the reusable gate set" above reads `uses:`
+ * rather than a bare mention: a comment that names a workflow does not run it,
+ * and a test that cannot tell the two apart forces every future comment to
+ * dance around the name. `./.github/actions/...` refs are step actions rather
+ * than workflows and do not match.
+ */
+function releasePathWorkflows(): Set<string> {
+  const seen = new Set<string>(["release.yml"]);
+  const queue = ["release.yml"];
+  while (queue.length > 0) {
+    const name = queue.pop() ?? "";
+    for (const { ref } of usesRefs(readFileSync(join(WORKFLOWS, name), "utf8"), name)) {
+      const called = /^\.\/\.github\/workflows\/(?<file>[\w.-]+\.ya?ml)$/.exec(ref)?.groups?.file;
+      if (called === undefined || seen.has(called)) continue;
+      seen.add(called);
+      queue.push(called);
+    }
+  }
+  return seen;
+}
+
+/** The top-level keys of a workflow's block-form `on:`. */
+function triggers(yaml: string, file: string): string[] {
+  const lines = yaml.split("\n");
+  const start = lines.findIndex((line) => /^on:\s*$/.test(line));
+  if (start === -1) {
+    throw new Error(`${file}: expected a block-form \`on:\` whose triggers can be read.`);
+  }
+  const out: string[] = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    if (line.trim() === "" || line.trim().startsWith("#")) continue;
+    if (!line.startsWith("  ")) break;
+    const key = /^ {2}(?<key>[a-z_]+):/.exec(line)?.groups?.key;
+    if (key !== undefined) out.push(key);
+  }
+  return out;
+}
+
+// .github/workflows/provider-drift.yml resolves the newest aws and awscc
+// providers on a schedule and validates the emitter's output against them. It
+// is deliberately allowed to be red: what it reports is a third party's release
+// decision, and the answer is a considered pin bump rather than a blocked
+// merge. A job like that on the release path would let an upstream publish hold
+// a release hostage, which is the dependency
+// conformance/emit-tf/*/validate/providers.tf was pinned to remove.
+describe("the provider drift canary cannot gate a release", () => {
+  const reachable = releasePathWorkflows();
+
+  it("finds the gate set from release.yml, so an empty scan cannot pass", () => {
+    // A scanner that followed nothing would report every workflow absent from
+    // the release path forever, this one included.
+    expect([...reachable].sort()).toEqual(["ci.yml", "release.yml"]);
+  });
+
+  it("is not reachable from release.yml", () => {
+    expect([...reachable]).not.toContain(DRIFT);
+  });
+
+  it("is not in the pull request gate set either", () => {
+    // ci.yml is what a required check is pointed at, so a canary called from
+    // there would block merges as surely as one called from release.yml.
+    expect(readFileSync(CI, "utf8")).not.toContain(`./.github/workflows/${DRIFT}`);
+  });
+
+  it("has no trigger that could make it a gate", () => {
+    // Reachability is a fact about today's files. This is a fact about shape,
+    // and it is the stronger half: with no `workflow_call` the canary cannot be
+    // called as a gate at all, and with no `push` or `pull_request` it never
+    // produces a check run on a pull request for a branch protection rule to be
+    // pointed at. Branch protection lives on the server and cannot be asserted
+    // from a checkout, so this is the part that can be.
+    expect(triggers(readFileSync(join(WORKFLOWS, DRIFT), "utf8"), DRIFT).sort()).toEqual([
+      "schedule",
+      "workflow_dispatch",
+    ]);
+  });
+
+  it("reads triggers rather than finding none, so the check above means something", () => {
+    // The same scanner against a workflow whose triggers are known.
+    expect(triggers(readFileSync(CI, "utf8"), "ci.yml").sort()).toEqual([
+      "pull_request",
+      "push",
+      "workflow_call",
+      "workflow_dispatch",
+    ]);
+  });
+});
