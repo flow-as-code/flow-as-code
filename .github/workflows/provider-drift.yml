@@ -211,7 +211,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             # Also as an annotation, which shows at the top of the run page
             # without opening the summary.
-            resolved="$(jq -r '[.providers[] | "\(.source) \(.version)"] | join(", ")' "$DRIFT_REPORT")"
+            resolved="$(jq -r '[.providers[] | "\(.source) \(.version) (\(.constraints))"] | join(", ")' "$DRIFT_REPORT")"
             echo "::notice title=Resolved providers::$resolved"
           else
             echo "The run failed before any provider version was resolved, so there is nothing to name here. Read the log." >> "$GITHUB_STEP_SUMMARY"
