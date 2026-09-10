@@ -17,6 +17,7 @@ import {
   emitTfCiJob,
   emitTfCiTofuVersions,
   materializeFiles as materialize,
+  pinnedProviders,
   tofu,
   tofuEvaluateString,
 } from "./__fixtures__/tofu.js";
@@ -65,6 +66,34 @@ describe("the tofu gate", () => {
     const versions = emitTfCiTofuVersions();
     expect(versions).toContain(CORE_VERSION_FLOOR);
     expect(versions.length).toBeGreaterThan(1);
+  });
+
+  // A range here makes the lane depend on when a third party published rather
+  // than on anything in this repository, which is how it went red on
+  // 2026-09-10 with no commit behind it. These fixtures are test detail, not a
+  // promise to users; the promise is the range in versions.tf.example, which
+  // this deliberately does not touch.
+  it("pins each validate fixture's providers to an exact version", () => {
+    for (const pin of pinnedProviders()) {
+      expect(pin.version, `${pin.case} ${pin.source}`).toMatch(/^\d+\.\d+\.\d+$/);
+    }
+  });
+
+  // The cache key has to name what the cache can contain. While it said
+  // `aws6`, a bumped pin would restore an entry that predated it and force a
+  // cold download in the middle of the parallel suite, which is the shape of
+  // the original failure.
+  it("keys the CI provider cache on the versions the fixtures pin", () => {
+    const job = emitTfCiJob();
+    // `.+` rather than `\S+`: the key interpolates `${{ ... }}` expressions,
+    // which contain spaces.
+    const key = /^\s*key:\s*(?<key>.+?)\s*$/m.exec(job)?.groups?.key;
+    expect(key, "the emit-tf job has no cache `key:`").toBeDefined();
+    for (const pin of pinnedProviders()) {
+      // e.g. `hashicorp/aws` at 6.64.0 has to appear as `aws6.64.0`.
+      const short = pin.source.split("/").at(-1) ?? "";
+      expect(key).toContain(`${short}${pin.version}`);
+    }
   });
 });
 

@@ -148,7 +148,17 @@ jobs:
           # Keyed per version: the matrix entries run concurrently, so one
           # shared key means both miss, both download, and whichever finishes
           # second fails to save.
-          key: tofu-plugins-${{ runner.os }}-tofu${{ matrix.tofu_version }}-aws6-awscc1
+          #
+          # The provider halves name exact versions, matching the pins in
+          # conformance/emit-tf/*/validate/providers.tf, so bumping a pin misses
+          # the cache and downloads the version now asked for. The key used to
+          # say `aws6-awscc1`, which stayed true across every 6.x release: a
+          # restored entry that could not contain the version `~> 6.0` had just
+          # floated to still matched the key, and the resulting cold download
+          # inside the parallel suite is what broke the 1.7.0 lane on
+          # 2026-09-10. A test in packages/tf/src/validate.test.ts asserts these
+          # versions are the ones the fixtures pin, so the two cannot drift.
+          key: tofu-plugins-${{ runner.os }}-tofu${{ matrix.tofu_version }}-aws6.64.0-awscc1.101.0
       - run: npm ci
       - run: npm run build
       - run: npx vitest run --project @flow-as-code/tf --project @flow-as-code/studio --project repo

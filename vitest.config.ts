@@ -20,6 +20,11 @@ export default defineConfig({
     ],
     // dist/ holds compiled copies of the same tests; running them twice is noise.
     exclude: ["**/node_modules/**", "**/dist/**", "**/dist-demo/**"],
+    // Runs once for the whole run, before any worker and across every project,
+    // which is the only place the shared OpenTofu plugin cache can be filled
+    // without two test files racing to fill it. A no-op unless
+    // RUN_TOFU_VALIDATE=1. See the file, and packages/tf/src/__fixtures__/tofu.ts.
+    globalSetup: ["packages/tf/src/__fixtures__/global-setup.ts"],
     // Vitest defaults to 5s. Several tests here do real work that is slow on a
     // cold cache and slower on a shared two-core CI runner: building a
     // TypeScript program over generated modules, synthesizing CDK templates,

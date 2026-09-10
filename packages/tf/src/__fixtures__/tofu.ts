@@ -33,6 +33,35 @@
 // The caveat the doc gives is that such a lock file is only valid on the
 // machine that wrote it, which costs nothing for throwaway directories whose
 // lock files are never committed and never reused.
+//
+// That env var is necessary and not sufficient. OpenTofu 1.7.0 honours it (the
+// binary carries the name, and it does install from the cache), but it still
+// corrupts what it records when two `tofu init` processes populate the same
+// cache directory with the same not-yet-cached provider package at the same
+// time: init exits 0, and the lock file it wrote holds a hash that the package
+// finally sitting in .terraform/providers does not have. Nothing complains
+// until the next command reads the lock file, which is why this surfaced as
+//
+//   Error: registry.opentofu.org/hashicorp/aws: the cached package for
+//   registry.opentofu.org/hashicorp/aws 6.64.0 (in .terraform/providers) does
+//   not match any of the checksums recorded in the dependency lock file
+//
+// out of `tofu validate` rather than out of the init that caused it. Six
+// concurrent cold inits reproduce it on 1.7.0 every time and never on 1.12.6,
+// so it is a bug that release fixed rather than anything about this repo. The
+// two gated test files run in parallel, so a cold cache is exactly that race.
+//
+// prewarmTofuCache below is the fix: it runs every distinct provider set
+// through one sequential `tofu init` before any test worker starts, so the
+// parallel inits only ever read a cache that is already populated, which is
+// safe on both versions. Pinning the fixtures to exact provider versions
+// (conformance/emit-tf/*/validate/providers.tf) is the other half, and it is
+// the half that decides *when* the cache goes cold: under a `~> 6.0` range it
+// went cold on whatever day the aws provider shipped a release, which is how a
+// lane that had been green for weeks turned red with no commit behind it.
+// Neither half alone is enough. Without the prewarm, the first run after a pin
+// bump races and fails, and actions/cache does not save on a failed job, so
+// that red would be permanent.
 
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -40,7 +69,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { REPO_ROOT } from "./cases.js";
+import { REPO_ROOT, loadCases } from "./cases.js";
 
 /** True when the gated tofu tests should run. */
 export const TOFU_ENABLED = process.env.RUN_TOFU_VALIDATE === "1";
@@ -146,6 +175,85 @@ export function materializeFiles(files: Record<string, string>): string {
     writeFileSync(target, content, "utf8");
   }
   return dir;
+}
+
+/** One `required_providers` entry from a case's validate fixture. */
+export interface PinnedProvider {
+  /** The conformance case the fixture belongs to. */
+  case: string;
+  /** The registry address, e.g. `hashicorp/aws`. */
+  source: string;
+  /** The version constraint as written. Expected to be an exact version. */
+  version: string;
+}
+
+// The fixtures are small and uniformly formatted by `tofu fmt`, so a regex
+// beats pulling in an HCL parser for four files. It matches the whole
+// `name = { source = "..." version = "..." }` shape rather than the two
+// arguments separately, which keeps a source bound to its own version.
+const REQUIRED_PROVIDER =
+  /\w+\s*=\s*\{\s*source\s*=\s*"(?<source>[^"]+)"\s*version\s*=\s*"(?<version>[^"]+)"\s*\}/g;
+
+/**
+ * Every provider pin in the conformance cases' `validate/providers.tf`.
+ *
+ * Two tests read this: one that the pins are exact, and one that the emit-tf
+ * cache key in CI names them. Neither needs a tofu binary, so both run in the
+ * default suite and a fixture cannot drift back to a range unnoticed.
+ */
+export function pinnedProviders(): PinnedProvider[] {
+  const pins: PinnedProvider[] = [];
+  for (const testCase of loadCases()) {
+    const providers = testCase.support["providers.tf"];
+    if (providers === undefined) continue;
+    for (const match of providers.matchAll(REQUIRED_PROVIDER)) {
+      pins.push({
+        case: testCase.name,
+        source: match.groups?.source ?? "",
+        version: match.groups?.version ?? "",
+      });
+    }
+  }
+  if (pins.length === 0) {
+    throw new Error(
+      "no required_providers entries found in conformance/emit-tf/*/validate/providers.tf",
+    );
+  }
+  return pins;
+}
+
+/**
+ * Downloads every provider the gated tests need into the shared plugin cache,
+ * one `tofu init` at a time, before any test worker starts.
+ *
+ * Wired as the root vitest `globalSetup`, which runs once for the whole run
+ * even across projects, so it serializes the one operation that is not safe to
+ * run concurrently on OpenTofu 1.7.0. The header comment has the mechanism.
+ * Once this returns, every init the tests run finds its provider already in the
+ * cache and only reads, which is safe on both versions in the CI matrix.
+ *
+ * A no-op unless RUN_TOFU_VALIDATE=1, so the default suite pays nothing.
+ */
+export function prewarmTofuCache(): void {
+  if (!TOFU_ENABLED) return;
+  // Deduplicated by content: three of the four cases share one aws-only
+  // fixture, and re-initializing an identical set would just be slower.
+  const seen = new Set<string>();
+  for (const testCase of loadCases()) {
+    const providers = testCase.support["providers.tf"];
+    if (providers === undefined || seen.has(providers)) continue;
+    seen.add(providers);
+    // Only the provider block. `init` needs nothing else to resolve and
+    // download, and leaving the stub resources out keeps this independent of
+    // whether a case is expected to validate clean.
+    const dir = materializeFiles({ "providers.tf": providers });
+    const run = tofu(["init", "-backend=false", "-input=false", "-no-color"], dir);
+    if (run.status !== 0) {
+      throw new Error(
+        `tofu init failed while warming the provider cache from ${testCase.name}:\n${run.output}`,
+      );
+    }
+  }
 }
 
 /**
