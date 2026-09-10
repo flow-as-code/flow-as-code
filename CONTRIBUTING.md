@@ -60,11 +60,18 @@ reference into `./.github/` needs no pin. `.github/workflows/release.yml` says
 why.
 
 `.github/workflows/provider-drift.yml`, weekly on Monday and on dispatch, runs
-the same three test projects the `emit-tf` job runs, on OpenTofu 1.12.6, with
-every provider pin widened to its major and no provider cache, so it resolves
-whatever the registry serves that morning. It is the other half of those pins:
-they buy a lane that does not depend on a third party's release day, and this
-buys back the noticing.
+the same three test projects the `emit-tf` job runs, on OpenTofu 1.12.6, with no
+provider cache, so it resolves whatever the registry serves that morning. It is
+the other half of those pins: they buy a lane that does not depend on a third
+party's release day, and this buys back the noticing.
+
+What it floats each file to is the range that file's own user-facing artifact
+declares, because "what a user gets" is not one constraint. A
+`conformance/emit-tf/*/validate/providers.tf` is a test-only file; its
+counterpart is the `versions.tf.example` the emitter writes, so it resolves
+under that, which is open-ended and therefore crosses a major the day one
+ships. An `examples/*/terraform/*/providers.tf` is itself the published advice,
+so it resolves under its own `~> 6.0` and keeps that range on disk.
 
 It gates nothing. It is not called by `ci.yml` or `release.yml`, it is not a
 required check, and it has no `workflow_call` trigger, all of which
@@ -75,10 +82,21 @@ the resolved version and the first error from the run's step summary, then move
 key in `ci.yml` together, in one commit. A test holds those two in step.
 
 The seam it runs through is `TOFU_PROVIDER_MODE=float`, read by
-`packages/tf/src/__fixtures__/tofu.ts`. It widens the constraint on the text's
+`packages/tf/src/__fixtures__/tofu.ts`. It rewrites the constraint on the text's
 way to a temp directory and never touches the files in the working tree, so the
 guards that assert those files are pinned exactly are as strict during a canary
-run as during any other. To reproduce one locally:
+run as during any other.
+
+Every committed `providers.tf` a gated test can init is named by
+`providerSites()` in the same file. `prewarmTofuCache()` downloads exactly that
+set before any worker starts, and `tofu()` refuses an `init` whose workspace
+asks for anything else. A new gated test that builds a workspace some other way
+therefore fails at its first init with a message naming what it asked for,
+rather than downloading a provider in the middle of the parallel suite. That is
+not hypothetical: it is how the example environments went on floating for a day
+after everything else was pinned.
+
+To reproduce a canary run locally:
 
 ```sh
 RUN_TOFU_VALIDATE=1 TOFU_PROVIDER_MODE=float npx vitest run \

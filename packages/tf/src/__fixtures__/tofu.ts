@@ -103,11 +103,13 @@ import { type EmitCase, REPO_ROOT, loadCases } from "./cases.js";
 export const TOFU_ENABLED = process.env.RUN_TOFU_VALIDATE === "1";
 
 /**
- * How a run constrains the providers the validate fixtures ask for.
+ * How a run constrains the providers a `providers.tf` asks for.
  *
- * `pinned` is what the committed fixtures say and what every blocking lane
- * runs. `float` widens each exact pin to its major before the files reach a
- * temp directory, so the run resolves whatever is newest today.
+ * `pinned` narrows every surface to the exact versions this repository has
+ * adopted, which is what every blocking lane runs. `float` resolves each
+ * surface under the range its own user-facing artifact declares, so the run
+ * gets what a reader of that artifact would get today. providersForMode() has
+ * which artifact is which and why the two differ.
  */
 export type ProviderMode = "pinned" | "float";
 
