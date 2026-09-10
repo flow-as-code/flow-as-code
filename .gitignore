@@ -19,6 +19,11 @@ packages/studio/dist-demo/
 # Assembled Pages tree (npm run build:site): site/ plus dist-demo/ under studio/
 dist-site/
 
+# What `flow-cli init flows/` writes. The README tells a contributor to run it
+# inside a clone to get something to open, so the pair it scaffolds must not
+# show up as untracked work or be linted as if someone had authored it.
+flows/
+
 # Terraform / OpenTofu scratch (emitter output under test)
 .terraform/
 *.tfstate

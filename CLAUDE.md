@@ -28,9 +28,14 @@ Status only where it changes what you should do. The work record is `tasks/`.
   worth keeping: 0.1.0 went out by hand on 2026-09-09, because npm trusted
   publishing cannot create a package that does not yet exist, and 0.1.1
   followed the same day through the workflow below, the run that proved the
-  OIDC exchange and the SLSA provenance attestations. Both are being
-  unpublished, so treat them as history and never point a reader at either as
-  something to install. Inside the repo the workspace still resolves
+  OIDC exchange and the SLSA provenance attestations. Only the `cli` copies
+  of those two could be unpublished, on 2026-09-10: npm refuses to unpublish a
+  package any other package depends on, and it applies that per package rather
+  than per version, so `core`, `cdk`, `tf` and `studio` keep 0.1.0 and 0.1.1
+  for as long as the CLI depends on them. That is settled, not pending. Treat
+  all of them as history and never point a reader at one as something to
+  install; the CLI pins its four siblings at an exact version, so nothing
+  resolves onto them by accident. Inside the repo the workspace still resolves
   `@flow-as-code/*`, and `npm run build` before `npm test` is what makes that
   true, so a registry install is never the path a contributor takes here.
 - Releases go through `.github/workflows/release.yml`, dispatched by hand,

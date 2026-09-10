@@ -26,6 +26,10 @@ const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 // and scanning it turned `npm run lint` red for files git does not track.
 const SKIP_DIRS = new Set([
   "node_modules",
+  // `flow-cli init flows/` scaffolds here when a contributor follows the
+  // README inside a clone. This walk does its own readdirSync and never reads
+  // .gitignore, so ignoring it there is not enough.
+  "flows",
   "dist",
   "dist-demo",
   "dist-site",

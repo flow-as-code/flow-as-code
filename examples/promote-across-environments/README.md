@@ -101,8 +101,9 @@ no ARN in either tree
 
 `--address-map` takes a table, and the project's own summary says the mapping
 table is the thing we wanted to delete: "references resolved as tokens, never
-hand-mapped ARNs", at <https://flow-as-code.dev/> and at the top of the
-repository README. Both are true, because they are not the same table.
+hand-mapped ARNs", at the top of the repository README. The landing page at
+<https://flow-as-code.dev/> makes the same point in its own words. Both are
+true, because they are not the same table.
 
 The thing being deleted is a table of ARNs: "the queue I mean" to "the ARN it has
 in this account, this region, this instance", maintained by hand, one row per
