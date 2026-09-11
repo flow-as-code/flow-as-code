@@ -21,6 +21,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactAttributes]: "Set",
   [ActionType.UpdateContactRecordingBehavior]: "Set",
   [ActionType.UpdateContactRoutingBehavior]: "Set",
+  [ActionType.UpdateContactCallbackNumber]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.InvokeLambdaFunction]: "Integrate",
@@ -70,6 +71,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactAttributes]: "set-attributes",
   [ActionType.UpdateContactRecordingBehavior]: "set-recording",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
+  [ActionType.UpdateContactCallbackNumber]: "set-callback-number",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -106,6 +108,11 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
         MaximumConnectionAttempts: 1,
         RetryDelaySeconds: 600,
       };
+    case ActionType.UpdateContactCallbackNumber:
+      // "The Store customer input block often comes before this block. It
+      // stores the customer's callback number."
+      // https://docs.aws.amazon.com/connect/latest/adminguide/set-callback-number.html
+      return { CallbackNumber: "$.StoredCustomerInput" };
     case ActionType.UpdateContactRoutingBehavior:
       // "The default priority for new contacts is 5", so a fresh block starts
       // where the contact already is and the author moves it from there.

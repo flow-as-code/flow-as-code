@@ -225,6 +225,12 @@ describe("FlowDoc schema rejections: contact routing", () => {
       }),
     ],
     [
+      "a static callback number",
+      mutate("set-callback-number", (a) => {
+        a.Parameters.CallbackNumber = "+15555550100";
+      }),
+    ],
+    [
       "a priority and a time adjustment together",
       mutate("bump-priority", (a) => {
         a.Parameters.QueueTimeAdjustmentSeconds = 30;

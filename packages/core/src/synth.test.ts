@@ -36,6 +36,7 @@ import {
   serializeContent,
   synth,
   TransferContactToAgent,
+  UpdateContactCallbackNumber,
   UpdateContactRoutingBehavior,
 } from "./index.js";
 
@@ -157,6 +158,29 @@ describe("error branch wiring", () => {
     const bare = new DequeueContactAndTransferToQueue({ id: "b", ...wired });
     expect(errors(bare)).toEqual(expected);
     expect(bare.toAction().Parameters).toEqual({});
+  });
+
+  it("gives UpdateContactCallbackNumber its two named errors and no catch-all", () => {
+    const block = new UpdateContactCallbackNumber({
+      id: "set-number",
+      callbackNumber: jsonPath("$.StoredCustomerInput"),
+      next: "n",
+      onInvalidNumber: "bad",
+      onNotDialable: "blocked",
+    });
+    expect(block.toAction()).toEqual({
+      Identifier: "set-number",
+      Type: "UpdateContactCallbackNumber",
+      Parameters: { CallbackNumber: "$.StoredCustomerInput" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "InvalidCallbackNumber", NextAction: "bad" },
+          { ErrorType: "CallbackNumberNotDialable", NextAction: "blocked" },
+        ],
+        Conditions: [],
+      },
+    });
   });
 
   it("gives CheckHoursOfOperation exactly the two conditions Connect requires", () => {

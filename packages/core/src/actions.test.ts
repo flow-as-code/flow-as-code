@@ -96,6 +96,13 @@ const EXPECTED: Record<string, string[]> = {
     "CUSTOMER_QUEUE",
     "MODULE",
   ],
+  UpdateContactCallbackNumber: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_QUEUE",
+    "MODULE",
+  ],
   TransferToFlow: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
   UpdateContactRecordingBehavior: [
     "CONTACT_FLOW",

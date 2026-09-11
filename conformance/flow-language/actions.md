@@ -60,6 +60,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Transfer to agent (beta) | `TransferContactToAgent` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html) |
 | Change routing priority / age | `UpdateContactRoutingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html) |
 | TransferToQueue (Transfer to Callback tab) | `CreateCallbackContact` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html) |
+| Set callback number | `UpdateContactCallbackNumber` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -110,7 +111,9 @@ individual action pages linked above.
 5. `MessageParticipant` accepts exactly one of `PromptId`, `Text`, or `SSML`.
    `PromptId` and `SSML` are voice only; other channels support only `Text`.
 6. `Compare` fails with `NoMatchingCondition`, not `NoMatchingError`. It is the
-   only action in the modeled set that does.
+   only action in the modeled set that does. `UpdateContactRoutingBehavior`
+   and `UpdateContactCallbackNumber` list no catch-all at all (rules 18 and
+   20).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
    (`Transitions: {}`).
@@ -232,6 +235,22 @@ individual action pages linked above.
     has no JSON example; the three integers are recorded as JSON numbers, to be
     confirmed against a console export.
     https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-queue.html
+20. `UpdateContactCallbackNumber` (recorded 2026-09-11) "Updates the contact
+    callback number, which is the number used by the CreateCallbackContact
+    action. This value defaults to the customer participant caller ID if this
+    action is never used." `CallbackNumber` "Must be a single, valid JSONPath
+    reference, and cannot be set statically." Results "None". Errors are
+    `InvalidCallbackNumber` "The callback number specified was not a valid
+    (e.164) phone number" and `CallbackNumberNotDialable` "The callback number
+    specified is not dialable by the instance", in that order, and no
+    `NoMatchingError`; the builder wires both and the error-branches rule
+    requires both. "This is supported only in contact flows, transfer flows,
+    and customer queue flows. This is not supported in whispers or hold
+    flows." The admin guide's channel table routes chat, task and email down
+    the invalid-number branch, adds "the + country code prefix is
+    automatically prepended", and says "The Store customer input block often
+    comes before this block."
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-callback-number.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -270,6 +289,7 @@ TransferContactToAgent   {}
 UpdateContactRoutingBehavior { QueuePriority? | QueueTimeAdjustmentSeconds? }   // integers, never both
 CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, MaximumConnectionAttempts,
                            RetryDelaySeconds, ContactFlowId?, CallerId? }
+UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier, never static
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -330,7 +350,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 18 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 19 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

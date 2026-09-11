@@ -20,7 +20,9 @@ import {
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
+  CALLBACK_NUMBER_NOT_DIALABLE,
   DTMF_DIGITS,
+  INVALID_CALLBACK_NUMBER,
   EXTRA_ERRORS,
   INPUT_TIME_LIMIT_EXCEEDED,
   INPUT_TIMEOUT_MAX,
@@ -689,6 +691,43 @@ export class InvokeLambdaFunction extends Block {
 }
 
 /**
+ * Sets the number CreateCallbackContact will dial. "Must be a single, valid
+ * JSONPath reference, and cannot be set statically", so the value is a
+ * JsonPath, typically `$.StoredCustomerInput` after a GetParticipantInput
+ * that stores digits. The page lists two errors and no catch-all: an invalid
+ * E.164 number, and a valid number the instance may not dial. Non-voice
+ * channels take the invalid-number branch.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-callback-number.html
+ */
+export interface UpdateContactCallbackNumberConfig {
+  id: string;
+  callbackNumber: JsonPath;
+  next: Target;
+  onInvalidNumber: Target;
+  onNotDialable: Target;
+}
+
+export class UpdateContactCallbackNumber extends Block {
+  readonly type = ActionType.UpdateContactCallbackNumber;
+
+  constructor(private readonly config: UpdateContactCallbackNumberConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { CallbackNumber: this.config.callbackNumber };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [INVALID_CALLBACK_NUMBER, this.config.onInvalidNumber],
+      [CALLBACK_NUMBER_NOT_DIALABLE, this.config.onNotDialable],
+    ]);
+  }
+}
+
+/**
  * Creates a callback contact. The number called is the contact's callback
  * number (UpdateContactCallbackNumber, else the caller ID). The queue is the
  * one named, an agent queue, or the contact's current target queue when
@@ -757,7 +796,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 18.
+ * set survivable: 56 action types are documented and the builder models 19.
  */
 export interface GenericBlockConfig {
   id: string;

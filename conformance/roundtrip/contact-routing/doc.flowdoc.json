@@ -6,9 +6,30 @@
   "connectType": "MODULE",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "bump-priority",
+    "StartAction": "set-callback-number",
     "Settings": {},
     "Actions": [
+      {
+        "Identifier": "set-callback-number",
+        "Type": "UpdateContactCallbackNumber",
+        "Parameters": {
+          "CallbackNumber": "$.StoredCustomerInput"
+        },
+        "Transitions": {
+          "NextAction": "bump-priority",
+          "Errors": [
+            {
+              "ErrorType": "InvalidCallbackNumber",
+              "NextAction": "apologize"
+            },
+            {
+              "ErrorType": "CallbackNumberNotDialable",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
       {
         "Identifier": "bump-priority",
         "Type": "UpdateContactRoutingBehavior",
@@ -168,43 +189,47 @@
   },
   "layout": {
     "age-in-queue": {
-      "x": 1060,
-      "y": 20
-    },
-    "apologize": {
-      "x": 1840,
-      "y": 20
-    },
-    "bump-priority": {
-      "x": 20,
-      "y": 20
-    },
-    "done": {
-      "x": 2100,
-      "y": 20
-    },
-    "hand-to-agent": {
-      "x": 800,
-      "y": 20
-    },
-    "move-to-priority-queue": {
-      "x": 280,
-      "y": 20
-    },
-    "offer-callback": {
       "x": 1320,
       "y": 20
     },
-    "retry-callback": {
+    "apologize": {
+      "x": 2100,
+      "y": 20
+    },
+    "bump-priority": {
+      "x": 280,
+      "y": 20
+    },
+    "done": {
+      "x": 2360,
+      "y": 20
+    },
+    "hand-to-agent": {
+      "x": 1060,
+      "y": 20
+    },
+    "move-to-priority-queue": {
+      "x": 540,
+      "y": 20
+    },
+    "offer-callback": {
       "x": 1580,
       "y": 20
     },
+    "retry-callback": {
+      "x": 1840,
+      "y": 20
+    },
+    "set-callback-number": {
+      "x": 20,
+      "y": 20
+    },
     "stay-in-queue": {
-      "x": 800,
+      "x": 1060,
       "y": 120
     },
     "try-agent-queue": {
-      "x": 540,
+      "x": 800,
       "y": 20
     }
   },

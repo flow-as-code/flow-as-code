@@ -817,6 +817,76 @@ describe("CreateCallbackContact inverts the full and the minimal shape", () => {
   });
 });
 
+describe("UpdateContactCallbackNumber inverts a JSONPath number with its two named errors", () => {
+  const action = (): FlowAction => ({
+    Identifier: "set-number",
+    Type: "UpdateContactCallbackNumber",
+    Parameters: { CallbackNumber: "$.StoredCustomerInput" },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "InvalidCallbackNumber", NextAction: "bye" },
+        { ErrorType: "CallbackNumberNotDialable", NextAction: "bye" },
+      ],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (edit: (a: FlowAction) => void) => {
+    const a = action();
+    edit(a);
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactCallbackNumber"');
+    expect(out).not.toContain("new UpdateContactCallbackNumber(");
+  };
+
+  it("emits the class with jsonPath() and imports it", () => {
+    const out = codegen(docWith([action(), bye]));
+    expect(out).toContain('callbackNumber: jsonPath("$.StoredCustomerInput")');
+    expect(out).toContain('onInvalidNumber: "bye"');
+    expect(out).toContain('onNotDialable: "bye"');
+    expect(out).toMatch(/import \{[^}]*jsonPath[^}]*\} from/);
+  });
+
+  it("falls back on a static number, a swapped or missing error, a catch-all, or an extra parameter", () => {
+    generic((a) => {
+      a.Parameters.CallbackNumber = "+15555550100";
+    });
+    generic((a) => {
+      a.Transitions.Errors = [a.Transitions.Errors![1]!, a.Transitions.Errors![0]!];
+    });
+    generic((a) => {
+      a.Transitions.Errors = [a.Transitions.Errors![0]!];
+    });
+    generic((a) => {
+      a.Transitions.Errors!.push({ ErrorType: "NoMatchingError", NextAction: "bye" });
+    });
+    generic((a) => {
+      a.Parameters.Routing = { Depth: 2 };
+    });
+  });
+
+  it("keeps the unknown-actions fixture's UpdateContactCallbackNumber generic", () => {
+    // It carries a Routing parameter no page documents and a NoMatchingError
+    // the page does not list, so it is not the class's shape and the
+    // fixture's round-trip test holds it verbatim.
+    const doc = JSON.parse(
+      readFileSync(
+        new URL("../../../conformance/roundtrip/unknown-actions/doc.flowdoc.json", import.meta.url),
+        "utf8",
+      ),
+    ) as FlowDoc;
+    const out = codegen(doc);
+    expect(out).toContain('type: "UpdateContactCallbackNumber"');
+    expect(out).not.toContain("new UpdateContactCallbackNumber(");
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

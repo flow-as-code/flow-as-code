@@ -521,6 +521,29 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "UpdateContactCallbackNumber"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "CallbackNumber": {
+                    "$ref": "#/$defs/jsonPath"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

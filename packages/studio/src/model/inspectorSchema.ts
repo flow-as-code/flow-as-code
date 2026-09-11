@@ -176,6 +176,10 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           clears: ["QueuePriority"],
         },
       ];
+    case ActionType.UpdateContactCallbackNumber:
+      // "Must be a single, valid JSONPath reference, and cannot be set
+      // statically"; the guard refuses anything else through the inverter.
+      return [{ kind: "text", key: "CallbackNumber", label: "Callback number (JSONPath)" }];
     case ActionType.CreateCallbackContact:
       return [
         {

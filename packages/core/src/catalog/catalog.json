@@ -371,7 +371,41 @@
     "UpdateContactCallbackNumber": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_callback_number",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "CallbackNumber",
+          "attr": "callback_number",
+          "kind": "jsonPath",
+          "required": true
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "InvalidCallbackNumber",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "CallbackNumberNotDialable",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateContactData": {
       "category": "contact",

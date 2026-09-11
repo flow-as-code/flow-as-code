@@ -32,6 +32,7 @@ export const ActionType = {
   TransferContactToAgent: "TransferContactToAgent",
   UpdateContactRoutingBehavior: "UpdateContactRoutingBehavior",
   CreateCallbackContact: "CreateCallbackContact",
+  UpdateContactCallbackNumber: "UpdateContactCallbackNumber",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -82,6 +83,15 @@ export const NO_MATCHING_CONDITION = "NoMatchingCondition";
 export const INPUT_TIME_LIMIT_EXCEEDED = "InputTimeLimitExceeded";
 
 /**
+ * UpdateContactCallbackNumber's two errors, the only ones its page lists:
+ * "The callback number specified was not a valid (e.164) phone number" and
+ * "The callback number specified is not dialable by the instance".
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html
+ */
+export const INVALID_CALLBACK_NUMBER = "InvalidCallbackNumber";
+export const CALLBACK_NUMBER_NOT_DIALABLE = "CallbackNumberNotDialable";
+
+/**
  * Non-terminal modeled actions whose page lists no catch-all. The builder
  * wires exactly EXTRA_ERRORS for them, and every listed error is one the
  * document must wire (error-branches reads the catalog's required flags,
@@ -90,7 +100,10 @@ export const INPUT_TIME_LIMIT_EXCEEDED = "InputTimeLimitExceeded";
  * UpdateContactRoutingBehavior: results "None", errors "None".
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
  */
-export const WITHOUT_CATCH_ALL: readonly string[] = [ActionType.UpdateContactRoutingBehavior];
+export const WITHOUT_CATCH_ALL: readonly string[] = [
+  ActionType.UpdateContactRoutingBehavior,
+  ActionType.UpdateContactCallbackNumber,
+];
 
 /**
  * Additional error types beyond the catch-all, by action type, in the order
@@ -103,6 +116,8 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // contact cannot be queued within it."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html
   [ActionType.DequeueContactAndTransferToQueue]: ["QueueAtCapacity"],
+  // The page's order; there is no catch-all (WITHOUT_CATCH_ALL).
+  [ActionType.UpdateContactCallbackNumber]: [INVALID_CALLBACK_NUMBER, CALLBACK_NUMBER_NOT_DIALABLE],
   // NoMatchingCondition "Must be defined only if StoreInput is False", which
   // is the only form the builder emits; the order is the admin page's example.
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
@@ -217,6 +232,15 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // queue flows. It is not supported in whisper flows or hold flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html
   [ActionType.CreateCallbackContact]: [...INBOUND, ...TRANSFER, ...CUSTOMER_QUEUE, ...IN_MODULE],
+  // "This is supported only in contact flows, transfer flows, and customer
+  // queue flows. This is not supported in whispers or hold flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html
+  [ActionType.UpdateContactCallbackNumber]: [
+    ...INBOUND,
+    ...TRANSFER,
+    ...CUSTOMER_QUEUE,
+    ...IN_MODULE,
+  ],
   // "This action is available in inbound flows and transfer flows. It is not
   // available to hold flows, customer queue flows, or whisper flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html

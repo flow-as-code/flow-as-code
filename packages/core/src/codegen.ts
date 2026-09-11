@@ -24,8 +24,10 @@
 
 import {
   ActionType,
+  CALLBACK_NUMBER_NOT_DIALABLE,
   DTMF_DIGITS,
   INPUT_TIME_LIMIT_EXCEEDED,
+  INVALID_CALLBACK_NUMBER,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
@@ -49,6 +51,7 @@ import {
   TransferContactToQueue,
   TransferToFlow,
   UpdateContactAttributes,
+  UpdateContactCallbackNumber,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
@@ -805,6 +808,40 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       block: new CreateCallbackContact(
         cast<never>({ ...config, next: w.next, onError: w.onError }),
       ),
+    };
+  },
+
+  [ActionType.UpdateContactCallbackNumber]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== INVALID_CALLBACK_NUMBER ||
+      errors[1]!.ErrorType !== CALLBACK_NUMBER_NOT_DIALABLE
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["CallbackNumber"])) return undefined;
+    const value = a.Parameters.CallbackNumber;
+    if (typeof value !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(value)) return undefined;
+    ctx.jsonPath = true;
+    return {
+      cls: "UpdateContactCallbackNumber",
+      entries: [
+        ["id", a.Identifier],
+        ["callbackNumber", new Raw(`jsonPath(${quoteString(value)})`)],
+        ["next", t.NextAction],
+        ["onInvalidNumber", errors[0]!.NextAction],
+        ["onNotDialable", errors[1]!.NextAction],
+      ],
+      block: new UpdateContactCallbackNumber({
+        id: a.Identifier,
+        callbackNumber: cast<never>(value),
+        next: t.NextAction,
+        onInvalidNumber: errors[0]!.NextAction,
+        onNotDialable: errors[1]!.NextAction,
+      }),
     };
   },
 
