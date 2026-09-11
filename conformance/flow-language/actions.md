@@ -135,9 +135,10 @@ individual action pages linked above.
    `PromptId` and `SSML` are voice only; other channels support only `Text`.
 6. `Compare` and `DistributeByPercentage` fail with `NoMatchingCondition`,
    not `NoMatchingError` (`CONDITION_CATCH_ALL` in actions.ts).
-   `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber`, `Loop`,
-   `UpdateFlowAttributes` and `TagContact` list no catch-all at all (rules
-   18, 20, 21, 24 and 27).
+   `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber` and
+   `TagContact` list no catch-all at all (rules 18, 20 and 27); `Loop` and
+   `MessageParticipantIteratively` list one the console sometimes omits
+   (rules 21 and 32, `OPTIONAL_CATCH_ALL` in actions.ts).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
    (`Transitions: {}`).
@@ -306,13 +307,19 @@ individual action pages linked above.
     ContinueLooping and for Equals DoneLooping, and no other Conditions can be
     specified." `LoopCount` "must be between 0 and 100 (inclusive). Must
     either be fully static or fully dynamic", so the catalog marks it
-    `dynamic` and the builder takes an integer or a single JSONPath. Errors
-    "None"; the admin guide's block has an Error branch with no documented
-    error type, so an exported Loop carrying one stays a GenericBlock. The
-    page says nothing about `NextAction`; the builder writes it as a mirror
-    of the `DoneLooping` path, the way `CheckHoursOfOperation` mirrors its
-    out-of-hours path, to be confirmed against a console export. "This is
-    supported in every type of flow." The admin guide adds: "If you enter 0
+    `dynamic` and the builder takes an integer or a single JSONPath. The page
+    shows no encoding for the static form; the console spells every integer
+    parameter as a decimal string in each of its twenty exported sample flows
+    and in every published console export of a Loop block read for this
+    entry, so the catalog records `LoopCount` as an `integerString` and the
+    builder writes `"2"`. Errors "None" on the page, but the admin guide's
+    block has an Error branch and some of those published exports carry
+    `NoMatchingError`, so the catch-all is optional (`OPTIONAL_CATCH_ALL`):
+    the builder wires it when asked and error-branches does not report it.
+    The page says nothing about `NextAction`; every published export writes
+    it as a copy of the `DoneLooping` target, and the builder mirrors it the
+    same way. "This is supported in every type of flow." The admin guide
+    adds: "If you enter 0
     for the loop count, the Complete branch is followed the first time this
     block runs", and describes an array-looping mode whose flow-language keys
     the action page does not document.
@@ -341,13 +348,24 @@ individual action pages linked above.
     exactly when that event is waited for. "This is supported in every type
     of flow, but is supported only by the chat channel." The page does not
     say whether the timeout is required; the builder requires it. It
-    says nothing about `NextAction`; the builder mirrors it onto the
-    catch-all, as the console's exported flows do for other actions, to be
-    confirmed against an export. The admin guide's block has more (participant
+    says nothing about `NextAction`; the console's export of the Sample
+    disconnect flow writes it as a copy of the `NoMatchingError` target, and
+    the builder mirrors it onto the catch-all the same way. The admin guide's
+    block page disagrees with the action page on both counts of the
+    restriction: its Flow types section lists only "Inbound flow" and
+    "Customer Queue flow", and its Supported channels table marks Chat, Task
+    and Email "Yes" and Voice "Yes - but only in Inbound flow when the Keep
+    running while waiting option, or the Set event-based wait option is
+    selected", properties whose flow-language keys the action page does not
+    document. The action page governs, as for the other flow-type lists
+    above, so the catalog records `flowTypes` as unrestricted; the one export
+    carrying a Wait is an inbound flow, so the exports do not settle it. The
+    admin guide's block has more (participant
     type, Lambda, case and external-tool events, a Continue branch) whose
     flow-language keys the action page does not document; those round-trip
     as a GenericBlock.
     https://docs.aws.amazon.com/connect/latest/adminguide/wait.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/sample-disconnect.html
 23. `DistributeByPercentage` (recorded 2026-09-11) "Returns a random number
     between 1 and 100 (inclusive) as its result, allowing comparisons against
     it." No parameters. "Comparisons are supported, but they must be a chain
@@ -372,13 +390,18 @@ individual action pages linked above.
     are set or none are set." The page's parameter block is not valid JSON
     (a doubled quote, a missing quote, prose inside the braces) and says only
     "An Object that holds the attributes to be set. Keys are of type String,
-    Values are of type FlowAttribute" without defining FlowAttribute, so the
-    catalog records `FlowAttributes` as kind `json` and the builder writes
-    the object it is given verbatim, to be confirmed against a console
-    export. Results and errors "None"; the admin guide's block has an Error
-    branch for attributes over 32 KB with no documented type, so an export
-    carrying one stays a GenericBlock. "This action is supported on all
-    channels and in all flow types." The admin guide adds that flow
+    Values are of type FlowAttribute" without defining FlowAttribute. Console
+    exports of the block (the Set contact attributes block with its Flow
+    namespace, published in AWS sample repositories) settle both gaps the
+    page leaves: every value is written as `{ "Value": "<string>" }`, static
+    or a JSONPath, and every export carries a `NoMatchingError` branch
+    although the page's Errors section says "None" (the admin guide's block
+    "has two branches: Success and Error"). The catalog records
+    `FlowAttributes` as a map of `{ Value }` objects and the catch-all as
+    required, and the builder writes that shape from a flat string map, as it
+    does for `UpdateContactAttributes`; the export governs. "This action is
+    supported on all channels and in all flow types." The admin guide adds
+    that flow
     attributes "aren't passed to modules", "don't appear in the contact
     record" and may not contain `$` or `.` in a key.
     https://docs.aws.amazon.com/connect/latest/adminguide/set-contact-attributes.html
@@ -399,11 +422,21 @@ individual action pages linked above.
     wires `NoMatchingCondition` on a `NumberOfAgentsStaffed` check as the
     block's False branch, orders the errors `NoMatchingError` then
     `NoMatchingCondition`, and mirrors `NextAction` onto the `NoMatchingError`
-    target; the builder writes that shape for every metric. "This action is
+    target; the builder writes that shape for every metric. The console's
+    Sample queue configurations flow writes its queue-age check with the two
+    errors the other way round, `NoMatchingCondition` first, still mirroring
+    `NextAction` onto `NoMatchingError`, so the inverter reads the two by
+    type; because the class re-emits the builder's order, an export in the
+    other order round-trips as a GenericBlock, as the reversed
+    `TransferContactToQueue` does. That export also shows the operand's unit
+    for `OldestContactInQueueAgeSeconds`: a 300 second entry in the console is
+    the wire operand `"300000"`, so the operand is milliseconds despite the
+    metric's name; the builder writes the operand it is given. "This action is
     only usable in flows, queue and agent transfers, and customer queue
     flows. It is not available in any type of whisper or hold flows."
     https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html
     https://docs.aws.amazon.com/connect/latest/adminguide/check-queue-status.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/sample-queue-configurations.html
 26. `GetMetricData` (recorded 2026-09-11) "Loads real time queue metrics for
     the queue specified by queue ID, agent ID (for agent queues), or the
     target queue, and makes them available on the flow run data." `QueueId`
@@ -416,9 +449,13 @@ individual action pages linked above.
     `NoMatchingError`. "This action is available in every type of flow." The
     page's parameter block is missing a comma between `AgentId` and
     `QueueChannel`. The admin guide adds a Get contact metrics setting with no
-    documented key, the `$.Metrics.Queue.*` attribute names, a 5 to 10 second
+    documented key, the returned attribute names (which the admin guide's
+    attribute list spells `$.Metrics.Queue.*` and `$.Metrics.Agents.*` under
+    Queue attributes and, with Get contact metrics on, `$.Metrics.Contact.*`;
+    the block page itself names only the two Contact ones), a 5 to 10 second
     delay, and "Dynamic attributes can only return metrics for one channel".
     https://docs.aws.amazon.com/connect/latest/adminguide/get-queue-metrics.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/connect-attrib-list.html
 27. `TagContact` (recorded 2026-09-11) "Sets a collection of tag to the
     current contact. With this type of operation, either all tags are set or
     none are set." `Tags` is "an Object that holds the tags to be set" whose
@@ -613,10 +650,10 @@ UpdateContactRoutingBehavior { QueuePriority? | QueueTimeAdjustmentSeconds? }   
 CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, MaximumConnectionAttempts,
                            RetryDelaySeconds, ContactFlowId?, CallerId? }   // the three counts are integer strings ("600")
 UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier, never static
-Loop                     { LoopCount }              // 0 to 100, static or a single JSONPath
+Loop                     { LoopCount }              // "0" to "100" as a decimal string, or a single JSONPath
 Wait                     { TimeLimitSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }   // the console's key; the page says TimeoutSeconds
 DistributeByPercentage   {}
-UpdateFlowAttributes     { FlowAttributes: { [k]: FlowAttribute } }   // value shape not documented; kept opaque
+UpdateFlowAttributes     { FlowAttributes: { [k]: { Value } } }   // the console's shape; Value static or a JSONPath
 CheckMetricData          { MetricType, QueueId? | AgentId? }
 GetMetricData            { QueueId? | AgentId?, QueueChannel?: "Voice" | "Chat" }   // channel static or a single JSONPath
 TagContact               { Tags: { [k]: v } }        // up to six; no aws: keys

@@ -1793,7 +1793,7 @@
             "type": "NoMatchingCondition",
             "required": false,
             "builder": true,
-            "when": "the block's False or No Match branch; the page limits it to OldestContactInQueueAgeSeconds and NumberOfContactsInQueue, the console wires it for every metric"
+            "when": "the block's False or No Match branch; the page limits it to OldestContactInQueueAgeSeconds and NumberOfContactsInQueue, the console's default queue transfer export wires it on NumberOfAgentsStaffed too, and the builder writes it for every metric"
           }
         ]
       }
@@ -1960,7 +1960,7 @@
         {
           "key": "LoopCount",
           "attr": "loop_count",
-          "kind": "integer",
+          "kind": "integerString",
           "required": true,
           "min": 0,
           "max": 100,
@@ -1975,7 +1975,13 @@
           "ContinueLooping",
           "DoneLooping"
         ],
-        "errors": []
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": false,
+            "builder": true
+          }
+        ]
       }
     },
     "StartVoiceIdStream": {
@@ -2033,15 +2039,32 @@
         {
           "key": "FlowAttributes",
           "attr": "flow_attributes",
-          "kind": "json",
-          "required": true
+          "kind": "map",
+          "required": true,
+          "of": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "Value",
+                "attr": "value",
+                "kind": "stringOrJsonPath",
+                "required": true
+              }
+            ]
+          }
         }
       ],
       "refs": [],
       "transitions": {
         "next": "required",
         "conditions": "none",
-        "errors": []
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
       }
     },
     "UpdateFlowLoggingBehavior": {

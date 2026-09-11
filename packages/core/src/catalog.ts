@@ -50,7 +50,7 @@ export interface CatalogElement {
   /** object */
   fields?: readonly CatalogParameter[];
   constraints?: readonly CatalogConstraint[];
-  /** list */
+  /** list: the element shape; map: the value shape, when it is not a string */
   of?: CatalogElement;
   /** integer and integerString: the value's bounds; list and map: the entry count's. */
   min?: number;

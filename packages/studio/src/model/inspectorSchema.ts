@@ -191,9 +191,11 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     case ActionType.Wait:
-      // Events is the list of interrupting events, each of which must also
-      // have a branch (a drag from the primary handle adds the next listed
-      // one). The JSONPath form of the timeout is edited as a GenericBlock.
+      // Events is the list of interrupting events, each of which also has a
+      // branch: a drag from the primary handle adds the next event and its
+      // branch together (mutations.ts, withWaitEvent), and the list here
+      // shows the result. The JSONPath form of the timeout is shown as a
+      // text field (Inspector.tsx, isJsonPathValue).
       return [
         {
           kind: "number",
@@ -210,8 +212,8 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     case ActionType.Loop:
-      // The dynamic (JSONPath) form of the count is not offered here; a Loop
-      // carrying one is edited as a GenericBlock.
+      // The console's spelling is a decimal string (asString); the dynamic
+      // (JSONPath) form of the count is shown as a text field.
       return [
         {
           kind: "number",
@@ -219,6 +221,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           label: "Loop count",
           min: LOOP_COUNT_MIN,
           max: LOOP_COUNT_MAX,
+          asString: true,
         },
       ];
     case ActionType.TransferToFlow:
@@ -491,7 +494,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
     case ActionType.GetMetricData:
       // With neither queue nor agent queue the contact's target queue is
       // read; without a channel, every channel. The JSONPath form of the
-      // channel is edited as a GenericBlock.
+      // channel is shown as a text field.
       return [
         {
           kind: "ref",

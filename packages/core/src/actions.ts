@@ -109,7 +109,7 @@ export const NO_MATCHING_CONDITION = "NoMatchingCondition";
  * Non-terminal modeled actions whose only error is NoMatchingCondition: every
  * path is a condition and that branch is the remainder.
  *
- * Compare: "NoMatchingCondition if no Condition matches."
+ * Compare: "NoMatchingCondition - if no other Condition matches."
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html
  * DistributeByPercentage: "NoMatchingCondition if no Condition matches. This
  * is the default option in the flow editor."
@@ -146,11 +146,6 @@ export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
  *
  * UpdateContactRoutingBehavior: results "None", errors "None".
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
- * Loop: errors "None"; its results are the two fixed conditions.
- * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
- * UpdateFlowAttributes: errors "None"; the admin guide's block has an Error
- * branch for attributes over 32 KB with no documented error type.
- * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
  * TagContact: errors "None"; the admin guide's block has an Error branch with
  * no documented error type.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
@@ -158,8 +153,6 @@ export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
 export const WITHOUT_CATCH_ALL: readonly string[] = [
   ActionType.UpdateContactRoutingBehavior,
   ActionType.UpdateContactCallbackNumber,
-  ActionType.Loop,
-  ActionType.UpdateFlowAttributes,
   ActionType.TagContact,
 ];
 
@@ -174,8 +167,16 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
  * doesn't have an Error branch").
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/loop-prompts.html
+ * Loop: the page says errors "None", but the admin guide's block has an Error
+ * branch and console exports of Loop blocks published in AWS sample
+ * repositories carry NoMatchingError on some and nothing on others.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/loop.html
  */
-export const OPTIONAL_CATCH_ALL: readonly string[] = [ActionType.MessageParticipantIteratively];
+export const OPTIONAL_CATCH_ALL: readonly string[] = [
+  ActionType.MessageParticipantIteratively,
+  ActionType.Loop,
+];
 
 /**
  * Additional error types beyond the catch-all, by action type, in the order
@@ -192,14 +193,16 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // The page's order; there is no catch-all (WITHOUT_CATCH_ALL).
   [ActionType.UpdateContactCallbackNumber]: [INVALID_CALLBACK_NUMBER, CALLBACK_NUMBER_NOT_DIALABLE],
   // The page's order, catch-all first: "ParticipantNotFound - The supported
-  // event currently is BotParticipantDisconnected", so the builder wires it
+  // event currently is \"BotParticipantDisconnected\".", so the builder wires it
   // only when that event is waited for.
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
   [ActionType.Wait]: [NO_MATCHING_ERROR, PARTICIPANT_NOT_FOUND],
-  // The console's order, catch-all first, as its default queue transfer flow
-  // is exported: NoMatchingCondition is the block's False or No Match
-  // branch. The page limits it to the two queue metrics; the console wires
-  // it for NumberOfAgentsStaffed too, and that export is the evidence.
+  // The order of the console's default queue transfer export, catch-all
+  // first; its Sample queue configurations export writes the two the other
+  // way round, so the inverter reads them by type and the builder writes this
+  // order. NoMatchingCondition is the block's False or No Match branch: the
+  // page limits it to the two queue metrics, the default queue transfer
+  // wires it on NumberOfAgentsStaffed too.
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
   [ActionType.CheckMetricData]: [NO_MATCHING_ERROR, NO_MATCHING_CONDITION],
   // NoMatchingCondition "Must be defined only if StoreInput is False", which
@@ -463,7 +466,10 @@ export const CALLBACK_DELAY_MAX = 259_200;
 export const CALLBACK_ATTEMPTS_MIN = 1;
 
 /**
- * Loop.LoopCount "must be between 0 and 100 (inclusive)", and its two results,
+ * Loop.LoopCount "must be between 0 and 100 (inclusive)", written as a decimal
+ * string: the page shows no encoding, and the console spells every integer
+ * parameter that way in each of its exported sample flows and in every
+ * published console export of a Loop block. Also its two results,
  * which are the exact conditions the page requires: "there must be a Condition
  * provided for Equals ContinueLooping and for Equals DoneLooping, and no other
  * Conditions can be specified."
@@ -483,7 +489,7 @@ export const LOOP_DONE = "DoneLooping";
  * results a Wait can branch on, "WaitCompleted" always and each event in
  * Events, and the events themselves.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
- * https://docs.aws.amazon.com/connect/latest/adminguide/sample-disconnect-flow.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/sample-disconnect.html
  */
 export const WAIT_TIMEOUT_MIN = 1;
 export const WAIT_TIMEOUT_MAX = 604_800;
@@ -508,10 +514,14 @@ export const PERCENTAGE_THRESHOLD_MAX = 100;
 /**
  * CheckMetricData.MetricType, "One of [NumberOfAgentsAvailable,
  * NumberOfAgentsStaffed, NumberOfAgentsOnline, OldestContactInQueueAgeSeconds,
- * NumberOfContactsInQueue]. Dynamic values are not supported". For the
- * NumberOfAgents* types "the only supported condition is NumberGreaterThan 0,
- * otherwise Equals and any Number* Operands are allowed".
+ * NumberOfContactsInQueue]. **Dynamic values are not supported**" (the
+ * asterisks are the page's own). For the NumberOfAgents* types "the only
+ * supported condition is \"NumberGreaterThan 0\", otherwise Equals and any
+ * Number* Operands are allowed". OldestContactInQueueAgeSeconds is compared
+ * in milliseconds on the wire: the console's Sample queue configurations
+ * export writes a 300 second entry as the operand "300000".
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/sample-queue-configurations.html
  */
 export const METRIC_TYPES = [
   "NumberOfAgentsAvailable",

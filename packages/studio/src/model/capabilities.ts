@@ -226,7 +226,9 @@ function usedKeys(action: FlowAction): Set<string> {
  * have demoted it on every drag. Once all twelve keys are taken there is no
  * branch left to add. A fixed kind, and an enum kind whose page names its
  * operands, get Equals on the first listed operand not yet wired, in the
- * builder's order, for the same reason.
+ * builder's order, for the same reason; a Wait's are WaitCompleted and then
+ * its two events, and the drag that adds an event also lists it in the
+ * block's Events parameter (mutations.ts, withWaitEvent).
  */
 export function defaultConditionFor(action: FlowAction): Condition | undefined {
   const kind = conditionsKind(action.Type);

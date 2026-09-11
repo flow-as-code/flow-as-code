@@ -115,16 +115,30 @@ function useDraft(value: string): [string, (next: string) => void] {
   return [draft, setDraft];
 }
 
+/**
+ * The dynamic form of a numeric or enumerated parameter: a single JSONPath
+ * where the block class also takes a number or a listed name (a Loop's count,
+ * a Wait's timeout, GetMetricData's channel). A number input or a select
+ * cannot hold it, so the field is shown as text instead; the block is typed
+ * either way, since the inverters accept the JSONPath form.
+ */
+function isJsonPathValue(value: unknown): value is string {
+  return typeof value === "string" && value.startsWith("$.");
+}
+
 function TextField({
   label,
   value,
   onCommit,
   testId,
+  error,
 }: {
   label: string;
   value: string;
   onCommit: (next: string) => void;
   testId?: string;
+  /** A refused commit's message; the refused text stays on screen, as in NumberField. */
+  error?: string | undefined;
 }) {
   const [draft, setDraft] = useDraft(value);
   return (
@@ -142,6 +156,11 @@ function TextField({
           if (draft !== value) onCommit(draft);
         }}
       />
+      {error !== undefined && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
     </label>
   );
 }
@@ -333,6 +352,57 @@ export function Inspector() {
         );
       case "number": {
         const errorKey = `${selected}:${field.key}`;
+        const commitNumber = (next: string) => {
+          let result: SetNumberResult;
+          try {
+            result = setNumberParam(doc, selected, field.key, next, field);
+          } catch (err) {
+            if (err instanceof MutationRefused) {
+              // The guard refused (an emptied last routing field would
+              // demote the block); the parameter keeps its value and the
+              // field says why.
+              setNumberErrors((prev) => ({ ...prev, [errorKey]: err.message }));
+              return;
+            }
+            dispatch({
+              type: "error",
+              message: err instanceof Error ? err.message : String(err),
+            });
+            return;
+          }
+          if (result.ok) {
+            setNumberErrors((prev) => {
+              const rest = { ...prev };
+              delete rest[errorKey];
+              return rest;
+            });
+            dispatch({ type: "mutated", doc: result.doc });
+          } else {
+            // The parameter keeps its previous value; the field shows why.
+            setNumberErrors((prev) => ({ ...prev, [errorKey]: result.error }));
+          }
+        };
+        if (isJsonPathValue(value)) {
+          // Another JSONPath is stored as typed; a number goes through the
+          // same bounds as the number field, and lands in the static form.
+          return (
+            <TextField
+              key={`${selected}:${field.key}:jsonpath`}
+              label={`${field.label} (JSONPath)`}
+              testId={`jsonpath-${field.key}`}
+              value={value}
+              error={numberErrors[errorKey]}
+              onCommit={(next) => {
+                const trimmed = next.trim();
+                if (isJsonPathValue(trimmed)) {
+                  mutate(() => setParam(doc, selected, field.key, trimmed));
+                } else {
+                  commitNumber(next);
+                }
+              }}
+            />
+          );
+        }
         // A stored value is a number, or its decimal string for fields
         // declared asString; anything else (absent, malformed) shows empty.
         const shown =
@@ -343,40 +413,32 @@ export function Inspector() {
             field={field}
             value={shown}
             error={numberErrors[errorKey]}
-            onCommit={(next) => {
-              let result: SetNumberResult;
-              try {
-                result = setNumberParam(doc, selected, field.key, next, field);
-              } catch (err) {
-                if (err instanceof MutationRefused) {
-                  // The guard refused (an emptied last routing field would
-                  // demote the block); the parameter keeps its value and the
-                  // field says why.
-                  setNumberErrors((prev) => ({ ...prev, [errorKey]: err.message }));
-                  return;
-                }
-                dispatch({
-                  type: "error",
-                  message: err instanceof Error ? err.message : String(err),
-                });
-                return;
-              }
-              if (result.ok) {
-                setNumberErrors((prev) => {
-                  const rest = { ...prev };
-                  delete rest[errorKey];
-                  return rest;
-                });
-                dispatch({ type: "mutated", doc: result.doc });
-              } else {
-                // The parameter keeps its previous value; the field shows why.
-                setNumberErrors((prev) => ({ ...prev, [errorKey]: result.error }));
-              }
-            }}
+            onCommit={commitNumber}
           />
         );
       }
       case "select":
+        if (isJsonPathValue(value)) {
+          // A listed name typed here lands in the select on the next render.
+          return (
+            <TextField
+              key={`${selected}:${field.key}:jsonpath`}
+              label={`${field.label} (JSONPath)`}
+              testId={`jsonpath-${field.key}`}
+              value={value}
+              onCommit={(next) =>
+                mutate(() =>
+                  setParam(
+                    doc,
+                    selected,
+                    field.key,
+                    field.optional === true && next.trim() === "" ? undefined : next.trim(),
+                  ),
+                )
+              }
+            />
+          );
+        }
         return (
           <label key={`${selected}:${field.key}`} className="block">
             <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">

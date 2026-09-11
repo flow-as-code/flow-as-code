@@ -36,7 +36,7 @@ import {
   typeAndBlur,
   unmount,
 } from "./appHarness.js";
-import { addBlock, connectNodes } from "../src/model/mutations.js";
+import { addBlock, connectNodes, setParam } from "../src/model/mutations.js";
 import { compareDoc, demoDoc, menuDoc } from "./helpers.js";
 
 beforeAll(installDomStubs);
@@ -166,6 +166,75 @@ describe("R1 every transition is rendered", () => {
     await renderDoc(doc, <Canvas />);
     expect(document.querySelector('[data-testid="demoted-welcome"]')).not.toBeNull();
     expect(document.querySelector('[data-testid="demoted-announce-closed"]')).toBeNull();
+  });
+});
+
+describe("the dynamic form of a number or select is shown as text", () => {
+  /** The demo document with a typed Loop whose count is a JSONPath, and a GetMetricData whose channel is one. */
+  function withDynamicBlocks(): FlowDoc {
+    const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    let doc = connectNodes(loop.doc, loop.id, "welcome", "primary")!;
+    doc = connectNodes(doc, loop.id, "hang-up", "primary")!;
+    const metrics = addBlock(doc, "GetMetricData", { x: 0, y: 1000 });
+    doc = connectNodes(metrics.doc, metrics.id, "hang-up", "primary")!;
+    doc = connectNodes(doc, metrics.id, "apologize", "error")!;
+    doc = setParam(doc, loop.id, "LoopCount", "$.Attributes.retries");
+    return setParam(doc, metrics.id, "QueueChannel", "$.Channel");
+  }
+
+  it("shows a Loop's JSONPath count as text and takes a number back through the bounds", async () => {
+    const doc = withDynamicBlocks();
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <NoticeBar />
+      </>,
+    );
+    await click(present('[data-testid="node-loop"]'));
+    expect(document.querySelector('[data-testid="number-LoopCount"]')).toBeNull();
+    const field = testId<HTMLInputElement>("jsonpath-LoopCount");
+    expect(field.value).toBe("$.Attributes.retries");
+    expect(testId("inspector").textContent).toContain("Loop count (JSONPath)");
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+
+    await typeAndBlur(field, "$.Attributes.attempts");
+    expect(testId<HTMLInputElement>("jsonpath-LoopCount").value).toBe("$.Attributes.attempts");
+
+    // Out of range is refused with the number field's message; the refused
+    // text stays on screen to be corrected and the document keeps the
+    // JSONPath, which is why the field is still the text one.
+    await typeAndBlur(testId<HTMLInputElement>("jsonpath-LoopCount"), "101");
+    expect(testId("inspector").textContent).toContain("at most 100");
+    expect(testId<HTMLInputElement>("jsonpath-LoopCount").value).toBe("101");
+
+    // A number in range lands in the static form, the console's string.
+    await typeAndBlur(testId<HTMLInputElement>("jsonpath-LoopCount"), "3");
+    expect(document.querySelector('[data-testid="jsonpath-LoopCount"]')).toBeNull();
+    expect(testId<HTMLInputElement>("number-LoopCount").value).toBe("3");
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+
+  it("shows GetMetricData's JSONPath channel as text and takes a listed name back", async () => {
+    await renderDoc(
+      withDynamicBlocks(),
+      <>
+        <Canvas />
+        <Inspector />
+      </>,
+    );
+    await click(present('[data-testid="node-get-metrics"]'));
+    const field = testId<HTMLInputElement>("jsonpath-QueueChannel");
+    expect(field.value).toBe("$.Channel");
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+    await typeAndBlur(field, "Chat");
+    expect(document.querySelector('[data-testid="jsonpath-QueueChannel"]')).toBeNull();
+    const select = [...document.querySelectorAll('[data-testid="inspector"] select')].find(
+      (s) => (s as HTMLSelectElement).value === "Chat",
+    );
+    expect(select).toBeDefined();
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
   });
 });
 

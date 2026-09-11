@@ -901,7 +901,7 @@ describe("Loop inverts the two fixed conditions with NextAction mirroring the do
     Parameters: {},
     Transitions: {},
   };
-  const generic = (edit: (a: FlowAction) => void, count: unknown = 2) => {
+  const generic = (edit: (a: FlowAction) => void, count: unknown = "2") => {
     const a = loop(count);
     edit(a);
     const out = codegen(docWith([a, bye]));
@@ -909,22 +909,30 @@ describe("Loop inverts the two fixed conditions with NextAction mirroring the do
     expect(out).not.toContain("new Loop(");
   };
 
-  it("emits a static count as a number and a dynamic one as jsonPath()", () => {
-    const out = codegen(docWith([loop(2), bye]));
+  it("reads the console's decimal string back as a number and a dynamic one as jsonPath()", () => {
+    const out = codegen(docWith([loop("2"), bye]));
     expect(out).toContain("new Loop({");
     expect(out).toContain("count: 2");
     expect(out).toContain('onContinue: "again"');
     expect(out).toContain('onDone: "bye"');
+    expect(out).not.toContain("onError");
+    expect(codegen(docWith([loop("0"), bye]))).toContain("count: 0");
+    expect(codegen(docWith([loop("100"), bye]))).toContain("count: 100");
     const dynamic = codegen(docWith([loop("$.Attributes.retries"), bye]));
     expect(dynamic).toContain('count: jsonPath("$.Attributes.retries")');
     expect(dynamic).toMatch(/import \{[^}]*jsonPath[^}]*\} from/);
+    // The console's Error branch, when an export carries one.
+    const withError = loop("2");
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    expect(codegen(docWith([withError, bye]))).toContain('onError: "bye"');
   });
 
-  it("falls back on a count out of range or spelled as a string, an error branch, swapped conditions, or an unmirrored NextAction", () => {
-    generic(() => {}, 101);
-    generic(() => {}, "2");
+  it("falls back on a count out of range, as a JSON number or with a leading zero, another error, swapped conditions, or an unmirrored NextAction", () => {
+    generic(() => {}, "101");
+    generic(() => {}, 2);
+    generic(() => {}, "02");
     generic((a) => {
-      a.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+      a.Transitions.Errors = [{ ErrorType: "NoMatchingCondition", NextAction: "bye" }];
     });
     generic((a) => {
       a.Transitions.Conditions = [a.Transitions.Conditions![1]!, a.Transitions.Conditions![0]!];
@@ -1072,12 +1080,16 @@ describe("DistributeByPercentage inverts the console's threshold chain into perc
   });
 });
 
-describe("UpdateFlowAttributes inverts an opaque attributes object with no error branch", () => {
+describe("UpdateFlowAttributes inverts the console's { Value } map with its catch-all", () => {
   const action = (attributes: unknown): FlowAction => ({
     Identifier: "remember",
     Type: "UpdateFlowAttributes",
     Parameters: { FlowAttributes: attributes },
-    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
   });
   const bye: FlowAction = {
     Identifier: "bye",
@@ -1091,23 +1103,31 @@ describe("UpdateFlowAttributes inverts an opaque attributes object with no error
     expect(out).not.toContain("new UpdateFlowAttributes(");
   };
 
-  it("emits the object verbatim, nested values included", () => {
-    const out = codegen(docWith([action({ retries: "2", nested: { Value: "x" } }), bye]));
+  it("reads the { Value } wrappers back into a flat string map", () => {
+    const out = codegen(
+      docWith([
+        action({ retries: { Value: "2" }, caller: { Value: "$.CustomerEndpoint.Address" } }),
+        bye,
+      ]),
+    );
     expect(out).toContain("new UpdateFlowAttributes({");
     expect(out).toContain('retries: "2"');
-    expect(out).toContain('nested: { Value: "x" }');
+    expect(out).toContain('caller: "$.CustomerEndpoint.Address"');
+    expect(out).toContain('onError: "bye"');
     expect(codegen(docWith([action({}), bye]))).toContain("attributes: {}");
   });
 
-  it("falls back on a non-object, a missing key, or an error branch", () => {
+  it("falls back on a flat string value, a wrapper with another key, a non-object, a missing key, or a missing catch-all", () => {
+    generic(action({ retries: "2" }));
+    generic(action({ retries: { Value: "2", Type: "string" } }));
+    generic(action({ retries: { Value: 2 } }));
     generic(action("retries=2"));
-    generic(action(["a"]));
     const missing = action({});
     missing.Parameters = {};
     generic(missing);
-    const withError = action({});
-    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
-    generic(withError);
+    const unwired = action({ retries: { Value: "2" } });
+    unwired.Transitions.Errors = [];
+    generic(unwired);
   });
 });
 
@@ -1215,6 +1235,74 @@ describe("CheckMetricData inverts the console's staffing check and a queue-depth
         { operator: "TextContains", operand: "5" },
       ]),
     );
+  });
+});
+
+describe("CheckMetricData reads the console's two error orders by type", () => {
+  const queueAge = (
+    errors: { ErrorType: string; NextAction: string }[],
+    next: string,
+  ): FlowAction => ({
+    Identifier: "queue-age",
+    Type: "CheckMetricData",
+    Parameters: { MetricType: "OldestContactInQueueAgeSeconds" },
+    Transitions: {
+      NextAction: next,
+      Errors: errors,
+      Conditions: [
+        { NextAction: "again", Condition: { Operator: "NumberLessThan", Operands: ["300000"] } },
+      ],
+    },
+  });
+  const rest: FlowAction[] = [
+    {
+      Identifier: "again",
+      Type: "MessageParticipant",
+      Parameters: { Text: "Again." },
+      Transitions: {
+        NextAction: "bye",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+        Conditions: [],
+      },
+    },
+    { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+  ];
+
+  it("reads the Sample queue configurations order, NoMatchingCondition first, and re-emits the class's order", () => {
+    // The typed block reproduces the class's order, so the export's own
+    // order is not what codegen(synth) writes back: the inverter still
+    // names the branches right, and the comparison in invertAction decides.
+    const reversed = queueAge(
+      [
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      "bye",
+    );
+    const out = codegen(docWith([reversed, ...rest]));
+    expect(out).toContain('type: "CheckMetricData"');
+    const ordered = queueAge(
+      [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+      ],
+      "bye",
+    );
+    const typed = codegen(docWith([ordered, ...rest]));
+    expect(typed).toContain("new CheckMetricData({");
+    expect(typed).toContain('onNoMatch: "again"');
+    expect(typed).toContain('onError: "bye"');
+  });
+
+  it("falls back when NextAction mirrors the no-match branch instead of the catch-all", () => {
+    const wrongMirror = queueAge(
+      [
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      "again",
+    );
+    expect(codegen(docWith([wrongMirror, ...rest]))).toContain('type: "CheckMetricData"');
   });
 });
 

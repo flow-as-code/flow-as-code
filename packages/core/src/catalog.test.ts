@@ -27,6 +27,7 @@ import {
   LOOP_COUNT_MIN,
   OPTIONAL_CATCH_ALL,
   QUEUE_PRIORITY_MIN,
+  TAG_LIMIT,
   VOICE_ID_RESPONSE_TIME_MAX,
   VOICE_ID_RESPONSE_TIME_MIN,
   VOICE_ID_THRESHOLD_MAX,
@@ -75,10 +76,11 @@ const ALL_CONNECT_TYPES = [
 const CATEGORY_COUNTS = { contact: 27, participant: 6, flowControl: 15, interaction: 8 };
 
 /**
- * The bounds actions.ts carries as constants, by type and top-level key. The
- * catalog, the schema and the block constructors each spell them; this table
- * holds the catalog to the constants (a bound present on one side and absent
- * on the other fails too).
+ * The bounds actions.ts carries as constants, by type and top-level key, and
+ * the entry-count bounds of lists and maps. The catalog, the schema and the
+ * block constructors each spell them; this table holds the catalog to the
+ * constants: a bound present on one side and absent on the other fails, and
+ * so does a catalog bound with no row here.
  */
 const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   UpdateContactRoutingBehavior: { QueuePriority: { min: QUEUE_PRIORITY_MIN } },
@@ -95,6 +97,10 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   },
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
   Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
+  TagContact: { Tags: { max: TAG_LIMIT } },
+  UpdateContactEventHooks: { EventHooks: { min: 1, max: 1 } },
+  MessageParticipantIteratively: { Messages: { min: 1 }, InterruptFrequencySeconds: { min: 1 } },
+  ShowView: { InvocationTimeLimitSeconds: { min: 1 } },
   UpdateContactData: {
     VoiceAuthenticationThreshold: { min: VOICE_ID_THRESHOLD_MIN, max: VOICE_ID_THRESHOLD_MAX },
     VoiceAuthenticationResponseTime: {
@@ -229,7 +235,12 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       out.push(...parameterProblems(`${where}.${p.key}`, p, catalog.refTypes));
     for (const p of entry.parameters) {
       const b = BOUNDS[type]?.[p.key];
-      if (b === undefined) continue;
+      if (b === undefined) {
+        if (p.min !== undefined || p.max !== undefined) {
+          out.push(`${where}.${p.key}: bounds in the catalog with no constant in actions.ts`);
+        }
+        continue;
+      }
       if (p.min !== b.min || p.max !== b.max) {
         out.push(
           `${where}.${p.key}: bounds ${String(p.min)}..${String(p.max)} differ from the constants ${String(b.min)}..${String(b.max)}`,
@@ -372,9 +383,10 @@ describe("the action catalog", () => {
     expect(requiredErrors("TransferContactToAgent")).toEqual([]);
     expect(requiredErrors("UpdateContactRoutingBehavior")).toEqual([]);
     expect(builderErrors("UpdateContactRoutingBehavior")).toEqual([]);
+    // Listed as "None" on the page, carried by some published console exports.
     expect(requiredErrors("Loop")).toEqual([]);
-    expect(builderErrors("Loop")).toEqual([]);
-    expect(requiredErrors("UpdateFlowAttributes")).toEqual([]);
+    expect(builderErrors("Loop")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("UpdateFlowAttributes")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(requiredErrors("CheckMetricData")).toEqual(["NoMatchingError"]);
@@ -515,6 +527,14 @@ describe("catalogProblems is proven able to fail", () => {
         (p as { max?: number }).max = 259_201;
       }),
     ).toContainEqual(expect.stringContaining("CreateCallbackContact.RetryDelaySeconds: bounds"));
+  });
+  it("on a catalog bound with no constant behind it", () => {
+    expect(
+      mutate((c) => {
+        const p = modeledAt(c, "GetMetricData").parameters.find((x) => x.key === "QueueChannel")!;
+        (p as { min?: number }).min = 1;
+      }),
+    ).toContainEqual(expect.stringContaining("GetMetricData.QueueChannel: bounds in the catalog"));
   });
   it("on a category page losing a type", () => {
     expect(

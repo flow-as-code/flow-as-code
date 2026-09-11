@@ -655,12 +655,12 @@ export class TransferToFlow extends Block {
 
 /**
  * Loop: run `count` times through `onContinue`, then once through `onDone`,
- * then reset. The count is 0 to 100, static or a single JSONPath; with 0 the
- * done path is taken the first time. The page lists no errors; its two results
- * are the two conditions, so NextAction mirrors the done path the way
- * CheckHoursOfOperation mirrors its out-of-hours path. The console block's
- * Error branch has no documented error type, so an exported Loop that carries
- * one stays a GenericBlock.
+ * then reset. The count is 0 to 100, static (written as a decimal string, the
+ * console's spelling) or a single JSONPath; with 0 the done path is taken the
+ * first time. Its two results are the two conditions, and NextAction mirrors
+ * the done path, as every published console export of a Loop does. The page
+ * lists no errors, but the console's block has an Error branch and some
+ * exports carry NoMatchingError, so `onError` is optional.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/loop.html
  */
@@ -669,6 +669,7 @@ export interface LoopConfig {
   count: number | JsonPath;
   onContinue: Target;
   onDone: Target;
+  onError?: Target;
 }
 
 export class Loop extends Block {
@@ -688,13 +689,14 @@ export class Loop extends Block {
   }
 
   protected parameters(): Record<string, unknown> {
-    return { LoopCount: this.config.count };
+    const c = this.config.count;
+    return { LoopCount: typeof c === "number" ? String(c) : c };
   }
 
   protected transitions(): Transitions {
     return wire(
       this.config.onDone,
-      [],
+      this.config.onError === undefined ? [] : [[NO_MATCHING_ERROR, this.config.onError]],
       [
         { target: this.config.onContinue, operator: "Equals", operands: [LOOP_CONTINUE] },
         { target: this.config.onDone, operator: "Equals", operands: [LOOP_DONE] },
@@ -711,11 +713,12 @@ export class Loop extends Block {
  * condition; `onTimeout` is the WaitCompleted condition the page always
  * requires. `onParticipantNotFound` is required exactly when
  * BotParticipantDisconnected is waited for ("The supported event currently is
- * BotParticipantDisconnected"). Chat only; legal in every flow type. The page
- * says nothing about NextAction; the class mirrors it onto the catch-all, the
- * way the console writes exported flows, to be confirmed against an export.
+ * \"BotParticipantDisconnected\"."). Chat only; legal in every flow type. The
+ * page says nothing about NextAction; the class mirrors it onto the
+ * catch-all, as the console's export of the Sample disconnect flow does.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/wait.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/sample-disconnect.html
  */
 export interface WaitConfig {
   id: string;
@@ -849,18 +852,18 @@ export class DistributeByPercentage extends Block {
  * Sets attributes on the current flow: "These attributes are not carried
  * over to the subsequent flows. With this type of operation, either all
  * attributes are set or none are set." The action page's parameter block is
- * malformed and does not spell out the value shape, so `attributes` is
- * written to FlowAttributes verbatim (the FlowDoc records it as an opaque
- * object) until a console export settles it. No errors on the page; the
- * admin guide's Error branch (attributes over 32 KB) has no documented type.
+ * malformed and never defines the value; the console's exports of the block
+ * (the Set contact attributes block with its Flow namespace, published in
+ * AWS sample repositories) write each value as `{ "Value": "<string>" }`,
+ * static or a JSONPath, and every one carries a NoMatchingError branch the
+ * page's Errors "None" does not list. The class writes that shape from a
+ * flat string map and wires the catch-all as UpdateContactAttributes does.
  * Legal in every flow type and channel.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-contact-attributes.html
  */
-export interface UpdateFlowAttributesConfig {
-  id: string;
-  attributes: Record<string, unknown>;
-  next: Target;
+export interface UpdateFlowAttributesConfig extends Wired {
+  attributes: Record<string, string>;
 }
 
 export class UpdateFlowAttributes extends Block {
@@ -872,18 +875,32 @@ export class UpdateFlowAttributes extends Block {
     if (a === null || typeof a !== "object" || Array.isArray(a)) {
       throw new Error(`UpdateFlowAttributes "${config.id}" attributes must be an object.`);
     }
+    for (const [k, v] of Object.entries(a)) {
+      if (typeof v !== "string") {
+        throw new Error(`UpdateFlowAttributes "${config.id}" attribute "${k}" must be a string.`);
+      }
+    }
   }
 
   protected parameters(): Record<string, unknown> {
-    return { FlowAttributes: this.config.attributes };
+    return {
+      FlowAttributes: Object.fromEntries(
+        Object.entries(this.config.attributes).map(([k, v]) => [k, { Value: v }]),
+      ),
+    };
   }
 
   protected transitions(): Transitions {
-    return wire(this.config.next, []);
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
   }
 }
 
-/** One comparison against the loaded metric. Operands are numbers, written as strings. */
+/**
+ * One comparison against the loaded metric. Operands are numbers, written as
+ * strings, in the metric's wire unit: OldestContactInQueueAgeSeconds is
+ * compared in milliseconds (the console writes its seconds entry times 1000),
+ * the others are counts.
+ */
 export interface MetricBranch {
   operator: MetricOperator;
   operand: number | string;
@@ -895,10 +912,11 @@ export interface MetricBranch {
  * blocks. Loads one metric for the named queue, agent queue, or the contact's
  * target queue, and branches on it. For the NumberOfAgents* metrics "the only
  * supported condition is NumberGreaterThan 0"; the queue metrics take Equals
- * and the Number* operators. The console writes NoMatchingError first,
- * NoMatchingCondition (the block's False or No Match branch) second, and
- * mirrors NextAction onto the catch-all, as its default queue transfer flow
- * is exported; the class writes the same shape.
+ * and the Number* operators. The console mirrors NextAction onto the
+ * catch-all and writes the two errors in either order (NoMatchingError first
+ * in its default queue transfer export, NoMatchingCondition first in its
+ * Sample queue configurations export); the class writes NoMatchingError
+ * first and the inverter reads them by type.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/check-queue-status.html
@@ -976,7 +994,9 @@ export class CheckMetricData extends Block {
 /**
  * GetMetricData: loads the real-time metrics of the named queue, an agent
  * queue, or the contact's target queue "and makes them available on the flow
- * run data" (the admin guide lists them as $.Metrics.Queue.* attributes).
+ * run data" (the admin guide's attribute list spells them $.Metrics.Queue.*
+ * and $.Metrics.Agents.*, plus $.Metrics.Contact.* when Get contact metrics
+ * is on).
  * `channel` narrows them to "Voice" or "Chat", statically or by a single
  * JSONPath ("Can be set dynamically"); without it "metrics are returned for
  * all channels". Legal in every flow type.
@@ -988,6 +1008,7 @@ export type GetMetricDataConfig = Wired &
     channel?: QueueChannel | JsonPath;
   };
 
+// https://docs.aws.amazon.com/connect/latest/adminguide/connect-attrib-list.html
 export class GetMetricData extends Block {
   readonly type = ActionType.GetMetricData;
 

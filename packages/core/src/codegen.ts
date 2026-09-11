@@ -923,7 +923,10 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
 
   [ActionType.Loop]: (a, ctx) => {
     const t = a.Transitions;
-    if ((t.Errors ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length > 1 || (errors.length === 1 && errors[0]!.ErrorType !== NO_MATCHING_ERROR)) {
+      return undefined;
+    }
     const conditions = t.Conditions ?? [];
     if (conditions.length !== 2) return undefined;
     const [cont, done] = conditions;
@@ -938,29 +941,37 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     // The class mirrors NextAction onto the done path.
     if (t.NextAction !== done!.NextAction) return undefined;
     if (!paramKeysAre(a.Parameters, ["LoopCount"])) return undefined;
-    const count = a.Parameters.LoopCount;
+    // The console's spelling: a decimal string, or a single JSONPath.
+    const raw = a.Parameters.LoopCount;
+    if (typeof raw !== "string") return undefined;
+    let count: number | string;
     let countV: V;
-    if (typeof count === "number") {
+    if (/^(0|[1-9][0-9]?|100)$/.test(raw)) {
+      count = Number(raw);
       countV = count;
-    } else if (typeof count === "string" && /^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(count)) {
+    } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) {
+      count = raw;
       ctx.jsonPath = true;
-      countV = new Raw(`jsonPath(${quoteString(count)})`);
+      countV = new Raw(`jsonPath(${quoteString(raw)})`);
     } else {
       return undefined;
     }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["count", countV],
+      ["onContinue", cont!.NextAction],
+      ["onDone", done!.NextAction],
+    ];
+    if (errors.length === 1) entries.push(["onError", errors[0]!.NextAction]);
     return {
       cls: "Loop",
-      entries: [
-        ["id", a.Identifier],
-        ["count", countV],
-        ["onContinue", cont!.NextAction],
-        ["onDone", done!.NextAction],
-      ],
+      entries,
       block: new Loop({
         id: a.Identifier,
         count: cast<never>(count),
         onContinue: cont!.NextAction,
         onDone: done!.NextAction,
+        ...(errors.length === 1 ? { onError: errors[0]!.NextAction } : {}),
       }),
     };
   },
@@ -1097,25 +1108,34 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
 
   [ActionType.UpdateFlowAttributes]: (a) => {
-    const t = a.Transitions;
-    if (t.NextAction === undefined) return undefined;
-    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
     if (!paramKeysAre(a.Parameters, ["FlowAttributes"])) return undefined;
-    const attributes = a.Parameters.FlowAttributes;
-    if (attributes === null || typeof attributes !== "object" || Array.isArray(attributes)) {
-      return undefined;
+    const raw = a.Parameters.FlowAttributes;
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    // The console's value shape: { Value: "<string>" } for every attribute.
+    const attributes: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const entry = v as Record<string, unknown> | null;
+      if (entry === null || typeof entry !== "object" || !paramKeysAre(entry, ["Value"])) {
+        return undefined;
+      }
+      if (typeof entry.Value !== "string") return undefined;
+      attributes[k] = entry.Value;
     }
     return {
       cls: "UpdateFlowAttributes",
       entries: [
         ["id", a.Identifier],
         ["attributes", toV(attributes)],
-        ["next", t.NextAction],
+        ["next", w.next],
+        ["onError", w.onError],
       ],
       block: new UpdateFlowAttributes({
         id: a.Identifier,
-        attributes: cast<Record<string, unknown>>(attributes),
-        next: t.NextAction,
+        attributes,
+        next: w.next,
+        onError: w.onError,
       }),
     };
   },
@@ -1123,15 +1143,16 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   [ActionType.CheckMetricData]: (a, ctx) => {
     const t = a.Transitions;
     const errors = t.Errors ?? [];
-    if (
-      errors.length !== 2 ||
-      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
-      errors[1]!.ErrorType !== NO_MATCHING_CONDITION
-    ) {
-      return undefined;
-    }
+    // The console writes the two errors in either order; the class writes
+    // the catch-all first, and the comparison in invertAction re-emits this
+    // action in that order, so an export in the other order round-trips as
+    // a GenericBlock. Reading them by type keeps the inverter honest about
+    // which order it would reproduce.
+    const onError = errors.find((e) => e.ErrorType === NO_MATCHING_ERROR);
+    const onNoMatch = errors.find((e) => e.ErrorType === NO_MATCHING_CONDITION);
+    if (errors.length !== 2 || onError === undefined || onNoMatch === undefined) return undefined;
     // The console mirrors NextAction onto the catch-all, and so does the class.
-    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    if (t.NextAction !== onError.NextAction) return undefined;
     const conditions = t.Conditions ?? [];
     if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
     if (!paramKeysAre(a.Parameters, ["MetricType"], ["QueueId", "AgentId"])) return undefined;
@@ -1190,8 +1211,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           ),
         ),
       ],
-      ["onNoMatch", errors[1]!.NextAction],
-      ["onError", errors[0]!.NextAction],
+      ["onNoMatch", onNoMatch.NextAction],
+      ["onError", onError.NextAction],
     );
     return {
       cls: "CheckMetricData",
@@ -1200,8 +1221,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         cast<never>({
           ...config,
           branches,
-          onNoMatch: errors[1]!.NextAction,
-          onError: errors[0]!.NextAction,
+          onNoMatch: onNoMatch.NextAction,
+          onError: onError.NextAction,
         }),
       ),
     };

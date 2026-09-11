@@ -28,7 +28,7 @@
         "Identifier": "check",
         "Type": "Loop",
         "Parameters": {
-          "LoopCount": 3
+          "LoopCount": "3"
         },
         "Transitions": {
           "NextAction": "done",

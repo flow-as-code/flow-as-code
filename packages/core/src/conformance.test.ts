@@ -272,13 +272,55 @@ describe("FlowDoc schema rejections: flow control", () => {
     [
       "a loop count above 100",
       mutate("again", (a) => {
-        a.Parameters.LoopCount = 101;
+        a.Parameters.LoopCount = "101";
       }),
     ],
     [
-      "a loop count spelled as a string",
+      "a loop count written as a JSON number, which the console never writes",
       mutate("again", (a) => {
-        a.Parameters.LoopCount = "2";
+        a.Parameters.LoopCount = 2;
+      }),
+    ],
+    [
+      "a loop count with a leading zero",
+      mutate("again", (a) => {
+        a.Parameters.LoopCount = "02";
+      }),
+    ],
+    [
+      "a percentage threshold above 100",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operands = ["101"];
+      }),
+    ],
+    [
+      "a percentage branch with an operator other than NumberLessThan",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operator = "NumberGreaterThan";
+      }),
+    ],
+    [
+      "a percentage threshold written as a JSON number",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operands = [20];
+      }),
+    ],
+    [
+      "a percentage branch with two operands",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operands = ["20", "30"];
+      }),
+    ],
+    [
+      "a flow attribute as a flat string, which the console never writes",
+      mutate("remember", (a) => {
+        a.Parameters.FlowAttributes = { lastPrompt: "greet" };
+      }),
+    ],
+    [
+      "a flow attribute wrapper with a key other than Value",
+      mutate("remember", (a) => {
+        a.Parameters.FlowAttributes = { lastPrompt: { Value: "greet", Type: "string" } };
       }),
     ],
     [

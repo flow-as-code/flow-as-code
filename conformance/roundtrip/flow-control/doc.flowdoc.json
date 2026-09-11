@@ -30,12 +30,19 @@
         "Type": "UpdateFlowAttributes",
         "Parameters": {
           "FlowAttributes": {
-            "lastPrompt": "greet"
+            "lastPrompt": {
+              "Value": "greet"
+            }
           }
         },
         "Transitions": {
           "NextAction": "split",
-          "Errors": [],
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
           "Conditions": []
         }
       },
@@ -185,7 +192,7 @@
         "Identifier": "again",
         "Type": "Loop",
         "Parameters": {
-          "LoopCount": 2
+          "LoopCount": "2"
         },
         "Transitions": {
           "NextAction": "dynamic-loop",

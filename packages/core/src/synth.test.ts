@@ -433,13 +433,16 @@ describe("guardrails", () => {
     expect(() => new Loop({ id: "l", count: 1.5, onContinue: "a", onDone: "b" })).toThrow(
       /between 0 and 100/,
     );
-    expect(new Loop({ id: "l", count: 0, onContinue: "a", onDone: "b" }).toAction()).toEqual({
+    // Written as the console spells it: a decimal string.
+    expect(
+      new Loop({ id: "l", count: 0, onContinue: "a", onDone: "b", onError: "e" }).toAction(),
+    ).toEqual({
       Identifier: "l",
       Type: "Loop",
-      Parameters: { LoopCount: 0 },
+      Parameters: { LoopCount: "0" },
       Transitions: {
         NextAction: "b",
-        Errors: [],
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
         Conditions: [
           { NextAction: "a", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
           { NextAction: "b", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
@@ -529,17 +532,23 @@ describe("guardrails", () => {
     });
   });
 
-  it("writes flow attributes verbatim and rejects a non-object", () => {
+  it("writes flow attributes in the console's { Value } shape and rejects a non-string", () => {
+    const base = { id: "f", next: "n", onError: "e" };
+    expect(() => new UpdateFlowAttributes({ ...base, attributes: cast<never>(["a"]) })).toThrow(
+      /must be an object/,
+    );
     expect(
-      () => new UpdateFlowAttributes({ id: "f", attributes: cast<never>(["a"]), next: "n" }),
-    ).toThrow(/must be an object/);
-    expect(
-      new UpdateFlowAttributes({ id: "f", attributes: { retries: "2" }, next: "n" }).toAction(),
-    ).toEqual({
+      () => new UpdateFlowAttributes({ ...base, attributes: cast<never>({ retries: 2 }) }),
+    ).toThrow(/must be a string/);
+    expect(new UpdateFlowAttributes({ ...base, attributes: { retries: "2" } }).toAction()).toEqual({
       Identifier: "f",
       Type: "UpdateFlowAttributes",
-      Parameters: { FlowAttributes: { retries: "2" } },
-      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+      Parameters: { FlowAttributes: { retries: { Value: "2" } } },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
     });
   });
 

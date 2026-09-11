@@ -130,18 +130,20 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // until it has one.
       return { Text: "How can I help you today?" };
     case ActionType.Wait:
-      // A minute; the page states no console default. Events are added in
-      // the inspector before their branches are dragged.
+      // A minute; the page states no console default. Events are listed by
+      // the drags that add their branches (mutations.ts, withWaitEvent).
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
       return { TimeLimitSeconds: "60" };
     case ActionType.CheckMetricData:
-      // The console's Check staffing block opens on its first status, agents
-      // available. https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html
+      // The first metric the action page lists; neither page states a
+      // console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
       return { MetricType: "NumberOfAgentsAvailable" };
     case ActionType.Loop:
-      // The smallest count that loops at all; the page states no console
-      // default. https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
-      return { LoopCount: 1 };
+      // The smallest count that loops at all, in the console's decimal
+      // string spelling; the page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
+      return { LoopCount: "1" };
     case ActionType.UpdateContactAttributes:
       return { Attributes: {}, TargetContact: "Current" };
     case ActionType.UpdateContactData:

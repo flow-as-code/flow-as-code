@@ -243,10 +243,60 @@ describe("M4 condition edges only move onto blocks that take conditions", () => 
   });
 
   it("refuses a next edge dropped on a Compare", () => {
+    // A Compare's paths are all conditions (acceptsNextAction), so the drop
+    // has nothing to mean; the Compare is untouched and stays typed.
     const doc = edgeCasesDoc();
-    expect(() => rewireEdge(doc, nextEdgeId("ssml-greeting"), "compare-tier", "hang-up")).toThrow(
-      MutationRefused,
-    );
+    expect(rewireEdge(doc, nextEdgeId("ssml-greeting"), "compare-tier", "hang-up")).toBeUndefined();
+    expect(emittedClassFor(doc, "compare-tier")).toContain("new Compare(");
+  });
+
+  it("refuses a next edge dropped on an unfinished Loop, whose next path is its done branch", () => {
+    // The Loop is generic until both branches are wired, so the guard sees
+    // no demotion; without the explicit check the edge landed as a bare
+    // NextAction no drag could produce, and the done drag then overwrote it.
+    const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    const message = addBlock(loop.doc, "MessageParticipant", { x: 0, y: 1000 });
+    const wired = connectNodes(message.doc, message.id, "hang-up", "primary")!;
+    expect(rewireEdge(wired, nextEdgeId(message.id), loop.id, "hang-up")).toBeUndefined();
+    expect(getAction(wired, loop.id)?.Transitions.NextAction).toBeUndefined();
+
+    // A file can carry a Loop with its branches wired and no NextAction (the
+    // studio never writes that shape). A drop that agrees with the done
+    // branch lands and completes the block; one that disagrees is the same
+    // clobber as a drop on a block that already has a next edge.
+    const authored: FlowDoc = {
+      ...wired,
+      content: {
+        ...wired.content,
+        Actions: wired.content.Actions.map((x) =>
+          x.Identifier === loop.id
+            ? {
+                ...x,
+                Transitions: {
+                  Errors: [],
+                  Conditions: [
+                    {
+                      NextAction: "welcome",
+                      Condition: { Operator: "Equals", Operands: ["ContinueLooping"] },
+                    },
+                    {
+                      NextAction: "hang-up",
+                      Condition: { Operator: "Equals", Operands: ["DoneLooping"] },
+                    },
+                  ],
+                },
+              }
+            : x,
+        ),
+      },
+    };
+    expect(demotedIds(authored).has(loop.id)).toBe(true);
+    expect(rewireEdge(authored, nextEdgeId(message.id), loop.id, "welcome")).toBeUndefined();
+    const agreed = rewireEdge(authored, nextEdgeId(message.id), loop.id, "hang-up")!;
+    expect(getAction(agreed, loop.id)?.Transitions.NextAction).toBe("hang-up");
+    expect(getAction(agreed, message.id)?.Transitions.NextAction).toBeUndefined();
+    expect(demotedIds(agreed).has(loop.id)).toBe(false);
+    expectSchemaValid(agreed);
   });
 
   it("still moves a condition edge between blocks that do take conditions", () => {
@@ -354,9 +404,11 @@ describe("C3 a new block can be wired up", () => {
     expect([...demotedIds(back)]).toEqual(["enable-logging"]);
   });
 
-  it("a Loop is typed after its two drags, with no error branch to wire", () => {
+  it("a Loop is typed after its two drags, with or without its optional error branch", () => {
     const { doc, id } = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
-    expect(offersErrorBranch(getAction(doc, id)!)).toBe(false);
+    // The page lists no error, some console exports carry one: the handle
+    // offers it and the block is typed either way.
+    expect(offersErrorBranch(getAction(doc, id)!)).toBe(true);
     const again = connectNodes(doc, id, "welcome", "primary")!;
     const done = connectNodes(again, id, "hang-up", "primary")!;
     expect(getAction(done, id)?.Transitions).toEqual({
@@ -369,6 +421,131 @@ describe("C3 a new block can be wired up", () => {
     });
     expect([...demotedIds(done)]).toEqual(["enable-logging"]);
     expectSchemaValid(done);
+    const withError = connectNodes(done, id, "apologize", "error")!;
+    expect(getAction(withError, id)?.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "apologize" },
+    ]);
+    expect([...demotedIds(withError)]).toEqual(["enable-logging"]);
+    expectSchemaValid(withError);
+    expect(codegen(withError)).toContain('onError: "apologize"');
+  });
+
+  it("moving a Loop's next edge away takes its mirrored done branch along, and the reverse", () => {
+    // An unfinished Loop (only the done branch wired, as a file can carry
+    // it) is generic, so the guard has nothing to refuse and what is left is
+    // the bookkeeping: the next edge and the done branch are one path drawn
+    // twice. Before the rule was read from the catalog this knew only a
+    // menu's no-match error, and the done branch stayed behind.
+    const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    const message = addBlock(loop.doc, "MessageParticipant", { x: 0, y: 1000 });
+    const doneOnly: FlowDoc = {
+      ...message.doc,
+      content: {
+        ...message.doc.content,
+        Actions: message.doc.content.Actions.map((x) =>
+          x.Identifier === loop.id
+            ? {
+                ...x,
+                Transitions: {
+                  NextAction: "hang-up",
+                  Errors: [],
+                  Conditions: [
+                    {
+                      NextAction: "hang-up",
+                      Condition: { Operator: "Equals", Operands: ["DoneLooping"] },
+                    },
+                  ],
+                },
+              }
+            : x,
+        ),
+      },
+    };
+    expect(demotedIds(doneOnly).has(loop.id)).toBe(true);
+
+    const viaNext = rewireEdge(doneOnly, nextEdgeId(loop.id), message.id, "hang-up")!;
+    expect(getAction(viaNext, message.id)?.Transitions.NextAction).toBe("hang-up");
+    expect(getAction(viaNext, loop.id)?.Transitions).toEqual({ Errors: [], Conditions: [] });
+    expectSchemaValid(viaNext);
+
+    // The other half: a Compare takes the condition, and NextAction goes too.
+    const compare = addBlock(doneOnly, "Compare", { x: 0, y: 1100 });
+    const viaCondition = rewireEdge(
+      compare.doc,
+      conditionEdgeId(loop.id, 0),
+      compare.id,
+      "hang-up",
+    )!;
+    expect(getAction(viaCondition, loop.id)?.Transitions).toEqual({ Errors: [], Conditions: [] });
+    expect(getAction(viaCondition, compare.id)?.Transitions.Conditions?.[0]?.NextAction).toBe(
+      "hang-up",
+    );
+    expectSchemaValid(viaCondition);
+  });
+
+  it("a Wait's event drags list the event, pair the bot event with ParticipantNotFound, and stay typed", () => {
+    const { doc, id } = addBlock(demoDoc(), "Wait", { x: 0, y: 900 });
+    // WaitCompleted first, then the catch-all: the smallest typed Wait.
+    let wait = connectNodes(doc, id, "hang-up", "primary")!;
+    wait = connectNodes(wait, id, "apologize", "error")!;
+    expect([...demotedIds(wait)]).toEqual(["enable-logging"]);
+    expect(getAction(wait, id)?.Parameters.Events).toBeUndefined();
+    // No bot event yet, so the error handle has nothing left to add: the
+    // ParticipantNotFound branch is not a gesture of its own.
+    expect(connectNodes(wait, id, "welcome", "error")).toBeUndefined();
+
+    // Each event drag lists the event; on a typed block, so the guard is
+    // watching, and it would have refused a branch without its listing.
+    const customer = connectNodes(wait, id, "welcome", "primary")!;
+    expect(getAction(customer, id)?.Parameters.Events).toEqual(["CustomerReturned"]);
+    expect([...demotedIds(customer)]).toEqual(["enable-logging"]);
+
+    const bot = connectNodes(customer, id, "hang-up", "primary")!;
+    expect(getAction(bot, id)?.Parameters.Events).toEqual([
+      "CustomerReturned",
+      "BotParticipantDisconnected",
+    ]);
+    expect(getAction(bot, id)?.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "apologize" },
+      { ErrorType: "ParticipantNotFound", NextAction: "hang-up" },
+    ]);
+    expect([...demotedIds(bot)]).toEqual(["enable-logging"]);
+    expectSchemaValid(bot);
+    expect(codegen(bot)).toContain('onParticipantNotFound: "hang-up"');
+    // All three branches wired: nothing left for a primary drag to mean.
+    expect(connectNodes(bot, id, "welcome", "primary")).toBeUndefined();
+
+    // Removing the bot branch takes its listing and its paired error away.
+    const unbot = removeCondition(bot, id, 2)!;
+    expect(getAction(unbot, id)?.Parameters.Events).toEqual(["CustomerReturned"]);
+    expect(getAction(unbot, id)?.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "apologize" },
+    ]);
+    expect([...demotedIds(unbot)]).toEqual(["enable-logging"]);
+    // And the last event's removal drops the Events parameter altogether,
+    // the shape the block class writes with no events.
+    const none = removeCondition(unbot, id, 1)!;
+    expect(getAction(none, id)?.Parameters.Events).toBeUndefined();
+    expect([...demotedIds(none)]).toEqual(["enable-logging"]);
+    expectSchemaValid(none);
+  });
+
+  it("the bot event's ParticipantNotFound is wired in the class's order even before the catch-all", () => {
+    // An unfinished Wait: the bot branch dragged before any error handle
+    // drag must not put ParticipantNotFound ahead of NoMatchingError, or the
+    // catch-all drag that follows would land second and the block would
+    // never invert.
+    const { doc, id } = addBlock(demoDoc(), "Wait", { x: 0, y: 900 });
+    let wait = connectNodes(doc, id, "hang-up", "primary")!; // WaitCompleted
+    wait = connectNodes(wait, id, "welcome", "primary")!; // CustomerReturned
+    wait = connectNodes(wait, id, "hang-up", "primary")!; // BotParticipantDisconnected
+    wait = connectNodes(wait, id, "apologize", "error")!; // NoMatchingError
+    expect(getAction(wait, id)?.Transitions.Errors?.map((e) => e.ErrorType)).toEqual([
+      "NoMatchingError",
+      "ParticipantNotFound",
+    ]);
+    expect([...demotedIds(wait)]).toEqual(["enable-logging"]);
+    expectSchemaValid(wait);
   });
 
   it("a percentage split takes a 1% branch per drag and stays typed once its remainder is wired", () => {

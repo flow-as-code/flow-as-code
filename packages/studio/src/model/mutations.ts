@@ -30,17 +30,21 @@
 
 import type {
   Condition,
+  ConditionTransition,
+  ErrorTransition,
   FlowAction,
   FlowDoc,
   ModeledActionType,
   Point,
   Transitions,
+  WaitEvent,
 } from "@flow-as-code/core";
 import {
   builderErrors,
   ActionType,
   MAX_ACTIONS_PER_FLOW,
-  NO_MATCHING_CONDITION,
+  PARTICIPANT_NOT_FOUND,
+  WAIT_EVENTS,
   canonicalize,
   collectRefs,
 } from "@flow-as-code/core";
@@ -520,6 +524,11 @@ function mirrorNext(action: FlowAction): FlowAction {
   return { ...action, Transitions: { ...action.Transitions, NextAction: target } };
 }
 
+/** Whether this branch is the fixed condition a mirroring type's NextAction copies. */
+function isMirroredCondition(c: ConditionTransition, operand: string): boolean {
+  return c.Condition.Operands.length === 1 && String(c.Condition.Operands[0]) === operand;
+}
+
 /** Where the branch this type's NextAction mirrors goes, if that branch is wired. */
 function mirrorTarget(action: FlowAction): string | undefined {
   const rule = mirrorRule(action.Type);
@@ -530,9 +539,8 @@ function mirrorTarget(action: FlowAction): string | undefined {
     return (action.Transitions.Errors ?? []).find((e) => e.ErrorType === rule.errorType)
       ?.NextAction;
   }
-  return (action.Transitions.Conditions ?? []).find(
-    (c) => c.Condition.Operands.length === 1 && String(c.Condition.Operands[0]) === rule.operand,
-  )?.NextAction;
+  return (action.Transitions.Conditions ?? []).find((c) => isMirroredCondition(c, rule.operand))
+    ?.NextAction;
 }
 
 /** The mirrored branch retargeted along with NextAction, for a mirroring type. */
@@ -550,19 +558,100 @@ function retargetMirrored(action: FlowAction, t: Transitions, target: string): T
   return {
     ...t,
     Conditions: (t.Conditions ?? []).map((c) =>
-      c.Condition.Operands.length === 1 && String(c.Condition.Operands[0]) === rule.operand
-        ? { ...c, NextAction: target }
-        : c,
+      isMirroredCondition(c, rule.operand) ? { ...c, NextAction: target } : c,
     ),
   };
+}
+
+/**
+ * A Wait's event branches carry bookkeeping no other type's conditions do.
+ * Its Events parameter lists the events its branches wait for (the block
+ * class writes both from one config and the inverter holds them equal, in
+ * WAIT_EVENTS order), and ParticipantNotFound is wired exactly when
+ * BotParticipantDisconnected is ("The supported event currently is
+ * \"BotParticipantDisconnected\"."). So the drag that adds an event branch
+ * lists the event and, for the bot event, wires ParticipantNotFound to the
+ * same target for the user to retarget, and removing the branch takes both
+ * away again. Without this, every event drag on a typed Wait was refused as
+ * a demotion, and a Wait once typed could never gain an event.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+ */
+function waitEventOf(action: FlowAction, condition: Condition): WaitEvent | undefined {
+  if (action.Type !== ActionType.Wait || condition.Operands.length !== 1) return undefined;
+  const operand = String(condition.Operands[0]);
+  return (WAIT_EVENTS as readonly string[]).includes(operand) ? (operand as WaitEvent) : undefined;
+}
+
+function listedWaitEvents(action: FlowAction): string[] {
+  const listed = action.Parameters.Events;
+  return Array.isArray(listed) ? listed.map(String) : [];
+}
+
+/** The errors in the block class's order (the catalog's builder order), a stable sort. */
+function inBuilderOrder(type: string, errors: readonly ErrorTransition[]): ErrorTransition[] {
+  const order = builderErrors(type);
+  const rank = (e: ErrorTransition) => {
+    const i = order.indexOf(e.ErrorType);
+    return i === -1 ? order.length : i;
+  };
+  return [...errors].sort((x, y) => rank(x) - rank(y));
+}
+
+function withWaitEvent(action: FlowAction, event: WaitEvent, target: string): FlowAction {
+  const listed = listedWaitEvents(action);
+  const events = WAIT_EVENTS.filter((e) => e === event || listed.includes(e));
+  const errors = action.Transitions.Errors ?? [];
+  const pairs =
+    event === "BotParticipantDisconnected" &&
+    !errors.some((e) => e.ErrorType === PARTICIPANT_NOT_FOUND);
+  return {
+    ...action,
+    Parameters: { ...action.Parameters, Events: events },
+    Transitions: {
+      ...action.Transitions,
+      ...(pairs
+        ? {
+            Errors: inBuilderOrder(action.Type, [
+              ...errors,
+              { ErrorType: PARTICIPANT_NOT_FOUND, NextAction: target },
+            ]),
+          }
+        : {}),
+    },
+  };
+}
+
+function withoutWaitEvent(action: FlowAction, event: WaitEvent): FlowAction {
+  const events = listedWaitEvents(action).filter((e) => e !== event);
+  const parameters = { ...action.Parameters };
+  if (events.length === 0) delete parameters.Events;
+  else parameters.Events = events;
+  const t = { ...action.Transitions };
+  if (event === "BotParticipantDisconnected") {
+    t.Errors = (t.Errors ?? []).filter((e) => e.ErrorType !== PARTICIPANT_NOT_FOUND);
+  }
+  return { ...action, Parameters: parameters, Transitions: t };
+}
+
+/** The action without its condition at `index`, and without the Wait event that branch waited for. */
+function dropCondition(a: FlowAction, index: number): FlowAction {
+  const conditions = a.Transitions.Conditions ?? [];
+  const leaving = conditions[index];
+  const next = {
+    ...a,
+    Transitions: { ...a.Transitions, Conditions: conditions.filter((_, i) => i !== index) },
+  };
+  const event = leaving === undefined ? undefined : waitEventOf(a, leaving.Condition);
+  return event === undefined ? next : withoutWaitEvent(next, event);
 }
 
 function appendCondition(doc: FlowDoc, action: FlowAction, target: string): FlowDoc | undefined {
   const condition = defaultConditionFor(action);
   if (condition === undefined) return undefined;
+  const event = waitEventOf(action, condition);
   return normalize(
-    withAction(doc, action.Identifier, (a) =>
-      mirrorNext({
+    withAction(doc, action.Identifier, (a) => {
+      const branched = {
         ...a,
         Transitions: {
           ...a.Transitions,
@@ -571,8 +660,9 @@ function appendCondition(doc: FlowDoc, action: FlowAction, target: string): Flow
             { NextAction: target, Condition: condition },
           ],
         },
-      }),
-    ),
+      };
+      return mirrorNext(event === undefined ? branched : withWaitEvent(branched, event, target));
+    }),
   );
 }
 
@@ -587,18 +677,28 @@ function wireMissingError(doc: FlowDoc, action: FlowAction, target: string): Flo
   if (action.Type === ActionType.GetParticipantInput && !isDtmfMenu(action)) return undefined;
   // The branches the block class wires, in its order, from the catalog: the
   // extras and then the catch-all for most types, two named errors and no
-  // catch-all for some, none at all for others.
-  const wanted = builderErrors(action.Type);
+  // catch-all for some, none at all for others. A Wait's ParticipantNotFound
+  // is wired by the drag that adds its BotParticipantDisconnected branch
+  // (withWaitEvent), never on its own.
+  const wanted = builderErrors(action.Type).filter(
+    (e) => !(action.Type === ActionType.Wait && e === PARTICIPANT_NOT_FOUND),
+  );
   const wired = new Set((action.Transitions.Errors ?? []).map((e) => e.ErrorType));
   const missing = wanted.find((e) => !wired.has(e));
   if (missing === undefined) return undefined;
+  // In the class's order, not appended: a Wait whose bot branch was dragged
+  // before its catch-all already holds ParticipantNotFound, and the
+  // catch-all appended after it would never invert.
   return normalize(
     withAction(doc, action.Identifier, (a) =>
       mirrorNext({
         ...a,
         Transitions: {
           ...a.Transitions,
-          Errors: [...(a.Transitions.Errors ?? []), { ErrorType: missing, NextAction: target }],
+          Errors: inBuilderOrder(a.Type, [
+            ...(a.Transitions.Errors ?? []),
+            { ErrorType: missing, NextAction: target },
+          ]),
         },
       }),
     ),
@@ -697,44 +797,55 @@ export const removeCondition = guard(
     if (action === undefined || (action.Transitions.Conditions ?? [])[index] === undefined) {
       return undefined;
     }
-    return normalize(
-      withAction(doc, id, (a) => ({
-        ...a,
-        Transitions: {
-          ...a.Transitions,
-          Conditions: (a.Transitions.Conditions ?? []).filter((_, i) => i !== index),
-        },
-      })),
-    );
+    return normalize(withAction(doc, id, (a) => dropCondition(a, index)));
   },
 );
 
 function removeEdge(doc: FlowDoc, parsed: ParsedEdgeId): FlowDoc {
   return withAction(doc, parsed.source, (a) => {
+    const rule = mirrorRule(a.Type);
     const t = { ...a.Transitions };
-    // A menu's no-match path is drawn twice (mirrorNext), so whichever half
-    // the user moves away takes the other with it; otherwise the path would
-    // still be drawn from here as the edge left behind.
+    // A mirroring type's next path is drawn twice (mirrorNext), so whichever
+    // half the user moves away takes the other with it; otherwise the path
+    // would still be drawn from here as the edge left behind. The rule names
+    // the half: a menu's or a split's error, a Loop's or an hours check's
+    // fixed condition. This used to know only the menu's error, so moving a
+    // Loop's next edge left its done branch behind.
     if (parsed.kind === "next") {
       const leaving = t.NextAction;
       delete t.NextAction;
-      if (leaving !== undefined && mirrorTarget(a) === leaving) {
-        t.Errors = (t.Errors ?? []).filter((e) => e.ErrorType !== NO_MATCHING_CONDITION);
+      if (leaving !== undefined && rule !== undefined && mirrorTarget(a) === leaving) {
+        if (rule.kind === "error") {
+          t.Errors = (t.Errors ?? []).filter((e) => e.ErrorType !== rule.errorType);
+        } else {
+          const index = (t.Conditions ?? []).findIndex((c) => isMirroredCondition(c, rule.operand));
+          if (index !== -1) return dropCondition({ ...a, Transitions: t }, index);
+        }
       }
     }
     if (parsed.kind === "error") {
       const leaving = (t.Errors ?? [])[parsed.errorIndex];
       t.Errors = (t.Errors ?? []).filter((_, i) => i !== parsed.errorIndex);
       if (
-        a.Type === ActionType.GetParticipantInput &&
-        leaving?.ErrorType === NO_MATCHING_CONDITION &&
+        rule?.kind === "error" &&
+        leaving?.ErrorType === rule.errorType &&
         t.NextAction === leaving.NextAction
       ) {
         delete t.NextAction;
       }
     }
-    if (parsed.kind === "condition")
-      t.Conditions = (t.Conditions ?? []).filter((_, i) => i !== parsed.conditionIndex);
+    if (parsed.kind === "condition") {
+      const leaving = (t.Conditions ?? [])[parsed.conditionIndex];
+      if (
+        rule?.kind === "condition" &&
+        leaving !== undefined &&
+        isMirroredCondition(leaving, rule.operand) &&
+        t.NextAction === leaving.NextAction
+      ) {
+        delete t.NextAction;
+      }
+      return dropCondition({ ...a, Transitions: t }, parsed.conditionIndex);
+    }
     return { ...a, Transitions: t };
   });
 }
@@ -790,17 +901,23 @@ export const rewireEdge = guard(
       );
     }
 
-    // Source-end rewire: move the transition to another block. The one check
-    // left is anti-clobber, not legality: dropping a "next" edge on a block
-    // that already has one would overwrite that transition, and lost content
-    // is invisible to a demotion probe because the result stays expressible.
-    // A menu's next path is also drawn as its NoMatchingCondition error, so a
-    // no-match target wired elsewhere counts as an existing next edge: the
-    // mirror below would otherwise replace the dropped target with it.
+    // Source-end rewire: move the transition to another block. The checks
+    // are anti-clobber and gesture meaning, not legality: dropping a "next"
+    // edge on a block that already has one would overwrite that transition,
+    // and lost content is invisible to a demotion probe because the result
+    // stays expressible. A menu's next path is also drawn as its
+    // NoMatchingCondition error, so a no-match target wired elsewhere counts
+    // as an existing next edge: the mirror below would otherwise replace the
+    // dropped target with it. And a block whose NextAction is never its own
+    // path (a Compare, or a mirroring type whose branch is not wired yet) has
+    // nowhere to put a bare next edge: on an unfinished Loop or menu the
+    // block is generic already, so the guard would not have seen the edge
+    // land where no drag could ever have put it.
     if (parsed.kind === "next") {
       if (source.Transitions.NextAction !== undefined) return undefined;
       const mirrored = mirrorTarget(source);
       if (mirrored !== undefined && mirrored !== newTarget) return undefined;
+      if (mirrored === undefined && !acceptsNextAction(source)) return undefined;
     }
     // The same path from the other side: the mirrored error dropped on a
     // mirroring type (a NoMatchingCondition on a GetParticipantInput) becomes
