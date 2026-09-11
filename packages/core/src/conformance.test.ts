@@ -188,21 +188,21 @@ describe("FlowDoc schema rejections: contact routing", () => {
 
   it.each([
     [
-      "a callback delay above three days",
+      "a callback delay written as a JSON number, which the console never writes",
       mutate("offer-callback", (a) => {
-        a.Parameters.InitialCallDelaySeconds = 259_201;
+        a.Parameters.InitialCallDelaySeconds = 60;
       }),
     ],
     [
       "zero connection attempts",
       mutate("offer-callback", (a) => {
-        a.Parameters.MaximumConnectionAttempts = 0;
+        a.Parameters.MaximumConnectionAttempts = "0";
       }),
     ],
     [
-      "a retry delay written as a string",
+      "a retry delay with a leading zero",
       mutate("offer-callback", (a) => {
-        a.Parameters.RetryDelaySeconds = "600";
+        a.Parameters.RetryDelaySeconds = "0600";
       }),
     ],
     [
@@ -221,7 +221,13 @@ describe("FlowDoc schema rejections: contact routing", () => {
     [
       "a queue priority of zero",
       mutate("bump-priority", (a) => {
-        a.Parameters.QueuePriority = 0;
+        a.Parameters.QueuePriority = "0";
+      }),
+    ],
+    [
+      "a queue priority written as a JSON number",
+      mutate("bump-priority", (a) => {
+        a.Parameters.QueuePriority = 1;
       }),
     ],
     [
@@ -233,7 +239,7 @@ describe("FlowDoc schema rejections: contact routing", () => {
     [
       "a priority and a time adjustment together",
       mutate("bump-priority", (a) => {
-        a.Parameters.QueueTimeAdjustmentSeconds = 30;
+        a.Parameters.QueueTimeAdjustmentSeconds = "30";
       }),
     ],
     [

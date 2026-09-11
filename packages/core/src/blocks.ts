@@ -772,9 +772,11 @@ export class TransferContactToQueue extends Block {
 
 /**
  * Queue-to-queue transfer: dequeues the contact and places it in the queue
- * named, or in the contact's current target queue when neither `queue` nor
- * `agent` is given. Only legal in a customer queue flow. The action page lists
- * QueueAtCapacity beside the catch-all, as TransferContactToQueue does.
+ * named. `queue` and `agent` are both optional and at most one may be given;
+ * the action page does not say where the contact goes when neither is set,
+ * so `{}` is accepted but its destination is undocumented. Only legal in a
+ * customer queue flow. The action page lists QueueAtCapacity beside the
+ * catch-all, as TransferContactToQueue does.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html
  */
 export type DequeueContactAndTransferToQueueConfig = Wired & {
@@ -805,9 +807,12 @@ export class DequeueContactAndTransferToQueue extends Block {
 /**
  * Terminal. "Ends the current flow and transfers the customer to an agent. If
  * the agent is already with someone else, the contact is disconnected." Voice
- * only, legal in transfer flows only, and the console marks the block beta
- * and recommends UpdateContactTargetQueue plus TransferContactToQueue for
- * agent-to-agent transfers on every channel.
+ * only (the admin guide's channel table routes chat, task and email to an
+ * "Error branch" the same page says the block does not have; the action
+ * page's Errors "None" governs, so where a non-voice contact goes is
+ * undocumented), legal in transfer flows only, and the console marks the
+ * block beta and recommends UpdateContactTargetQueue plus
+ * TransferContactToQueue for agent-to-agent transfers on every channel.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-agent-block.html
  */
@@ -835,8 +840,9 @@ export type RoutingAdjustment =
 /**
  * Moves the contact in queue: `queuePriority` (1 is highest; new contacts
  * start at 5) or `queueTimeAdjustmentSeconds` (added to the contact's time in
- * queue; longer is routed first; may be negative). The page lists no errors
- * and no results, so the block has a success path only. Inbound flows only.
+ * queue; longer is routed first; may be negative), each written as a decimal
+ * string, the console's spelling. The page lists no errors and no results,
+ * so the block has a success path only. Inbound flows only.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
  */
 export type UpdateContactRoutingBehaviorConfig = { id: string; next: Target } & RoutingAdjustment;
@@ -873,9 +879,11 @@ export class UpdateContactRoutingBehavior extends Block {
   }
 
   protected parameters(): Record<string, unknown> {
+    // The console's spelling: decimal strings, as its Sample queue
+    // configurations flow exports them.
     return this.config.queuePriority !== undefined
-      ? { QueuePriority: this.config.queuePriority }
-      : { QueueTimeAdjustmentSeconds: this.config.queueTimeAdjustmentSeconds };
+      ? { QueuePriority: String(this.config.queuePriority) }
+      : { QueueTimeAdjustmentSeconds: String(this.config.queueTimeAdjustmentSeconds) };
   }
 
   protected transitions(): Transitions {
@@ -1050,22 +1058,32 @@ export class UpdateContactCallbackNumber extends Block {
   }
 
   protected transitions(): Transitions {
-    return wire(this.config.next, [
-      [INVALID_CALLBACK_NUMBER, this.config.onInvalidNumber],
-      [CALLBACK_NUMBER_NOT_DIALABLE, this.config.onNotDialable],
-    ]);
+    const targets: Record<string, Target> = {
+      [INVALID_CALLBACK_NUMBER]: this.config.onInvalidNumber,
+      [CALLBACK_NUMBER_NOT_DIALABLE]: this.config.onNotDialable,
+    };
+    // The page's order, which is also what the studio wires from.
+    const order = EXTRA_ERRORS[ActionType.UpdateContactCallbackNumber] ?? [];
+    return wire(
+      this.config.next,
+      order.map((e) => [e, targets[e]!] as [string, Target]),
+    );
   }
 }
 
 /**
  * Creates a callback contact. The number called is the contact's callback
- * number (UpdateContactCallbackNumber, else the caller ID). The queue is the
- * one named, an agent queue, or the contact's current target queue when
- * neither is given. `initialCallDelaySeconds` is ignored by Connect when
- * `flow` is set: the callback then runs that flow on creation instead of
- * waiting. `callerId` is a phone number claimed on the instance, static or a
- * single JSONPath.
+ * number: the one UpdateContactCallbackNumber set, else "the customer
+ * participant caller ID" (the customer's own number, not `callerId`). The
+ * queue is the one named, an agent queue, or the contact's current target
+ * queue when neither is given. `initialCallDelaySeconds` is ignored by
+ * Connect when `flow` is set: the callback then runs that flow on creation
+ * instead of waiting. `callerId` is the number the customer sees when called
+ * back, "a valid phone number claimed in your Connect Customer instance",
+ * static or a single JSONPath; it is never the number dialed. The three
+ * counts are written as decimal strings, the console's spelling.
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html
  */
 export type CreateCallbackContactConfig = Wired &
   OptionalQueueTarget & {
@@ -1106,9 +1124,9 @@ export class CreateCallbackContact extends Block {
     const p: Record<string, unknown> = {};
     if (this.config.queue !== undefined) p.QueueId = this.config.queue;
     if (this.config.agent !== undefined) p.AgentId = this.config.agent;
-    p.InitialCallDelaySeconds = this.config.initialCallDelaySeconds;
-    p.MaximumConnectionAttempts = this.config.maximumConnectionAttempts;
-    p.RetryDelaySeconds = this.config.retryDelaySeconds;
+    p.InitialCallDelaySeconds = String(this.config.initialCallDelaySeconds);
+    p.MaximumConnectionAttempts = String(this.config.maximumConnectionAttempts);
+    p.RetryDelaySeconds = String(this.config.retryDelaySeconds);
     if (this.config.flow !== undefined) p.ContactFlowId = this.config.flow;
     if (this.config.callerId !== undefined) p.CallerId = this.config.callerId;
     return p;

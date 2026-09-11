@@ -451,11 +451,12 @@
               "Parameters": {
                 "properties": {
                   "QueuePriority": {
-                    "type": "integer",
-                    "minimum": 1
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
                   },
                   "QueueTimeAdjustmentSeconds": {
-                    "type": "integer"
+                    "type": "string",
+                    "pattern": "^-?(0|[1-9][0-9]*)$"
                   }
                 },
                 "not": {
@@ -490,18 +491,16 @@
                     "$ref": "#/$defs/refField"
                   },
                   "InitialCallDelaySeconds": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 259200
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
                   },
                   "MaximumConnectionAttempts": {
-                    "type": "integer",
-                    "minimum": 1
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
                   },
                   "RetryDelaySeconds": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 259200
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
                   },
                   "ContactFlowId": {
                     "$ref": "#/$defs/refField"

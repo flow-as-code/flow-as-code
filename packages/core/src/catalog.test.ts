@@ -14,8 +14,20 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ActionType,
+  CALLBACK_ATTEMPTS_MIN,
+  CALLBACK_DELAY_MAX,
+  CALLBACK_DELAY_MIN,
   CONDITION_CATCH_ALL,
   EXTRA_ERRORS,
+  INPUT_TIMEOUT_MAX,
+  INPUT_TIMEOUT_MIN,
+  LAMBDA_TIMEOUT_MAX,
+  LAMBDA_TIMEOUT_MIN,
+  LOOP_COUNT_MAX,
+  LOOP_COUNT_MIN,
+  QUEUE_PRIORITY_MIN,
+  WAIT_TIMEOUT_MAX,
+  WAIT_TIMEOUT_MIN,
   FLOW_TYPE_RESTRICTIONS,
   FLOW_TYPE_UNRESTRICTED,
   NO_MATCHING_CONDITION,
@@ -56,6 +68,29 @@ const ALL_CONNECT_TYPES = [
 
 /** The four category pages and how many types each listed on 2026-09-11. */
 const CATEGORY_COUNTS = { contact: 27, participant: 6, flowControl: 15, interaction: 8 };
+
+/**
+ * The bounds actions.ts carries as constants, by type and top-level key. The
+ * catalog, the schema and the block constructors each spell them; this table
+ * holds the catalog to the constants (a bound present on one side and absent
+ * on the other fails too).
+ */
+const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
+  UpdateContactRoutingBehavior: { QueuePriority: { min: QUEUE_PRIORITY_MIN } },
+  CreateCallbackContact: {
+    InitialCallDelaySeconds: { min: CALLBACK_DELAY_MIN, max: CALLBACK_DELAY_MAX },
+    MaximumConnectionAttempts: { min: CALLBACK_ATTEMPTS_MIN },
+    RetryDelaySeconds: { min: CALLBACK_DELAY_MIN, max: CALLBACK_DELAY_MAX },
+  },
+  InvokeLambdaFunction: {
+    InvocationTimeLimitSeconds: { min: LAMBDA_TIMEOUT_MIN, max: LAMBDA_TIMEOUT_MAX },
+  },
+  GetParticipantInput: {
+    InputTimeLimitSeconds: { min: INPUT_TIMEOUT_MIN, max: INPUT_TIMEOUT_MAX },
+  },
+  Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
+  Wait: { TimeoutSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
+};
 
 const KINDS = new Set([
   "string",
@@ -179,6 +214,20 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
 
     for (const p of entry.parameters)
       out.push(...parameterProblems(`${where}.${p.key}`, p, catalog.refTypes));
+    for (const p of entry.parameters) {
+      const b = BOUNDS[type]?.[p.key];
+      if (b === undefined) continue;
+      if (p.min !== b.min || p.max !== b.max) {
+        out.push(
+          `${where}.${p.key}: bounds ${String(p.min)}..${String(p.max)} differ from the constants ${String(b.min)}..${String(b.max)}`,
+        );
+      }
+    }
+    for (const [key] of Object.entries(BOUNDS[type] ?? {})) {
+      if (!entry.parameters.some((p) => p.key === key)) {
+        out.push(`${where}: BOUNDS names ${key}, which the catalog does not list`);
+      }
+    }
     const keys = new Set(entry.parameters.map((p) => p.key));
     for (const c of entry.constraints ?? []) {
       for (const k of c.keys)
@@ -409,6 +458,16 @@ describe("catalogProblems is proven able to fail", () => {
     expect(
       mutate((c) => (modeledAt(c, "GetParticipantInput").transitions.errors[3]!.builder = true)),
     ).toContainEqual(expect.stringContaining("GetParticipantInput: builder errors"));
+  });
+  it("on a bound that drifts from the actions.ts constant", () => {
+    expect(
+      mutate((c) => {
+        const p = modeledAt(c, "CreateCallbackContact").parameters.find(
+          (x) => x.key === "RetryDelaySeconds",
+        )!;
+        (p as { max?: number }).max = 259_201;
+      }),
+    ).toContainEqual(expect.stringContaining("CreateCallbackContact.RetryDelaySeconds: bounds"));
   });
   it("on a category page losing a type", () => {
     expect(

@@ -26,18 +26,19 @@ import {
   type FieldDesc,
 } from "../model/inspectorSchema.js";
 import {
-  MESSAGE_BODY_KEYS,
-  MutationRefused,
   deleteBlock,
   getAction,
   incomingCount,
+  MESSAGE_BODY_KEYS,
+  type MessageBodyKey,
   messageBodyKey,
+  MutationRefused,
   removeCondition,
   setCondition,
   setMessageBody,
   setNumberParam,
+  type SetNumberResult,
   setParam,
-  type MessageBodyKey,
 } from "../model/mutations.js";
 import { commit, useStudio } from "../state/studio.js";
 import { RefPicker } from "./RefPicker.js";
@@ -118,10 +119,12 @@ function TextField({
   label,
   value,
   onCommit,
+  testId,
 }: {
   label: string;
   value: string;
   onCommit: (next: string) => void;
+  testId?: string;
 }) {
   const [draft, setDraft] = useDraft(value);
   return (
@@ -131,6 +134,7 @@ function TextField({
       </span>
       <input
         type="text"
+        data-testid={testId}
         className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -312,6 +316,7 @@ export function Inspector() {
           <TextField
             key={`${selected}:${field.key}`}
             label={field.label}
+            testId={`text-${field.key}`}
             value={typeof value === "string" ? value : ""}
             onCommit={(next) =>
               mutate(() =>
@@ -339,7 +344,23 @@ export function Inspector() {
             value={shown}
             error={numberErrors[errorKey]}
             onCommit={(next) => {
-              const result = setNumberParam(doc, selected, field.key, next, field);
+              let result: SetNumberResult;
+              try {
+                result = setNumberParam(doc, selected, field.key, next, field);
+              } catch (err) {
+                if (err instanceof MutationRefused) {
+                  // The guard refused (an emptied last routing field would
+                  // demote the block); the parameter keeps its value and the
+                  // field says why.
+                  setNumberErrors((prev) => ({ ...prev, [errorKey]: err.message }));
+                  return;
+                }
+                dispatch({
+                  type: "error",
+                  message: err instanceof Error ? err.message : String(err),
+                });
+                return;
+              }
               if (result.ok) {
                 setNumberErrors((prev) => {
                   const rest = { ...prev };
@@ -395,7 +416,17 @@ export function Inspector() {
               refType={field.refType}
               value={typeof value === "string" ? value : undefined}
               optional={field.optional}
-              onChange={(v) => mutate(() => setParam(doc, selected, field.key, v, field))}
+              // The field's clears apply on a set, never on a delete: choosing
+              // "(not set)" on the queue picker must not erase an authored
+              // agent queue, and the block stays expressible either way, so
+              // the guard would not see that loss.
+              onChange={(v) =>
+                mutate(() =>
+                  v === undefined
+                    ? setParam(doc, selected, field.key, undefined)
+                    : setParam(doc, selected, field.key, v, field),
+                )
+              }
             />
           </div>
         );

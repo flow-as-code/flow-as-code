@@ -1037,8 +1037,12 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     if (keys.length !== 1) return undefined;
     const field = keys[0]!;
     if (field !== "QueuePriority" && field !== "QueueTimeAdjustmentSeconds") return undefined;
-    const value = a.Parameters[field];
-    if (typeof value !== "number") return undefined;
+    // The console's spelling: a decimal string, no leading zero.
+    const raw = a.Parameters[field];
+    const shape = field === "QueuePriority" ? /^[1-9][0-9]*$/ : /^-?(0|[1-9][0-9]*)$/;
+    if (typeof raw !== "string" || !shape.test(raw)) return undefined;
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value)) return undefined;
     const prop = field === "QueuePriority" ? "queuePriority" : "queueTimeAdjustmentSeconds";
     return {
       cls: "UpdateContactRoutingBehavior",
@@ -1079,9 +1083,13 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       ["MaximumConnectionAttempts", "maximumConnectionAttempts"],
       ["RetryDelaySeconds", "retryDelaySeconds"],
     ] as const) {
-      if (typeof p[key] !== "number") return undefined;
-      entries.push([prop, p[key]]);
-      config[prop] = p[key];
+      // The console's spelling: a decimal string, no leading zero.
+      const raw = p[key];
+      if (typeof raw !== "string" || !/^[1-9][0-9]*$/.test(raw)) return undefined;
+      const value = Number(raw);
+      if (!Number.isSafeInteger(value)) return undefined;
+      entries.push([prop, value]);
+      config[prop] = value;
     }
     if (p.ContactFlowId !== undefined) {
       const ref = refSource(p.ContactFlowId, "flow", ctx);

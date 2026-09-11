@@ -175,6 +175,11 @@ describe("error branch wiring", () => {
       onInvalidNumber: "bad",
       onNotDialable: "blocked",
     });
+    // The page's order; EXTRA_ERRORS is what the studio wires from, so the
+    // two must agree or a canvas-wired block would not invert.
+    expect(block.toAction().Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
+      ...EXTRA_ERRORS[ActionType.UpdateContactCallbackNumber]!,
+    ]);
     expect(block.toAction()).toEqual({
       Identifier: "set-number",
       Type: "UpdateContactCallbackNumber",
@@ -377,7 +382,8 @@ describe("guardrails", () => {
     ).toEqual({
       Identifier: "r",
       Type: "UpdateContactRoutingBehavior",
-      Parameters: { QueueTimeAdjustmentSeconds: -30 },
+      // Written as the console spells it: a decimal string.
+      Parameters: { QueueTimeAdjustmentSeconds: "-30" },
       Transitions: { NextAction: "x", Errors: [], Conditions: [] },
     });
   });
@@ -403,10 +409,11 @@ describe("guardrails", () => {
     expect(() => new CreateCallbackContact({ ...base, retryDelaySeconds: 1.5 })).toThrow(
       /must be an integer/,
     );
+    // Written as the console spells them: decimal strings.
     expect(new CreateCallbackContact(base).toAction().Parameters).toEqual({
-      InitialCallDelaySeconds: 60,
-      MaximumConnectionAttempts: 1,
-      RetryDelaySeconds: 600,
+      InitialCallDelaySeconds: "60",
+      MaximumConnectionAttempts: "1",
+      RetryDelaySeconds: "600",
     });
   });
 

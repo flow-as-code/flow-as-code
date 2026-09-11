@@ -93,14 +93,15 @@ flow of entirely unmodeled action types with tokens inside parameters
 user of `jsonPath` (`compare-only`, so the import is emitted for it), a flow
 of `GetParticipantInput` menus with Text, SSML and PromptId bodies
 (`dtmf-menu`), a `GetParticipantInput` whose key branches twice, which the
-builder refuses and so must stay GenericBlock (`repeated-key`), and edge cases
+builder refuses and so must stay GenericBlock (`repeated-key`), edge cases
 (SSML, PromptId refs, Compare branches, JSONPath refs, hand-placed
 layout, an explicit start, and a modeled Type that must fall back to
-GenericBlock), and a module of the contact-routing actions
+GenericBlock), a module of the contact-routing actions
 (`contact-routing`: queue-to-queue transfer to a queue token, to an agent
-queue by JSONPath, and to the current target queue with no parameter, a
-terminal transfer to an agent, a routing priority and a queue time
-adjustment, the one modeled action with no error branch, a callback number
+queue by JSONPath, and with no parameter, a shape the page allows without
+saying where the contact goes, a terminal transfer to an agent, a routing
+priority and a queue time adjustment, a non-terminal action with no error
+branch, a callback number
 set from a JSONPath with its two named errors and no catch-all, and a
 callback contact in its full form, with a queue, a creation flow and a caller
 ID, and in its minimal one), and a flow of the flow-control actions

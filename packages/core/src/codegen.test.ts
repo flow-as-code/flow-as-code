@@ -738,17 +738,22 @@ describe("UpdateContactRoutingBehavior inverts one adjustment and no error branc
     expect(out).not.toContain("new UpdateContactRoutingBehavior(");
   };
 
-  it("emits a priority or a time adjustment as a number", () => {
-    expect(typed({ QueuePriority: 1 })).toContain("queuePriority: 1");
-    expect(typed({ QueueTimeAdjustmentSeconds: -30 })).toContain("queueTimeAdjustmentSeconds: -30");
+  it("reads the console's decimal strings back as numbers", () => {
+    expect(typed({ QueuePriority: "1" })).toContain("queuePriority: 1");
+    expect(typed({ QueueTimeAdjustmentSeconds: "-30" })).toContain(
+      "queueTimeAdjustmentSeconds: -30",
+    );
+    expect(typed({ QueueTimeAdjustmentSeconds: "0" })).toContain("queueTimeAdjustmentSeconds: 0");
   });
 
-  it("falls back on both, on neither, on a string, on a priority below 1, or on an error branch", () => {
-    generic(action({ QueuePriority: 1, QueueTimeAdjustmentSeconds: 30 }));
+  it("falls back on both, on neither, on a JSON number, a leading zero, a fraction, a priority of 0, or an error branch", () => {
+    generic(action({ QueuePriority: "1", QueueTimeAdjustmentSeconds: "30" }));
     generic(action({}));
-    generic(action({ QueuePriority: "1" }));
-    generic(action({ QueuePriority: 0 }));
-    const withError = action({ QueuePriority: 1 });
+    generic(action({ QueuePriority: 1 }));
+    generic(action({ QueuePriority: "05" }));
+    generic(action({ QueuePriority: "1.0" }));
+    generic(action({ QueuePriority: "0" }));
+    const withError = action({ QueuePriority: "1" });
     withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
     generic(withError);
   });
@@ -771,10 +776,12 @@ describe("CreateCallbackContact inverts the full and the minimal shape", () => {
     Parameters: {},
     Transitions: {},
   };
+  // The console's spelling, from its export of the Sample interruptible
+  // queue flow with callback.
   const minimal = {
-    InitialCallDelaySeconds: 60,
-    MaximumConnectionAttempts: 2,
-    RetryDelaySeconds: 600,
+    InitialCallDelaySeconds: "60",
+    MaximumConnectionAttempts: "2",
+    RetryDelaySeconds: "600",
   };
   const typed = (parameters: Record<string, unknown>) => {
     const out = codegen(docWith([action(parameters), bye]));
@@ -808,11 +815,12 @@ describe("CreateCallbackContact inverts the full and the minimal shape", () => {
     );
   });
 
-  it("falls back on both targets, a missing or out-of-range delay, a string count, or a wrong token", () => {
+  it("falls back on both targets, a missing or out-of-range delay, a JSON number, a leading zero, or a wrong token", () => {
     generic({ ...minimal, QueueId: "${cdref:queue:a}", AgentId: "${cdref:queue:b}" });
-    generic({ MaximumConnectionAttempts: 2, RetryDelaySeconds: 600 });
-    generic({ ...minimal, InitialCallDelaySeconds: 259_201 });
-    generic({ ...minimal, MaximumConnectionAttempts: "2" });
+    generic({ MaximumConnectionAttempts: "2", RetryDelaySeconds: "600" });
+    generic({ ...minimal, InitialCallDelaySeconds: "259201" });
+    generic({ ...minimal, MaximumConnectionAttempts: 2 });
+    generic({ ...minimal, RetryDelaySeconds: "0600" });
     generic({ ...minimal, ContactFlowId: "${cdref:module:not-a-flow@prod}" });
   });
 });

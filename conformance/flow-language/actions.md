@@ -170,18 +170,28 @@ individual action pages linked above.
     by the `action-allowed-in-flow-type` table, as for every other entry.
 16. `DequeueContactAndTransferToQueue` (recorded 2026-09-11) is the console's
     Transfer to queue block "but only when used in a Customer queue flow": it
-    dequeues the contact and places it in the named queue, or in the contact's
-    current target queue when neither `QueueId` nor `AgentId` is given. Both
-    are `[Optional]`, "If AgentId is specified, [QueueId] may not be
-    specified" and the reverse, so at most one. `AgentId` is "an agent ID or
-    agent ARN, representing an agent queue", the `queue` reference type as on
-    `UpdateContactTargetQueue`. Errors are `QueueAtCapacity` "if the
-    destination queue is at capacity and the contact cannot be queued within
-    it" and `NoMatchingError`. "This action is only supported in the customer
-    queue flow. It is not supported in any other type of flow." The page says
-    nothing about `NextAction`; the admin guide's block has a Success branch
-    ("three possible outcomes in this case: Success, At capacity, Error"), so
-    the builder wires one. The admin guide adds two limits the page does not:
+    dequeues the contact and places it in "the specified queue". Both
+    `QueueId` and `AgentId` are `[Optional]`, "If AgentId is specified,
+    [QueueId] may not be specified" and the reverse, so at most one; the page
+    does not say where the contact goes when neither is given, and neither
+    does the admin guide, whose queue-to-queue sample sets `QueueId`. The
+    builder accepts `{}` because both are optional, without asserting a
+    destination. `AgentId` is "an agent ID or agent ARN, representing an
+    agent queue", the `queue` reference type as on `UpdateContactTargetQueue`.
+    Errors are `QueueAtCapacity` "if the destination queue is at capacity and
+    the contact cannot be queued within it" and `NoMatchingError`. "This
+    action is only supported in the customer queue flow. It is not supported
+    in any other type of flow." The page says nothing about `NextAction`. The
+    admin guide is split: under Contact already in a queue it says "There are
+    three possible outcomes in this case:" and lists Success, At capacity and
+    Error, but its sample for this action carries `"NextAction": ""` with only
+    the two error transitions, and its Flow block branches section says the
+    transfer to queue configuration "has two branches: At capacity and Error".
+    `next` is `required` as a modeling choice matching
+    `TransferContactToQueue`, whose admin sample is the same and whose console
+    export under `conformance/export/omitted-parameters` writes a `NextAction`
+    all the same; a console export of a customer queue flow should confirm it
+    for this action. The admin guide adds two limits the page does not:
     "Queue-to-queue transfers can be done only 11 times because there is a
     maximum limit of 12 contacts in a contact chain" and "When you use this
     block in a Customer Queue flow, you must add a Loop prompts block before
@@ -196,6 +206,11 @@ individual action pages linked above.
     guide marks the block beta, says it "does not have any branches", and
     recommends Set working queue (`UpdateContactTargetQueue` then
     `TransferContactToQueue`) for agent-to-agent transfers on every channel.
+    The same admin guide page's Supported channels table lists Chat, Task and
+    Email as "No - Error branch", which contradicts both its own "does not
+    have any branches" and the action page's Errors "None"; the action page
+    governs, so the block carries no error branch and where a chat, task or
+    email contact goes is not documented.
     https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-agent-block.html
 18. `UpdateContactRoutingBehavior` (recorded 2026-09-11) "can move the contact
     forward or backward in queue, or specify a queue priority". `QueuePriority`
@@ -209,14 +224,18 @@ individual action pages linked above.
     the two is required, so the catalog records `neverBoth`; the builder
     requires one, which is the builder's choice. Results and errors are both
     "None", so the block has a success path and no error branch, the first
-    modeled action with none. "This is supported only in inbound contact
+    modeled non-terminal action with none. "This is supported only in inbound contact
     flows. It is not supported in transfer flows, whisper flows, customer
     queue flows, or hold flows." The admin guide's flow-type list also names
     customer queue and transfer flows; the action page governs. Timing: "it
     takes at least 60 seconds for a change to take effect for contacts already
-    in queue". The page has no JSON example; both values are recorded as JSON
-    numbers from "an integer", to be confirmed against a console export.
+    in queue". The page has no JSON example; the console writes both values
+    as JSON strings (`"QueuePriority": "1"`, `"QueueTimeAdjustmentSeconds":
+    "600"` in its export of the Sample queue configurations flow, which the
+    admin guide names as the sample using this block), so the catalog records
+    them as `integerString` and the builder writes that spelling.
     https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/sample-queue-configurations.html
 19. `CreateCallbackContact` (recorded 2026-09-11) "Creates a new callback
     contact. If no customer number is specified, and this is run in context
     of a contact, the contact's CustomerCallbackNumber is used as the customer
@@ -238,9 +257,14 @@ individual action pages linked above.
     queue block's Transfer to Callback tab ("If the flow block is used to
     configure callbacks, it is represented as CreateCallbackContact action"),
     even though the action page links the Set callback number block. The page
-    has no JSON example; the three integers are recorded as JSON numbers, to be
-    confirmed against a console export.
+    has no JSON example; the console writes the three integers as JSON strings
+    (`"InitialCallDelaySeconds": "5"`, `"MaximumConnectionAttempts": "1"`,
+    `"RetryDelaySeconds": "600"` in its export of the Sample interruptible
+    queue flow with callback), so the catalog records them as `integerString`
+    and the builder writes that spelling. That export also shows `NextAction`
+    on its own target, apart from the error's.
     https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-queue.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/sample-interruptible-queue-flow-with-callback.html
 20. `UpdateContactCallbackNumber` (recorded 2026-09-11) "Updates the contact
     callback number, which is the number used by the CreateCallbackContact
     action. This value defaults to the customer participant caller ID if this
@@ -389,11 +413,11 @@ EndFlowExecution         {}
 EndFlowModuleExecution   {}
 TransferContactToQueue   {}
 UpdateContactTargetQueue { QueueId? | AgentId? }
-DequeueContactAndTransferToQueue { QueueId? | AgentId? }   // neither: the contact's current target queue
+DequeueContactAndTransferToQueue { QueueId? | AgentId? }   // neither: legal, destination not documented
 TransferContactToAgent   {}
-UpdateContactRoutingBehavior { QueuePriority? | QueueTimeAdjustmentSeconds? }   // integers, never both
+UpdateContactRoutingBehavior { QueuePriority? | QueueTimeAdjustmentSeconds? }   // integer strings ("1"), never both
 CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, MaximumConnectionAttempts,
-                           RetryDelaySeconds, ContactFlowId?, CallerId? }
+                           RetryDelaySeconds, ContactFlowId?, CallerId? }   // the three counts are integer strings ("600")
 UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier, never static
 Loop                     { LoopCount }              // 0 to 100, static or a single JSONPath
 Wait                     { TimeoutSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }

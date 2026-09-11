@@ -19,9 +19,9 @@
           "Identifier": "callback",
           "Type": "CreateCallbackContact",
           "Parameters": {
-            "InitialCallDelaySeconds": 60,
-            "MaximumConnectionAttempts": 1,
-            "RetryDelaySeconds": 600
+            "InitialCallDelaySeconds": "60",
+            "MaximumConnectionAttempts": "1",
+            "RetryDelaySeconds": "600"
           },
           "Transitions": {
             "NextAction": "end",

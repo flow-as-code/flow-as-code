@@ -34,7 +34,7 @@
         "Identifier": "bump-priority",
         "Type": "UpdateContactRoutingBehavior",
         "Parameters": {
-          "QueuePriority": 1
+          "QueuePriority": "1"
         },
         "Transitions": {
           "NextAction": "move-to-priority-queue",
@@ -107,7 +107,7 @@
         "Identifier": "age-in-queue",
         "Type": "UpdateContactRoutingBehavior",
         "Parameters": {
-          "QueueTimeAdjustmentSeconds": 300
+          "QueueTimeAdjustmentSeconds": "300"
         },
         "Transitions": {
           "NextAction": "offer-callback",
@@ -121,10 +121,10 @@
         "Parameters": {
           "CallerId": "$.SystemEndpoint.Address",
           "ContactFlowId": "${cdref:flow:callback-greeting}",
-          "InitialCallDelaySeconds": 60,
-          "MaximumConnectionAttempts": 2,
+          "InitialCallDelaySeconds": "60",
+          "MaximumConnectionAttempts": "2",
           "QueueId": "${cdref:queue:callbacks}",
-          "RetryDelaySeconds": 600
+          "RetryDelaySeconds": "600"
         },
         "Transitions": {
           "NextAction": "done",
@@ -141,9 +141,9 @@
         "Identifier": "retry-callback",
         "Type": "CreateCallbackContact",
         "Parameters": {
-          "InitialCallDelaySeconds": 1,
-          "MaximumConnectionAttempts": 1,
-          "RetryDelaySeconds": 1
+          "InitialCallDelaySeconds": "1",
+          "MaximumConnectionAttempts": "1",
+          "RetryDelaySeconds": "1"
         },
         "Transitions": {
           "NextAction": "done",

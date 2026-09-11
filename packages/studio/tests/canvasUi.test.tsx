@@ -36,6 +36,7 @@ import {
   typeAndBlur,
   unmount,
 } from "./appHarness.js";
+import { addBlock, connectNodes } from "../src/model/mutations.js";
 import { compareDoc, demoDoc, menuDoc } from "./helpers.js";
 
 beforeAll(installDomStubs);
@@ -45,6 +46,18 @@ afterEach(() => {
 });
 
 const NAME = "test.flowdoc.json";
+
+/** A demo document with one more block, inserted and wired the way the canvas would. */
+function withRoutingBlock(): { doc: FlowDoc; id: string } {
+  const added = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
+  return { doc: connectNodes(added.doc, added.id, "hang-up", "primary")!, id: added.id };
+}
+function withCallbackBlock(): { doc: FlowDoc; id: string } {
+  const added = addBlock(demoDoc(), "CreateCallbackContact", { x: 0, y: 900 });
+  let doc = connectNodes(added.doc, added.id, "hang-up", "primary")!;
+  doc = connectNodes(doc, added.id, "apologize", "error")!;
+  return { doc, id: added.id };
+}
 
 /**
  * Puts an arbitrary document in front of the real components. StudioProvider
@@ -440,3 +453,49 @@ describe("a GetParticipantInput menu in the inspector", () => {
     expect(document.querySelector('[data-testid="menu-branch-hint"]')).toBeNull();
   });
 });
+
+describe("inspector fields the review found unguarded", () => {
+  it("shows the guard's refusal when the last routing field is emptied", async () => {
+    const { doc, id } = withRoutingBlock();
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <NoticeBar />
+      </>,
+    );
+    await click(present(`[data-testid="node-${id}"]`));
+    const field = testId<HTMLInputElement>("number-QueuePriority");
+    expect(field.value).toBe("5");
+    await typeAndBlur(field, "");
+    // The refusal reaches the field, and the document keeps the value.
+    expect(testId("inspector").textContent).toContain("That parameter change");
+    expect(present<HTMLInputElement>('[data-testid="number-QueuePriority"]')).toBeDefined();
+  });
+
+  it("deletes an emptied optional text field instead of storing an empty string", async () => {
+    const { doc, id } = withCallbackBlock();
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <Probe id={id} />
+      </>,
+    );
+    await click(present(`[data-testid="node-${id}"]`));
+    const field = testId<HTMLInputElement>("text-CallerId");
+    await typeAndBlur(field, "+15555550100");
+    expect(testId("probe").textContent).toBe('"+15555550100"');
+    await typeAndBlur(testId<HTMLInputElement>("text-CallerId"), "");
+    expect(testId("probe").textContent).toBe("absent");
+  });
+});
+
+/** Renders one parameter of one action straight from the store, for assertions. */
+function Probe({ id }: { id: string }) {
+  const { state } = useStudio();
+  const value = state.doc?.content.Actions.find((a) => a.Identifier === id)?.Parameters.CallerId;
+  return <span data-testid="probe">{value === undefined ? "absent" : JSON.stringify(value)}</span>;
+}

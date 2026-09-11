@@ -11,7 +11,7 @@
         "Identifier": "bump",
         "Type": "UpdateContactRoutingBehavior",
         "Parameters": {
-          "QueuePriority": 1
+          "QueuePriority": "1"
         },
         "Transitions": {
           "NextAction": "bye",

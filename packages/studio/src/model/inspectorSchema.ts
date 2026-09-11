@@ -200,6 +200,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           key: "QueuePriority",
           label: "Queue priority (1 is highest)",
           min: QUEUE_PRIORITY_MIN,
+          asString: true,
           optional: true,
           clears: ["QueueTimeAdjustmentSeconds"],
         },
@@ -207,6 +208,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           kind: "number",
           key: "QueueTimeAdjustmentSeconds",
           label: "Queue time adjustment (seconds)",
+          asString: true,
           optional: true,
           clears: ["QueuePriority"],
         },
@@ -239,12 +241,14 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           label: "Initial delay (seconds)",
           min: CALLBACK_DELAY_MIN,
           max: CALLBACK_DELAY_MAX,
+          asString: true,
         },
         {
           kind: "number",
           key: "MaximumConnectionAttempts",
           label: "Maximum attempts",
           min: CALLBACK_ATTEMPTS_MIN,
+          asString: true,
         },
         {
           kind: "number",
@@ -252,6 +256,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           label: "Delay between attempts (seconds)",
           min: CALLBACK_DELAY_MIN,
           max: CALLBACK_DELAY_MAX,
+          asString: true,
         },
         {
           kind: "ref",

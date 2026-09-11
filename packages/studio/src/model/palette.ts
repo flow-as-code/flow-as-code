@@ -129,9 +129,9 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // the first attempt, one attempt, ten minutes between attempts.
       // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-queue.html
       return {
-        InitialCallDelaySeconds: 60,
-        MaximumConnectionAttempts: 1,
-        RetryDelaySeconds: 600,
+        InitialCallDelaySeconds: "60",
+        MaximumConnectionAttempts: "1",
+        RetryDelaySeconds: "600",
       };
     case ActionType.UpdateContactCallbackNumber:
       // "The Store customer input block often comes before this block. It
@@ -142,7 +142,7 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // "The default priority for new contacts is 5", so a fresh block starts
       // where the contact already is and the author moves it from there.
       // https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
-      return { QueuePriority: 5 };
+      return { QueuePriority: "5" };
     case ActionType.InvokeLambdaFunction:
       return {
         InvocationTimeLimitSeconds: 8,

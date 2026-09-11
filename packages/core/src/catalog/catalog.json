@@ -530,14 +530,14 @@
         {
           "key": "QueuePriority",
           "attr": "queue_priority",
-          "kind": "integer",
+          "kind": "integerString",
           "required": false,
           "min": 1
         },
         {
           "key": "QueueTimeAdjustmentSeconds",
           "attr": "queue_time_adjustment_seconds",
-          "kind": "integer",
+          "kind": "integerString",
           "required": false
         }
       ],
@@ -1423,7 +1423,7 @@
         {
           "key": "InitialCallDelaySeconds",
           "attr": "initial_call_delay_seconds",
-          "kind": "integer",
+          "kind": "integerString",
           "required": true,
           "min": 1,
           "max": 259200
@@ -1431,14 +1431,14 @@
         {
           "key": "MaximumConnectionAttempts",
           "attr": "maximum_connection_attempts",
-          "kind": "integer",
+          "kind": "integerString",
           "required": true,
           "min": 1
         },
         {
           "key": "RetryDelaySeconds",
           "attr": "retry_delay_seconds",
-          "kind": "integer",
+          "kind": "integerString",
           "required": true,
           "min": 1,
           "max": 259200

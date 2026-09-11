@@ -175,14 +175,15 @@ describe("M3 numeric parameters honour the field's bounds", () => {
 
   it("deletes an optional parameter on an empty field and clears its rival on a value", () => {
     const { doc, id } = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
-    expect(getAction(doc, id)?.Parameters).toEqual({ QueuePriority: 5 });
+    expect(getAction(doc, id)?.Parameters).toEqual({ QueuePriority: "5" });
     const aged = setNumberParam(doc, id, "QueueTimeAdjustmentSeconds", "-30", {
+      asString: true,
       optional: true,
       clears: ["QueuePriority"],
     });
     expect(aged.ok).toBe(true);
     if (!aged.ok) return;
-    expect(getAction(aged.doc, id)?.Parameters).toEqual({ QueueTimeAdjustmentSeconds: -30 });
+    expect(getAction(aged.doc, id)?.Parameters).toEqual({ QueueTimeAdjustmentSeconds: "-30" });
     expectSchemaValid(aged.doc);
     // Once wired the block is typed, and emptying its only field leaves {}
     // which the block class refuses, so the guard reports the demotion rather
@@ -190,7 +191,10 @@ describe("M3 numeric parameters honour the field's bounds", () => {
     const wired = connectNodes(aged.doc, id, "hang-up", "primary")!;
     expect([...demotedIds(wired)]).not.toContain(id);
     expect(() =>
-      setNumberParam(wired, id, "QueueTimeAdjustmentSeconds", "", { optional: true }),
+      setNumberParam(wired, id, "QueueTimeAdjustmentSeconds", "", {
+        asString: true,
+        optional: true,
+      }),
     ).toThrow(MutationRefused);
     // Without optional, an empty field is still refused with a message.
     expect(setNumberParam(wired, id, "QueueTimeAdjustmentSeconds", "", {}).ok).toBe(false);
@@ -384,6 +388,44 @@ describe("C3 a new block can be wired up", () => {
     expect(getAction(three, id)?.Transitions.Conditions?.[2]?.Condition.Operands).toEqual(["4"]);
     expect([...demotedIds(three)]).toEqual(["enable-logging"]);
   });
+
+  it("a fresh UpdateContactCallbackNumber wired up on the canvas is typed, with no demotion", () => {
+    const fresh = addBlock(demoDoc(), "UpdateContactCallbackNumber", { x: 0, y: 900 });
+    let doc = connectNodes(fresh.doc, fresh.id, "hang-up", "primary")!;
+    doc = connectNodes(doc, fresh.id, "apologize", "error")!; // InvalidCallbackNumber
+    doc = connectNodes(doc, fresh.id, "welcome", "error")!; // CallbackNumberNotDialable
+    expect(getAction(doc, fresh.id)?.Transitions.Errors?.map((e) => e.ErrorType)).toEqual([
+      "InvalidCallbackNumber",
+      "CallbackNumberNotDialable",
+    ]);
+    expect(demotedIds(doc).has(fresh.id)).toBe(false);
+    expectSchemaValid(doc);
+    expectByteStable(doc);
+  });
+
+  it.each(["DequeueContactAndTransferToQueue", "CreateCallbackContact"] as const)(
+    "choosing (not set) on the queue picker of a %s keeps an authored agent queue",
+    (type) => {
+      const queueField = { clears: ["AgentId"] };
+      const agentField = { clears: ["QueueId"] };
+      const { doc, id } = addBlock(demoDoc(), type, { x: 0, y: 900 });
+      const withAgent = setParam(doc, id, "AgentId", "${cdref:queue:agent-jane}", agentField);
+      let wired = connectNodes(withAgent, id, "hang-up", "primary")!;
+      wired = connectNodes(wired, id, "apologize", "error")!;
+      if (type === "DequeueContactAndTransferToQueue") {
+        wired = connectNodes(wired, id, "apologize", "error")!;
+      }
+      expect(demotedIds(wired).has(id)).toBe(false);
+      // What the inspector does on "(not set)": a delete with no clears.
+      const cleared = setParam(wired, id, "QueueId", undefined);
+      expect(getAction(cleared, id)?.Parameters.AgentId).toBe("${cdref:queue:agent-jane}");
+      expect(demotedIds(cleared).has(id)).toBe(false);
+      // Setting the other still clears: the exclusivity is kept on a set.
+      const swapped = setParam(cleared, id, "QueueId", "${cdref:queue:front-desk}", queueField);
+      expect(getAction(swapped, id)?.Parameters.AgentId).toBeUndefined();
+      expect(getAction(swapped, id)?.Parameters.QueueId).toBe("${cdref:queue:front-desk}");
+    },
+  );
 
   it("an action whose last transition was detached can be rewired", () => {
     // A block that reached the canvas with no transitions (from a file, or an
