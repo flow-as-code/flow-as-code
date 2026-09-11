@@ -14,6 +14,7 @@ import type {
 import {
   ActionType,
   canonicalOrder,
+  CheckMetricData,
   collectRefs,
   CreateCallbackContact,
   DequeueContactAndTransferToQueue,
@@ -523,6 +524,50 @@ describe("guardrails", () => {
       Type: "UpdateFlowAttributes",
       Parameters: { FlowAttributes: { retries: "2" } },
       Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
+  });
+
+  it("rejects a staffing metric with any comparison but NumberGreaterThan 0, and a non-numeric operand", () => {
+    const base = { id: "m", onNoMatch: "n", onError: "e" };
+    expect(
+      () =>
+        new CheckMetricData({
+          ...base,
+          metric: "NumberOfAgentsAvailable",
+          branches: [{ operator: "NumberLessThan", operand: 3, target: "t" }],
+        }),
+    ).toThrow(/exactly one branch, NumberGreaterThan 0/);
+    expect(
+      () =>
+        new CheckMetricData({
+          ...base,
+          metric: "NumberOfContactsInQueue",
+          branches: [{ operator: "NumberLessThan", operand: "many", target: "t" }],
+        }),
+    ).toThrow(/is not a number/);
+    expect(
+      () => new CheckMetricData({ ...base, metric: "NumberOfContactsInQueue", branches: [] }),
+    ).toThrow(/at least one branch/);
+    expect(
+      new CheckMetricData({
+        ...base,
+        metric: "NumberOfAgentsStaffed",
+        branches: [{ operator: "NumberGreaterThan", operand: 0, target: "t" }],
+      }).toAction(),
+    ).toEqual({
+      Identifier: "m",
+      Type: "CheckMetricData",
+      Parameters: { MetricType: "NumberOfAgentsStaffed" },
+      Transitions: {
+        NextAction: "e",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoMatchingCondition", NextAction: "n" },
+        ],
+        Conditions: [
+          { NextAction: "t", Condition: { Operator: "NumberGreaterThan", Operands: ["0"] } },
+        ],
+      },
     });
   });
 

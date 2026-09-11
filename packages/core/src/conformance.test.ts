@@ -293,6 +293,18 @@ describe("FlowDoc schema rejections: flow control", () => {
         a.Parameters.Events = ["CustomerReturned", "CustomerReturned"];
       }),
     ],
+    [
+      "a metric the page does not list",
+      mutate("staffed", (a) => {
+        a.Parameters.MetricType = "NumberOfAgentsHappy";
+      }),
+    ],
+    [
+      "a metric check naming both a queue and an agent queue",
+      mutate("queue-depth", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

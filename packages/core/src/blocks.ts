@@ -16,6 +16,7 @@
 // as idiomatic, diffable TypeScript. See docs/adr/0002-error-branch-enforcement.md.
 
 import {
+  AGENT_METRIC_TYPES,
   ActionType,
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
@@ -33,6 +34,8 @@ import {
   LOOP_COUNT_MIN,
   LOOP_DONE,
   LAMBDA_TIMEOUT_MIN,
+  METRIC_OPERATORS,
+  METRIC_TYPES,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
   PARTICIPANT_NOT_FOUND,
@@ -44,7 +47,7 @@ import {
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
 } from "./actions.js";
-import type { DtmfDigit, WaitEvent } from "./actions.js";
+import type { DtmfDigit, MetricOperator, MetricType, WaitEvent } from "./actions.js";
 import type { Condition, ConditionOperator, FlowAction, Transitions } from "./flowdoc.js";
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
@@ -604,6 +607,96 @@ export class UpdateFlowAttributes extends Block {
   }
 }
 
+/** One comparison against the loaded metric. Operands are numbers, written as strings. */
+export interface MetricBranch {
+  operator: MetricOperator;
+  operand: number | string;
+  target: Target;
+}
+
+/**
+ * CheckMetricData: the console's Check staffing and Check queue status
+ * blocks. Loads one metric for the named queue, agent queue, or the contact's
+ * target queue, and branches on it. For the NumberOfAgents* metrics "the only
+ * supported condition is NumberGreaterThan 0"; the queue metrics take Equals
+ * and the Number* operators. The console writes NoMatchingError first,
+ * NoMatchingCondition (the block's False or No Match branch) second, and
+ * mirrors NextAction onto the catch-all, as its default queue transfer flow
+ * is exported; the class writes the same shape.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/check-queue-status.html
+ */
+export type CheckMetricDataConfig = OptionalQueueTarget & {
+  id: string;
+  metric: MetricType;
+  branches: MetricBranch[];
+  onNoMatch: Target;
+  onError: Target;
+};
+
+export class CheckMetricData extends Block {
+  readonly type = ActionType.CheckMetricData;
+
+  constructor(private readonly config: CheckMetricDataConfig) {
+    super(config.id);
+    if (!METRIC_TYPES.includes(config.metric)) {
+      throw new Error(
+        `CheckMetricData "${config.id}" metric ${config.metric} is not a metric type.`,
+      );
+    }
+    if (config.branches.length === 0) {
+      throw new Error(`CheckMetricData "${config.id}" needs at least one branch.`);
+    }
+    for (const b of config.branches) {
+      if (!METRIC_OPERATORS.includes(b.operator)) {
+        throw new Error(
+          `CheckMetricData "${config.id}" operator ${b.operator} is not a metric comparison.`,
+        );
+      }
+      if (!/^-?[0-9]+(\.[0-9]+)?$/.test(String(b.operand))) {
+        throw new Error(
+          `CheckMetricData "${config.id}" operand ${String(b.operand)} is not a number.`,
+        );
+      }
+    }
+    if (AGENT_METRIC_TYPES.includes(config.metric)) {
+      const [only] = config.branches;
+      if (
+        config.branches.length !== 1 ||
+        only!.operator !== "NumberGreaterThan" ||
+        String(only!.operand) !== "0"
+      ) {
+        throw new Error(
+          `CheckMetricData "${config.id}" with ${config.metric} takes exactly one branch, NumberGreaterThan 0.`,
+        );
+      }
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = { MetricType: this.config.metric };
+    if (this.config.queue !== undefined) p.QueueId = this.config.queue;
+    if (this.config.agent !== undefined) p.AgentId = this.config.agent;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(
+      this.config.onError,
+      [
+        [NO_MATCHING_ERROR, this.config.onError],
+        [NO_MATCHING_CONDITION, this.config.onNoMatch],
+      ],
+      this.config.branches.map((b) => ({
+        target: b.target,
+        operator: b.operator,
+        operands: [String(b.operand)],
+      })),
+    );
+  }
+}
+
 /** Terminal. Only legal in whisper and customer queue flows. */
 export class EndFlowExecution extends Block {
   readonly type = ActionType.EndFlowExecution;
@@ -1033,7 +1126,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 23.
+ * set survivable: 56 action types are documented and the builder models 24.
  */
 export interface GenericBlockConfig {
   id: string;

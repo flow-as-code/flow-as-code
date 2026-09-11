@@ -1060,7 +1060,81 @@
     "CheckMetricData": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html",
-      "modeled": false
+      "modeled": true,
+      "block": "check_metric_data",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "MetricType",
+          "attr": "metric_type",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "NumberOfAgentsAvailable",
+            "NumberOfAgentsStaffed",
+            "NumberOfAgentsOnline",
+            "OldestContactInQueueAgeSeconds",
+            "NumberOfContactsInQueue"
+          ]
+        },
+        {
+          "key": "QueueId",
+          "attr": "queue_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        },
+        {
+          "key": "AgentId",
+          "attr": "agent_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "QueueId",
+            "AgentId"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "QueueId",
+          "ref": "queue"
+        },
+        {
+          "path": "AgentId",
+          "ref": "queue"
+        }
+      ],
+      "transitions": {
+        "next": "mirrors:error:NoMatchingError",
+        "conditions": "numeric",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "NoMatchingCondition",
+            "required": false,
+            "builder": true,
+            "when": "the block's False or No Match branch; the page limits it to OldestContactInQueueAgeSeconds and NumberOfContactsInQueue, the console wires it for every metric"
+          }
+        ]
+      }
     },
     "CheckOutboundCallStatus": {
       "category": "flowControl",

@@ -62,11 +62,83 @@
               }
             },
             {
-              "NextAction": "wait-for-customer",
+              "NextAction": "staffed",
               "Condition": {
                 "Operator": "NumberLessThan",
                 "Operands": [
                   "51"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "staffed",
+        "Type": "CheckMetricData",
+        "Parameters": {
+          "MetricType": "NumberOfAgentsStaffed"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "wait-for-customer"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "queue-depth",
+              "Condition": {
+                "Operator": "NumberGreaterThan",
+                "Operands": [
+                  "0"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "queue-depth",
+        "Type": "CheckMetricData",
+        "Parameters": {
+          "MetricType": "NumberOfContactsInQueue",
+          "QueueId": "${cdref:queue:front-desk}"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "wait-for-customer",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "5"
+                ]
+              }
+            },
+            {
+              "NextAction": "bye",
+              "Condition": {
+                "Operator": "NumberGreaterOrEqualTo",
+                "Operands": [
+                  "5"
                 ]
               }
             }
@@ -240,6 +312,10 @@
       "x": 20,
       "y": 20
     },
+    "queue-depth": {
+      "x": 1060,
+      "y": 120
+    },
     "remember": {
       "x": 280,
       "y": 20
@@ -247,6 +323,10 @@
     "split": {
       "x": 540,
       "y": 20
+    },
+    "staffed": {
+      "x": 800,
+      "y": 120
     },
     "wait-briefly": {
       "x": 1580,
@@ -257,5 +337,11 @@
       "y": 20
     }
   },
-  "refs": []
+  "refs": [
+    {
+      "token": "${cdref:queue:front-desk}",
+      "type": "queue",
+      "name": "front-desk"
+    }
+  ]
 }

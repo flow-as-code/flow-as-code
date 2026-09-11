@@ -28,6 +28,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
   [ActionType.DistributeByPercentage]: "Branch",
+  [ActionType.CheckMetricData]: "Branch",
   [ActionType.InvokeLambdaFunction]: "Integrate",
   [ActionType.InvokeFlowModule]: "Integrate",
   [ActionType.TransferToFlow]: "Terminate",
@@ -68,6 +69,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.Compare]: "compare",
   [ActionType.Loop]: "loop",
   [ActionType.DistributeByPercentage]: "split",
+  [ActionType.CheckMetricData]: "check-metric",
   [ActionType.TransferToFlow]: "transfer-to-flow",
   [ActionType.EndFlowExecution]: "end-flow",
   [ActionType.TransferContactToQueue]: "transfer-to-queue",
@@ -107,6 +109,10 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // the inspector before their branches are dragged.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
       return { TimeoutSeconds: 60 };
+    case ActionType.CheckMetricData:
+      // The console's Check staffing block opens on its first status, agents
+      // available. https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html
+      return { MetricType: "NumberOfAgentsAvailable" };
     case ActionType.Loop:
       // The smallest count that loops at all; the page states no console
       // default. https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html

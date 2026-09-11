@@ -641,6 +641,47 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "CheckMetricData"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "MetricType": {
+                    "enum": [
+                      "NumberOfAgentsAvailable",
+                      "NumberOfAgentsStaffed",
+                      "NumberOfAgentsOnline",
+                      "OldestContactInQueueAgeSeconds",
+                      "NumberOfContactsInQueue"
+                    ]
+                  },
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

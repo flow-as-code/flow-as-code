@@ -23,6 +23,7 @@
 //   parameters stay verbatim strings and are never rewritten.
 
 import {
+  AGENT_METRIC_TYPES,
   ActionType,
   CALLBACK_NUMBER_NOT_DIALABLE,
   DTMF_DIGITS,
@@ -30,6 +31,8 @@ import {
   INVALID_CALLBACK_NUMBER,
   LOOP_CONTINUE,
   LOOP_DONE,
+  METRIC_OPERATORS,
+  METRIC_TYPES,
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_THRESHOLD_MAX,
   WAIT_COMPLETED,
@@ -44,6 +47,7 @@ import type { DtmfDigit } from "./actions.js";
 import type { Block, DtmfBranch, GenericBlockConfig, MessageBody } from "./blocks.js";
 import {
   CheckHoursOfOperation,
+  CheckMetricData,
   Compare,
   CreateCallbackContact,
   DequeueContactAndTransferToQueue,
@@ -760,6 +764,93 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         attributes: cast<Record<string, unknown>>(attributes),
         next: t.NextAction,
       }),
+    };
+  },
+
+  [ActionType.CheckMetricData]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== NO_MATCHING_CONDITION
+    ) {
+      return undefined;
+    }
+    // The console mirrors NextAction onto the catch-all, and so does the class.
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    if (!paramKeysAre(a.Parameters, ["MetricType"], ["QueueId", "AgentId"])) return undefined;
+    const p = a.Parameters;
+    if (p.QueueId !== undefined && p.AgentId !== undefined) return undefined;
+    const metric = p.MetricType;
+    if (typeof metric !== "string" || !(METRIC_TYPES as readonly string[]).includes(metric)) {
+      return undefined;
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["metric", metric],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, metric };
+    for (const [key, prop] of [
+      ["QueueId", "queue"],
+      ["AgentId", "agent"],
+    ] as const) {
+      if (p[key] === undefined) continue;
+      const ref = refSource(p[key], "queue", ctx);
+      if (ref === undefined) return undefined;
+      entries.push([prop, ref]);
+      config[prop] = p[key];
+    }
+    const branches: { operator: string; operand: string; target: string }[] = [];
+    for (const c of conditions) {
+      const operand = c.Condition.Operands[0];
+      if (
+        !(METRIC_OPERATORS as readonly string[]).includes(c.Condition.Operator) ||
+        c.Condition.Operands.length !== 1 ||
+        typeof operand !== "string"
+      ) {
+        return undefined;
+      }
+      branches.push({ operator: c.Condition.Operator, operand, target: c.NextAction });
+    }
+    if (
+      (AGENT_METRIC_TYPES as readonly string[]).includes(metric) &&
+      (branches.length !== 1 ||
+        branches[0]!.operator !== "NumberGreaterThan" ||
+        branches[0]!.operand !== "0")
+    ) {
+      return undefined;
+    }
+    entries.push(
+      [
+        "branches",
+        new ArrV(
+          branches.map(
+            (b) =>
+              new ObjV([
+                ["operator", b.operator],
+                ["operand", b.operand],
+                ["target", b.target],
+              ]),
+          ),
+        ),
+      ],
+      ["onNoMatch", errors[1]!.NextAction],
+      ["onError", errors[0]!.NextAction],
+    );
+    return {
+      cls: "CheckMetricData",
+      entries,
+      block: new CheckMetricData(
+        cast<never>({
+          ...config,
+          branches,
+          onNoMatch: errors[1]!.NextAction,
+          onError: errors[0]!.NextAction,
+        }),
+      ),
     };
   },
 

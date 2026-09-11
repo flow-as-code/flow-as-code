@@ -1110,6 +1110,113 @@ describe("UpdateFlowAttributes inverts an opaque attributes object with no error
   });
 });
 
+describe("CheckMetricData inverts the console's staffing check and a queue-depth chain", () => {
+  const check = (
+    parameters: Record<string, unknown>,
+    conditions: { operator: string; operand: string }[],
+  ): FlowAction => ({
+    Identifier: "staffed",
+    Type: "CheckMetricData",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+      ],
+      Conditions: conditions.map((c) => ({
+        NextAction: "again",
+        Condition: { Operator: c.operator as "Equals", Operands: [c.operand] },
+      })),
+    },
+  });
+  const rest: FlowAction[] = [
+    {
+      Identifier: "again",
+      Type: "MessageParticipant",
+      Parameters: { Text: "Again." },
+      Transitions: {
+        NextAction: "bye",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+        Conditions: [],
+      },
+    },
+    { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+  ];
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, ...rest]));
+    expect(out).toContain("new CheckMetricData({");
+    expect(out).not.toContain('type: "CheckMetricData"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, ...rest]));
+    expect(out).toContain('type: "CheckMetricData"');
+    expect(out).not.toContain("new CheckMetricData(");
+  };
+  const staffed = { operator: "NumberGreaterThan", operand: "0" };
+
+  it("emits the default queue transfer's staffing check as recorded from the console", () => {
+    const out = typed(check({ MetricType: "NumberOfAgentsStaffed" }, [staffed]));
+    expect(out).toContain('metric: "NumberOfAgentsStaffed"');
+    expect(out).toContain('{ operator: "NumberGreaterThan", operand: "0", target: "again" }');
+    expect(out).toContain('onNoMatch: "again"');
+    expect(out).toContain('onError: "bye"');
+    expect(out).not.toContain("queue:");
+  });
+
+  it("emits a queue metric with a token or JSONPath target and several comparisons", () => {
+    const depth = check(
+      { MetricType: "NumberOfContactsInQueue", QueueId: "${cdref:queue:front-desk}" },
+      [
+        { operator: "NumberLessThan", operand: "5" },
+        { operator: "NumberGreaterOrEqualTo", operand: "5" },
+      ],
+    );
+    const out = typed(depth);
+    expect(out).toContain('queue: Refs.queue("front-desk")');
+    expect(out).toContain('{ operator: "NumberLessThan", operand: "5", target: "again" }');
+    expect(
+      typed(
+        check({ MetricType: "OldestContactInQueueAgeSeconds", AgentId: "$.Attributes.agentArn" }, [
+          { operator: "Equals", operand: "0" },
+        ]),
+      ),
+    ).toContain('agent: jsonPath("$.Attributes.agentArn")');
+  });
+
+  it("falls back on an agent metric with any other comparison, an unknown metric, both targets, a missing branch, or an unmirrored NextAction", () => {
+    generic(
+      check({ MetricType: "NumberOfAgentsAvailable" }, [
+        { operator: "NumberLessThan", operand: "5" },
+      ]),
+    );
+    generic(check({ MetricType: "NumberOfAgentsOnline" }, [staffed, staffed]));
+    generic(check({ MetricType: "NumberOfAgentsHappy" }, [staffed]));
+    generic(
+      check(
+        {
+          MetricType: "NumberOfAgentsStaffed",
+          QueueId: "${cdref:queue:a}",
+          AgentId: "${cdref:queue:b}",
+        },
+        [staffed],
+      ),
+    );
+    const noMatchMissing = check({ MetricType: "NumberOfAgentsStaffed" }, [staffed]);
+    noMatchMissing.Transitions.Errors = [noMatchMissing.Transitions.Errors![0]!];
+    generic(noMatchMissing);
+    const unmirrored = check({ MetricType: "NumberOfAgentsStaffed" }, [staffed]);
+    unmirrored.Transitions.NextAction = "again";
+    generic(unmirrored);
+    generic(
+      check({ MetricType: "NumberOfContactsInQueue" }, [
+        { operator: "TextContains", operand: "5" },
+      ]),
+    );
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

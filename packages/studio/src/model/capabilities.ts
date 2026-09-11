@@ -247,6 +247,12 @@ export function defaultConditionFor(action: FlowAction): Condition | undefined {
     const next = Number.isFinite(last) ? last + 1 : 2;
     return next > 100 ? undefined : { Operator: "NumberLessThan", Operands: [String(next)] };
   }
+  // A metric check's branches compare numbers; NumberGreaterThan 0 is the
+  // one comparison every metric accepts (and the only one the agent metrics
+  // do), so a drag starts there and the branch editor adjusts it.
+  if (action.Type === ActionType.CheckMetricData) {
+    return { Operator: "NumberGreaterThan", Operands: ["0"] };
+  }
   const listed = listedOperands(action.Type);
   if ((kind === "fixed" || kind === "enum") && listed.length > 0) {
     const used = usedKeys(action);

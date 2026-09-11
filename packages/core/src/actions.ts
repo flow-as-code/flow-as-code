@@ -37,6 +37,7 @@ export const ActionType = {
   Wait: "Wait",
   DistributeByPercentage: "DistributeByPercentage",
   UpdateFlowAttributes: "UpdateFlowAttributes",
+  CheckMetricData: "CheckMetricData",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -54,6 +55,7 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.UpdateContactTargetQueue]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.DequeueContactAndTransferToQueue]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.CreateCallbackContact]: { QueueId: "queue", AgentId: "queue", ContactFlowId: "flow" },
+  [ActionType.CheckMetricData]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.CheckHoursOfOperation]: { HoursOfOperationId: "hours" },
   [ActionType.InvokeLambdaFunction]: { LambdaFunctionARN: "lambda" },
   [ActionType.InvokeFlowModule]: { FlowModuleId: "module" },
@@ -154,6 +156,12 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // only when that event is waited for.
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
   [ActionType.Wait]: [NO_MATCHING_ERROR, PARTICIPANT_NOT_FOUND],
+  // The console's order, catch-all first, as its default queue transfer flow
+  // is exported: NoMatchingCondition is the block's False or No Match
+  // branch. The page limits it to the two queue metrics; the console wires
+  // it for NumberOfAgentsStaffed too, and that export is the evidence.
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
+  [ActionType.CheckMetricData]: [NO_MATCHING_ERROR, NO_MATCHING_CONDITION],
   // NoMatchingCondition "Must be defined only if StoreInput is False", which
   // is the only form the builder emits; the order is the admin page's example.
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
@@ -275,6 +283,11 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // action page governs.
   // https://docs.aws.amazon.com/connect/latest/adminguide/distribute-by-percentage.html
   [ActionType.DistributeByPercentage]: [...INBOUND, ...TRANSFER, ...CUSTOMER_QUEUE, ...IN_MODULE],
+  // "This action is only usable in flows, queue and agent transfers, and
+  // customer queue flows. It is not available in any type of whisper or hold
+  // flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
+  [ActionType.CheckMetricData]: [...INBOUND, ...TRANSFER, ...CUSTOMER_QUEUE, ...IN_MODULE],
   // "This is supported only in contact flows, transfer flows, and customer
   // queue flows. This is not supported in whispers or hold flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html
@@ -390,6 +403,37 @@ export type WaitEvent = (typeof WAIT_EVENTS)[number];
  */
 export const PERCENTAGE_FLOOR = 1;
 export const PERCENTAGE_THRESHOLD_MAX = 100;
+
+/**
+ * CheckMetricData.MetricType, "One of [NumberOfAgentsAvailable,
+ * NumberOfAgentsStaffed, NumberOfAgentsOnline, OldestContactInQueueAgeSeconds,
+ * NumberOfContactsInQueue]. Dynamic values are not supported". For the
+ * NumberOfAgents* types "the only supported condition is NumberGreaterThan 0,
+ * otherwise Equals and any Number* Operands are allowed".
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
+ */
+export const METRIC_TYPES = [
+  "NumberOfAgentsAvailable",
+  "NumberOfAgentsStaffed",
+  "NumberOfAgentsOnline",
+  "OldestContactInQueueAgeSeconds",
+  "NumberOfContactsInQueue",
+] as const;
+export type MetricType = (typeof METRIC_TYPES)[number];
+export const AGENT_METRIC_TYPES: readonly MetricType[] = [
+  "NumberOfAgentsAvailable",
+  "NumberOfAgentsStaffed",
+  "NumberOfAgentsOnline",
+];
+/** The operators a metric may be compared with: Equals and the Number* four. */
+export const METRIC_OPERATORS = [
+  "Equals",
+  "NumberGreaterThan",
+  "NumberGreaterOrEqualTo",
+  "NumberLessThan",
+  "NumberLessOrEqualTo",
+] as const;
+export type MetricOperator = (typeof METRIC_OPERATORS)[number];
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

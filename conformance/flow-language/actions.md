@@ -65,6 +65,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Wait | `Wait` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html) |
 | Distribute by percentage | `DistributeByPercentage` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html) |
 | Set contact attributes (Flow namespace) | `UpdateFlowAttributes` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html) |
+| Check staffing, Check queue status | `CheckMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -84,6 +85,7 @@ is never interpolated into a longer string.
 | `DequeueContactAndTransferToQueue` | `QueueId`, `AgentId` | `queue` |
 | `CreateCallbackContact` | `QueueId`, `AgentId` | `queue` |
 | `CreateCallbackContact` | `ContactFlowId` | `flow` |
+| `CheckMetricData` | `QueueId`, `AgentId` | `queue` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -332,6 +334,28 @@ individual action pages linked above.
     attributes "aren't passed to modules", "don't appear in the contact
     record" and may not contain `$` or `.` in a key.
     https://docs.aws.amazon.com/connect/latest/adminguide/set-contact-attributes.html
+25. `CheckMetricData` (recorded 2026-09-11) "A shortcut single action to
+    avoid using GetMetricData and Compare for a set of simple metrics."
+    `MetricType` is "One of [NumberOfAgentsAvailable, NumberOfAgentsStaffed,
+    NumberOfAgentsOnline, OldestContactInQueueAgeSeconds,
+    NumberOfContactsInQueue]. **Dynamic values are not supported**" (the
+    asterisks are the page's own); `QueueId` and `AgentId` are `[Optional]`,
+    at most one, "If neither this nor QueueId are specified, the contact
+    TargetQueue is used". Results: "If the MetricType is NumberOfAgents* then
+    the only supported condition is "NumberGreaterThan 0", otherwise Equals
+    and any Number* Operands are allowed." Errors: `NoMatchingError`, and
+    `NoMatchingCondition` "only supported if the MetricType is
+    OldestContactInQueueAgeSeconds or NumberOfContactsInQueue". The console's
+    default queue transfer flow, recorded under
+    `conformance/export/omitted-parameters`, contradicts that last clause: it
+    wires `NoMatchingCondition` on a `NumberOfAgentsStaffed` check as the
+    block's False branch, orders the errors `NoMatchingError` then
+    `NoMatchingCondition`, and mirrors `NextAction` onto the `NoMatchingError`
+    target; the builder writes that shape for every metric. "This action is
+    only usable in flows, queue and agent transfers, and customer queue
+    flows. It is not available in any type of whisper or hold flows."
+    https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/check-queue-status.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -375,6 +399,7 @@ Loop                     { LoopCount }              // 0 to 100, static or a sin
 Wait                     { TimeoutSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }
 DistributeByPercentage   {}
 UpdateFlowAttributes     { FlowAttributes: { [k]: FlowAttribute } }   // value shape not documented; kept opaque
+CheckMetricData          { MetricType, QueueId? | AgentId? }
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -439,7 +464,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 23 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 24 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

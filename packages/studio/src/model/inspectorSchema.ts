@@ -18,6 +18,7 @@ import {
   LAMBDA_TIMEOUT_MIN,
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
+  METRIC_TYPES,
   QUEUE_PRIORITY_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
@@ -294,6 +295,28 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           options: ["SYNCHRONOUS", "ASYNCHRONOUS"],
         },
         { kind: "json", key: "ResponseValidation", label: "Response validation" },
+      ];
+    case ActionType.CheckMetricData:
+      // With neither queue nor agent queue the contact's target queue is
+      // checked; setting one clears the other.
+      return [
+        { kind: "select", key: "MetricType", label: "Metric", options: METRIC_TYPES },
+        {
+          kind: "ref",
+          key: "QueueId",
+          label: "Queue",
+          refType: "queue",
+          optional: true,
+          clears: ["AgentId"],
+        },
+        {
+          kind: "ref",
+          key: "AgentId",
+          label: "Agent queue",
+          refType: "queue",
+          optional: true,
+          clears: ["QueueId"],
+        },
       ];
     case ActionType.DistributeByPercentage:
       // No parameters; the branches are the condition editor, each operand
