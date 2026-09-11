@@ -74,6 +74,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Set customer queue flow, Set event flow, Set hold flow, Set whisper flow | `UpdateContactEventHooks` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html) |
 | Loop prompts | `MessageParticipantIteratively` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html) |
 | Get customer input (Amazon Lex) | `ConnectParticipantWithLexBot` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html) |
+| Show view | `ShowView` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -99,6 +100,7 @@ is never interpolated into a longer string.
 | `MessageParticipantIteratively` | `Messages[].PromptId` (each message) | `prompt` |
 | `ConnectParticipantWithLexBot` | `PromptId` | `prompt` |
 | `ConnectParticipantWithLexBot` | `LexV2Bot.AliasArn` | `lex` |
+| `ShowView` | `ViewResource.Id` | `view` (may carry a version) |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -548,6 +550,30 @@ individual action pages linked above.
     mirrors the no-match branch as the same console block's DTMF form does,
     to be confirmed against a console export, since none of the sample flows
     carries a Lex bot.
+34. `ShowView` (recorded 2026-09-11) "Initiates a UI-based workflow that can be
+    surfaced to users of front end applications. This action can be used to
+    create step-by-step guides for agents". `ViewResource` holds the view's
+    `Id` and optional `Version`; the admin guide's example writes the id as an
+    AWS-managed view ARN with its version (`view/form:1`), which the `view`
+    reference carries in its alias slot (`${cdref:view:form@1}`).
+    `InvocationTimeLimitSeconds` is a bare `400` in the page's parameter block
+    and `"2"` in the admin guide's JSON, so it is recorded as an
+    `integerString`; `ViewData` is "An optional map of data that will be
+    passed to the View Resource. Keys and values may be set statically or
+    dynamically" and stays opaque; `SensitiveDataConfiguration.HideResponseOn`
+    is a list whose only example is TRANSCRIPT. Results: "The result that the
+    user selects when interacting with the View. The available conditions
+    will be dependent on the View resource specified", one Equals each.
+    Errors in the page's order: `NoMatchingError`, `NoMatchingCondition` "if
+    no other Condition matches", `TimeLimitExceeded` "if there is no response
+    before the configured InvocationTimeLimitSeconds", which the builder wires
+    exactly when a time limit is set. "This action is only supported on the
+    chat channel." "This action can be used in inbound flows and customer
+    queue flows"; the same page's UI section says inbound only and the admin
+    guide lists inbound alone; the Restrictions section governs. Neither page
+    says whether `NextAction` is required or mirrors a branch; the builder
+    writes it as its own path, to be confirmed against a console export.
+    https://docs.aws.amazon.com/connect/latest/adminguide/show-view-block.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -609,6 +635,8 @@ MessageParticipantIteratively { Messages: ({ Text } | { SSML } | { PromptId } | 
 ConnectParticipantWithLexBot { PromptId? | Text? | SSML?, Media?, LexV2Bot: { AliasArn } | LexBot: { Name, Region, Alias },
                            LexSessionAttributes?: { [k]: v }, LexInitializationData?: { InitialMessage },
                            LexTimeoutSeconds?: { Text } }   // Text is "300"; the builder models the V2 form
+ShowView                 { ViewResource: { Id, Version? }, InvocationTimeLimitSeconds?, ViewData?,
+                           SensitiveDataConfiguration?: { HideResponseOn: string[] } }   // "300"; ViewData opaque
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -678,7 +706,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 32 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 33 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

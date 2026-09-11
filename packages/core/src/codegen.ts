@@ -42,6 +42,7 @@ import {
   QUEUE_CHANNELS,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
+  TIME_LIMIT_EXCEEDED,
   TARGET_CONTACTS,
   TTS_ENGINES,
   TTS_STYLES,
@@ -78,6 +79,7 @@ import {
   Loop,
   MessageParticipant,
   MessageParticipantIteratively,
+  ShowView,
   TagContact,
   TransferContactToAgent,
   UnTagContact,
@@ -656,6 +658,122 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           onNoMatch: errors[2]!.NextAction,
           onError: errors[1]!.NextAction,
           onTimeout: errors[0]!.NextAction,
+        }),
+      ),
+    };
+  },
+
+  [ActionType.ShowView]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length < 2 ||
+      errors.length > 3 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== NO_MATCHING_CONDITION ||
+      (errors.length === 3 && errors[2]!.ErrorType !== TIME_LIMIT_EXCEEDED)
+    ) {
+      return undefined;
+    }
+    const conditions = t.Conditions ?? [];
+    if (!conditions.every(isCondition)) return undefined;
+    for (const c of conditions) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+      if (typeof c.Condition.Operands[0] !== "string") return undefined;
+    }
+    const p = a.Parameters;
+    if (
+      !paramKeysAre(
+        p,
+        ["ViewResource"],
+        ["InvocationTimeLimitSeconds", "ViewData", "SensitiveDataConfiguration"],
+      )
+    ) {
+      return undefined;
+    }
+    const resource = p.ViewResource as Record<string, unknown> | null;
+    if (
+      resource === null ||
+      typeof resource !== "object" ||
+      !paramKeysAre(resource, ["Id"], ["Version"])
+    ) {
+      return undefined;
+    }
+    const view = refSource(resource.Id, "view", ctx);
+    if (view === undefined) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["view", view],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, view: resource.Id };
+    if (resource.Version !== undefined) {
+      if (typeof resource.Version !== "string") return undefined;
+      entries.push(["version", resource.Version]);
+      config.version = resource.Version;
+    }
+    const seconds = p.InvocationTimeLimitSeconds;
+    if ((seconds !== undefined) !== (errors.length === 3)) return undefined;
+    if (seconds !== undefined) {
+      if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+      const n = Number(seconds);
+      if (!Number.isSafeInteger(n)) return undefined;
+      entries.push(["timeoutSeconds", n]);
+      config.timeoutSeconds = n;
+    }
+    if (p.ViewData !== undefined) {
+      const data = p.ViewData;
+      if (data === null || typeof data !== "object" || Array.isArray(data)) return undefined;
+      entries.push(["data", toV(data)]);
+      config.data = data;
+    }
+    if (p.SensitiveDataConfiguration !== undefined) {
+      const sensitive = p.SensitiveDataConfiguration as Record<string, unknown> | null;
+      if (
+        sensitive === null ||
+        typeof sensitive !== "object" ||
+        !paramKeysAre(sensitive, ["HideResponseOn"]) ||
+        !Array.isArray(sensitive.HideResponseOn) ||
+        !sensitive.HideResponseOn.every((h) => typeof h === "string" && h !== "")
+      ) {
+        return undefined;
+      }
+      entries.push(["hideResponseOn", new ArrV([...cast<string[]>(sensitive.HideResponseOn)])]);
+      config.hideResponseOn = sensitive.HideResponseOn;
+    }
+    const actions = conditions.map((c) => ({
+      action: cast<string>(c.Condition.Operands[0]),
+      target: c.NextAction,
+    }));
+    entries.push(
+      [
+        "actions",
+        new ArrV(
+          actions.map(
+            (b) =>
+              new ObjV([
+                ["action", b.action],
+                ["target", b.target],
+              ]),
+          ),
+        ),
+      ],
+      ["next", t.NextAction],
+      ["onNoMatch", errors[1]!.NextAction],
+      ["onError", errors[0]!.NextAction],
+    );
+    if (errors.length === 3) entries.push(["onTimeout", errors[2]!.NextAction]);
+    return {
+      cls: "ShowView",
+      entries,
+      block: new ShowView(
+        cast<never>({
+          ...config,
+          actions,
+          next: t.NextAction,
+          onNoMatch: errors[1]!.NextAction,
+          onError: errors[0]!.NextAction,
+          ...(errors.length === 3 ? { onTimeout: errors[2]!.NextAction } : {}),
         }),
       ),
     };

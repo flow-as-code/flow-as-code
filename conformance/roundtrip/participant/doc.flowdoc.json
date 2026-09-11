@@ -105,7 +105,7 @@
           ],
           "Conditions": [
             {
-              "NextAction": "hold-music",
+              "NextAction": "show-form",
               "Condition": {
                 "Operator": "Equals",
                 "Operands": [
@@ -114,7 +114,7 @@
               }
             },
             {
-              "NextAction": "ask-again",
+              "NextAction": "show-any",
               "Condition": {
                 "Operator": "Equals",
                 "Operands": [
@@ -123,6 +123,90 @@
               }
             }
           ]
+        }
+      },
+      {
+        "Identifier": "show-form",
+        "Type": "ShowView",
+        "Parameters": {
+          "InvocationTimeLimitSeconds": "300",
+          "SensitiveDataConfiguration": {
+            "HideResponseOn": [
+              "TRANSCRIPT"
+            ]
+          },
+          "ViewData": {
+            "Heading": "$.Customer.LastName",
+            "Sections": [
+              {
+                "Title": "Address"
+              }
+            ]
+          },
+          "ViewResource": {
+            "Id": "${cdref:view:form@1}",
+            "Version": "1"
+          }
+        },
+        "Transitions": {
+          "NextAction": "hold-quietly",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-quietly"
+            },
+            {
+              "ErrorType": "TimeLimitExceeded",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "ask-again",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Next"
+                ]
+              }
+            },
+            {
+              "NextAction": "hold-music",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Back"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "show-any",
+        "Type": "ShowView",
+        "Parameters": {
+          "ViewResource": {
+            "Id": "$.Attributes.view"
+          }
+        },
+        "Transitions": {
+          "NextAction": "hold-quietly",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-quietly"
+            }
+          ],
+          "Conditions": []
         }
       },
       {
@@ -178,7 +262,7 @@
   },
   "layout": {
     "ask-again": {
-      "x": 800,
+      "x": 1060,
       "y": 120
     },
     "ask-intent": {
@@ -186,7 +270,7 @@
       "y": 20
     },
     "end": {
-      "x": 1060,
+      "x": 1320,
       "y": 20
     },
     "hold-music": {
@@ -194,6 +278,14 @@
       "y": 20
     },
     "hold-quietly": {
+      "x": 1060,
+      "y": 20
+    },
+    "show-any": {
+      "x": 800,
+      "y": 120
+    },
+    "show-form": {
       "x": 800,
       "y": 20
     },
@@ -217,6 +309,12 @@
       "token": "${cdref:prompt:hold-music}",
       "type": "prompt",
       "name": "hold-music"
+    },
+    {
+      "token": "${cdref:view:form@1}",
+      "type": "view",
+      "name": "form",
+      "alias": "1"
     }
   ]
 }

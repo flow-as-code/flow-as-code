@@ -46,6 +46,7 @@ export const ActionType = {
   UpdateContactEventHooks: "UpdateContactEventHooks",
   MessageParticipantIteratively: "MessageParticipantIteratively",
   ConnectParticipantWithLexBot: "ConnectParticipantWithLexBot",
+  ShowView: "ShowView",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -78,6 +79,8 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   // The V2 bot's alias ARN, nested; the V1 LexBot form names a bot and alias
   // by name and region, which is not what the lex reference type binds.
   [ActionType.ConnectParticipantWithLexBot]: { PromptId: "prompt", "LexV2Bot.AliasArn": "lex" },
+  // The view's id, nested; its version rides in the token's alias slot.
+  [ActionType.ShowView]: { "ViewResource.Id": "view" },
 };
 
 /**
@@ -131,6 +134,9 @@ export const CALLBACK_NUMBER_NOT_DIALABLE = "CallbackNumberNotDialable";
 
 /** Wait's second error, raised when no bot participant is on the contact. */
 export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
+
+/** ShowView's error when the view is not answered within InvocationTimeLimitSeconds. */
+export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
 
 /**
  * Non-terminal modeled actions whose page lists no catch-all. The builder
@@ -209,6 +215,12 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
     NO_MATCHING_ERROR,
     NO_MATCHING_CONDITION,
   ],
+  // The page's order, catch-all first: "NoMatchingCondition - if no other
+  // Condition matches", "TimeLimitExceeded - if there is no response before
+  // the configured InvocationTimeLimitSeconds", so the builder wires the last
+  // only when a time limit is set.
+  // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
+  [ActionType.ShowView]: [NO_MATCHING_ERROR, NO_MATCHING_CONDITION, TIME_LIMIT_EXCEEDED],
 };
 
 // The Restrictions section of an action page names flow types in the console's
@@ -283,6 +295,11 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
     ...CUSTOMER_QUEUE,
     ...IN_MODULE,
   ],
+  // "This action can be used in inbound flows and customer queue flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
+  // The same page's UI section says inbound only and the admin guide lists
+  // inbound alone; the Restrictions section governs, as for every other row.
+  [ActionType.ShowView]: [...INBOUND, ...CUSTOMER_QUEUE, ...IN_MODULE],
   // "This action is supported for all channels and in contact flows, transfer
   // flows, and customer queue flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-disconnectparticipant.html

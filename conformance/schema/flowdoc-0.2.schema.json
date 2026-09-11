@@ -1118,6 +1118,64 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "ShowView"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ViewResource": {
+                    "type": "object",
+                    "required": [
+                      "Id"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "Id": {
+                        "$ref": "#/$defs/refField"
+                      },
+                      "Version": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "InvocationTimeLimitSeconds": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  },
+                  "ViewData": {
+                    "type": "object"
+                  },
+                  "SensitiveDataConfiguration": {
+                    "type": "object",
+                    "required": [
+                      "HideResponseOn"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "HideResponseOn": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

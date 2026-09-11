@@ -507,6 +507,24 @@ describe("FlowDoc schema rejections: participant", () => {
         a.Parameters.LexTimeoutSeconds = { Text: 300 };
       }),
     ],
+    [
+      "a view resource with no id",
+      mutate("show-form", (a) => {
+        a.Parameters.ViewResource = { Version: "1" };
+      }),
+    ],
+    [
+      "a view id as a literal ARN",
+      mutate("show-form", (a) => {
+        a.Parameters.ViewResource = { Id: "arn:aws:connect:us-west-2:aws:view/form:1" };
+      }),
+    ],
+    [
+      "a view time limit written as a JSON number",
+      mutate("show-form", (a) => {
+        a.Parameters.InvocationTimeLimitSeconds = 300;
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

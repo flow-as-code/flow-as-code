@@ -394,6 +394,12 @@ describe("the action catalog", () => {
       "NoMatchingCondition",
     ]);
     expect(requiredErrors("ConnectParticipantWithLexBot")).toEqual(["NoMatchingError"]);
+    expect(builderErrors("ShowView")).toEqual([
+      "NoMatchingError",
+      "NoMatchingCondition",
+      "TimeLimitExceeded",
+    ]);
+    expect(requiredErrors("ShowView")).toEqual(["NoMatchingError"]);
     expect(builderErrors("CheckMetricData")).toEqual(["NoMatchingError", "NoMatchingCondition"]);
     expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);

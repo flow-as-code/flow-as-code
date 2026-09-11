@@ -52,6 +52,7 @@ import {
   VOICE_ID_THRESHOLD_MAX,
   VOICE_ID_THRESHOLD_MIN,
   TAG_LIMIT,
+  TIME_LIMIT_EXCEEDED,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -331,6 +332,90 @@ export class ConnectParticipantWithLexBot extends Block {
         [NO_MATCHING_CONDITION, c.onNoMatch],
       ],
       c.intents.map((i) => ({ target: i.target, operator: "Equals", operands: [i.name] })),
+    );
+  }
+}
+
+/** One action a view can return (Next, Back, a custom value) and where it leads. */
+export interface ViewActionBranch {
+  action: string;
+  target: Target;
+}
+
+/**
+ * Shows a view (a step-by-step guide) to the agent: "Initiates a UI-based
+ * workflow that can be surfaced to users of front end applications." `view`
+ * is ViewResource.Id, a view reference (an AWS-managed view's version rides
+ * in the token, `Refs.view("form", "1")`) or a JSONPath; `version` is the
+ * separate ViewResource.Version string; `data` is passed to the view
+ * verbatim; `hideResponseOn` lists where the response is hidden (the page
+ * shows TRANSCRIPT). `actions` branch on "The result that the user selects
+ * when interacting with the View", one Equals each; `onTimeout` goes with
+ * `timeoutSeconds` (InvocationTimeLimitSeconds, a decimal string on the
+ * wire). Chat only; inbound and customer queue flows.
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/show-view-block.html
+ */
+export interface ShowViewConfig extends Wired {
+  view: Ref<"view"> | JsonPath;
+  version?: string;
+  timeoutSeconds?: number;
+  data?: Record<string, unknown>;
+  hideResponseOn?: string[];
+  actions: ViewActionBranch[];
+  onNoMatch: Target;
+  onTimeout?: Target;
+}
+
+export class ShowView extends Block {
+  readonly type = ActionType.ShowView;
+
+  constructor(private readonly config: ShowViewConfig) {
+    super(config.id);
+    const t = config.timeoutSeconds;
+    if (t !== undefined && (!Number.isInteger(t) || t < 1)) {
+      throw new Error(
+        `ShowView "${config.id}" timeoutSeconds must be a positive integer, got ${t}.`,
+      );
+    }
+    if ((t !== undefined) !== (config.onTimeout !== undefined)) {
+      throw new Error(
+        `ShowView "${config.id}" takes onTimeout exactly when it has timeoutSeconds.`,
+      );
+    }
+    for (const h of config.hideResponseOn ?? []) {
+      if (typeof h !== "string" || h === "") {
+        throw new Error(
+          `ShowView "${config.id}" hideResponseOn entries must be non-empty strings.`,
+        );
+      }
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const resource: Record<string, unknown> = { Id: c.view };
+    if (c.version !== undefined) resource.Version = c.version;
+    const p: Record<string, unknown> = { ViewResource: resource };
+    if (c.timeoutSeconds !== undefined) p.InvocationTimeLimitSeconds = String(c.timeoutSeconds);
+    if (c.data !== undefined) p.ViewData = c.data;
+    if (c.hideResponseOn !== undefined) {
+      p.SensitiveDataConfiguration = { HideResponseOn: c.hideResponseOn };
+    }
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    const errors: [string, Target][] = [
+      [NO_MATCHING_ERROR, c.onError],
+      [NO_MATCHING_CONDITION, c.onNoMatch],
+    ];
+    if (c.onTimeout !== undefined) errors.push([TIME_LIMIT_EXCEEDED, c.onTimeout]);
+    return wire(
+      c.next,
+      errors,
+      c.actions.map((a) => ({ target: a.target, operator: "Equals", operands: [a.action] })),
     );
   }
 }
@@ -1639,7 +1724,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 32.
+ * set survivable: 56 action types are documented and the builder models 33.
  */
 export interface GenericBlockConfig {
   id: string;

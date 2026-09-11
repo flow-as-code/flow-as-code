@@ -1695,6 +1695,82 @@ describe("the unknown-actions fixture holds only types the builder does not mode
   });
 });
 
+describe("ShowView inverts the view, its data, and its paired time limit", () => {
+  const view = (
+    parameters: Record<string, unknown>,
+    extra: { timeout?: boolean; actions?: string[] } = {},
+  ): FlowAction => ({
+    Identifier: "guide",
+    Type: "ShowView",
+    Parameters: { ViewResource: { Id: "${cdref:view:form@1}" }, ...parameters },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "NoMatchingCondition", NextAction: "bye" },
+        ...(extra.timeout === true ? [{ ErrorType: "TimeLimitExceeded", NextAction: "bye" }] : []),
+      ],
+      Conditions: (extra.actions ?? []).map((v) => ({
+        NextAction: "bye",
+        Condition: { Operator: "Equals", Operands: [v] },
+      })),
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new ShowView({");
+    expect(out).not.toContain('type: "ShowView"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "ShowView"');
+    expect(out).not.toContain("new ShowView(");
+  };
+
+  it("emits a bare view, and every field with the timeout pair", () => {
+    const bare = typed(view({}));
+    expect(bare).toContain('view: Refs.view("form", "1")');
+    expect(bare).toContain("actions: []");
+    expect(bare).not.toContain("onTimeout");
+    const full = typed(
+      view(
+        {
+          ViewResource: { Id: "$.Attributes.view", Version: "2" },
+          InvocationTimeLimitSeconds: "300",
+          ViewData: { Heading: "$.Customer.LastName", Sections: [{ Title: "Address" }] },
+          SensitiveDataConfiguration: { HideResponseOn: ["TRANSCRIPT"] },
+        },
+        { timeout: true, actions: ["Next", "Back"] },
+      ),
+    );
+    expect(full).toContain('view: jsonPath("$.Attributes.view")');
+    expect(full).toContain('version: "2"');
+    expect(full).toContain("timeoutSeconds: 300");
+    expect(full).toContain('Heading: "$.Customer.LastName"');
+    expect(full).toContain('hideResponseOn: ["TRANSCRIPT"]');
+    expect(full).toContain('{ action: "Back", target: "bye" }');
+    expect(full).toContain('onTimeout: "bye"');
+  });
+
+  it("falls back on a literal ARN, an unpaired time limit, a limit as a number, a swapped error, or a bad hide list", () => {
+    generic(view({ ViewResource: { Id: "arn:aws:connect:us-west-2:aws:view/form:1" } }));
+    generic(view({ InvocationTimeLimitSeconds: "300" }));
+    generic(view({}, { timeout: true }));
+    generic(view({ InvocationTimeLimitSeconds: 300 }, { timeout: true }));
+    const swapped = view({});
+    swapped.Transitions.Errors = [swapped.Transitions.Errors![1]!, swapped.Transitions.Errors![0]!];
+    generic(swapped);
+    generic(view({ SensitiveDataConfiguration: { HideResponseOn: [""] } }));
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

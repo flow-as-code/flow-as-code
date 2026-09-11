@@ -152,6 +152,28 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
         { kind: "json", key: "LexTimeoutSeconds", label: "Timeout ({ Text: seconds })" },
       ];
+    case ActionType.ShowView:
+      // ViewResource is { Id: "${cdref:view:name@version}" or a JSONPath,
+      // Version? }. The view's actions are the condition editor, one Equals
+      // branch each; the time limit and its TimeLimitExceeded branch go
+      // together.
+      return [
+        { kind: "json", key: "ViewResource", label: "View ({ Id, Version })" },
+        {
+          kind: "number",
+          key: "InvocationTimeLimitSeconds",
+          label: "Time limit (seconds)",
+          min: 1,
+          asString: true,
+          optional: true,
+        },
+        { kind: "json", key: "ViewData", label: "View data" },
+        {
+          kind: "json",
+          key: "SensitiveDataConfiguration",
+          label: "Sensitive data ({ HideResponseOn })",
+        },
+      ];
     case ActionType.MessageParticipantIteratively:
       // Messages is a list of one-key objects (Text, SSML, PromptId, or Media
       // with Uri, SourceType S3 and MediaType Audio). The interrupt frequency

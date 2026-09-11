@@ -1585,7 +1585,95 @@
     "ShowView": {
       "category": "participant",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html",
-      "modeled": false
+      "modeled": true,
+      "block": "show_view",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "ViewResource",
+          "attr": "view_resource",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "Id",
+              "attr": "id",
+              "kind": "ref",
+              "required": true,
+              "ref": "view"
+            },
+            {
+              "key": "Version",
+              "attr": "version",
+              "kind": "string",
+              "required": false
+            }
+          ]
+        },
+        {
+          "key": "InvocationTimeLimitSeconds",
+          "attr": "invocation_time_limit_seconds",
+          "kind": "integerString",
+          "required": false,
+          "min": 1
+        },
+        {
+          "key": "ViewData",
+          "attr": "view_data",
+          "kind": "json",
+          "required": false
+        },
+        {
+          "key": "SensitiveDataConfiguration",
+          "attr": "sensitive_data_configuration",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "HideResponseOn",
+              "attr": "hide_response_on",
+              "kind": "list",
+              "required": true,
+              "of": {
+                "kind": "string"
+              }
+            }
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "ViewResource.Id",
+          "ref": "view"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "enum",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "NoMatchingCondition",
+            "required": false,
+            "builder": true
+          },
+          {
+            "type": "TimeLimitExceeded",
+            "required": false,
+            "builder": true,
+            "when": "InvocationTimeLimitSeconds is set"
+          }
+        ]
+      }
     },
     "CheckHoursOfOperation": {
       "category": "flowControl",

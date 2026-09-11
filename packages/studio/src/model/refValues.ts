@@ -56,6 +56,13 @@ export function makeToken(refType: RefType, name: string, alias?: string): RefVa
     }
     return { ok: true, value: `\${cdref:module:${name}@${alias}}` };
   }
+  if (refType === "view" && alias !== undefined && alias !== "") {
+    // A view may pin a version, carried in the token's alias slot.
+    if (!SLUG_PATTERN.test(alias)) {
+      return { ok: false, error: "A view version is a slug, e.g. 1 or latest." };
+    }
+    return { ok: true, value: `\${cdref:view:${name}@${alias}}` };
+  }
   return { ok: true, value: `\${cdref:${refType}:${name}}` };
 }
 

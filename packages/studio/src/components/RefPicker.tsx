@@ -71,7 +71,9 @@ export function RefPicker({ doc, refType, value, optional, onChange }: RefPicker
       const alias =
         refType === "module"
           ? (window.prompt("Module alias (slug, e.g. prod):") ?? undefined)
-          : undefined;
+          : refType === "view"
+            ? (window.prompt("View version (slug, e.g. 1; leave blank for none):") ?? undefined)
+            : undefined;
       const result = makeToken(refType, name.trim(), alias?.trim());
       if (result.ok) {
         setCustom(false);

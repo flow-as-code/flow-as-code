@@ -76,6 +76,7 @@ const EXPECTED: Record<string, string[]> = {
     "CUSTOMER_QUEUE",
     "MODULE",
   ],
+  ShowView: ["CONTACT_FLOW", "CUSTOMER_QUEUE", "MODULE"],
   CheckHoursOfOperation: [
     "CONTACT_FLOW",
     "AGENT_TRANSFER",

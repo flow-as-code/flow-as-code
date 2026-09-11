@@ -40,6 +40,7 @@ import {
   Refs,
   serialize,
   serializeContent,
+  ShowView,
   synth,
   TagContact,
   TransferContactToAgent,
@@ -772,6 +773,36 @@ describe("guardrails", () => {
           { ErrorType: "NoMatchingCondition", NextAction: "n" },
         ],
         Conditions: [{ NextAction: "s", Condition: { Operator: "Equals", Operands: ["Sales"] } }],
+      },
+    });
+  });
+
+  it("pairs a view's time limit with its branch and writes the version in the token", () => {
+    const base = {
+      id: "v",
+      view: Refs.view("form", "1"),
+      actions: [{ action: "Next", target: "n" }],
+      next: "x",
+      onNoMatch: "m",
+      onError: "e",
+    };
+    expect(() => new ShowView({ ...base, timeoutSeconds: 300 })).toThrow(/exactly when/);
+    expect(() => new ShowView({ ...base, onTimeout: "t" })).toThrow(/exactly when/);
+    expect(new ShowView({ ...base, timeoutSeconds: 300, onTimeout: "t" }).toAction()).toEqual({
+      Identifier: "v",
+      Type: "ShowView",
+      Parameters: {
+        ViewResource: { Id: "${cdref:view:form@1}" },
+        InvocationTimeLimitSeconds: "300",
+      },
+      Transitions: {
+        NextAction: "x",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoMatchingCondition", NextAction: "m" },
+          { ErrorType: "TimeLimitExceeded", NextAction: "t" },
+        ],
+        Conditions: [{ NextAction: "n", Condition: { Operator: "Equals", Operands: ["Next"] } }],
       },
     });
   });
