@@ -69,6 +69,13 @@ const EXPECTED: Record<string, string[]> = {
     "MODULE",
   ],
   MessageParticipantIteratively: ["CUSTOMER_QUEUE", "CUSTOMER_HOLD", "AGENT_HOLD", "MODULE"],
+  ConnectParticipantWithLexBot: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_QUEUE",
+    "MODULE",
+  ],
   CheckHoursOfOperation: [
     "CONTACT_FLOW",
     "AGENT_TRANSFER",

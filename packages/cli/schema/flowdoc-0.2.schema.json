@@ -1024,6 +1024,100 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "ConnectParticipantWithLexBot"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PromptId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "LexV2Bot": {
+                    "type": "object",
+                    "required": [
+                      "AliasArn"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "AliasArn": {
+                        "$ref": "#/$defs/refField"
+                      }
+                    }
+                  },
+                  "LexSessionAttributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "LexInitializationData": {
+                    "type": "object",
+                    "required": [
+                      "InitialMessage"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "InitialMessage": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "LexTimeoutSeconds": {
+                    "type": "object",
+                    "required": [
+                      "Text"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "Text": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]*$"
+                      }
+                    }
+                  }
+                },
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "PromptId",
+                        "Text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "PromptId",
+                        "SSML"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "Text",
+                        "SSML"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "LexBot",
+                        "LexV2Bot"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

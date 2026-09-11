@@ -73,6 +73,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Set contact attributes (Connect-defined fields) | `UpdateContactData` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html) |
 | Set customer queue flow, Set event flow, Set hold flow, Set whisper flow | `UpdateContactEventHooks` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html) |
 | Loop prompts | `MessageParticipantIteratively` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html) |
+| Get customer input (Amazon Lex) | `ConnectParticipantWithLexBot` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -96,6 +97,8 @@ is never interpolated into a longer string.
 | `GetMetricData` | `QueueId`, `AgentId` | `queue` |
 | `UpdateContactEventHooks` | `EventHooks.*` (every value) | `flow` |
 | `MessageParticipantIteratively` | `Messages[].PromptId` (each message) | `prompt` |
+| `ConnectParticipantWithLexBot` | `PromptId` | `prompt` |
+| `ConnectParticipantWithLexBot` | `LexV2Bot.AliasArn` | `lex` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -105,8 +108,10 @@ is never interpolated into a longer string.
 
 `GetParticipantInput` has no Lex bot fields. The console's "Get customer
 input" block serializes its Amazon Lex configuration as a separate
-`ConnectParticipantWithLexBot` action (with `LexV2Bot` or `LexBot`), which is
-unmodeled, so no `lex` reference appears in the modeled set.
+`ConnectParticipantWithLexBot` action (with `LexV2Bot` or `LexBot`); the V2
+form is modeled (rule 33) and its alias ARN is the one `lex` reference. The
+V1 `LexBot` names a bot by name, region and alias, which the `lex` reference
+type does not bind, so that form round-trips as a GenericBlock.
 https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
 
 ## Constraints worth encoding
@@ -520,6 +525,29 @@ individual action pages linked above.
     may end in it with nothing wired, as the console's hold flows do, and
     terminal-blocks treats it as an end.
     https://docs.aws.amazon.com/connect/latest/adminguide/loop-prompts.html
+33. `ConnectParticipantWithLexBot` (recorded 2026-09-11) "Connects the
+    participant with the specified Amazon Lex bot. When the interaction is
+    over, the Intent and Slots of the bot are available to the flow during
+    its run." "Provide either LexBot or LexV2Bot object depending on the
+    Amazon Lex version"; `LexV2Bot.AliasArn` is "The alias ARN of the LexV2
+    bot to invoke. May be specified statically or dynamically." `PromptId`,
+    `Text` and `SSML` are each optional and at most one ("May not be
+    specified if PromptId or SSML is also specified" and the like);
+    `LexSessionAttributes` is a string map; `LexInitializationData` carries
+    `InitialMessage`; `LexTimeoutSeconds.Text` is "the length of Lex timer in
+    second", written as a string, bounded by the console's Chat timeout
+    ("Minimum: 1 minute Maximum: 7 days"). Results: "If the Amazon Lex
+    interaction succeeds, the result is the Intent of the bot. Conditions
+    are supported, but only the Equals operator is supported". Errors, in
+    the page's Action syntax order: `InputTimeLimitExceeded` "if there is no
+    response before the configured LexTimeoutSeconds", `NoMatchingError`,
+    `NoMatchingCondition` "If no specified condition evaluated to True".
+    "This action is available only in contact flows, transfer flows, and
+    customer queue flows. It is not available in whisper flows or hold
+    flows." The builder models the V2 form without `Media`; `NextAction`
+    mirrors the no-match branch as the same console block's DTMF form does,
+    to be confirmed against a console export, since none of the sample flows
+    carries a Lex bot.
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -578,6 +606,9 @@ UpdateContactData        { Name?, Description?, LanguageCode?, CustomerId?, Refe
 UpdateContactEventHooks  { EventHooks: { [hook]: flow } }   // exactly one entry; hook is one of the ten names
 MessageParticipantIteratively { Messages: ({ Text } | { SSML } | { PromptId } | { Media: { Uri, SourceType: "S3", MediaType: "Audio" } })[],
                            InterruptFrequencySeconds? }   // "30"; no NextAction; the loop holds the participant
+ConnectParticipantWithLexBot { PromptId? | Text? | SSML?, Media?, LexV2Bot: { AliasArn } | LexBot: { Name, Region, Alias },
+                           LexSessionAttributes?: { [k]: v }, LexInitializationData?: { InitialMessage },
+                           LexTimeoutSeconds?: { Text } }   // Text is "300"; the builder models the V2 form
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -647,7 +678,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 31 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 32 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

@@ -19,6 +19,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.GetParticipantInput]: "Interact",
   [ActionType.Wait]: "Interact",
   [ActionType.MessageParticipantIteratively]: "Interact",
+  [ActionType.ConnectParticipantWithLexBot]: "Interact",
   [ActionType.UpdateContactTargetQueue]: "Set",
   [ActionType.UpdateContactAttributes]: "Set",
   [ActionType.UpdateContactRecordingBehavior]: "Set",
@@ -72,6 +73,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.GetParticipantInput]: "menu",
   [ActionType.Wait]: "wait",
   [ActionType.MessageParticipantIteratively]: "loop-prompts",
+  [ActionType.ConnectParticipantWithLexBot]: "lex-bot",
   [ActionType.DisconnectParticipant]: "disconnect",
   [ActionType.CheckHoursOfOperation]: "check-hours",
   [ActionType.Compare]: "compare",
@@ -120,6 +122,11 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { ComparisonValue: "$.Attributes.value" };
     case ActionType.MessageParticipantIteratively:
       return { Messages: [{ Text: "Please hold." }] };
+    case ActionType.ConnectParticipantWithLexBot:
+      // The bot is omitted rather than blank: the inspector's JSON field
+      // takes { AliasArn: <token or JSONPath> }, and the block is generic
+      // until it has one.
+      return { Text: "How can I help you today?" };
     case ActionType.Wait:
       // A minute; the page states no console default. Events are added in
       // the inspector before their branches are dragged.

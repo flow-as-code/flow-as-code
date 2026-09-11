@@ -45,6 +45,7 @@ export const ActionType = {
   UpdateContactData: "UpdateContactData",
   UpdateContactEventHooks: "UpdateContactEventHooks",
   MessageParticipantIteratively: "MessageParticipantIteratively",
+  ConnectParticipantWithLexBot: "ConnectParticipantWithLexBot",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -74,6 +75,9 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.GetParticipantInput]: { PromptId: "prompt" },
   // A list-valued path: the PromptId of every message in the loop.
   [ActionType.MessageParticipantIteratively]: { "Messages[].PromptId": "prompt" },
+  // The V2 bot's alias ARN, nested; the V1 LexBot form names a bot and alias
+  // by name and region, which is not what the lex reference type binds.
+  [ActionType.ConnectParticipantWithLexBot]: { PromptId: "prompt", "LexV2Bot.AliasArn": "lex" },
 };
 
 /**
@@ -196,6 +200,15 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // is the only form the builder emits; the order is the admin page's example.
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
   [ActionType.GetParticipantInput]: [INPUT_TIME_LIMIT_EXCEEDED, NO_MATCHING_CONDITION],
+  // The page's Action syntax block, catch-all in the middle: "InputTimeLimitExceeded:
+  // if there is no response before the configured LexTimeoutSeconds",
+  // "NoMatchingCondition: If no specified condition evaluated to True".
+  // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html
+  [ActionType.ConnectParticipantWithLexBot]: [
+    INPUT_TIME_LIMIT_EXCEEDED,
+    NO_MATCHING_ERROR,
+    NO_MATCHING_CONDITION,
+  ],
 };
 
 // The Restrictions section of an action page names flow types in the console's
@@ -259,6 +272,17 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // Hold flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html
   [ActionType.MessageParticipantIteratively]: [...CUSTOMER_QUEUE, ...HOLD, ...IN_MODULE],
+  // "This action is available only in contact flows, transfer flows, and
+  // customer queue flows. It is not available in whisper flows or hold flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html
+  // The admin guide's block page also marks the outbound whisper flow; the
+  // action page governs.
+  [ActionType.ConnectParticipantWithLexBot]: [
+    ...INBOUND,
+    ...TRANSFER,
+    ...CUSTOMER_QUEUE,
+    ...IN_MODULE,
+  ],
   // "This action is supported for all channels and in contact flows, transfer
   // flows, and customer queue flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-disconnectparticipant.html
@@ -569,6 +593,16 @@ export type EventHook = (typeof EVENT_HOOKS)[number];
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html
  */
 export const MESSAGES_INTERRUPTED = "MessagesInterrupted";
+
+/**
+ * ConnectParticipantWithLexBot.LexTimeoutSeconds.Text, "the length of Lex
+ * timer in second", bounded by the console's Chat timeout field: "Minimum: 1
+ * minute Maximum: 7 days".
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
+ */
+export const LEX_TIMEOUT_MIN = 60;
+export const LEX_TIMEOUT_MAX = 604_800;
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

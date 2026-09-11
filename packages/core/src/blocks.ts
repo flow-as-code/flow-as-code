@@ -30,6 +30,8 @@ import {
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
+  LEX_TIMEOUT_MAX,
+  LEX_TIMEOUT_MIN,
   LOOP_CONTINUE,
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
@@ -247,6 +249,89 @@ export class MessageParticipantIteratively extends Block {
             },
           ];
     return wire(undefined, errors, conditions);
+  }
+}
+
+/** An Amazon Lex intent and where the flow goes when the bot returns it. */
+export interface IntentBranch {
+  name: string;
+  target: Target;
+}
+
+/**
+ * Connects the participant with an Amazon Lex V2 bot: "When the interaction
+ * is over, the Intent and Slots of the bot are available to the flow during
+ * its run." An optional body (text, SSML or a prompt) plays first; `bot` is
+ * the V2 alias ARN (LexV2Bot.AliasArn, "May be specified statically or
+ * dynamically"); `intents` branch on the Intent the bot returns ("only the
+ * Equals operator is supported"); `timeoutSeconds` is LexTimeoutSeconds
+ * (60 to 604800, written as the page's string); `sessionAttributes` and
+ * `initialMessage` are passed to the bot. The three errors are wired in the
+ * page's Action syntax order and NextAction mirrors the no-match branch, as
+ * the same console block does in its DTMF form; a console export should
+ * confirm the mirror. The V1 LexBot form and Media round-trip as a
+ * GenericBlock.
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
+ */
+export type ConnectParticipantWithLexBotConfig = {
+  id: string;
+  bot: Ref<"lex"> | JsonPath;
+  sessionAttributes?: Record<string, string>;
+  initialMessage?: string;
+  timeoutSeconds?: number;
+  intents: IntentBranch[];
+  onNoMatch: Target;
+  onError: Target;
+  onTimeout: Target;
+} & (MessageBody | { text?: never; ssml?: never; prompt?: never });
+
+export class ConnectParticipantWithLexBot extends Block {
+  readonly type = ActionType.ConnectParticipantWithLexBot;
+
+  constructor(private readonly config: ConnectParticipantWithLexBotConfig) {
+    super(config.id);
+    const t = config.timeoutSeconds;
+    if (t !== undefined && (!Number.isInteger(t) || t < LEX_TIMEOUT_MIN || t > LEX_TIMEOUT_MAX)) {
+      throw new Error(
+        `ConnectParticipantWithLexBot "${config.id}" timeoutSeconds must be an integer between ${LEX_TIMEOUT_MIN} and ${LEX_TIMEOUT_MAX}, got ${t}.`,
+      );
+    }
+    for (const i of config.intents) {
+      if (typeof i.name !== "string") {
+        throw new Error(
+          `ConnectParticipantWithLexBot "${config.id}" intent names must be strings.`,
+        );
+      }
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const p: Record<string, unknown> = {};
+    if (c.text !== undefined) p.Text = c.text;
+    else if (c.ssml !== undefined) p.SSML = c.ssml;
+    else if (c.prompt !== undefined) p.PromptId = c.prompt;
+    p.LexV2Bot = { AliasArn: c.bot };
+    if (c.sessionAttributes !== undefined) p.LexSessionAttributes = c.sessionAttributes;
+    if (c.initialMessage !== undefined) {
+      p.LexInitializationData = { InitialMessage: c.initialMessage };
+    }
+    if (c.timeoutSeconds !== undefined) p.LexTimeoutSeconds = { Text: String(c.timeoutSeconds) };
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    return wire(
+      c.onNoMatch,
+      [
+        [INPUT_TIME_LIMIT_EXCEEDED, c.onTimeout],
+        [NO_MATCHING_ERROR, c.onError],
+        [NO_MATCHING_CONDITION, c.onNoMatch],
+      ],
+      c.intents.map((i) => ({ target: i.target, operator: "Equals", operands: [i.name] })),
+    );
   }
 }
 
@@ -1554,7 +1639,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 31.
+ * set survivable: 56 action types are documented and the builder models 32.
  */
 export interface GenericBlockConfig {
   id: string;

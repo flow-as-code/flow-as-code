@@ -387,6 +387,13 @@ describe("the action catalog", () => {
     // Listed but optional on the page, and absent from the console's hold flows.
     expect(requiredErrors("MessageParticipantIteratively")).toEqual([]);
     expect(builderErrors("MessageParticipantIteratively")).toEqual(["NoMatchingError"]);
+    // The page's Action syntax order, catch-all in the middle.
+    expect(builderErrors("ConnectParticipantWithLexBot")).toEqual([
+      "InputTimeLimitExceeded",
+      "NoMatchingError",
+      "NoMatchingCondition",
+    ]);
+    expect(requiredErrors("ConnectParticipantWithLexBot")).toEqual(["NoMatchingError"]);
     expect(builderErrors("CheckMetricData")).toEqual(["NoMatchingError", "NoMatchingCondition"]);
     expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);

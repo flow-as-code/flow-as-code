@@ -86,7 +86,11 @@ export const MESSAGE_BODY_KINDS = MESSAGE_BODY_KEYS;
  * the inspector renders the body mode switch for them.
  */
 export function hasMessageBody(type: string): boolean {
-  return type === ActionType.MessageParticipant || type === ActionType.GetParticipantInput;
+  return (
+    type === ActionType.MessageParticipant ||
+    type === ActionType.GetParticipantInput ||
+    type === ActionType.ConnectParticipantWithLexBot
+  );
 }
 
 /**
@@ -96,7 +100,9 @@ export function hasMessageBody(type: string): boolean {
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
  */
 export function bodyIsOptional(type: string): boolean {
-  return type === ActionType.GetParticipantInput;
+  return (
+    type === ActionType.GetParticipantInput || type === ActionType.ConnectParticipantWithLexBot
+  );
 }
 
 export function fieldsFor(type: string): FieldDesc[] | undefined {
@@ -131,6 +137,21 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.Compare:
       return [{ kind: "text", key: "ComparisonValue", label: "Comparison value (JSONPath)" }];
+    case ActionType.ConnectParticipantWithLexBot:
+      // Body rendered as for MessageParticipant, optional here. Intents are
+      // the condition editor, one Equals branch each. The bot is the V2 alias
+      // as { "AliasArn": "${cdref:lex:name}" } or a JSONPath; the V1 LexBot
+      // form is edited as a GenericBlock.
+      return [
+        { kind: "json", key: "LexV2Bot", label: "Lex V2 bot ({ AliasArn })" },
+        { kind: "json", key: "LexSessionAttributes", label: "Session attributes" },
+        {
+          kind: "json",
+          key: "LexInitializationData",
+          label: "Initialization ({ InitialMessage })",
+        },
+        { kind: "json", key: "LexTimeoutSeconds", label: "Timeout ({ Text: seconds })" },
+      ];
     case ActionType.MessageParticipantIteratively:
       // Messages is a list of one-key objects (Text, SSML, PromptId, or Media
       // with Uri, SourceType S3 and MediaType Audio). The interrupt frequency

@@ -5,58 +5,22 @@
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "get-input",
+    "StartAction": "create-task",
     "Actions": [
       {
-        "Identifier": "get-input",
-        "Type": "GetParticipantInput",
+        "Identifier": "create-task",
+        "Type": "CreateTask",
         "Parameters": {
-          "InputTimeLimitSeconds": 5,
-          "Text": "Press 1 for sales or 2 for support."
+          "Attributes": {
+            "CustomerPhoneNumber": "$.CustomerEndpoint.Address",
+            "queue": "${cdref:queue:support}"
+          },
+          "ContactFlowId": "${cdref:flow:task-flow}",
+          "Description": "A task for the agent, with the customer's number.",
+          "Name": "Follow up"
         },
         "Transitions": {
-          "NextAction": "hand-off",
-          "Errors": [
-            {
-              "ErrorType": "NoMatchingError",
-              "NextAction": "hand-off"
-            },
-            {
-              "ErrorType": "InputTimeLimitExceeded",
-              "NextAction": "hand-off"
-            }
-          ],
-          "Conditions": [
-            {
-              "NextAction": "sales-bot",
-              "Condition": {
-                "Operator": "Equals",
-                "Operands": [
-                  "1"
-                ]
-              }
-            },
-            {
-              "NextAction": "callback",
-              "Condition": {
-                "Operator": "Equals",
-                "Operands": [
-                  "2"
-                ]
-              }
-            }
-          ]
-        }
-      },
-      {
-        "Identifier": "sales-bot",
-        "Type": "ConnectParticipantWithLexBot",
-        "Parameters": {
-          "LexV2Bot": "${cdref:lex:sales-bot}",
-          "Text": "Connecting you to sales."
-        },
-        "Transitions": {
-          "NextAction": "hand-off",
+          "NextAction": "resume-participant",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
@@ -67,21 +31,41 @@
         }
       },
       {
-        "Identifier": "callback",
-        "Type": "UpdateContactCallbackNumber",
+        "Identifier": "resume-participant",
+        "Type": "UpdatePreviousContactParticipantState",
         "Parameters": {
-          "CallbackNumber": "$.StoredCustomerInput",
-          "Routing": {
-            "Depth": 2,
-            "Queues": [
-              "${cdref:queue:support}",
-              "${cdref:queue:overflow}"
-            ]
-          }
+          "PreviousContactParticipantState": "OffHold"
+        },
+        "Transitions": {
+          "NextAction": "transfer-third-party",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hand-off"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "transfer-third-party",
+        "Type": "TransferParticipantToThirdParty",
+        "Parameters": {
+          "ContinueFlowExecution": "True",
+          "ThirdPartyConnectionTimeLimitSeconds": "30",
+          "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
         },
         "Transitions": {
           "NextAction": "hand-off",
           "Errors": [
+            {
+              "ErrorType": "CallFailed",
+              "NextAction": "hand-off"
+            },
+            {
+              "ErrorType": "ConnectionTimeLimitExceeded",
+              "NextAction": "hand-off"
+            },
             {
               "ErrorType": "NoMatchingError",
               "NextAction": "hand-off"
@@ -92,40 +76,35 @@
       },
       {
         "Identifier": "hand-off",
-        "Type": "DisconnectParticipant",
+        "Type": "ResumeContact",
         "Parameters": {},
         "Transitions": {}
       }
     ]
   },
   "layout": {
-    "callback": {
-      "x": 280,
-      "y": 120
-    },
-    "get-input": {
+    "create-task": {
       "x": 20,
       "y": 20
     },
     "hand-off": {
-      "x": 540,
+      "x": 800,
       "y": 20
     },
-    "sales-bot": {
+    "resume-participant": {
       "x": 280,
+      "y": 20
+    },
+    "transfer-third-party": {
+      "x": 540,
       "y": 20
     }
   },
   "refs": [
     {
-      "token": "${cdref:lex:sales-bot}",
-      "type": "lex",
-      "name": "sales-bot"
-    },
-    {
-      "token": "${cdref:queue:overflow}",
-      "type": "queue",
-      "name": "overflow"
+      "token": "${cdref:flow:task-flow}",
+      "type": "flow",
+      "name": "task-flow"
     },
     {
       "token": "${cdref:queue:support}",

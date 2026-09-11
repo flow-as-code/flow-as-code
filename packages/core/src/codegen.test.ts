@@ -6,17 +6,18 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FlowAction, FlowDoc } from "./index.js";
 import {
+  ActionType,
+  canonicalize,
+  codegen,
   DisconnectParticipant,
+  factoryName,
   Flow,
   GenericBlock,
   GetParticipantInput,
   MessageParticipant,
   Refs,
-  UpdateContactAttributes,
-  canonicalize,
-  codegen,
-  factoryName,
   synth,
+  UpdateContactAttributes,
 } from "./index.js";
 
 const demoDoc = (): FlowDoc =>
@@ -614,17 +615,17 @@ describe("GetParticipantInput inverts only the shape the class emits", () => {
     );
   });
 
-  it("keeps the unknown-actions fixture's GetParticipantInput generic", () => {
-    // That fixture predates the block and carries a numeric timeout, no
-    // StoreInput, and only two of the three errors: none of it is the class's
-    // shape, and the fixture's round-trip test holds it verbatim.
-    const doc = JSON.parse(
-      readFileSync(
-        new URL("../../../conformance/roundtrip/unknown-actions/doc.flowdoc.json", import.meta.url),
-        "utf8",
-      ),
-    ) as FlowDoc;
-    generic(doc);
+  it("keeps a menu that predates the class generic: numeric timeout, two errors, no StoreInput", () => {
+    generic(
+      withMenu((a) => {
+        a.Parameters = { InputTimeLimitSeconds: 5, Text: "Press 1 for sales or 2 for support." };
+        a.Transitions.Errors = [
+          { ErrorType: "NoMatchingError", NextAction: "bye" },
+          { ErrorType: "InputTimeLimitExceeded", NextAction: "bye" },
+        ];
+        a.Transitions.NextAction = "bye";
+      }),
+    );
   });
 });
 
@@ -877,21 +878,6 @@ describe("UpdateContactCallbackNumber inverts a JSONPath number with its two nam
     generic((a) => {
       a.Parameters.Routing = { Depth: 2 };
     });
-  });
-
-  it("keeps the unknown-actions fixture's UpdateContactCallbackNumber generic", () => {
-    // It carries a Routing parameter no page documents and a NoMatchingError
-    // the page does not list, so it is not the class's shape and the
-    // fixture's round-trip test holds it verbatim.
-    const doc = JSON.parse(
-      readFileSync(
-        new URL("../../../conformance/roundtrip/unknown-actions/doc.flowdoc.json", import.meta.url),
-        "utf8",
-      ),
-    ) as FlowDoc;
-    const out = codegen(doc);
-    expect(out).toContain('type: "UpdateContactCallbackNumber"');
-    expect(out).not.toContain("new UpdateContactCallbackNumber(");
   });
 });
 
@@ -1603,6 +1589,109 @@ describe("MessageParticipantIteratively inverts the console's hold-loop and inte
     const asNumber = loop([{ Text: "hi" }], { seconds: "30", interrupt: true });
     asNumber.Parameters.InterruptFrequencySeconds = 30;
     generic(asNumber);
+  });
+});
+
+describe("ConnectParticipantWithLexBot inverts the V2 form with its intents", () => {
+  const lex = (parameters: Record<string, unknown>, intents: string[] = ["Sales"]): FlowAction => ({
+    Identifier: "bot",
+    Type: "ConnectParticipantWithLexBot",
+    Parameters: { LexV2Bot: { AliasArn: "${cdref:lex:sales-bot}" }, ...parameters },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "InputTimeLimitExceeded", NextAction: "bye" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "NoMatchingCondition", NextAction: "bye" },
+      ],
+      Conditions: intents.map((i) => ({
+        NextAction: "bye",
+        Condition: { Operator: "Equals", Operands: [i] },
+      })),
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new ConnectParticipantWithLexBot({");
+    expect(out).not.toContain('type: "ConnectParticipantWithLexBot"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "ConnectParticipantWithLexBot"');
+    expect(out).not.toContain("new ConnectParticipantWithLexBot(");
+  };
+
+  it("emits the bot alone, and every optional field with intents", () => {
+    const bare = typed(lex({}, []));
+    expect(bare).toContain('bot: Refs.lex("sales-bot")');
+    expect(bare).toContain("intents: []");
+    const full = typed(
+      lex(
+        {
+          Text: "How can I help?",
+          LexSessionAttributes: { channel: "$.Channel" },
+          LexInitializationData: { InitialMessage: "Hi" },
+          LexTimeoutSeconds: { Text: "300" },
+        },
+        ["Sales", "Support"],
+      ),
+    );
+    expect(full).toContain('text: "How can I help?"');
+    expect(full).toContain('sessionAttributes: { channel: "$.Channel" }');
+    expect(full).toContain('initialMessage: "Hi"');
+    expect(full).toContain("timeoutSeconds: 300");
+    expect(full).toContain('{ name: "Support", target: "bye" }');
+    expect(full).toContain('onTimeout: "bye"');
+    const dynamic = typed(lex({ PromptId: "${cdref:prompt:greeting}" }));
+    expect(dynamic).toContain('prompt: Refs.prompt("greeting")');
+    const byPath = lex({});
+    byPath.Parameters.LexV2Bot = { AliasArn: "$.Attributes.botAlias" };
+    expect(typed(byPath)).toContain('bot: jsonPath("$.Attributes.botAlias")');
+  });
+
+  it("falls back on the V1 form, Media, two bodies, a timeout out of range, a swapped error, or an unmirrored NextAction", () => {
+    const v1 = lex({});
+    v1.Parameters = { LexBot: { Name: "sales", Region: "us-east-1", Alias: "prod" } };
+    generic(v1);
+    generic(lex({ Media: { Uri: "s3://b/x", SourceType: "S3", MediaType: "Audio" } }));
+    generic(lex({ Text: "hi", SSML: "<speak>hi</speak>" }));
+    generic(lex({ LexTimeoutSeconds: { Text: "59" } }));
+    generic(lex({ LexTimeoutSeconds: { Text: 300 } }));
+    const swapped = lex({});
+    swapped.Transitions.Errors = [
+      swapped.Transitions.Errors![1]!,
+      swapped.Transitions.Errors![0]!,
+      swapped.Transitions.Errors![2]!,
+    ];
+    generic(swapped);
+    const unmirrored = lex({});
+    unmirrored.Transitions.NextAction = "bot";
+    generic(unmirrored);
+  });
+});
+
+describe("the unknown-actions fixture holds only types the builder does not model", () => {
+  it("emits a GenericBlock for every action, tokens kept verbatim", () => {
+    const doc = JSON.parse(
+      readFileSync(
+        new URL("../../../conformance/roundtrip/unknown-actions/doc.flowdoc.json", import.meta.url),
+        "utf8",
+      ),
+    ) as FlowDoc;
+    for (const a of doc.content.Actions) {
+      expect(Object.values(ActionType) as string[]).not.toContain(a.Type);
+    }
+    const out = codegen(doc);
+    expect(out.match(/new GenericBlock\(/g)).toHaveLength(doc.content.Actions.length);
+    expect(out).toContain('"${cdref:flow:task-flow}"');
+    expect(out).not.toContain("Refs.");
   });
 });
 

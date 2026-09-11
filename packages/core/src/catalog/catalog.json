@@ -885,7 +885,204 @@
     "ConnectParticipantWithLexBot": {
       "category": "participant",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html",
-      "modeled": false
+      "modeled": true,
+      "block": "connect_participant_with_lex_bot",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "PromptId",
+          "attr": "prompt_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "prompt"
+        },
+        {
+          "key": "Text",
+          "attr": "text",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "key": "SSML",
+          "attr": "ssml",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "key": "Media",
+          "attr": "media",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "Uri",
+              "attr": "uri",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "SourceType",
+              "attr": "source_type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "S3"
+              ]
+            },
+            {
+              "key": "MediaType",
+              "attr": "media_type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "Audio"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "LexV2Bot",
+          "attr": "lex_v2_bot",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "AliasArn",
+              "attr": "alias_arn",
+              "kind": "ref",
+              "required": true,
+              "ref": "lex"
+            }
+          ]
+        },
+        {
+          "key": "LexBot",
+          "attr": "lex_bot",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "Name",
+              "attr": "name",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "Region",
+              "attr": "region",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "Alias",
+              "attr": "alias",
+              "kind": "string",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "LexSessionAttributes",
+          "attr": "lex_session_attributes",
+          "kind": "map",
+          "required": false
+        },
+        {
+          "key": "LexInitializationData",
+          "attr": "lex_initialization_data",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "InitialMessage",
+              "attr": "initial_message",
+              "kind": "string",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "LexTimeoutSeconds",
+          "attr": "lex_timeout_seconds",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "Text",
+              "attr": "text",
+              "kind": "integerString",
+              "required": true,
+              "min": 60,
+              "max": 604800
+            }
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "PromptId",
+            "Text",
+            "SSML"
+          ]
+        },
+        {
+          "rule": "exactlyOne",
+          "keys": [
+            "LexBot",
+            "LexV2Bot"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "PromptId",
+          "ref": "prompt"
+        },
+        {
+          "path": "LexV2Bot.AliasArn",
+          "ref": "lex"
+        }
+      ],
+      "textBodies": [
+        "Text",
+        "SSML"
+      ],
+      "announces": [
+        "PromptId",
+        "Text",
+        "SSML"
+      ],
+      "transitions": {
+        "next": "mirrors:error:NoMatchingCondition",
+        "conditions": "enum",
+        "errors": [
+          {
+            "type": "InputTimeLimitExceeded",
+            "required": false,
+            "builder": true,
+            "when": "LexTimeoutSeconds is set"
+          },
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "NoMatchingCondition",
+            "required": false,
+            "builder": true
+          }
+        ]
+      }
     },
     "DisconnectParticipant": {
       "category": "participant",

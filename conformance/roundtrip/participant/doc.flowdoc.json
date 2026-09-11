@@ -59,11 +59,95 @@
           "Text": "Still waiting? An agent will be right with you."
         },
         "Transitions": {
-          "NextAction": "hold-music",
+          "NextAction": "ask-intent",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
               "NextAction": "end"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ask-intent",
+        "Type": "ConnectParticipantWithLexBot",
+        "Parameters": {
+          "LexInitializationData": {
+            "InitialMessage": "Hi"
+          },
+          "LexSessionAttributes": {
+            "channel": "$.Channel"
+          },
+          "LexTimeoutSeconds": {
+            "Text": "300"
+          },
+          "LexV2Bot": {
+            "AliasArn": "${cdref:lex:sales-bot}"
+          },
+          "Text": "How can I help while you wait?"
+        },
+        "Transitions": {
+          "NextAction": "hold-quietly",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-quietly"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "hold-music",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Sales"
+                ]
+              }
+            },
+            {
+              "NextAction": "ask-again",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Support"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "ask-again",
+        "Type": "ConnectParticipantWithLexBot",
+        "Parameters": {
+          "LexV2Bot": {
+            "AliasArn": "$.Attributes.botAlias"
+          },
+          "PromptId": "${cdref:prompt:greeting}"
+        },
+        "Transitions": {
+          "NextAction": "hold-music",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-music"
             }
           ],
           "Conditions": []
@@ -93,8 +177,16 @@
     ]
   },
   "layout": {
-    "end": {
+    "ask-again": {
+      "x": 800,
+      "y": 120
+    },
+    "ask-intent": {
       "x": 540,
+      "y": 20
+    },
+    "end": {
+      "x": 1060,
       "y": 20
     },
     "hold-music": {
@@ -102,15 +194,25 @@
       "y": 20
     },
     "hold-quietly": {
-      "x": 280,
+      "x": 800,
       "y": 20
     },
     "still-waiting": {
       "x": 280,
-      "y": 120
+      "y": 20
     }
   },
   "refs": [
+    {
+      "token": "${cdref:lex:sales-bot}",
+      "type": "lex",
+      "name": "sales-bot"
+    },
+    {
+      "token": "${cdref:prompt:greeting}",
+      "type": "prompt",
+      "name": "greeting"
+    },
     {
       "token": "${cdref:prompt:hold-music}",
       "type": "prompt",

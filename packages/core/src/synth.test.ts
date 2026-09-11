@@ -16,6 +16,7 @@ import {
   canonicalOrder,
   CheckMetricData,
   collectRefs,
+  ConnectParticipantWithLexBot,
   CreateCallbackContact,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
@@ -733,6 +734,44 @@ describe("guardrails", () => {
         Conditions: [
           { NextAction: "i", Condition: { Operator: "Equals", Operands: ["MessagesInterrupted"] } },
         ],
+      },
+    });
+  });
+
+  it("rejects a Lex timeout outside 60 to 604800 seconds and writes the page's shape", () => {
+    const base = {
+      id: "b",
+      bot: Refs.lex("sales-bot"),
+      intents: [{ name: "Sales", target: "s" }],
+      onNoMatch: "n",
+      onError: "e",
+      onTimeout: "t",
+    };
+    expect(() => new ConnectParticipantWithLexBot({ ...base, timeoutSeconds: 59 })).toThrow(
+      /between 60 and 604800/,
+    );
+    expect(
+      new ConnectParticipantWithLexBot({
+        ...base,
+        text: "How can I help?",
+        timeoutSeconds: 300,
+      }).toAction(),
+    ).toEqual({
+      Identifier: "b",
+      Type: "ConnectParticipantWithLexBot",
+      Parameters: {
+        Text: "How can I help?",
+        LexV2Bot: { AliasArn: "${cdref:lex:sales-bot}" },
+        LexTimeoutSeconds: { Text: "300" },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "InputTimeLimitExceeded", NextAction: "t" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoMatchingCondition", NextAction: "n" },
+        ],
+        Conditions: [{ NextAction: "s", Condition: { Operator: "Equals", Operands: ["Sales"] } }],
       },
     });
   });

@@ -487,6 +487,26 @@ describe("FlowDoc schema rejections: participant", () => {
         ];
       }),
     ],
+    [
+      "a Lex bot with both a text and an SSML body",
+      mutate("ask-intent", (a) => {
+        a.Parameters.SSML = "<speak>hi</speak>";
+      }),
+    ],
+    [
+      "a Lex bot alias as a literal ARN",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexV2Bot = {
+          AliasArn: "arn:aws:lex:us-east-1:111122223333:bot-alias/BOT/ALIAS",
+        };
+      }),
+    ],
+    [
+      "a Lex timeout written as a JSON number",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexTimeoutSeconds = { Text: 300 };
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

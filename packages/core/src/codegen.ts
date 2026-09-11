@@ -30,6 +30,8 @@ import {
   EVENT_HOOKS,
   INPUT_TIME_LIMIT_EXCEEDED,
   INVALID_CALLBACK_NUMBER,
+  LEX_TIMEOUT_MAX,
+  LEX_TIMEOUT_MIN,
   LOOP_CONTINUE,
   LOOP_DONE,
   MESSAGES_INTERRUPTED,
@@ -61,6 +63,7 @@ import {
   CheckHoursOfOperation,
   CheckMetricData,
   Compare,
+  ConnectParticipantWithLexBot,
   CreateCallbackContact,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
@@ -534,6 +537,127 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       cls: "MessageParticipantIteratively",
       entries,
       block: new MessageParticipantIteratively(cast<never>(config)),
+    };
+  },
+
+  [ActionType.ConnectParticipantWithLexBot]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 3 ||
+      errors[0]!.ErrorType !== INPUT_TIME_LIMIT_EXCEEDED ||
+      errors[1]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[2]!.ErrorType !== NO_MATCHING_CONDITION
+    ) {
+      return undefined;
+    }
+    // The class mirrors NextAction onto the no-match branch.
+    if (t.NextAction !== errors[2]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (!conditions.every(isCondition)) return undefined;
+    for (const c of conditions) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+      if (typeof c.Condition.Operands[0] !== "string") return undefined;
+    }
+    const p = a.Parameters;
+    const optional = [
+      "PromptId",
+      "Text",
+      "SSML",
+      "LexSessionAttributes",
+      "LexInitializationData",
+      "LexTimeoutSeconds",
+    ];
+    if (!paramKeysAre(p, ["LexV2Bot"], optional)) return undefined;
+    const bodies = ["PromptId", "Text", "SSML"].filter((k) => p[k] !== undefined);
+    if (bodies.length > 1) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (bodies[0] === "Text" && typeof p.Text === "string") {
+      entries.push(["text", p.Text]);
+      config.text = p.Text;
+    } else if (bodies[0] === "SSML" && typeof p.SSML === "string") {
+      entries.push(["ssml", p.SSML]);
+      config.ssml = p.SSML;
+    } else if (bodies[0] === "PromptId") {
+      const ref = refSource(p.PromptId, "prompt", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["prompt", ref]);
+      config.prompt = p.PromptId;
+    } else if (bodies[0] !== undefined) {
+      return undefined;
+    }
+    const bot = p.LexV2Bot as Record<string, unknown> | null;
+    if (bot === null || typeof bot !== "object" || !paramKeysAre(bot, ["AliasArn"])) {
+      return undefined;
+    }
+    const botRef = refSource(bot.AliasArn, "lex", ctx);
+    if (botRef === undefined) return undefined;
+    entries.push(["bot", botRef]);
+    config.bot = bot.AliasArn;
+    if (p.LexSessionAttributes !== undefined) {
+      if (!isStringMap(p.LexSessionAttributes)) return undefined;
+      entries.push(["sessionAttributes", toV(p.LexSessionAttributes)]);
+      config.sessionAttributes = p.LexSessionAttributes;
+    }
+    if (p.LexInitializationData !== undefined) {
+      const init = p.LexInitializationData as Record<string, unknown> | null;
+      if (
+        init === null ||
+        typeof init !== "object" ||
+        !paramKeysAre(init, ["InitialMessage"]) ||
+        typeof init.InitialMessage !== "string"
+      ) {
+        return undefined;
+      }
+      entries.push(["initialMessage", init.InitialMessage]);
+      config.initialMessage = init.InitialMessage;
+    }
+    if (p.LexTimeoutSeconds !== undefined) {
+      const timeout = p.LexTimeoutSeconds as Record<string, unknown> | null;
+      if (timeout === null || typeof timeout !== "object" || !paramKeysAre(timeout, ["Text"])) {
+        return undefined;
+      }
+      const raw = timeout.Text;
+      if (typeof raw !== "string" || !/^[1-9][0-9]*$/.test(raw)) return undefined;
+      const seconds = Number(raw);
+      if (seconds < LEX_TIMEOUT_MIN || seconds > LEX_TIMEOUT_MAX) return undefined;
+      entries.push(["timeoutSeconds", seconds]);
+      config.timeoutSeconds = seconds;
+    }
+    const intents = conditions.map((c) => ({
+      name: cast<string>(c.Condition.Operands[0]),
+      target: c.NextAction,
+    }));
+    entries.push(
+      [
+        "intents",
+        new ArrV(
+          intents.map(
+            (i) =>
+              new ObjV([
+                ["name", i.name],
+                ["target", i.target],
+              ]),
+          ),
+        ),
+      ],
+      ["onNoMatch", errors[2]!.NextAction],
+      ["onError", errors[1]!.NextAction],
+      ["onTimeout", errors[0]!.NextAction],
+    );
+    return {
+      cls: "ConnectParticipantWithLexBot",
+      entries,
+      block: new ConnectParticipantWithLexBot(
+        cast<never>({
+          ...config,
+          intents,
+          onNoMatch: errors[2]!.NextAction,
+          onError: errors[1]!.NextAction,
+          onTimeout: errors[0]!.NextAction,
+        }),
+      ),
     };
   },
 

@@ -115,7 +115,8 @@ value, a tag removal, a voice change with a static and a dynamic engine, a
 contact data update with every Voice ID field and a minimal one, and an event
 hook set to a flow token and one set by JSONPath), and a customer queue flow of
 the participant actions (`participant`: a loop of prompts in every message
-kind with an interrupt, and one that holds the contact with nothing wired).
+kind with an interrupt, one that holds the contact with nothing wired, and a
+Lex V2 bot with intents, session attributes and a timeout, plus a bare one).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against
