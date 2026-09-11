@@ -7,8 +7,10 @@
 // references to be "either fully static or a single valid JSONPath
 // identifier". See conformance/flow-language/actions.md.
 
+import { REFERENCE_FIELDS } from "./actions.js";
 import type { RefEntry, RefType } from "./flowdoc.js";
 import { SLUG_PATTERN } from "./flowdoc.js";
+import { readPath, type PathHit } from "./paths.js";
 
 /**
  * A reference token, branded with the kind of resource it points at, so a
@@ -84,6 +86,28 @@ export function parseToken(value: string): RefEntry | undefined {
   const entry: RefEntry = { token: value, type: type as RefType, name: name! };
   if (alias !== undefined) entry.alias = alias;
   return entry;
+}
+
+// --- Reference-bearing paths -------------------------------------------------
+//
+// REFERENCE_FIELDS names each reference-bearing field by a catalog path (see
+// paths.ts), because the fields the modeled set grows into sit inside objects,
+// list elements and map values, which a flat key cannot name.
+
+/** A reference-bearing field of an action type, by path. */
+export interface RefPath {
+  path: string;
+  ref: RefType;
+}
+
+/** The reference-bearing paths of an action type, in table order; empty when it has none. */
+export function refPathsOf(type: string): RefPath[] {
+  return Object.entries(REFERENCE_FIELDS[type] ?? {}).map(([path, ref]) => ({ path, ref }));
+}
+
+/** Every value at a reference-bearing path within an action's Parameters. */
+export function readRefPath(params: Record<string, unknown>, path: string): PathHit[] {
+  return readPath(params, path);
 }
 
 // --- Reference map keys ------------------------------------------------------

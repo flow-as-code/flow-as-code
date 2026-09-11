@@ -203,11 +203,33 @@ and the admin page linked above. The full `AnalyticsBehavior` object is
 deliberately not transcribed here. Model it when A01 reaches it and transcribe
 then.
 
+## Machine-readable form
+
+`catalog.json`, beside this file, carries the same facts as data: every
+documented action type with its category and page URL, and for each modeled
+type its HCL block name, its parameters with their attribute names and kinds,
+its reference-bearing paths, whether it is terminal, the flow types it is
+legal in, the fields that play text, and the errors and conditions it
+carries. Recorded 2026-09-11. It is the file a second implementation
+generates its schema from, and `packages/core/src/catalog.test.ts` holds
+every table in `packages/core/src/actions.ts` to it, so the prose here, the
+data, and the code cannot disagree. Add a type to both files in the same
+commit; the test says which one is behind.
+
+Attribute names are the mechanical `snake_case` of the Flow language key
+(`packages/core/src/hcl-names.ts`): `PromptId` is `prompt_id`,
+`LambdaFunctionARN` is `lambda_function_arn`, `LexV2Bot` is `lex_v2_bot`.
+Reference-bearing fields are named by dotted paths (`packages/core/src/paths.ts`),
+so a field inside an object (`LexV2Bot.AliasArn`), inside every element of a
+list (`Messages[].PromptId`), or as every value of a map (`EventHooks.*`) can
+be named where a flat key could not.
+
 ## Unmodeled actions
 
-49 action types are documented across the four category pages and the builder
-models 14 of them. Everything not in the modeled set above parses to a
-GenericBlock and round-trips verbatim. That is
-what makes a small modeled set survivable. The demo fixture deliberately
-includes one (`UpdateFlowLoggingBehavior`) so passthrough is exercised by
-default.
+56 action types are documented across the four category pages (27 contact, 6
+participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
+the 49 recorded on 2026-08-31) and the builder models 14 of them. Everything
+not in the modeled set above parses to a GenericBlock and round-trips
+verbatim. That is what makes a small modeled set survivable. The demo fixture
+deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is
+exercised by default.

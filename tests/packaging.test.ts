@@ -51,7 +51,9 @@ const PACKAGE_KEYWORDS: Readonly<Record<(typeof PACKAGES)[number], readonly stri
  * ENOENT on the first run of every npm install of it.
  */
 const REQUIRED_DATA_FILES: Readonly<Record<(typeof PACKAGES)[number], readonly string[]>> = {
-  core: [],
+  // The action catalog, imported by src/catalog.ts and so by the lint rules;
+  // tsc emits the JSON beside the compiled module.
+  core: ["dist/catalog/catalog.json"],
   cdk: [],
   cli: [
     "template/appointment-line.flowdoc.json",

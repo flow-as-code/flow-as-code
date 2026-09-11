@@ -575,7 +575,7 @@ export class InvokeLambdaFunction extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 49 action types are documented and the builder models 14.
+ * set survivable: 56 action types are documented and the builder models 14.
  */
 export interface GenericBlockConfig {
   id: string;

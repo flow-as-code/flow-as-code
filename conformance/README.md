@@ -6,6 +6,7 @@ directory and must pass identically.
 ```
 schema/flowdoc-0.1.schema.json    machine-readable FlowDoc definition
 flow-language/actions.md          Connect action types, shapes, and cited doc URLs
+flow-language/catalog.json        the same facts as data; a second implementation generates its schema from it
 demo/appointment-line.flowdoc.json  the canonical demo flow
 lint/README.md                    fixture format and the rule for adding one
 lint/<rule-id>/pass-*.json        FlowDoc producing no finding for the rule

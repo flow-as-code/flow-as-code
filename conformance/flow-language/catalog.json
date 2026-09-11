@@ -1,0 +1,1154 @@
+{
+  "catalog": "0.1",
+  "recorded": "2026-09-11",
+  "flowLanguage": {
+    "version": "2019-10-30",
+    "root": "https://docs.aws.amazon.com/connect/latest/devguide/flow-language.html",
+    "actions": "https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions.html"
+  },
+  "categories": {
+    "contact": {
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions.html",
+      "types": [
+        "CompleteOutboundCall",
+        "CreateCase",
+        "CreateTask",
+        "CreateWisdomSession",
+        "DequeueContactAndTransferToQueue",
+        "EndFlowModuleExecution",
+        "GetCase",
+        "InvokeFlowModule",
+        "StartOutboundChatContact",
+        "TagContact",
+        "TransferContactToAgent",
+        "TransferContactToQueue",
+        "UnTagContact",
+        "UpdateCase",
+        "UpdateContactAttributes",
+        "UpdateContactCallbackNumber",
+        "UpdateContactData",
+        "UpdateContactEventHooks",
+        "UpdateContactMediaProcessing",
+        "UpdateContactMediaStreamingBehavior",
+        "UpdateContactRecordingAndAnalyticsBehavior",
+        "UpdateContactRecordingBehavior",
+        "ResumeContact",
+        "UpdateContactRoutingBehavior",
+        "UpdateContactTargetQueue",
+        "UpdateContactTextToSpeechVoice",
+        "UpdatePreviousContactParticipantState"
+      ]
+    },
+    "participant": {
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions.html",
+      "types": [
+        "ConnectParticipantWithLexBot",
+        "DisconnectParticipant",
+        "GetParticipantInput",
+        "MessageParticipant",
+        "MessageParticipantIteratively",
+        "ShowView"
+      ]
+    },
+    "flowControl": {
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions.html",
+      "types": [
+        "CheckHoursOfOperation",
+        "CheckMetricData",
+        "CheckOutboundCallStatus",
+        "CheckVoiceId",
+        "Compare",
+        "DistributeByPercentage",
+        "EndFlowExecution",
+        "GetMetricData",
+        "Loop",
+        "StartVoiceIdStream",
+        "TransferToFlow",
+        "UpdateFlowAttributes",
+        "UpdateFlowLoggingBehavior",
+        "UpdateRoutingCriteria",
+        "Wait"
+      ]
+    },
+    "interaction": {
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions.html",
+      "types": [
+        "AssociateContactToCustomerProfile",
+        "CreateCallbackContact",
+        "CreateCustomerProfile",
+        "InvokeLambdaFunction",
+        "GetCustomerProfile",
+        "GetCustomerProfileObject",
+        "GetCalculatedAttributesForCustomerProfile",
+        "UpdateCustomerProfile"
+      ]
+    }
+  },
+  "refTypes": [
+    "queue",
+    "hours",
+    "lambda",
+    "lex",
+    "prompt",
+    "flow",
+    "module"
+  ],
+  "flowTypeGroups": {
+    "INBOUND": [
+      "CONTACT_FLOW"
+    ],
+    "TRANSFER": [
+      "AGENT_TRANSFER",
+      "QUEUE_TRANSFER"
+    ],
+    "WHISPER": [
+      "CUSTOMER_WHISPER",
+      "AGENT_WHISPER",
+      "OUTBOUND_WHISPER"
+    ],
+    "HOLD": [
+      "CUSTOMER_HOLD",
+      "AGENT_HOLD"
+    ],
+    "CUSTOMER_QUEUE": [
+      "CUSTOMER_QUEUE"
+    ],
+    "IN_MODULE": [
+      "MODULE"
+    ]
+  },
+  "actions": {
+    "CompleteOutboundCall": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html",
+      "modeled": false
+    },
+    "CreateCase": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/createcase.html",
+      "modeled": false
+    },
+    "CreateTask": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/createtask.html",
+      "modeled": false
+    },
+    "CreateWisdomSession": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html",
+      "modeled": false
+    },
+    "DequeueContactAndTransferToQueue": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html",
+      "modeled": false
+    },
+    "EndFlowModuleExecution": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/endflowmoduleexecution.html",
+      "modeled": true,
+      "block": "end_flow_module_execution",
+      "terminal": true,
+      "flowTypes": [
+        "MODULE"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "none",
+        "conditions": "none",
+        "errors": []
+      }
+    },
+    "GetCase": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/getcase.html",
+      "modeled": false
+    },
+    "InvokeFlowModule": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html",
+      "modeled": true,
+      "block": "invoke_flow_module",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "FlowModuleId",
+          "attr": "flow_module_id",
+          "kind": "ref",
+          "required": true,
+          "ref": "module"
+        }
+      ],
+      "refs": [
+        {
+          "path": "FlowModuleId",
+          "ref": "module"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "StartOutboundChatContact": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html",
+      "modeled": false
+    },
+    "TagContact": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html",
+      "modeled": false
+    },
+    "TransferContactToAgent": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html",
+      "modeled": false
+    },
+    "TransferContactToQueue": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoqueue.html",
+      "modeled": true,
+      "block": "transfer_contact_to_queue",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "QueueAtCapacity",
+            "required": false
+          },
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "UnTagContact": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html",
+      "modeled": false
+    },
+    "UpdateCase": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html",
+      "modeled": false
+    },
+    "UpdateContactAttributes": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html",
+      "modeled": true,
+      "block": "update_contact_attributes",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "Attributes",
+          "attr": "attributes",
+          "kind": "map",
+          "required": true
+        },
+        {
+          "key": "TargetContact",
+          "attr": "target_contact",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "Current",
+            "Related"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "UpdateContactCallbackNumber": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html",
+      "modeled": false
+    },
+    "UpdateContactData": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html",
+      "modeled": false
+    },
+    "UpdateContactEventHooks": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html",
+      "modeled": false
+    },
+    "UpdateContactMediaProcessing": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html",
+      "modeled": false
+    },
+    "UpdateContactMediaStreamingBehavior": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html",
+      "modeled": false
+    },
+    "UpdateContactRecordingAndAnalyticsBehavior": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html",
+      "modeled": false
+    },
+    "UpdateContactRecordingBehavior": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html",
+      "modeled": true,
+      "block": "update_contact_recording_behavior",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "OUTBOUND_WHISPER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "RecordingBehavior",
+          "attr": "recording_behavior",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "RecordedParticipants",
+              "attr": "recorded_participants",
+              "kind": "list",
+              "required": true,
+              "of": {
+                "kind": "enum",
+                "values": [
+                  "Agent",
+                  "Customer"
+                ]
+              }
+            },
+            {
+              "key": "ScreenRecordedParticipants",
+              "attr": "screen_recorded_participants",
+              "kind": "list",
+              "required": false,
+              "of": {
+                "kind": "enum",
+                "values": [
+                  "Agent"
+                ]
+              }
+            },
+            {
+              "key": "IVRRecordingBehavior",
+              "attr": "ivr_recording_behavior",
+              "kind": "enum",
+              "required": false,
+              "values": [
+                "Enabled",
+                "Disabled"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "AnalyticsBehavior",
+          "attr": "analytics_behavior",
+          "kind": "json",
+          "required": false
+        }
+      ],
+      "refs": [],
+      "recordingEnabler": "RecordingBehavior.RecordedParticipants",
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "ResumeContact": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html",
+      "modeled": false
+    },
+    "UpdateContactRoutingBehavior": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html",
+      "modeled": false
+    },
+    "UpdateContactTargetQueue": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttargetqueue.html",
+      "modeled": true,
+      "block": "update_contact_target_queue",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "QueueId",
+          "attr": "queue_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        },
+        {
+          "key": "AgentId",
+          "attr": "agent_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "QueueId",
+            "AgentId"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "QueueId",
+          "ref": "queue"
+        },
+        {
+          "path": "AgentId",
+          "ref": "queue"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "UpdateContactTextToSpeechVoice": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html",
+      "modeled": false
+    },
+    "UpdatePreviousContactParticipantState": {
+      "category": "contact",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html",
+      "modeled": false
+    },
+    "ConnectParticipantWithLexBot": {
+      "category": "participant",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html",
+      "modeled": false
+    },
+    "DisconnectParticipant": {
+      "category": "participant",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-disconnectparticipant.html",
+      "modeled": true,
+      "block": "disconnect_participant",
+      "terminal": true,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "none",
+        "conditions": "none",
+        "errors": []
+      }
+    },
+    "GetParticipantInput": {
+      "category": "participant",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html",
+      "modeled": true,
+      "block": "get_participant_input",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "PromptId",
+          "attr": "prompt_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "prompt"
+        },
+        {
+          "key": "Text",
+          "attr": "text",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "key": "SSML",
+          "attr": "ssml",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "key": "Media",
+          "attr": "media",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "Uri",
+              "attr": "uri",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "SourceType",
+              "attr": "source_type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "S3"
+              ]
+            },
+            {
+              "key": "MediaType",
+              "attr": "media_type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "Audio"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "InputTimeLimitSeconds",
+          "attr": "input_time_limit_seconds",
+          "kind": "integerString",
+          "required": true,
+          "min": 1,
+          "max": 180
+        },
+        {
+          "key": "StoreInput",
+          "attr": "store_input",
+          "kind": "enum",
+          "required": false,
+          "values": [
+            "True",
+            "False"
+          ]
+        },
+        {
+          "key": "InputValidation",
+          "attr": "input_validation",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "PhoneNumberValidation",
+              "attr": "phone_number_validation",
+              "kind": "object",
+              "required": false,
+              "fields": [
+                {
+                  "key": "NumberFormat",
+                  "attr": "number_format",
+                  "kind": "enum",
+                  "required": true,
+                  "values": [
+                    "Local",
+                    "E164"
+                  ]
+                },
+                {
+                  "key": "CountryCode",
+                  "attr": "country_code",
+                  "kind": "string",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "key": "CustomValidation",
+              "attr": "custom_validation",
+              "kind": "object",
+              "required": false,
+              "fields": [
+                {
+                  "key": "MaximumLength",
+                  "attr": "maximum_length",
+                  "kind": "integer",
+                  "required": true
+                }
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "rule": "exactlyOne",
+              "keys": [
+                "PhoneNumberValidation",
+                "CustomValidation"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "InputEncryption",
+          "attr": "input_encryption",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "EncryptionKeyId",
+              "attr": "encryption_key_id",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "Key",
+              "attr": "key",
+              "kind": "string",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "DTMFConfiguration",
+          "attr": "dtmf_configuration",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "InputTerminationSequence",
+              "attr": "input_termination_sequence",
+              "kind": "string",
+              "required": false
+            },
+            {
+              "key": "DisableCancelKey",
+              "attr": "disable_cancel_key",
+              "kind": "enum",
+              "required": false,
+              "values": [
+                "True",
+                "False"
+              ]
+            },
+            {
+              "key": "InterdigitTimeLimitSeconds",
+              "attr": "interdigit_time_limit_seconds",
+              "kind": "integerString",
+              "required": false,
+              "min": 1,
+              "max": 20
+            }
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "PromptId",
+            "Text",
+            "SSML"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "PromptId",
+          "ref": "prompt"
+        }
+      ],
+      "textBodies": [
+        "Text",
+        "SSML"
+      ],
+      "announces": [
+        "PromptId",
+        "Text",
+        "SSML"
+      ],
+      "transitions": {
+        "next": "mirrors:error:NoMatchingCondition",
+        "conditions": "dtmf",
+        "errors": [
+          {
+            "type": "InputTimeLimitExceeded",
+            "required": false
+          },
+          {
+            "type": "NoMatchingCondition",
+            "required": false,
+            "when": "StoreInput is \"False\" or absent"
+          },
+          {
+            "type": "NoMatchingError",
+            "required": true
+          },
+          {
+            "type": "InvalidPhoneNumber",
+            "required": false,
+            "when": "StoreInput is \"True\" and PhoneNumberValidation is specified"
+          }
+        ]
+      }
+    },
+    "MessageParticipant": {
+      "category": "participant",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipant.html",
+      "modeled": true,
+      "block": "message_participant",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_WHISPER",
+        "AGENT_WHISPER",
+        "OUTBOUND_WHISPER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "PromptId",
+          "attr": "prompt_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "prompt"
+        },
+        {
+          "key": "Text",
+          "attr": "text",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "key": "SSML",
+          "attr": "ssml",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "key": "Media",
+          "attr": "media",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "Uri",
+              "attr": "uri",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "SourceType",
+              "attr": "source_type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "S3"
+              ]
+            },
+            {
+              "key": "MediaType",
+              "attr": "media_type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "Audio"
+              ]
+            }
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "exactlyOne",
+          "keys": [
+            "PromptId",
+            "Text",
+            "SSML"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "PromptId",
+          "ref": "prompt"
+        }
+      ],
+      "textBodies": [
+        "Text",
+        "SSML"
+      ],
+      "announces": [
+        "PromptId",
+        "Text",
+        "SSML"
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "MessageParticipantIteratively": {
+      "category": "participant",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html",
+      "modeled": false
+    },
+    "ShowView": {
+      "category": "participant",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html",
+      "modeled": false
+    },
+    "CheckHoursOfOperation": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkhoursofoperation.html",
+      "modeled": true,
+      "block": "check_hours_of_operation",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "HoursOfOperationId",
+          "attr": "hours_of_operation_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "hours"
+        }
+      ],
+      "refs": [
+        {
+          "path": "HoursOfOperationId",
+          "ref": "hours"
+        }
+      ],
+      "transitions": {
+        "next": "mirrors:condition:False",
+        "conditions": "boolean",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "CheckMetricData": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html",
+      "modeled": false
+    },
+    "CheckOutboundCallStatus": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html",
+      "modeled": false
+    },
+    "CheckVoiceId": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkvoiceid.html",
+      "modeled": false
+    },
+    "Compare": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html",
+      "modeled": true,
+      "block": "compare",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ComparisonValue",
+          "attr": "comparison_value",
+          "kind": "jsonPath",
+          "required": true
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "none",
+        "conditions": "custom",
+        "errors": [
+          {
+            "type": "NoMatchingCondition",
+            "required": true
+          }
+        ]
+      }
+    },
+    "DistributeByPercentage": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html",
+      "modeled": false
+    },
+    "EndFlowExecution": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-endflowexecution.html",
+      "modeled": true,
+      "block": "end_flow_execution",
+      "terminal": true,
+      "flowTypes": [
+        "CUSTOMER_WHISPER",
+        "AGENT_WHISPER",
+        "OUTBOUND_WHISPER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "none",
+        "conditions": "none",
+        "errors": []
+      }
+    },
+    "GetMetricData": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html",
+      "modeled": false
+    },
+    "Loop": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html",
+      "modeled": false
+    },
+    "StartVoiceIdStream": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html",
+      "modeled": false
+    },
+    "TransferToFlow": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html",
+      "modeled": true,
+      "block": "transfer_to_flow",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "ContactFlowId",
+          "attr": "contact_flow_id",
+          "kind": "ref",
+          "required": true,
+          "ref": "flow"
+        }
+      ],
+      "refs": [
+        {
+          "path": "ContactFlowId",
+          "ref": "flow"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "UpdateFlowAttributes": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html",
+      "modeled": false
+    },
+    "UpdateFlowLoggingBehavior": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html",
+      "modeled": false
+    },
+    "UpdateRoutingCriteria": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html",
+      "modeled": false
+    },
+    "Wait": {
+      "category": "flowControl",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html",
+      "modeled": false
+    },
+    "AssociateContactToCustomerProfile": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html",
+      "modeled": false
+    },
+    "CreateCallbackContact": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html",
+      "modeled": false
+    },
+    "CreateCustomerProfile": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html",
+      "modeled": false
+    },
+    "InvokeLambdaFunction": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html",
+      "modeled": true,
+      "block": "invoke_lambda_function",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "LambdaFunctionARN",
+          "attr": "lambda_function_arn",
+          "kind": "ref",
+          "required": true,
+          "ref": "lambda"
+        },
+        {
+          "key": "InvocationTimeLimitSeconds",
+          "attr": "invocation_time_limit_seconds",
+          "kind": "integer",
+          "required": true,
+          "min": 1,
+          "max": 8
+        },
+        {
+          "key": "InvocationType",
+          "attr": "invocation_type",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "SYNCHRONOUS",
+            "ASYNCHRONOUS"
+          ]
+        },
+        {
+          "key": "LambdaInvocationAttributes",
+          "attr": "lambda_invocation_attributes",
+          "kind": "map",
+          "required": false
+        },
+        {
+          "key": "ResponseValidation",
+          "attr": "response_validation",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "ResponseType",
+              "attr": "response_type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "STRING_MAP",
+                "JSON"
+              ]
+            }
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "LambdaFunctionARN",
+          "ref": "lambda"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true
+          }
+        ]
+      }
+    },
+    "GetCustomerProfile": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html",
+      "modeled": false
+    },
+    "GetCustomerProfileObject": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html",
+      "modeled": false
+    },
+    "GetCalculatedAttributesForCustomerProfile": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html",
+      "modeled": false
+    },
+    "UpdateCustomerProfile": {
+      "category": "interaction",
+      "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html",
+      "modeled": false
+    }
+  }
+}

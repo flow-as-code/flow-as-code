@@ -21,3 +21,8 @@ packages/cli/schema/
 # conformance/demo/appointment-line.flowdoc.json, held to that by
 # packages/cli/src/init.test.ts.
 packages/cli/template/
+
+# A byte copy of conformance/flow-language/catalog.json, kept inside core so
+# the lint rules can read it in the studio's worker; held to the original by
+# packages/core/src/catalog.test.ts.
+packages/core/src/catalog/

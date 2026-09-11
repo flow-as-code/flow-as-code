@@ -6,7 +6,10 @@
 //
 // Every fact here is transcribed from conformance/flow-language/actions.md,
 // which cites a doc URL per entry. Do not add an entry without adding the
-// citation there first.
+// citation there first. The machine-readable twin of that document,
+// conformance/flow-language/catalog.json, carries the same facts for every
+// implementation, and catalog.test.ts holds every table in this file to it:
+// the tables stay here, readable and cited, and a divergence fails CI.
 
 import type { RefType } from "./flowdoc.js";
 
@@ -32,6 +35,11 @@ export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
 /**
  * Reference-bearing parameter fields, by action type. These are the only
  * places a `${cdref:...}` token may appear.
+ *
+ * Keys are catalog paths into Parameters (see paths.ts): a top-level key for
+ * every field in this table today, and `LexV2Bot.AliasArn`, `Messages[].PromptId`
+ * or `EventHooks.*` for the nested, list and map positions the modeled set
+ * grows into. `refPathsOf` and `readRefPath` in refs.ts read them.
  */
 export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, RefType>>>> = {
   [ActionType.UpdateContactTargetQueue]: { QueueId: "queue", AgentId: "queue" },

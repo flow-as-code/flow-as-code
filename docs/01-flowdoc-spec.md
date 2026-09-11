@@ -42,4 +42,5 @@ A FlowDoc is one JSON file per flow or module. It is Amazon Connect Flow languag
 
 - `conformance/schema/flowdoc-0.1.schema.json` is the machine-readable form of this document. The future Go provider validates against it.
 - `conformance/flow-language/actions.md` records the Connect action types, parameter shapes, and reference-bearing fields this format wraps, with a doc URL per entry.
+- `conformance/flow-language/catalog.json` is the machine-readable twin of that document: every documented type, and for each modeled one its HCL block and attribute names, kinds, reference paths, restrictions, and transitions. A second implementation generates its schema from it; `packages/core/src/catalog.test.ts` holds the TypeScript tables to it.
 - `conformance/demo/appointment-line.flowdoc.json` is the canonical demo used by synth, round-trip, emitter goldens, the studio, and the hosted demo.
