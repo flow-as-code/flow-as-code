@@ -215,7 +215,7 @@
             "CustomerReturned",
             "BotParticipantDisconnected"
           ],
-          "TimeoutSeconds": 300
+          "TimeLimitSeconds": "300"
         },
         "Transitions": {
           "NextAction": "bye",
@@ -264,7 +264,7 @@
         "Identifier": "wait-briefly",
         "Type": "Wait",
         "Parameters": {
-          "TimeoutSeconds": "$.Attributes.graceSeconds"
+          "TimeLimitSeconds": "$.Attributes.graceSeconds"
         },
         "Transitions": {
           "NextAction": "bye",

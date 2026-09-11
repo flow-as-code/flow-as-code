@@ -131,10 +131,11 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       return [
         {
           kind: "number",
-          key: "TimeoutSeconds",
+          key: "TimeLimitSeconds",
           label: "Timeout (seconds)",
           min: WAIT_TIMEOUT_MIN,
           max: WAIT_TIMEOUT_MAX,
+          asString: true,
         },
         {
           kind: "json",

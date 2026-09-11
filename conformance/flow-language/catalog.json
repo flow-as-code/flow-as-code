@@ -1341,9 +1341,9 @@
       "flowTypes": "unrestricted",
       "parameters": [
         {
-          "key": "TimeoutSeconds",
-          "attr": "timeout_seconds",
-          "kind": "integer",
+          "key": "TimeLimitSeconds",
+          "attr": "time_limit_seconds",
+          "kind": "integerString",
           "required": true,
           "min": 1,
           "max": 604800,

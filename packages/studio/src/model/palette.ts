@@ -108,7 +108,7 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // A minute; the page states no console default. Events are added in
       // the inspector before their branches are dragged.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
-      return { TimeoutSeconds: 60 };
+      return { TimeLimitSeconds: "60" };
     case ActionType.CheckMetricData:
       // The console's Check staffing block opens on its first status, agents
       // available. https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html

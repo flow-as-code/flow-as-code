@@ -282,9 +282,15 @@ describe("FlowDoc schema rejections: flow control", () => {
       }),
     ],
     [
-      "a wait longer than seven days",
+      "a wait of zero seconds",
       mutate("wait-for-customer", (a) => {
-        a.Parameters.TimeoutSeconds = 604_801;
+        a.Parameters.TimeLimitSeconds = "0";
+      }),
+    ],
+    [
+      "a wait written as a JSON number, which the console never writes",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.TimeLimitSeconds = 300;
       }),
     ],
     [
@@ -317,7 +323,7 @@ describe("FlowDoc schema rejections: flow control", () => {
 
   it("still accepts a JSONPath loop count and wait timeout", () => {
     const doc = mutate("wait-for-customer", (a) => {
-      a.Parameters.TimeoutSeconds = "$.Attributes.holdSeconds";
+      a.Parameters.TimeLimitSeconds = "$.Attributes.holdSeconds";
     });
     expect(validate(doc)).toBe(true);
   });

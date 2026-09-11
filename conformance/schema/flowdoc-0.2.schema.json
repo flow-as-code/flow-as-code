@@ -586,12 +586,11 @@
             "properties": {
               "Parameters": {
                 "properties": {
-                  "TimeoutSeconds": {
+                  "TimeLimitSeconds": {
                     "oneOf": [
                       {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 604800
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]*$"
                       },
                       {
                         "$ref": "#/$defs/jsonPath"

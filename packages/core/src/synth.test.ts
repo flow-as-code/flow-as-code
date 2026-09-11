@@ -457,7 +457,7 @@ describe("guardrails", () => {
       Identifier: "w",
       Type: "Wait",
       Parameters: {
-        TimeoutSeconds: 30,
+        TimeLimitSeconds: "30",
         Events: ["CustomerReturned", "BotParticipantDisconnected"],
       },
       Transitions: {

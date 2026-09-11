@@ -953,7 +953,7 @@ describe("Wait inverts the timeout, its events, and the conditional ParticipantN
   const wait = (events: string[], withBotError: boolean): FlowAction => ({
     Identifier: "hold",
     Type: "Wait",
-    Parameters: { TimeoutSeconds: 300, ...(events.length > 0 ? { Events: events } : {}) },
+    Parameters: { TimeLimitSeconds: "300", ...(events.length > 0 ? { Events: events } : {}) },
     Transitions: {
       NextAction: "bye",
       Errors: [
@@ -999,7 +999,7 @@ describe("Wait inverts the timeout, its events, and the conditional ParticipantN
     expect(both).toContain('BotParticipantDisconnected: "hold"');
     expect(both).toContain('onParticipantNotFound: "bye"');
     const dynamic = wait([], false);
-    dynamic.Parameters.TimeoutSeconds = "$.Attributes.holdSeconds";
+    dynamic.Parameters.TimeLimitSeconds = "$.Attributes.holdSeconds";
     expect(typed(dynamic)).toContain('timeoutSeconds: jsonPath("$.Attributes.holdSeconds")');
   });
 
@@ -1018,8 +1018,15 @@ describe("Wait inverts the timeout, its events, and the conditional ParticipantN
     ];
     generic(swapped);
     const tooLong = wait([], false);
-    tooLong.Parameters.TimeoutSeconds = 604_801;
+    tooLong.Parameters.TimeLimitSeconds = "604801";
     generic(tooLong);
+    const asNumber = wait([], false);
+    asNumber.Parameters.TimeLimitSeconds = 300;
+    generic(asNumber);
+    const pageKey = wait([], false);
+    delete pageKey.Parameters.TimeLimitSeconds;
+    pageKey.Parameters.TimeoutSeconds = "300";
+    generic(pageKey);
     const unmirrored = wait([], false);
     unmirrored.Transitions.NextAction = "hold";
     generic(unmirrored);

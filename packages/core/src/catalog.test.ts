@@ -89,7 +89,7 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
     InputTimeLimitSeconds: { min: INPUT_TIMEOUT_MIN, max: INPUT_TIMEOUT_MAX },
   },
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
-  Wait: { TimeoutSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
+  Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
 };
 
 const KINDS = new Set([

@@ -638,7 +638,7 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     ) {
       return undefined;
     }
-    if (!paramKeysAre(a.Parameters, ["TimeoutSeconds"], ["Events"])) return undefined;
+    if (!paramKeysAre(a.Parameters, ["TimeLimitSeconds"], ["Events"])) return undefined;
     const listed = a.Parameters.Events;
     const eventNames = events.map((c) => c.Condition.Operands[0]);
     // Events and their conditions name the same events, in the class's order.
@@ -653,16 +653,25 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     }
     const bot = eventNames.includes("BotParticipantDisconnected");
     if (bot !== (errors.length === 2)) return undefined;
-    const seconds = a.Parameters.TimeoutSeconds;
+    // The console's spelling: a decimal string, or a single JSONPath.
+    const raw = a.Parameters.TimeLimitSeconds;
+    if (typeof raw !== "string") return undefined;
+    let seconds: number | string;
     let secondsV: V;
-    if (typeof seconds === "number") {
-      if (!Number.isInteger(seconds) || seconds < WAIT_TIMEOUT_MIN || seconds > WAIT_TIMEOUT_MAX) {
+    if (/^[1-9][0-9]*$/.test(raw)) {
+      seconds = Number(raw);
+      if (
+        !Number.isSafeInteger(seconds) ||
+        seconds < WAIT_TIMEOUT_MIN ||
+        seconds > WAIT_TIMEOUT_MAX
+      ) {
         return undefined;
       }
       secondsV = seconds;
-    } else if (typeof seconds === "string" && /^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(seconds)) {
+    } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) {
+      seconds = raw;
       ctx.jsonPath = true;
-      secondsV = new Raw(`jsonPath(${quoteString(seconds)})`);
+      secondsV = new Raw(`jsonPath(${quoteString(raw)})`);
     } else {
       return undefined;
     }

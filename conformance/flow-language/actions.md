@@ -303,7 +303,13 @@ individual action pages linked above.
     or until a specified event happens, whichever happens first."
     `TimeoutSeconds` "can be either statically defined, or a single valid
     JSONPath identifier. If defined statically, this must be a positive
-    integer value no greater than 604800 (seven days)"; `Events` is "An
+    integer value no greater than 604800 (seven days)". That is the page's
+    name; the console writes the parameter as `TimeLimitSeconds` with a
+    decimal string value (`"TimeLimitSeconds": "900"` in its export of the
+    Sample disconnect flow), and what the console writes is what Connect
+    stores, so the catalog, the builder and the schema use `TimeLimitSeconds`
+    as an `integerString` and a `TimeoutSeconds` stays a GenericBlock.
+    `Events` is "An
     optional list of all events that can trigger an interrupt. The supported
     events currently are "CustomerReturned" and "BotParticipantDisconnected".
     This must be defined statically." Results: "If an event interrupts the
@@ -316,7 +322,7 @@ individual action pages linked above.
     currently is "BotParticipantDisconnected"", which the builder wires
     exactly when that event is waited for. "This is supported in every type
     of flow, but is supported only by the chat channel." The page does not
-    say whether `TimeoutSeconds` is required; the builder requires it. It
+    say whether the timeout is required; the builder requires it. It
     says nothing about `NextAction`; the builder mirrors it onto the
     catch-all, as the console's exported flows do for other actions, to be
     confirmed against an export. The admin guide's block has more (participant
@@ -420,7 +426,7 @@ CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, Maximum
                            RetryDelaySeconds, ContactFlowId?, CallerId? }   // the three counts are integer strings ("600")
 UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier, never static
 Loop                     { LoopCount }              // 0 to 100, static or a single JSONPath
-Wait                     { TimeoutSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }
+Wait                     { TimeLimitSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }   // the console's key; the page says TimeoutSeconds
 DistributeByPercentage   {}
 UpdateFlowAttributes     { FlowAttributes: { [k]: FlowAttribute } }   // value shape not documented; kept opaque
 CheckMetricData          { MetricType, QueueId? | AgentId? }

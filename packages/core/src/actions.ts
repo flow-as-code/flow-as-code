@@ -379,10 +379,15 @@ export const LOOP_CONTINUE = "ContinueLooping";
 export const LOOP_DONE = "DoneLooping";
 
 /**
- * Wait.TimeoutSeconds "must be a positive integer value no greater than
- * 604800 (seven days)" when static; the run results a Wait can branch on,
- * "WaitCompleted" always and each event in Events; and the events themselves.
+ * Wait's timeout "must be a positive integer value no greater than 604800
+ * (seven days)" when static. The page calls it TimeoutSeconds; the console
+ * writes it as TimeLimitSeconds, a decimal string (its export of the Sample
+ * disconnect flow carries "TimeLimitSeconds": "900"), and what the console
+ * writes is what Connect stores, so the builder uses that key. Also the run
+ * results a Wait can branch on, "WaitCompleted" always and each event in
+ * Events, and the events themselves.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/sample-disconnect-flow.html
  */
 export const WAIT_TIMEOUT_MIN = 1;
 export const WAIT_TIMEOUT_MAX = 604_800;

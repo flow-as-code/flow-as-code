@@ -432,8 +432,9 @@ export class Loop extends Block {
 }
 
 /**
- * Wait: pause for `timeoutSeconds` (1 to 604800, static or a single JSONPath)
- * or until one of the events in `onEvent` interrupts, whichever comes first.
+ * Wait: pause for `timeoutSeconds` (1 to 604800, static or a single JSONPath;
+ * written as the console's `TimeLimitSeconds` decimal string) or until one of
+ * the events in `onEvent` interrupts, whichever comes first.
  * Each event named in `onEvent` is written to Events and gets its Equals
  * condition; `onTimeout` is the WaitCompleted condition the page always
  * requires. `onParticipantNotFound` is required exactly when
@@ -482,7 +483,10 @@ export class Wait extends Block {
   }
 
   protected parameters(): Record<string, unknown> {
-    const p: Record<string, unknown> = { TimeoutSeconds: this.config.timeoutSeconds };
+    // The console's key and spelling (TimeLimitSeconds, a decimal string); the
+    // page's TimeoutSeconds is not what an export carries.
+    const t = this.config.timeoutSeconds;
+    const p: Record<string, unknown> = { TimeLimitSeconds: typeof t === "number" ? String(t) : t };
     const events = this.events();
     if (events.length > 0) p.Events = events;
     return p;
