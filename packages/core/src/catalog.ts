@@ -55,6 +55,11 @@ export interface CatalogElement {
   /** integer and integerString */
   min?: number;
   max?: number;
+  /**
+   * The page also accepts a single JSONPath identifier in this position
+   * ("fully static or fully dynamic"). The kind describes the static form.
+   */
+  dynamic?: boolean;
 }
 
 export interface CatalogParameter extends CatalogElement {
@@ -104,7 +109,11 @@ export type ConditionsKind = "none" | "fixed" | "dtmf" | "enum" | "numeric" | "c
 export interface CatalogTransitions {
   next: NextRule;
   conditions: ConditionsKind;
-  /** For kind fixed: the operands, in the order the builder emits them. */
+  /**
+   * For kind fixed: the operands, in the order the builder emits them. For
+   * kind enum: the operands the page names, when it names them, in the order
+   * the studio offers them.
+   */
   conditionOperands?: readonly string[];
   /** In the order the builder emits them. */
   errors: readonly CatalogError[];

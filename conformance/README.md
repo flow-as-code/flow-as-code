@@ -86,7 +86,7 @@ Actions, `Errors` and `Conditions` arrays present (possibly empty) on every
 non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 `layout` covering every action. A provider generates code from `doc.flowdoc.json`,
 executes it, synthesizes the result, and must get the same document back
-(ignoring `meta`). The eight cases cover the demo flow (`appointment-line`), a
+(ignoring `meta`). The nine cases cover the demo flow (`appointment-line`), a
 flow of entirely unmodeled action types with tokens inside parameters
 (`unknown-actions`), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
@@ -103,7 +103,8 @@ terminal transfer to an agent, a routing priority and a queue time
 adjustment, the one modeled action with no error branch, a callback number
 set from a JSONPath with its two named errors and no catch-all, and a
 callback contact in its full form, with a queue, a creation flow and a caller
-ID, and in its minimal one).
+ID, and in its minimal one), and a flow of the flow-control actions
+(`flow-control`: a Loop whose continue path is a back edge).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

@@ -114,18 +114,27 @@ function demoWithCompare(): FlowDoc {
 }
 
 describe("R2 both ends of rewireEdge are guarded, not just the source end", () => {
-  it("refuses moving a CheckHoursOfOperation branch to a new target", () => {
-    const refusal = refusalFrom(() =>
-      rewireEdge(demoDoc(), "check-hours:condition:1", "check-hours", "hang-up"),
-    );
-    expect(refusal?.blockIds).toEqual(["check-hours"]);
+  // A CheckHoursOfOperation's next edge and its out-of-hours branch are one
+  // path drawn twice (the block class mirrors NextAction onto Equals False),
+  // so moving either end moves both and the block stays typed. Before the
+  // mirror was read from the catalog these two rewires demoted the block and
+  // the guard refused them; the guard is still what would catch a half move.
+  it("moves a CheckHoursOfOperation branch and carries NextAction along", () => {
+    const next = rewireEdge(demoDoc(), "check-hours:condition:1", "check-hours", "hang-up")!;
+    expect(next).toBeDefined();
+    const check = next.content.Actions.find((a) => a.Identifier === "check-hours")!;
+    expect(check.Transitions.NextAction).toBe("hang-up");
+    expect(check.Transitions.Conditions?.[1]?.NextAction).toBe("hang-up");
+    expect(demotedIds(next).has("check-hours")).toBe(false);
   });
 
-  it("refuses moving a CheckHoursOfOperation next edge to a new target", () => {
-    const refusal = refusalFrom(() =>
-      rewireEdge(demoDoc(), "check-hours:next", "check-hours", "hang-up"),
-    );
-    expect(refusal?.blockIds).toEqual(["check-hours"]);
+  it("moves a CheckHoursOfOperation next edge and carries the branch along", () => {
+    const next = rewireEdge(demoDoc(), "check-hours:next", "check-hours", "hang-up")!;
+    expect(next).toBeDefined();
+    const check = next.content.Actions.find((a) => a.Identifier === "check-hours")!;
+    expect(check.Transitions.NextAction).toBe("hang-up");
+    expect(check.Transitions.Conditions?.[1]?.NextAction).toBe("hang-up");
+    expect(demotedIds(next).has("check-hours")).toBe(false);
   });
 
   it("still allows a target-end rewire that keeps the block expressible", () => {

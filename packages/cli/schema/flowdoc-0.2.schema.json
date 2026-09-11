@@ -544,6 +544,38 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "Loop"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "LoopCount": {
+                    "oneOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

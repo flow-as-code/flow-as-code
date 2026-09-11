@@ -147,6 +147,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
     expect([...FLOW_TYPE_UNRESTRICTED].sort()).toEqual([
       "Compare",
       "InvokeLambdaFunction",
+      "Loop",
       "UpdateContactAttributes",
     ]);
   });

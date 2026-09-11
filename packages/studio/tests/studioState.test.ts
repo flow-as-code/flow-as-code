@@ -6,7 +6,7 @@
 // can set it without a lint following is a way to disable Save forever.
 
 import { describe, expect, it } from "vitest";
-import { MutationRefused, moveNode, rewireEdge } from "../src/model/mutations.js";
+import { MutationRefused, moveNode, rewireEdge, setParam } from "../src/model/mutations.js";
 import {
   commit,
   initialState,
@@ -86,13 +86,13 @@ describe("commit", () => {
   it("turns a MutationRefused into the notice it carries", () => {
     const { actions, dispatch } = collect();
     const doc = demoDoc();
-    expect(
-      commit(dispatch, () => rewireEdge(doc, "check-hours:next", "check-hours", "hang-up"), "no"),
-    ).toBe(false);
+    // Deleting a message's body leaves a shape only GenericBlock holds, which
+    // the guard refuses.
+    expect(commit(dispatch, () => setParam(doc, "welcome", "Text", undefined), "no")).toBe(false);
     expect(actions).toHaveLength(1);
     const action = actions[0]!;
     expect(action.type).toBe("notice");
-    if (action.type === "notice") expect(action.message).toContain('"check-hours"');
+    if (action.type === "notice") expect(action.message).toContain('"welcome"');
   });
 
   it("explains an undefined result with the caller's message", () => {

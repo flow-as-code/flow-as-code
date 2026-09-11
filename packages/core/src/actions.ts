@@ -33,6 +33,7 @@ export const ActionType = {
   UpdateContactRoutingBehavior: "UpdateContactRoutingBehavior",
   CreateCallbackContact: "CreateCallbackContact",
   UpdateContactCallbackNumber: "UpdateContactCallbackNumber",
+  Loop: "Loop",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -99,10 +100,13 @@ export const CALLBACK_NUMBER_NOT_DIALABLE = "CallbackNumberNotDialable";
  *
  * UpdateContactRoutingBehavior: results "None", errors "None".
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
+ * Loop: errors "None"; its results are the two fixed conditions.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
  */
 export const WITHOUT_CATCH_ALL: readonly string[] = [
   ActionType.UpdateContactRoutingBehavior,
   ActionType.UpdateContactCallbackNumber,
+  ActionType.Loop,
 ];
 
 /**
@@ -271,11 +275,14 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * InvokeLambdaFunction: "None. This action is supported by all channels and in
  * all types of flows."
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html
+ * Loop: "This is supported in every type of flow."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
   ActionType.UpdateContactAttributes,
   ActionType.InvokeLambdaFunction,
+  ActionType.Loop,
 ];
 
 /**
@@ -298,6 +305,18 @@ export const QUEUE_PRIORITY_MIN = 1;
 export const CALLBACK_DELAY_MIN = 1;
 export const CALLBACK_DELAY_MAX = 259_200;
 export const CALLBACK_ATTEMPTS_MIN = 1;
+
+/**
+ * Loop.LoopCount "must be between 0 and 100 (inclusive)", and its two results,
+ * which are the exact conditions the page requires: "there must be a Condition
+ * provided for Equals ContinueLooping and for Equals DoneLooping, and no other
+ * Conditions can be specified."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
+ */
+export const LOOP_COUNT_MIN = 0;
+export const LOOP_COUNT_MAX = 100;
+export const LOOP_CONTINUE = "ContinueLooping";
+export const LOOP_DONE = "DoneLooping";
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

@@ -1134,7 +1134,31 @@
     "Loop": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html",
-      "modeled": false
+      "modeled": true,
+      "block": "loop",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "LoopCount",
+          "attr": "loop_count",
+          "kind": "integer",
+          "required": true,
+          "min": 0,
+          "max": 100,
+          "dynamic": true
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "mirrors:condition:DoneLooping",
+        "conditions": "fixed",
+        "conditionOperands": [
+          "ContinueLooping",
+          "DoneLooping"
+        ],
+        "errors": []
+      }
     },
     "StartVoiceIdStream": {
       "category": "flowControl",

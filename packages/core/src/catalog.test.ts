@@ -301,6 +301,8 @@ describe("the action catalog", () => {
     expect(requiredErrors("TransferContactToAgent")).toEqual([]);
     expect(requiredErrors("UpdateContactRoutingBehavior")).toEqual([]);
     expect(builderErrors("UpdateContactRoutingBehavior")).toEqual([]);
+    expect(requiredErrors("Loop")).toEqual([]);
+    expect(builderErrors("Loop")).toEqual([]);
     // No catch-all: both named errors are required and both are the builder's.
     expect(requiredErrors("UpdateContactCallbackNumber")).toEqual([
       "InvalidCallbackNumber",

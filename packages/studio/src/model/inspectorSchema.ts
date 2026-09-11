@@ -16,6 +16,8 @@ import {
   INPUT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
   LAMBDA_TIMEOUT_MIN,
+  LOOP_COUNT_MAX,
+  LOOP_COUNT_MIN,
   QUEUE_PRIORITY_MIN,
 } from "@flow-as-code/core";
 import { MESSAGE_BODY_KEYS } from "./mutations.js";
@@ -119,6 +121,18 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.Compare:
       return [{ kind: "text", key: "ComparisonValue", label: "Comparison value (JSONPath)" }];
+    case ActionType.Loop:
+      // The dynamic (JSONPath) form of the count is not offered here; a Loop
+      // carrying one is edited as a GenericBlock.
+      return [
+        {
+          kind: "number",
+          key: "LoopCount",
+          label: "Loop count",
+          min: LOOP_COUNT_MIN,
+          max: LOOP_COUNT_MAX,
+        },
+      ];
     case ActionType.TransferToFlow:
       return [{ kind: "ref", key: "ContactFlowId", label: "Flow", refType: "flow" }];
     case ActionType.UpdateContactTargetQueue:

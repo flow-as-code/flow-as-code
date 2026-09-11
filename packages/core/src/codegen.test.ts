@@ -887,6 +887,60 @@ describe("UpdateContactCallbackNumber inverts a JSONPath number with its two nam
   });
 });
 
+describe("Loop inverts the two fixed conditions with NextAction mirroring the done path", () => {
+  const loop = (count: unknown): FlowAction => ({
+    Identifier: "again",
+    Type: "Loop",
+    Parameters: { LoopCount: count },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [],
+      Conditions: [
+        { NextAction: "again", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
+        { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
+      ],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (edit: (a: FlowAction) => void, count: unknown = 2) => {
+    const a = loop(count);
+    edit(a);
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "Loop"');
+    expect(out).not.toContain("new Loop(");
+  };
+
+  it("emits a static count as a number and a dynamic one as jsonPath()", () => {
+    const out = codegen(docWith([loop(2), bye]));
+    expect(out).toContain("new Loop({");
+    expect(out).toContain("count: 2");
+    expect(out).toContain('onContinue: "again"');
+    expect(out).toContain('onDone: "bye"');
+    const dynamic = codegen(docWith([loop("$.Attributes.retries"), bye]));
+    expect(dynamic).toContain('count: jsonPath("$.Attributes.retries")');
+    expect(dynamic).toMatch(/import \{[^}]*jsonPath[^}]*\} from/);
+  });
+
+  it("falls back on a count out of range or spelled as a string, an error branch, swapped conditions, or an unmirrored NextAction", () => {
+    generic(() => {}, 101);
+    generic(() => {}, "2");
+    generic((a) => {
+      a.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    });
+    generic((a) => {
+      a.Transitions.Conditions = [a.Transitions.Conditions![1]!, a.Transitions.Conditions![0]!];
+    });
+    generic((a) => {
+      a.Transitions.NextAction = "again";
+    });
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

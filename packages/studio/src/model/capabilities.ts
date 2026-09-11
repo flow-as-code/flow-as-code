@@ -22,6 +22,7 @@ import {
   TERMINAL_ACTIONS,
   builderErrors,
   conditionsKind,
+  modeledEntry,
   nextRule,
 } from "@flow-as-code/core";
 import { isModeled } from "./palette.js";
@@ -63,26 +64,50 @@ export function isDtmfMenu(action: FlowAction): boolean {
 }
 
 /**
+ * What a type's NextAction mirrors, from the catalog's next rule: an error
+ * branch (a DTMF menu's NoMatchingCondition, a percentage split's default) or
+ * a condition branch (CheckHoursOfOperation's out-of-hours path, Loop's done
+ * path). The block class writes NextAction as a copy of that branch, the way
+ * the console does, and the mutations keep the two together (mirrorNext in
+ * mutations.ts). Undefined when NextAction is its own path or there is none.
+ */
+export type MirrorRule =
+  { kind: "error"; errorType: string } | { kind: "condition"; operand: string };
+
+export function mirrorRule(type: string): MirrorRule | undefined {
+  const rule = nextRule(type);
+  if (rule === undefined) return undefined;
+  const error = "mirrors:error:";
+  const condition = "mirrors:condition:";
+  if (rule.startsWith(error)) return { kind: "error", errorType: rule.slice(error.length) };
+  if (rule.startsWith(condition)) {
+    return { kind: "condition", operand: rule.slice(condition.length) };
+  }
+  return undefined;
+}
+
+/**
  * Whether a drag can author a NextAction on this action. Compare is modeled
  * with wire(undefined, ...): its paths are all conditions, and codegen rejects
  * the block outright when a NextAction is present
  * (`if (t.NextAction !== undefined) return undefined;`). A DTMF menu carries
- * one, but it is not authored: the block class writes it as a mirror of the
- * NoMatchingCondition branch, the way the console does, and the mutations
- * keep the two together (mirrorNoMatch in mutations.ts). A drag from its
- * primary handle means a key branch, never a bare NextAction. The
- * stored-input form of the same action has no branches, so there the drag
- * means the next action as it does on any other block.
+ * one, but it is not authored: it mirrors the NoMatchingCondition branch
+ * (mirrorRule), so a drag from its primary handle means a key branch, never a
+ * bare NextAction; the same holds for every type whose NextAction mirrors a
+ * branch. The stored-input form of GetParticipantInput has no branches, so
+ * there the drag means the next action as it does on any other block.
  */
 export function acceptsNextAction(action: FlowAction): boolean {
   if (isTerminalType(action.Type)) return false;
   if (action.Type === ActionType.GetParticipantInput) return !isDtmfMenu(action);
-  // The catalog's rule for the type: "none" is Compare and its kind (every
-  // path is a condition); a NextAction that mirrors an error branch is authored
-  // through that branch, as the menu's is; anything else takes a drag.
   const rule = nextRule(action.Type);
   if (rule === undefined) return true;
-  return rule !== "none" && !rule.startsWith("mirrors:error:");
+  return rule !== "none" && mirrorRule(action.Type) === undefined;
+}
+
+/** The operands the catalog lists for a fixed or enum kind, in the builder's order. */
+function listedOperands(type: string): readonly string[] {
+  return modeledEntry(type)?.transitions.conditionOperands ?? [];
 }
 
 /**
@@ -90,20 +115,21 @@ export function acceptsNextAction(action: FlowAction): boolean {
  *
  * Compare authors free-form branches and a DTMF menu authors one branch per
  * key (defaultConditionFor picks the key); the stored-input form of
- * GetParticipantInput has no branches at all. CheckHoursOfOperation carries
- * exactly two conditions fixed by its builder (Equals True, Equals False), so
- * a drag from it means the success path, not a third branch. An unmodeled
- * action that already carries conditions demonstrably uses them, and its
- * parameters and transitions are re-emitted verbatim, so a drag there means a
- * branch too.
+ * GetParticipantInput has no branches at all. A type with a fixed set of
+ * conditions (CheckHoursOfOperation's Equals True and Equals False, Loop's
+ * two results) takes one drag per operand, in the builder's order, and no
+ * more once every operand is wired. An unmodeled action that already carries
+ * conditions demonstrably uses them, and its parameters and transitions are
+ * re-emitted verbatim, so a drag there means a branch too.
  */
 export function acceptsConditions(action: FlowAction): boolean {
   if (isTerminalType(action.Type)) return false;
   if (action.Type === ActionType.GetParticipantInput) return isDtmfMenu(action);
   if (isModeled(action.Type)) {
-    // A fixed set of conditions is the block class's to write, not a drag's.
     const kind = conditionsKind(action.Type);
-    return kind !== undefined && kind !== "none" && kind !== "fixed";
+    if (kind === undefined || kind === "none") return false;
+    if (kind === "fixed") return defaultConditionFor(action) !== undefined;
+    return true;
   }
   return (action.Transitions.Conditions ?? []).length > 0;
 }
@@ -198,7 +224,9 @@ function usedKeys(action: FlowAction): Set<string> {
  * yet: its block class takes exactly one key per branch and the empty
  * placeholder is not a key, so handing a typed menu the Compare default would
  * have demoted it on every drag. Once all twelve keys are taken there is no
- * branch left to add.
+ * branch left to add. A fixed kind, and an enum kind whose page names its
+ * operands, get Equals on the first listed operand not yet wired, in the
+ * builder's order, for the same reason.
  */
 export function defaultConditionFor(action: FlowAction): Condition | undefined {
   const kind = conditionsKind(action.Type);
@@ -206,6 +234,12 @@ export function defaultConditionFor(action: FlowAction): Condition | undefined {
     const used = usedKeys(action);
     const key = DTMF_KEY_ORDER.find((k) => !used.has(k));
     return key === undefined ? undefined : { Operator: "Equals", Operands: [key] };
+  }
+  const listed = listedOperands(action.Type);
+  if ((kind === "fixed" || kind === "enum") && listed.length > 0) {
+    const used = usedKeys(action);
+    const operand = listed.find((o) => !used.has(o));
+    return operand === undefined ? undefined : { Operator: "Equals", Operands: [operand] };
   }
   // A numeric branch (a percentage split, a metric check) compares with an
   // operator its inspector can change; every other kind starts as the empty

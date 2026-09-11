@@ -51,6 +51,7 @@ import {
   isConditionOperator,
   isDtmfMenu,
   isTerminalType,
+  mirrorRule,
 } from "./capabilities.js";
 import { demotionDelta } from "./demotion.js";
 import type { ParsedEdgeId } from "./graph.js";
@@ -503,41 +504,75 @@ export const deleteBlock = guard(
 export type SourceHandle = "primary" | "error";
 
 /**
- * A GetParticipantInput's NextAction mirrors its NoMatchingCondition target.
- * The console writes both for the one "no match" path and the block class
- * emits both (@flow-as-code/core blocks.ts), so the canvas treats them as one path:
- * wiring or retargeting either side carries the other along. Without this,
- * wiring the no-match error left NextAction behind, and the only block shape
- * with the two apart is one GenericBlock can hold, so every menu would have
- * been refused or demoted at its last drag. Any other type is returned as is.
+ * Some types' NextAction mirrors another branch (capabilities.ts mirrorRule):
+ * a DTMF menu's NoMatchingCondition error, a CheckHoursOfOperation's
+ * out-of-hours condition, a Loop's done condition. The console writes both
+ * for the one path and the block class emits both (@flow-as-code/core
+ * blocks.ts), so the canvas treats them as one path: wiring or retargeting
+ * either side carries the other along. Without this, wiring the mirrored
+ * branch left NextAction behind, and the only block shape with the two apart
+ * is one GenericBlock can hold, so every such block would have been refused
+ * or demoted at its last drag. Any other type is returned as is.
  */
-function mirrorNoMatch(action: FlowAction): FlowAction {
-  const noMatch = noMatchTarget(action);
-  if (noMatch === undefined || action.Transitions.NextAction === noMatch) return action;
-  return { ...action, Transitions: { ...action.Transitions, NextAction: noMatch } };
+function mirrorNext(action: FlowAction): FlowAction {
+  const target = mirrorTarget(action);
+  if (target === undefined || action.Transitions.NextAction === target) return action;
+  return { ...action, Transitions: { ...action.Transitions, NextAction: target } };
 }
 
-/** Where a GetParticipantInput's NoMatchingCondition error goes, if wired. */
-function noMatchTarget(action: FlowAction): string | undefined {
-  if (action.Type !== ActionType.GetParticipantInput) return undefined;
-  return (action.Transitions.Errors ?? []).find((e) => e.ErrorType === NO_MATCHING_CONDITION)
-    ?.NextAction;
+/** Where the branch this type's NextAction mirrors goes, if that branch is wired. */
+function mirrorTarget(action: FlowAction): string | undefined {
+  const rule = mirrorRule(action.Type);
+  if (rule === undefined) return undefined;
+  // The stored-input form of GetParticipantInput has no branches to mirror.
+  if (action.Type === ActionType.GetParticipantInput && !isDtmfMenu(action)) return undefined;
+  if (rule.kind === "error") {
+    return (action.Transitions.Errors ?? []).find((e) => e.ErrorType === rule.errorType)
+      ?.NextAction;
+  }
+  return (action.Transitions.Conditions ?? []).find(
+    (c) => c.Condition.Operands.length === 1 && String(c.Condition.Operands[0]) === rule.operand,
+  )?.NextAction;
+}
+
+/** The mirrored branch retargeted along with NextAction, for a mirroring type. */
+function retargetMirrored(action: FlowAction, t: Transitions, target: string): Transitions {
+  const rule = mirrorRule(action.Type);
+  if (rule === undefined || mirrorTarget(action) === undefined) return t;
+  if (rule.kind === "error") {
+    return {
+      ...t,
+      Errors: (t.Errors ?? []).map((e) =>
+        e.ErrorType === rule.errorType ? { ...e, NextAction: target } : e,
+      ),
+    };
+  }
+  return {
+    ...t,
+    Conditions: (t.Conditions ?? []).map((c) =>
+      c.Condition.Operands.length === 1 && String(c.Condition.Operands[0]) === rule.operand
+        ? { ...c, NextAction: target }
+        : c,
+    ),
+  };
 }
 
 function appendCondition(doc: FlowDoc, action: FlowAction, target: string): FlowDoc | undefined {
   const condition = defaultConditionFor(action);
   if (condition === undefined) return undefined;
   return normalize(
-    withAction(doc, action.Identifier, (a) => ({
-      ...a,
-      Transitions: {
-        ...a.Transitions,
-        Conditions: [
-          ...(a.Transitions.Conditions ?? []),
-          { NextAction: target, Condition: condition },
-        ],
-      },
-    })),
+    withAction(doc, action.Identifier, (a) =>
+      mirrorNext({
+        ...a,
+        Transitions: {
+          ...a.Transitions,
+          Conditions: [
+            ...(a.Transitions.Conditions ?? []),
+            { NextAction: target, Condition: condition },
+          ],
+        },
+      }),
+    ),
   );
 }
 
@@ -559,7 +594,7 @@ function wireMissingError(doc: FlowDoc, action: FlowAction, target: string): Flo
   if (missing === undefined) return undefined;
   return normalize(
     withAction(doc, action.Identifier, (a) =>
-      mirrorNoMatch({
+      mirrorNext({
         ...a,
         Transitions: {
           ...a.Transitions,
@@ -677,13 +712,13 @@ export const removeCondition = guard(
 function removeEdge(doc: FlowDoc, parsed: ParsedEdgeId): FlowDoc {
   return withAction(doc, parsed.source, (a) => {
     const t = { ...a.Transitions };
-    // A menu's no-match path is drawn twice (mirrorNoMatch), so whichever half
+    // A menu's no-match path is drawn twice (mirrorNext), so whichever half
     // the user moves away takes the other with it; otherwise the path would
     // still be drawn from here as the edge left behind.
     if (parsed.kind === "next") {
       const leaving = t.NextAction;
       delete t.NextAction;
-      if (leaving !== undefined && noMatchTarget(a) === leaving) {
+      if (leaving !== undefined && mirrorTarget(a) === leaving) {
         t.Errors = (t.Errors ?? []).filter((e) => e.ErrorType !== NO_MATCHING_CONDITION);
       }
     }
@@ -731,21 +766,16 @@ export const rewireEdge = guard(
     if (oldSource === undefined || source === undefined) return undefined;
     if (getAction(doc, newTarget) === undefined) return undefined;
 
-    // Target-end rewire: same source, new destination. On a
-    // GetParticipantInput the next edge and the NoMatchingCondition edge are
-    // one path drawn twice, so moving either end moves both (mirrorNoMatch
-    // carries NextAction after the error; the error follows NextAction here).
+    // Target-end rewire: same source, new destination. On a type whose
+    // NextAction mirrors a branch the next edge and that branch are one path
+    // drawn twice, so moving either end moves both (mirrorNext carries
+    // NextAction after the branch; the branch follows NextAction here).
     if (newSource === parsed.source) {
       return normalize(
         withAction(doc, newSource, (a) => {
-          const t = { ...a.Transitions };
+          let t: Transitions = { ...a.Transitions };
           if (parsed.kind === "next") {
-            t.NextAction = newTarget;
-            if (a.Type === ActionType.GetParticipantInput) {
-              t.Errors = (t.Errors ?? []).map((e) =>
-                e.ErrorType === NO_MATCHING_CONDITION ? { ...e, NextAction: newTarget } : e,
-              );
-            }
+            t = retargetMirrored(a, { ...t, NextAction: newTarget }, newTarget);
           }
           if (parsed.kind === "error")
             t.Errors = (t.Errors ?? []).map((e, i) =>
@@ -755,7 +785,7 @@ export const rewireEdge = guard(
             t.Conditions = (t.Conditions ?? []).map((c, i) =>
               i === parsed.conditionIndex ? { ...c, NextAction: newTarget } : c,
             );
-          return mirrorNoMatch({ ...a, Transitions: t });
+          return mirrorNext({ ...a, Transitions: t });
         }),
       );
     }
@@ -769,25 +799,23 @@ export const rewireEdge = guard(
     // mirror below would otherwise replace the dropped target with it.
     if (parsed.kind === "next") {
       if (source.Transitions.NextAction !== undefined) return undefined;
-      const noMatch = noMatchTarget(source);
-      if (noMatch !== undefined && noMatch !== newTarget) return undefined;
+      const mirrored = mirrorTarget(source);
+      if (mirrored !== undefined && mirrored !== newTarget) return undefined;
     }
-    // The same path from the other side: a NoMatchingCondition error dropped
-    // on a GetParticipantInput becomes its next path too (the mirror below
-    // rewrites NextAction), so the drop is held to what a fresh error drag is
-    // held to (wireMissingError). The stored-input form cannot carry the error
-    // at all; a menu that already has one has nowhere to put a second; and a
-    // menu whose NextAction goes elsewhere would have it overwritten, the same
-    // clobber as the next-edge check above. The guard cannot stand in for
-    // these checks: the stored-input form and an unfinished menu are generic
-    // already, so there is nothing for it to see demoted.
-    if (
-      parsed.kind === "error" &&
-      parsed.errorType === NO_MATCHING_CONDITION &&
-      source.Type === ActionType.GetParticipantInput
-    ) {
-      if (!isDtmfMenu(source)) return undefined;
-      if (noMatchTarget(source) !== undefined) return undefined;
+    // The same path from the other side: the mirrored error dropped on a
+    // mirroring type (a NoMatchingCondition on a GetParticipantInput) becomes
+    // its next path too (the mirror below rewrites NextAction), so the drop
+    // is held to what a fresh error drag is held to (wireMissingError). The
+    // stored-input form cannot carry the error at all; a block that already
+    // has one has nowhere to put a second; and one whose NextAction goes
+    // elsewhere would have it overwritten, the same clobber as the next-edge
+    // check above. The guard cannot stand in for these checks: the
+    // stored-input form and an unfinished menu are generic already, so there
+    // is nothing for it to see demoted.
+    const rule = mirrorRule(source.Type);
+    if (parsed.kind === "error" && rule?.kind === "error" && rule.errorType === parsed.errorType) {
+      if (source.Type === ActionType.GetParticipantInput && !isDtmfMenu(source)) return undefined;
+      if (mirrorTarget(source) !== undefined) return undefined;
       const next = source.Transitions.NextAction;
       if (next !== undefined && next !== newTarget) return undefined;
     }
@@ -803,7 +831,7 @@ export const rewireEdge = guard(
         if (entry === undefined) return a;
         t.Conditions = [...(t.Conditions ?? []), { ...entry, NextAction: newTarget }];
       }
-      return mirrorNoMatch({ ...a, Transitions: t });
+      return mirrorNext({ ...a, Transitions: t });
     });
     return normalize(moved);
   },

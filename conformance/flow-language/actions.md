@@ -61,6 +61,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Change routing priority / age | `UpdateContactRoutingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html) |
 | TransferToQueue (Transfer to Callback tab) | `CreateCallbackContact` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html) |
 | Set callback number | `UpdateContactCallbackNumber` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html) |
+| Loop | `Loop` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -251,6 +252,24 @@ individual action pages linked above.
     automatically prepended", and says "The Store customer input block often
     comes before this block."
     https://docs.aws.amazon.com/connect/latest/adminguide/set-callback-number.html
+21. `Loop` (recorded 2026-09-11) "returns a result of "NotDone" a number of
+    times equal to the specified loop count, then "Done" once, then reset";
+    the results section names them `ContinueLooping` and `DoneLooping` and
+    that section governs: "there must be a Condition provided for Equals
+    ContinueLooping and for Equals DoneLooping, and no other Conditions can be
+    specified." `LoopCount` "must be between 0 and 100 (inclusive). Must
+    either be fully static or fully dynamic", so the catalog marks it
+    `dynamic` and the builder takes an integer or a single JSONPath. Errors
+    "None"; the admin guide's block has an Error branch with no documented
+    error type, so an exported Loop carrying one stays a GenericBlock. The
+    page says nothing about `NextAction`; the builder writes it as a mirror
+    of the `DoneLooping` path, the way `CheckHoursOfOperation` mirrors its
+    out-of-hours path, to be confirmed against a console export. "This is
+    supported in every type of flow." The admin guide adds: "If you enter 0
+    for the loop count, the Complete branch is followed the first time this
+    block runs", and describes an array-looping mode whose flow-language keys
+    the action page does not document.
+    https://docs.aws.amazon.com/connect/latest/adminguide/loop.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -290,6 +309,7 @@ UpdateContactRoutingBehavior { QueuePriority? | QueueTimeAdjustmentSeconds? }   
 CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, MaximumConnectionAttempts,
                            RetryDelaySeconds, ContactFlowId?, CallerId? }
 UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier, never static
+Loop                     { LoopCount }              // 0 to 100, static or a single JSONPath
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -338,6 +358,10 @@ queue) and any may be absent, and `neverBoth` when two independent settings
 merely conflict (a priority or a time adjustment). A second implementation
 treats the last two the same way; the distinction records what the page said.
 
+A parameter marked `dynamic` also accepts a single JSONPath identifier where
+its page says "fully static or fully dynamic"; the kind describes the static
+form, and the schema accepts either.
+
 Attribute names are the mechanical `snake_case` of the Flow language key
 (`packages/core/src/hcl-names.ts`): `PromptId` is `prompt_id`,
 `LambdaFunctionARN` is `lambda_function_arn`, `LexV2Bot` is `lex_v2_bot`.
@@ -350,7 +374,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 19 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 20 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

@@ -28,6 +28,10 @@ import {
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
+  LOOP_CONTINUE,
+  LOOP_COUNT_MAX,
+  LOOP_COUNT_MIN,
+  LOOP_DONE,
   LAMBDA_TIMEOUT_MIN,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
@@ -364,6 +368,56 @@ export class TransferToFlow extends Block {
 
   protected transitions(): Transitions {
     return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
+ * Loop: run `count` times through `onContinue`, then once through `onDone`,
+ * then reset. The count is 0 to 100, static or a single JSONPath; with 0 the
+ * done path is taken the first time. The page lists no errors; its two results
+ * are the two conditions, so NextAction mirrors the done path the way
+ * CheckHoursOfOperation mirrors its out-of-hours path. The console block's
+ * Error branch has no documented error type, so an exported Loop that carries
+ * one stays a GenericBlock.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/loop.html
+ */
+export interface LoopConfig {
+  id: string;
+  count: number | JsonPath;
+  onContinue: Target;
+  onDone: Target;
+}
+
+export class Loop extends Block {
+  readonly type = ActionType.Loop;
+
+  constructor(private readonly config: LoopConfig) {
+    super(config.id);
+    const c = config.count;
+    if (
+      typeof c === "number" &&
+      (!Number.isInteger(c) || c < LOOP_COUNT_MIN || c > LOOP_COUNT_MAX)
+    ) {
+      throw new Error(
+        `Loop "${config.id}" count must be an integer between ${LOOP_COUNT_MIN} and ${LOOP_COUNT_MAX}, got ${c}.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { LoopCount: this.config.count };
+  }
+
+  protected transitions(): Transitions {
+    return wire(
+      this.config.onDone,
+      [],
+      [
+        { target: this.config.onContinue, operator: "Equals", operands: [LOOP_CONTINUE] },
+        { target: this.config.onDone, operator: "Equals", operands: [LOOP_DONE] },
+      ],
+    );
   }
 }
 
@@ -796,7 +850,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 19.
+ * set survivable: 56 action types are documented and the builder models 20.
  */
 export interface GenericBlockConfig {
   id: string;

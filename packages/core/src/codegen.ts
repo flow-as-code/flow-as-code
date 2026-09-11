@@ -28,6 +28,8 @@ import {
   DTMF_DIGITS,
   INPUT_TIME_LIMIT_EXCEEDED,
   INVALID_CALLBACK_NUMBER,
+  LOOP_CONTINUE,
+  LOOP_DONE,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
@@ -46,6 +48,7 @@ import {
   GetParticipantInput,
   InvokeFlowModule,
   InvokeLambdaFunction,
+  Loop,
   MessageParticipant,
   TransferContactToAgent,
   TransferContactToQueue,
@@ -557,6 +560,50 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         onInHours: inHours!.NextAction,
         onOutOfHours: outOfHours!.NextAction,
         onError: errors[0]!.NextAction,
+      }),
+    };
+  },
+
+  [ActionType.Loop]: (a, ctx) => {
+    const t = a.Transitions;
+    if ((t.Errors ?? []).length !== 0) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length !== 2) return undefined;
+    const [cont, done] = conditions;
+    if (
+      stableJson(cont!.Condition) !== stableJson({ Operator: "Equals", Operands: [LOOP_CONTINUE] })
+    ) {
+      return undefined;
+    }
+    if (stableJson(done!.Condition) !== stableJson({ Operator: "Equals", Operands: [LOOP_DONE] })) {
+      return undefined;
+    }
+    // The class mirrors NextAction onto the done path.
+    if (t.NextAction !== done!.NextAction) return undefined;
+    if (!paramKeysAre(a.Parameters, ["LoopCount"])) return undefined;
+    const count = a.Parameters.LoopCount;
+    let countV: V;
+    if (typeof count === "number") {
+      countV = count;
+    } else if (typeof count === "string" && /^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(count)) {
+      ctx.jsonPath = true;
+      countV = new Raw(`jsonPath(${quoteString(count)})`);
+    } else {
+      return undefined;
+    }
+    return {
+      cls: "Loop",
+      entries: [
+        ["id", a.Identifier],
+        ["count", countV],
+        ["onContinue", cont!.NextAction],
+        ["onDone", done!.NextAction],
+      ],
+      block: new Loop({
+        id: a.Identifier,
+        count: cast<never>(count),
+        onContinue: cont!.NextAction,
+        onDone: done!.NextAction,
       }),
     };
   },

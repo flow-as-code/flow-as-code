@@ -322,6 +322,51 @@ describe("C3 a new block can be wired up", () => {
     expect(getAction(wired, "hang-up")?.Transitions).toEqual({});
   });
 
+  it("a fixed-conditions block takes one drag per operand and mirrors NextAction", () => {
+    // CheckHoursOfOperation: Equals True, then Equals False (NextAction
+    // follows the out-of-hours path), then the catch-all from the error
+    // handle; three drags and the block is typed. A fourth primary drag has
+    // nothing left to mean.
+    const { doc, id } = addBlock(demoDoc(), "CheckHoursOfOperation", { x: 0, y: 900 });
+    expect(acceptsNextAction(getAction(doc, id)!)).toBe(false);
+    const open = connectNodes(doc, id, "welcome", "primary")!;
+    expect(getAction(open, id)?.Transitions.Conditions).toEqual([
+      { NextAction: "welcome", Condition: { Operator: "Equals", Operands: ["True"] } },
+    ]);
+    expect(getAction(open, id)?.Transitions.NextAction).toBeUndefined();
+    const closed = connectNodes(open, id, "announce-closed", "primary")!;
+    expect(getAction(closed, id)?.Transitions.NextAction).toBe("announce-closed");
+    expect(getAction(closed, id)?.Transitions.Conditions).toHaveLength(2);
+    expect(connectNodes(closed, id, "hang-up", "primary")).toBeUndefined();
+    const wired = connectNodes(closed, id, "apologize", "error")!;
+    expect([...demotedIds(wired)]).toEqual(["enable-logging"]);
+    // Retargeting the out-of-hours branch carries NextAction along.
+    const moved = rewireEdge(wired, conditionEdgeId(id, 1), id, "hang-up")!;
+    expect(getAction(moved, id)?.Transitions.NextAction).toBe("hang-up");
+    expect([...demotedIds(moved)]).toEqual(["enable-logging"]);
+    // And so does retargeting the next edge, the other half of the same path.
+    const back = rewireEdge(moved, nextEdgeId(id), id, "announce-closed")!;
+    expect(getAction(back, id)?.Transitions.Conditions?.[1]?.NextAction).toBe("announce-closed");
+    expect([...demotedIds(back)]).toEqual(["enable-logging"]);
+  });
+
+  it("a Loop is typed after its two drags, with no error branch to wire", () => {
+    const { doc, id } = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    expect(offersErrorBranch(getAction(doc, id)!)).toBe(false);
+    const again = connectNodes(doc, id, "welcome", "primary")!;
+    const done = connectNodes(again, id, "hang-up", "primary")!;
+    expect(getAction(done, id)?.Transitions).toEqual({
+      NextAction: "hang-up",
+      Errors: [],
+      Conditions: [
+        { NextAction: "welcome", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
+        { NextAction: "hang-up", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
+      ],
+    });
+    expect([...demotedIds(done)]).toEqual(["enable-logging"]);
+    expectSchemaValid(done);
+  });
+
   it("an action whose last transition was detached can be rewired", () => {
     // A block that reached the canvas with no transitions (from a file, or an
     // older studio) must keep its source handle and stay wireable.

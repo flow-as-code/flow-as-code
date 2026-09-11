@@ -1,0 +1,117 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "flow-control",
+  "description": "Flow-control actions, with a loop whose continue path is a back edge.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "greet",
+    "Actions": [
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Please hold while we look that up."
+        },
+        "Transitions": {
+          "NextAction": "again",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "again",
+        "Type": "Loop",
+        "Parameters": {
+          "LoopCount": 2
+        },
+        "Transitions": {
+          "NextAction": "dynamic-loop",
+          "Errors": [],
+          "Conditions": [
+            {
+              "NextAction": "greet",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "ContinueLooping"
+                ]
+              }
+            },
+            {
+              "NextAction": "dynamic-loop",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "DoneLooping"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "dynamic-loop",
+        "Type": "Loop",
+        "Parameters": {
+          "LoopCount": "$.Attributes.retries"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [],
+          "Conditions": [
+            {
+              "NextAction": "greet",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "ContinueLooping"
+                ]
+              }
+            },
+            {
+              "NextAction": "bye",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "DoneLooping"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "again": {
+      "x": 280,
+      "y": 20
+    },
+    "bye": {
+      "x": 800,
+      "y": 20
+    },
+    "dynamic-loop": {
+      "x": 540,
+      "y": 20
+    },
+    "greet": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

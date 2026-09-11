@@ -28,6 +28,7 @@ import {
   INPUT_TIMEOUT_MIN,
   InvokeLambdaFunction,
   jsonPath,
+  Loop,
   materializeWithMap,
   NO_MATCHING_ERROR,
   parseToken,
@@ -400,6 +401,28 @@ describe("guardrails", () => {
       InitialCallDelaySeconds: 60,
       MaximumConnectionAttempts: 1,
       RetryDelaySeconds: 600,
+    });
+  });
+
+  it("rejects a loop count outside 0 to 100 and writes the done path twice", () => {
+    expect(() => new Loop({ id: "l", count: 101, onContinue: "a", onDone: "b" })).toThrow(
+      /between 0 and 100/,
+    );
+    expect(() => new Loop({ id: "l", count: 1.5, onContinue: "a", onDone: "b" })).toThrow(
+      /between 0 and 100/,
+    );
+    expect(new Loop({ id: "l", count: 0, onContinue: "a", onDone: "b" }).toAction()).toEqual({
+      Identifier: "l",
+      Type: "Loop",
+      Parameters: { LoopCount: 0 },
+      Transitions: {
+        NextAction: "b",
+        Errors: [],
+        Conditions: [
+          { NextAction: "a", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
+          { NextAction: "b", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
+        ],
+      },
     });
   });
 
