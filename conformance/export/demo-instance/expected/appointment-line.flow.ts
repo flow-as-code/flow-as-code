@@ -5,21 +5,20 @@ import {
   CheckHoursOfOperation,
   DisconnectParticipant,
   Flow,
-  GenericBlock,
   InvokeLambdaFunction,
   MessageParticipant,
   Refs,
   TransferContactToQueue,
   UpdateContactAttributes,
   UpdateContactTargetQueue,
+  UpdateFlowLoggingBehavior,
 } from "@flow-as-code/core";
 
 export function appointmentLine(): Flow {
   return new Flow({ name: "appointment-line", connectType: "CONTACT_FLOW" }).add(
-    new GenericBlock({
+    new UpdateFlowLoggingBehavior({
       id: "enable-logging",
-      type: "UpdateFlowLoggingBehavior",
-      parameters: { FlowLoggingBehavior: "Enabled" },
+      behavior: "Enabled",
       next: "welcome",
     }),
     new MessageParticipant({

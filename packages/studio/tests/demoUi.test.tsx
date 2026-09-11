@@ -57,14 +57,13 @@ describe("the read-only demo", () => {
     expect(button("export-targets-button").disabled).toBe(false);
   });
 
-  it("still renders the whole flow, the GenericBlock included", async () => {
+  it("still renders the whole flow, the logging block typed", async () => {
     await renderDemo();
     expect(document.querySelectorAll('[data-testid^="node-"]').length).toBe(11);
-    expect(present('[data-testid="node-enable-logging"]').textContent).toContain(
-      "UpdateFlowLoggingBehavior",
-    );
-    await click(present('[data-testid="raw-button-enable-logging"]'));
-    expect(testId("raw-json").textContent).toContain("UpdateFlowLoggingBehavior");
+    const logging = present('[data-testid="node-enable-logging"]');
+    expect(logging.textContent).toContain("UpdateFlowLoggingBehavior");
+    expect(logging.textContent).toContain("Set");
+    expect(document.querySelector('[data-testid^="raw-button-"]')).toBeNull();
     expect(absent("lint-panel")).not.toBeNull();
   });
 

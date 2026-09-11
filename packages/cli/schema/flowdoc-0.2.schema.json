@@ -1465,6 +1465,32 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateFlowLoggingBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "FlowLoggingBehavior": {
+                    "enum": [
+                      "Enabled",
+                      "Disabled"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

@@ -174,6 +174,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "UpdateContactRecordingAndAnalyticsBehavior",
       "UpdateContactTextToSpeechVoice",
       "UpdateFlowAttributes",
+      "UpdateFlowLoggingBehavior",
       "Wait",
     ]);
   });

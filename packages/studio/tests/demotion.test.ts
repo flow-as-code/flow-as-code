@@ -11,7 +11,7 @@ import { codegen } from "@flow-as-code/core";
 import { describe, expect, it } from "vitest";
 import { demotedIds, demotionDelta, probeDemotion } from "../src/model/demotion.js";
 import { addBlock } from "../src/model/mutations.js";
-import { compareDoc, demoDoc, menuDoc } from "./helpers.js";
+import { compareDoc, demoDoc, detachableDoc, menuDoc } from "./helpers.js";
 
 /**
  * An independent reading of the same fact: block class by id, taken straight
@@ -41,9 +41,14 @@ function expectAgreesWithCodegen(doc: FlowDoc): void {
 }
 
 describe("the oracle agrees with codegen", () => {
-  it("on the demo flow, where exactly the unmodeled action is generic", () => {
-    expect([...demotedIds(demoDoc())]).toEqual(["enable-logging"]);
+  it("on the demo flow, where every action is modeled", () => {
+    expect([...demotedIds(demoDoc())]).toEqual([]);
     expectAgreesWithCodegen(demoDoc());
+  });
+
+  it("on the detachable document, where exactly the two unmodeled actions are generic", () => {
+    expect([...demotedIds(detachableDoc())]).toEqual(["raw-a", "raw-b"]);
+    expectAgreesWithCodegen(detachableDoc());
   });
 
   it("on a flow with no unmodeled actions at all", () => {
@@ -79,23 +84,23 @@ describe("the oracle agrees with codegen", () => {
         ? { ...a, Parameters: { Text: 'new GenericBlock({ id: "welcome", type: "x" })' } }
         : a,
     );
-    expect([...demotedIds(doc)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(doc)]).toEqual([]);
     expect(classByIdFromSource(doc).get("welcome")).toBe("GenericBlock");
   });
 
   it("when an identifier needs escaping in the generated source", () => {
-    const doc = demoDoc();
+    const doc = detachableDoc();
     const quoted = 'odd"name';
     doc.content.Actions = doc.content.Actions.map((a): FlowAction =>
-      a.Identifier === "enable-logging" ? { ...a, Identifier: quoted } : a,
+      a.Identifier === "raw-a" ? { ...a, Identifier: quoted } : a,
     );
     doc.content.StartAction = quoted;
     doc.content.Actions = doc.content.Actions.map((a) =>
-      a.Transitions.NextAction === "enable-logging"
+      a.Transitions.NextAction === "raw-a"
         ? { ...a, Transitions: { ...a.Transitions, NextAction: quoted } }
         : a,
     );
-    expect([...demotedIds(doc)]).toEqual([quoted]);
+    expect([...demotedIds(doc)]).toEqual([quoted, "raw-b"]);
   });
 });
 

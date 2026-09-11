@@ -191,28 +191,19 @@ describe("delete block", () => {
     expect(present('[data-testid="node-hang-up"]')).not.toBeNull();
   });
 
-  it("prompts, accurately, for a delete that will happen", async () => {
+  it("refuses, without prompting, a delete whose one neighbour is typed", async () => {
+    // "welcome" was deletable with a prompt while its only neighbour,
+    // enable-logging, was an unmodeled block; since the builder models that
+    // block, detaching its next transition would demote it, so the delete is
+    // refused before any prompt. The prompt for a delete that will happen is
+    // exercised on the detachable document in canvasUi.test.tsx.
     const { asked } = stubConfirm(true);
     await renderApp();
-    // "welcome" is the one block on the demo flow with an incoming transition
-    // whose deletion is allowed: its only neighbour is the unmodeled
-    // enable-logging, which codegen already emits as a GenericBlock, so
-    // detaching costs nothing.
     await click(present('[data-testid="node-welcome"]'));
     await click(testId("delete-block"));
 
-    expect(asked).toHaveLength(1);
-    expect(asked[0]).toContain('1 transition(s) point at "welcome"');
-    expect(asked[0]).toContain("removes those branches");
-    expect(asked[0]).not.toContain("detached");
-    expect(document.querySelector('[data-testid="node-welcome"]')).toBeNull();
-  });
-
-  it("changes nothing when the prompt is declined", async () => {
-    stubConfirm(false);
-    await renderApp();
-    await click(present('[data-testid="node-welcome"]'));
-    await click(testId("delete-block"));
+    expect(asked).toEqual([]);
+    expect(testId("mutation-notice").textContent).toContain('"enable-logging"');
     expect(present('[data-testid="node-welcome"]')).not.toBeNull();
   });
 });

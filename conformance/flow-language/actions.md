@@ -76,6 +76,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Get customer input (Amazon Lex) | `ConnectParticipantWithLexBot` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html) |
 | Show view | `ShowView` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html) |
 | Set recording, analytics, and processing behavior | `UpdateContactRecordingAndAnalyticsBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html) |
+| Set logging behavior | `UpdateFlowLoggingBehavior` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -649,6 +650,22 @@ individual action pages linked above.
     recording-consent-before-record treats the block as it treats the older
     one; screen recording records the agent and is not an enabler.
     https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+36. `UpdateFlowLoggingBehavior` (recorded 2026-09-11) "Enables or disables
+    flow logging. If this is a flow, this same behavior remains unless it is
+    overridden for the rest of the contact segment. It is also automatically
+    inherited by new segments in the chain." One parameter,
+    `FlowLoggingBehavior`: "One of [Enabled,Disabled]. *Dynamic values are not
+    supported*". Errors "None." (so it joins `WITHOUT_CATCH_ALL`), results
+    "None. No conditions are supported.", and "This action is available in
+    every type of flow." The page says nothing about `NextAction`; the
+    console's export of the demo flow (the `enable-logging` block, exported
+    from a live instance for `conformance/export/demo-instance`) writes it
+    with empty `Errors` and `Conditions`, which is byte for byte what a
+    `GenericBlock` with a next target writes, so the builder's class changed
+    no fixture. It was the demo's passthrough exemplar until this entry;
+    passthrough now lives in the `unknown-actions` fixture, which holds only
+    types the builder does not model and is held to that by test.
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-logging-behavior.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -729,6 +746,7 @@ UpdateContactRecordingAndAnalyticsBehavior {                       // at least o
   ScreenRecordingBehavior?: { ScreenRecordedParticipants: ("Agent")[] }
   // VoiceBehavior.VoiceAnalyticsBehavior and ChatBehavior: GenericBlock
 }
+UpdateFlowLoggingBehavior { FlowLoggingBehavior: "Enabled" | "Disabled" }   // static; no errors
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -787,8 +805,10 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 34 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 35 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
-verbatim. That is what makes a small modeled set survivable. The demo fixture
-deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is
-exercised by default.
+verbatim. That is what makes a small modeled set survivable. The
+`conformance/roundtrip/unknown-actions` fixture holds only unmodeled types
+(with tokens inside their parameters) so passthrough is exercised by the
+conformance suite; the demo flow carried an unmodeled action for that purpose
+until 2026-09-11, when its logging block was modeled (rule 36).

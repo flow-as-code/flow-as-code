@@ -48,6 +48,7 @@ export const ActionType = {
   ConnectParticipantWithLexBot: "ConnectParticipantWithLexBot",
   ShowView: "ShowView",
   UpdateContactRecordingAndAnalyticsBehavior: "UpdateContactRecordingAndAnalyticsBehavior",
+  UpdateFlowLoggingBehavior: "UpdateFlowLoggingBehavior",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -168,6 +169,9 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
   ActionType.UpdateContactRoutingBehavior,
   ActionType.UpdateContactCallbackNumber,
   ActionType.TagContact,
+  // Errors "None."; results "None. No conditions are supported."
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
+  ActionType.UpdateFlowLoggingBehavior,
 ];
 
 /**
@@ -480,6 +484,9 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // portion.
   // https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
   ActionType.UpdateContactRecordingAndAnalyticsBehavior,
+  // "This action is available in every type of flow."
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
+  ActionType.UpdateFlowLoggingBehavior,
 ];
 
 /**

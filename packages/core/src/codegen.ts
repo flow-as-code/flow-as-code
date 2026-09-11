@@ -96,6 +96,7 @@ import {
   UpdateContactTargetQueue,
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
+  UpdateFlowLoggingBehavior,
   Wait,
 } from "./blocks.js";
 import type {
@@ -1909,6 +1910,24 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           onChannelMismatch: errors[1]!.NextAction,
         }),
       ),
+    };
+  },
+
+  [ActionType.UpdateFlowLoggingBehavior]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    if (!paramKeysAre(a.Parameters, ["FlowLoggingBehavior"])) return undefined;
+    const behavior = a.Parameters.FlowLoggingBehavior;
+    if (behavior !== "Enabled" && behavior !== "Disabled") return undefined;
+    return {
+      cls: "UpdateFlowLoggingBehavior",
+      entries: [
+        ["id", a.Identifier],
+        ["behavior", behavior],
+        ["next", t.NextAction],
+      ],
+      block: new UpdateFlowLoggingBehavior({ id: a.Identifier, behavior, next: t.NextAction }),
     };
   },
 

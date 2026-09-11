@@ -1238,6 +1238,50 @@ describe("CheckMetricData inverts the console's staffing check and a queue-depth
   });
 });
 
+describe("UpdateFlowLoggingBehavior inverts the demo's logging block", () => {
+  const action = (behavior: unknown): FlowAction => ({
+    Identifier: "enable-logging",
+    Type: "UpdateFlowLoggingBehavior",
+    Parameters: { FlowLoggingBehavior: behavior },
+    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateFlowLoggingBehavior"');
+    expect(out).not.toContain("new UpdateFlowLoggingBehavior(");
+  };
+
+  it("emits the class for either behavior, and the demo no longer carries a GenericBlock", () => {
+    const out = codegen(docWith([action("Enabled"), bye]));
+    expect(out).toContain("new UpdateFlowLoggingBehavior({");
+    expect(out).toContain('behavior: "Enabled"');
+    expect(out).toContain('next: "bye"');
+    expect(out).not.toContain("GenericBlock");
+    expect(codegen(docWith([action("Disabled"), bye]))).toContain('behavior: "Disabled"');
+    expect(codegen(demoDoc())).not.toContain("GenericBlock");
+  });
+
+  it("falls back on a third value, a dynamic value, an error branch, a missing next, or an extra key", () => {
+    generic(action("On"));
+    generic(action("$.Attributes.logging"));
+    const withError = action("Enabled");
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(withError);
+    const noNext = action("Enabled");
+    noNext.Transitions = { Errors: [], Conditions: [] };
+    generic(noNext);
+    const extra = action("Enabled");
+    extra.Parameters.Retention = "30";
+    generic(extra);
+  });
+});
+
 describe("UpdateContactRecordingAndAnalyticsBehavior inverts its voice and screen recording forms", () => {
   const action = (parameters: Record<string, unknown>): FlowAction => ({
     Identifier: "record",

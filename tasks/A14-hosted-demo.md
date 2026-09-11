@@ -44,3 +44,7 @@ The demo is deployed and serving. Verified on the live domain on this date, by `
 One known and deliberate 404: `/favicon.ico`. `packages/studio/tests/demo-bundle.test.ts` forbids any href in the studio's HTML that is not `./assets/...`, so no icon link is emitted. It is a test-enforced choice, not a defect.
 
 The landing page's mobile layout is argued from its CSS and has not been observed at a narrow viewport.
+
+## Note (2026-09-11, B01j)
+
+The acceptance line above ("including at least one GenericBlock") and the runtime check's `enable-logging` step were true of the demo until the builder modeled `UpdateFlowLoggingBehavior` (tasks/B01, B01j) with the same bytes, so the demo flow has no unmodeled action now. The passthrough claim is held by `conformance/roundtrip/unknown-actions` (only unmodeled types, with tokens inside parameters) in the core conformance tests, and by the studio's canvas tests, which render that shape and open its raw JSON. The deployed demo still renders eleven blocks and the `demo-boot` and `demo-bundle` tests still find the type name in the artifact.

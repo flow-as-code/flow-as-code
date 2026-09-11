@@ -42,13 +42,17 @@ describe("studio app", () => {
     expect(options).toContain("new reference…");
   });
 
-  it("opens the read-only raw JSON inspector for the GenericBlock", async () => {
+  it("offers no raw JSON button on the demo, where every block is modeled", async () => {
+    // The raw inspector itself is exercised on an unmodeled block in
+    // canvasUi.test.tsx; the demo stopped carrying one on 2026-09-11.
     await renderApp();
-    await click(present('[data-testid="raw-button-enable-logging"]'));
-    const raw = document.querySelector('[data-testid="raw-json"]');
-    expect(raw).not.toBeNull();
-    expect(raw?.textContent).toContain("UpdateFlowLoggingBehavior");
-    expect(raw?.textContent).toContain("FlowLoggingBehavior");
+    expect(document.querySelectorAll('[data-testid^="node-"]').length).toBe(11);
+    expect(document.querySelector('[data-testid^="raw-button-"]')).toBeNull();
+    await click(present('[data-testid="node-enable-logging"]'));
+    const select = [...document.querySelectorAll('[data-testid="inspector"] select')].find(
+      (s) => (s as HTMLSelectElement).value === "Enabled",
+    );
+    expect(select).toBeDefined();
   });
 
   it("renders the save button and lint panel", async () => {

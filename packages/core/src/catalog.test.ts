@@ -387,6 +387,8 @@ describe("the action catalog", () => {
     expect(requiredErrors("TransferContactToAgent")).toEqual([]);
     expect(requiredErrors("UpdateContactRoutingBehavior")).toEqual([]);
     expect(builderErrors("UpdateContactRoutingBehavior")).toEqual([]);
+    expect(requiredErrors("UpdateFlowLoggingBehavior")).toEqual([]);
+    expect(builderErrors("UpdateFlowLoggingBehavior")).toEqual([]);
     // Listed as "None" on the page, carried by some published console exports.
     expect(requiredErrors("Loop")).toEqual([]);
     expect(builderErrors("Loop")).toEqual(["NoMatchingError"]);

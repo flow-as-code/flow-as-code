@@ -226,7 +226,7 @@ describe("the refused docs really were invisible to the other gates", () => {
     );
     demoted.push(compare);
 
-    expect([...demotedIds(demoted[0]!)].sort()).toEqual(["check-hours", "enable-logging"]);
+    expect([...demotedIds(demoted[0]!)].sort()).toEqual(["check-hours"]);
     expect([...demotedIds(demoted[1]!)]).toEqual(["compare"]);
     for (const doc of demoted) expect(() => assertSaveable(doc)).not.toThrow();
   });

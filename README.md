@@ -29,10 +29,11 @@ All packages Apache-2.0, published on npm under the `@flow-as-code` scope; see
 
 The site is live at https://flow-as-code.dev/ and the studio runs read-only at
 https://flow-as-code.dev/studio/ . Opening the studio loads the demo
-appointment line onto the canvas: eleven blocks, one of which
-(`UpdateFlowLoggingBehavior`) is a Connect action this tooling does not model
-and which renders as a generic block with its raw JSON rather than being
-dropped. The inspector, the refs sidebar, and the lint panel all work, and
+appointment line onto the canvas: eleven blocks, every one a Connect action
+this tooling models. A Connect action it does not model renders as a generic
+block with its raw JSON rather than being dropped; the `unknown-actions`
+conformance fixture and the studio tests hold that, since the demo no longer
+carries one. The inspector, the refs sidebar, and the lint panel all work, and
 "Export as..." renders the Terraform and CDK output for the document into the
 page as text. There is no account, no sign-up, and no save: the build has no
 Save button and no FlowDoc download, and it makes no network request after its

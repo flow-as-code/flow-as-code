@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { readFileSync, readdirSync } from "node:fs";
+import { ActionType } from "./actions.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 import { migrateFlowDoc, serialize } from "./index.js";
@@ -92,10 +93,20 @@ describe("demo flow invariants", () => {
     expect(terminal.map((a) => a.Type)).toEqual(["DisconnectParticipant"]);
   });
 
-  // GenericBlock passthrough is what makes a small modeled set survivable,
-  // so the canonical fixture must always exercise it.
-  it("includes an unmodeled action for GenericBlock passthrough", () => {
-    expect(actions.map((a) => a.Type)).toContain("UpdateFlowLoggingBehavior");
+  // GenericBlock passthrough is what makes a small modeled set survivable.
+  // The demo carried it (UpdateFlowLoggingBehavior) until the builder gained
+  // that type on 2026-09-11; the unknown-actions fixture holds it now, with
+  // only types the builder does not model, so a newly modeled type is caught
+  // there rather than quietly ending the guarantee.
+  it("is modeled end to end, with passthrough exercised by the unknown-actions fixture", () => {
+    const modeled = new Set<string>(Object.values(ActionType));
+    expect(actions.filter((a) => !modeled.has(a.Type)).map((a) => a.Type)).toEqual([]);
+    const unknown = JSON.parse(read("conformance/roundtrip/unknown-actions/doc.flowdoc.json")) as {
+      content: { Actions: { Type: string }[] };
+    };
+    const types = unknown.content.Actions.map((a) => a.Type);
+    expect(types.length).toBeGreaterThan(0);
+    expect(types.filter((t) => modeled.has(t))).toEqual([]);
   });
 });
 

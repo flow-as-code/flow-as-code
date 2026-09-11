@@ -37,7 +37,7 @@ import {
   unmount,
 } from "./appHarness.js";
 import { addBlock, connectNodes, setParam } from "../src/model/mutations.js";
-import { compareDoc, demoDoc, menuDoc } from "./helpers.js";
+import { compareDoc, demoDoc, detachableDoc, menuDoc } from "./helpers.js";
 
 beforeAll(installDomStubs);
 afterEach(() => {
@@ -166,6 +166,70 @@ describe("R1 every transition is rendered", () => {
     await renderDoc(doc, <Canvas />);
     expect(document.querySelector('[data-testid="demoted-welcome"]')).not.toBeNull();
     expect(document.querySelector('[data-testid="demoted-announce-closed"]')).toBeNull();
+  });
+});
+
+describe("an unmodeled block on the canvas", () => {
+  /** Replaces window.confirm and records what it was asked. */
+  function stubConfirm(answer: boolean): { asked: string[] } {
+    const asked: string[] = [];
+    window.confirm = (message?: string) => {
+      asked.push(message ?? "");
+      return answer;
+    };
+    return { asked };
+  }
+
+  it("opens the read-only raw JSON inspector", async () => {
+    await renderDoc(
+      detachableDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+      </>,
+    );
+    expect(present('[data-testid="node-raw-a"]').textContent).toContain("unmodeled");
+    await click(present('[data-testid="raw-button-raw-a"]'));
+    const raw = testId("raw-json");
+    expect(raw.textContent).toContain("UpdatePreviousContactParticipantState");
+    expect(raw.textContent).toContain("PreviousContactParticipantState");
+  });
+
+  it("is what makes a neighbour deletable: the prompt is accurate and the delete happens", async () => {
+    // "target" is pointed at by raw-a's next and raw-b's error; both are
+    // unmodeled, so detaching them costs nothing and the delete goes ahead
+    // after the prompt.
+    const { asked } = stubConfirm(true);
+    await renderDoc(
+      detachableDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+        <NoticeBar />
+      </>,
+    );
+    await click(present('[data-testid="node-target"]'));
+    await click(testId("delete-block"));
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain('2 transition(s) point at "target"');
+    expect(asked[0]).toContain("removes those branches");
+    expect(asked[0]).not.toContain("detached");
+    expect(document.querySelector('[data-testid="node-target"]')).toBeNull();
+    expect(document.querySelector('[data-testid="mutation-notice"]')).toBeNull();
+  });
+
+  it("changes nothing when the prompt is declined", async () => {
+    stubConfirm(false);
+    await renderDoc(
+      detachableDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+      </>,
+    );
+    await click(present('[data-testid="node-target"]'));
+    await click(testId("delete-block"));
+    expect(present('[data-testid="node-target"]')).not.toBeNull();
   });
 });
 

@@ -39,7 +39,7 @@ import {
   setParam,
   rewireEdge,
 } from "../src/model/mutations.js";
-import { demoDoc, expectByteStable, expectSchemaValid, menuDoc } from "./helpers.js";
+import { demoDoc, detachableDoc, expectByteStable, expectSchemaValid, menuDoc } from "./helpers.js";
 
 /** conformance/roundtrip/edge-cases: a Compare with real condition branches. */
 function edgeCasesDoc(): FlowDoc {
@@ -145,7 +145,8 @@ describe("M2 a drag from a Compare creates a branch, never a NextAction", () => 
     // page lists no error.
     expect(offersErrorBranch(getAction(demoDoc(), "welcome")!)).toBe(true);
     expect(offersErrorBranch(getAction(demoDoc(), "hang-up")!)).toBe(false);
-    expect(offersErrorBranch(getAction(demoDoc(), "enable-logging")!)).toBe(true);
+    expect(offersErrorBranch(getAction(detachableDoc(), "raw-a")!)).toBe(true);
+    expect(offersErrorBranch(getAction(demoDoc(), "enable-logging")!)).toBe(false);
     const { doc, id } = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
     expect(offersErrorBranch(getAction(doc, id)!)).toBe(false);
     expect(connectNodes(doc, id, "hang-up", "error")).toBeUndefined();
@@ -371,7 +372,7 @@ describe("C3 a new block can be wired up", () => {
       Errors: [{ ErrorType: "NoMatchingError", NextAction: "apologize" }],
       Conditions: [],
     });
-    expect([...demotedIds(wired)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(wired)]).toEqual([]);
     // A terminal action keeps its empty object.
     expect(getAction(wired, "hang-up")?.Transitions).toEqual({});
   });
@@ -393,15 +394,15 @@ describe("C3 a new block can be wired up", () => {
     expect(getAction(closed, id)?.Transitions.Conditions).toHaveLength(2);
     expect(connectNodes(closed, id, "hang-up", "primary")).toBeUndefined();
     const wired = connectNodes(closed, id, "apologize", "error")!;
-    expect([...demotedIds(wired)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(wired)]).toEqual([]);
     // Retargeting the out-of-hours branch carries NextAction along.
     const moved = rewireEdge(wired, conditionEdgeId(id, 1), id, "hang-up")!;
     expect(getAction(moved, id)?.Transitions.NextAction).toBe("hang-up");
-    expect([...demotedIds(moved)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(moved)]).toEqual([]);
     // And so does retargeting the next edge, the other half of the same path.
     const back = rewireEdge(moved, nextEdgeId(id), id, "announce-closed")!;
     expect(getAction(back, id)?.Transitions.Conditions?.[1]?.NextAction).toBe("announce-closed");
-    expect([...demotedIds(back)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(back)]).toEqual([]);
   });
 
   it("a Loop is typed after its two drags, with or without its optional error branch", () => {
@@ -419,13 +420,13 @@ describe("C3 a new block can be wired up", () => {
         { NextAction: "hang-up", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
       ],
     });
-    expect([...demotedIds(done)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(done)]).toEqual([]);
     expectSchemaValid(done);
     const withError = connectNodes(done, id, "apologize", "error")!;
     expect(getAction(withError, id)?.Transitions.Errors).toEqual([
       { ErrorType: "NoMatchingError", NextAction: "apologize" },
     ]);
-    expect([...demotedIds(withError)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(withError)]).toEqual([]);
     expectSchemaValid(withError);
     expect(codegen(withError)).toContain('onError: "apologize"');
   });
@@ -488,7 +489,7 @@ describe("C3 a new block can be wired up", () => {
     // WaitCompleted first, then the catch-all: the smallest typed Wait.
     let wait = connectNodes(doc, id, "hang-up", "primary")!;
     wait = connectNodes(wait, id, "apologize", "error")!;
-    expect([...demotedIds(wait)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(wait)]).toEqual([]);
     expect(getAction(wait, id)?.Parameters.Events).toBeUndefined();
     // No bot event yet, so the error handle has nothing left to add: the
     // ParticipantNotFound branch is not a gesture of its own.
@@ -498,7 +499,7 @@ describe("C3 a new block can be wired up", () => {
     // watching, and it would have refused a branch without its listing.
     const customer = connectNodes(wait, id, "welcome", "primary")!;
     expect(getAction(customer, id)?.Parameters.Events).toEqual(["CustomerReturned"]);
-    expect([...demotedIds(customer)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(customer)]).toEqual([]);
 
     const bot = connectNodes(customer, id, "hang-up", "primary")!;
     expect(getAction(bot, id)?.Parameters.Events).toEqual([
@@ -509,7 +510,7 @@ describe("C3 a new block can be wired up", () => {
       { ErrorType: "NoMatchingError", NextAction: "apologize" },
       { ErrorType: "ParticipantNotFound", NextAction: "hang-up" },
     ]);
-    expect([...demotedIds(bot)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(bot)]).toEqual([]);
     expectSchemaValid(bot);
     expect(codegen(bot)).toContain('onParticipantNotFound: "hang-up"');
     // All three branches wired: nothing left for a primary drag to mean.
@@ -521,12 +522,12 @@ describe("C3 a new block can be wired up", () => {
     expect(getAction(unbot, id)?.Transitions.Errors).toEqual([
       { ErrorType: "NoMatchingError", NextAction: "apologize" },
     ]);
-    expect([...demotedIds(unbot)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(unbot)]).toEqual([]);
     // And the last event's removal drops the Events parameter altogether,
     // the shape the block class writes with no events.
     const none = removeCondition(unbot, id, 1)!;
     expect(getAction(none, id)?.Parameters.Events).toBeUndefined();
-    expect([...demotedIds(none)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(none)]).toEqual([]);
     expectSchemaValid(none);
   });
 
@@ -544,7 +545,7 @@ describe("C3 a new block can be wired up", () => {
       "NoMatchingError",
       "ParticipantNotFound",
     ]);
-    expect([...demotedIds(wait)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(wait)]).toEqual([]);
     expectSchemaValid(wait);
   });
 
@@ -558,12 +559,12 @@ describe("C3 a new block can be wired up", () => {
     ]);
     const wired = connectNodes(two, id, "hang-up", "error")!;
     expect(getAction(wired, id)?.Transitions.NextAction).toBe("hang-up");
-    expect([...demotedIds(wired)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(wired)]).toEqual([]);
     // A third branch on the typed block is a 1% claim too, not the empty
     // placeholder, so the block stays typed.
     const three = connectNodes(wired, id, "welcome", "primary")!;
     expect(getAction(three, id)?.Transitions.Conditions?.[2]?.Condition.Operands).toEqual(["4"]);
-    expect([...demotedIds(three)]).toEqual(["enable-logging"]);
+    expect([...demotedIds(three)]).toEqual([]);
   });
 
   it("a fresh UpdateContactCallbackNumber wired up on the canvas is typed, with no demotion", () => {

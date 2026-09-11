@@ -25,6 +25,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactAttributes]: "Set",
   [ActionType.UpdateContactRecordingBehavior]: "Set",
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "Set",
+  [ActionType.UpdateFlowLoggingBehavior]: "Set",
   [ActionType.UpdateContactRoutingBehavior]: "Set",
   [ActionType.UpdateContactCallbackNumber]: "Set",
   [ActionType.UpdateFlowAttributes]: "Set",
@@ -93,6 +94,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactAttributes]: "set-attributes",
   [ActionType.UpdateContactRecordingBehavior]: "set-recording",
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "set-recording-analytics",
+  [ActionType.UpdateFlowLoggingBehavior]: "set-logging",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
   [ActionType.UpdateContactCallbackNumber]: "set-callback-number",
   [ActionType.UpdateFlowAttributes]: "set-flow-attributes",
@@ -168,6 +170,10 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { TextToSpeechVoice: "Joanna" };
     case ActionType.UpdateContactRecordingBehavior:
       return { RecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } };
+    case ActionType.UpdateFlowLoggingBehavior:
+      // The demo's own setting; the page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
+      return { FlowLoggingBehavior: "Enabled" };
     case ActionType.UpdateContactRecordingAndAnalyticsBehavior:
       // The voice recording form with both participants, as the older
       // block's default; the page states no console default.

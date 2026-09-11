@@ -2179,7 +2179,28 @@
     "UpdateFlowLoggingBehavior": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_flow_logging_behavior",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "FlowLoggingBehavior",
+          "attr": "flow_logging_behavior",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "Enabled",
+            "Disabled"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": []
+      }
     },
     "UpdateRoutingCriteria": {
       "category": "flowControl",

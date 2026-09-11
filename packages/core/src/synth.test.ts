@@ -52,7 +52,9 @@ import {
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
+  UpdateFlowLoggingBehavior,
   Wait,
+  WITHOUT_CATCH_ALL,
 } from "./index.js";
 
 const fixture = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
@@ -136,9 +138,13 @@ describe("error branch wiring", () => {
     const modeled = new Set<string>(Object.values(ActionType));
     // GenericBlock is the escape hatch: we cannot know an unmodeled action's
     // error set, so the author wires it and the `error-branches` lint rule is
-    // the backstop. UpdateFlowLoggingBehavior genuinely documents no errors.
+    // the backstop. A modeled type whose page lists no errors at all
+    // (WITHOUT_CATCH_ALL: the demo's UpdateFlowLoggingBehavior) wires none.
     const subject = doc.content.Actions.filter(
-      (a) => modeled.has(a.Type) && Object.keys(a.Transitions).length > 0,
+      (a) =>
+        modeled.has(a.Type) &&
+        !WITHOUT_CATCH_ALL.includes(a.Type) &&
+        Object.keys(a.Transitions).length > 0,
     );
     expect(subject.length).toBeGreaterThan(0);
     for (const a of subject) {
@@ -175,6 +181,28 @@ describe("error branch wiring", () => {
     const bare = new DequeueContactAndTransferToQueue({ id: "b", ...wired });
     expect(errors(bare)).toEqual(expected);
     expect(bare.toAction().Parameters).toEqual({});
+  });
+
+  it("writes UpdateFlowLoggingBehavior with the bytes its GenericBlock form wrote", () => {
+    // The demo carried this action as a GenericBlock; modeling it must not
+    // move a byte of any document, so the two forms are held equal here.
+    const typed = new UpdateFlowLoggingBehavior({ id: "log", behavior: "Enabled", next: "n" });
+    const raw = new GenericBlock({
+      id: "log",
+      type: "UpdateFlowLoggingBehavior",
+      parameters: { FlowLoggingBehavior: "Enabled" },
+      next: "n",
+    });
+    expect(typed.toAction()).toEqual(raw.toAction());
+    expect(typed.toAction()).toEqual({
+      Identifier: "log",
+      Type: "UpdateFlowLoggingBehavior",
+      Parameters: { FlowLoggingBehavior: "Enabled" },
+      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
+    expect(
+      () => new UpdateFlowLoggingBehavior({ id: "log", behavior: cast<never>("On"), next: "n" }),
+    ).toThrow(/must be Enabled or Disabled/);
   });
 
   it("writes recording and analytics behavior in the page's shapes and refuses an empty block", () => {

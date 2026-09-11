@@ -135,6 +135,7 @@ describe("addBlock", () => {
       "ConnectParticipantWithLexBot",
       "ShowView",
       "UpdateContactRecordingAndAnalyticsBehavior",
+      "UpdateFlowLoggingBehavior",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }
@@ -259,23 +260,23 @@ describe("rewireEdge", () => {
   });
 
   it("rewires transitions on a GenericBlock too", () => {
-    const doc = demoDoc();
-    const next = rewireEdge(doc, "enable-logging:next", "enable-logging", "apologize");
-    expect(getAction(next!, "enable-logging")?.Transitions.NextAction).toBe("apologize");
+    const doc = detachableDoc();
+    const next = rewireEdge(doc, "raw-a:next", "raw-a", "raw-b");
+    expect(getAction(next!, "raw-a")?.Transitions.NextAction).toBe("raw-b");
     expectSchemaValid(next!);
   });
 
   it("moves an edge to a new source when the slot is free, else rejects", () => {
-    const doc = addBlock(demoDoc(), "MessageParticipant", { x: 0, y: 900 }).doc;
-    // "enable-logging" is an unmodeled block, so losing its NextAction costs
-    // it nothing; "message" is new and unwired, so it gains one.
-    const moved = rewireEdge(doc, "enable-logging:next", "message", "check-hours");
-    expect(getAction(moved!, "enable-logging")?.Transitions.NextAction).toBeUndefined();
-    expect(getAction(moved!, "message")?.Transitions.NextAction).toBe("check-hours");
+    const doc = addBlock(detachableDoc(), "MessageParticipant", { x: 0, y: 900 }).doc;
+    // "raw-a" is an unmodeled block, so losing its NextAction costs it
+    // nothing; "message" is new and unwired, so it gains one.
+    const moved = rewireEdge(doc, "raw-a:next", "message", "target");
+    expect(getAction(moved!, "raw-a")?.Transitions.NextAction).toBeUndefined();
+    expect(getAction(moved!, "message")?.Transitions.NextAction).toBe("target");
     expectSchemaValid(moved!);
 
-    // "apologize" already has a NextAction, so moving another next edge there is rejected.
-    expect(rewireEdge(doc, "enable-logging:next", "apologize", "check-hours")).toBeUndefined();
+    // "raw-b" already has a NextAction, so moving another next edge there is rejected.
+    expect(rewireEdge(doc, "raw-a:next", "raw-b", "target")).toBeUndefined();
   });
 
   it("refuses a source-end move that would strip the old source bare", () => {

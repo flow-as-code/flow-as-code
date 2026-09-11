@@ -1550,6 +1550,46 @@ export class UpdateContactRecordingBehavior extends Block {
 }
 
 /**
+ * "Enables or disables flow logging. If this is a flow, this same behavior
+ * remains unless it is overridden for the rest of the contact segment. It is
+ * also automatically inherited by new segments in the chain." One parameter,
+ * `FlowLoggingBehavior`: "One of [Enabled,Disabled]. *Dynamic values are not
+ * supported*". Errors "None.", results "None. No conditions are supported.",
+ * "This action is available in every type of flow." The page says nothing
+ * about NextAction; the console's export of the demo flow writes it with
+ * empty Errors and Conditions, which is exactly what a GenericBlock with a
+ * next target writes, so modeling the action changed no document's bytes.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-logging-behavior.html
+ */
+export interface UpdateFlowLoggingBehaviorConfig {
+  id: string;
+  behavior: "Enabled" | "Disabled";
+  next: Target;
+}
+
+export class UpdateFlowLoggingBehavior extends Block {
+  readonly type = ActionType.UpdateFlowLoggingBehavior;
+
+  constructor(private readonly config: UpdateFlowLoggingBehaviorConfig) {
+    super(config.id);
+    if (config.behavior !== "Enabled" && config.behavior !== "Disabled") {
+      throw new Error(
+        `UpdateFlowLoggingBehavior "${config.id}" behavior must be Enabled or Disabled, got ${String(config.behavior)}.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { FlowLoggingBehavior: this.config.behavior };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, []);
+  }
+}
+
+/**
  * The voice recording half of UpdateContactRecordingAndAnalyticsBehavior:
  * `recordedParticipants` is "a list of participants to record, chosen from
  * "Agent" and "Customer". An empty list disables recording. Must be set
@@ -1823,7 +1863,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 34.
+ * set survivable: 56 action types are documented and the builder models 35.
  */
 export interface GenericBlockConfig {
   id: string;

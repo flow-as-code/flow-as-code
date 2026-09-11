@@ -166,16 +166,18 @@ export function detachableDoc(): FlowDoc {
       Version: "2019-10-30",
       StartAction: "raw-a",
       Actions: [
+        // A type the builder does not model (it modeled the logging block
+        // these carried until 2026-09-11), in the console's shape.
         {
           Identifier: "raw-a",
-          Type: "UpdateFlowLoggingBehavior",
-          Parameters: { FlowLoggingBehavior: "Enabled" },
+          Type: "UpdatePreviousContactParticipantState",
+          Parameters: { PreviousContactParticipantState: "OffHold" },
           Transitions: { NextAction: "target", Errors: [], Conditions: [] },
         },
         {
           Identifier: "raw-b",
-          Type: "UpdateFlowLoggingBehavior",
-          Parameters: { FlowLoggingBehavior: "Disabled" },
+          Type: "UpdatePreviousContactParticipantState",
+          Parameters: { PreviousContactParticipantState: "OnHold" },
           Transitions: {
             NextAction: "raw-a",
             Errors: [{ ErrorType: "NoMatchingError", NextAction: "target" }],
