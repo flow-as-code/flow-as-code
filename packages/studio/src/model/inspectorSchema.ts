@@ -362,6 +362,12 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           optional: true,
         },
       ];
+    case ActionType.UpdateContactEventHooks:
+      // One entry: the hook name (AgentHold, AgentWhisper, CustomerHold,
+      // CustomerQueue, CustomerRemaining, CustomerWhisper, DefaultAgentUI,
+      // DisconnectAgentUI, PauseContact or ResumeContact) to a flow token
+      // or JSONPath.
+      return [{ kind: "json", key: "EventHooks", label: "Event hook (one entry: hook to flow)" }];
     case ActionType.UpdateContactTextToSpeechVoice:
       // The JSONPath forms of the engine and style are edited as a GenericBlock.
       return [

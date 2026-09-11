@@ -111,8 +111,9 @@ the console's threshold form, a flow attribute set as an opaque object, a
 staffing check and a queue-depth check in the console's error order, and a
 queue metric load with a static channel and one with a dynamic channel), and
 a flow of the contact-data actions (`contact-data`: a tag set with a dynamic
-value, a tag removal, a voice change with a static and a dynamic engine, and a
-contact data update with every Voice ID field and a minimal one).
+value, a tag removal, a voice change with a static and a dynamic engine, a
+contact data update with every Voice ID field and a minimal one, and an event
+hook set to a flow token and one set by JSONPath).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

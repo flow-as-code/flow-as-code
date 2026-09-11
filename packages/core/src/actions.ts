@@ -43,6 +43,7 @@ export const ActionType = {
   UnTagContact: "UnTagContact",
   UpdateContactTextToSpeechVoice: "UpdateContactTextToSpeechVoice",
   UpdateContactData: "UpdateContactData",
+  UpdateContactEventHooks: "UpdateContactEventHooks",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -62,6 +63,8 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.CreateCallbackContact]: { QueueId: "queue", AgentId: "queue", ContactFlowId: "flow" },
   [ActionType.CheckMetricData]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.GetMetricData]: { QueueId: "queue", AgentId: "queue" },
+  // A map-valued path: every value of EventHooks is a flow.
+  [ActionType.UpdateContactEventHooks]: { "EventHooks.*": "flow" },
   [ActionType.CheckHoursOfOperation]: { HoursOfOperationId: "hours" },
   [ActionType.InvokeLambdaFunction]: { LambdaFunctionARN: "lambda" },
   [ActionType.InvokeFlowModule]: { FlowModuleId: "module" },
@@ -357,6 +360,8 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * UpdateContactData: "This action is supported on all channels and in all
  * flow types."
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html
+ * UpdateContactEventHooks: "This is supported in all types of flows."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
@@ -370,6 +375,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.UnTagContact,
   ActionType.UpdateContactTextToSpeechVoice,
   ActionType.UpdateContactData,
+  ActionType.UpdateContactEventHooks,
 ];
 
 /**
@@ -513,6 +519,27 @@ export const VOICE_ID_RESPONSE_TIME_MIN = 5;
 export const VOICE_ID_RESPONSE_TIME_MAX = 10;
 export const TARGET_CONTACTS = ["Current", "Related"] as const;
 export type TargetContact = (typeof TARGET_CONTACTS)[number];
+
+/**
+ * UpdateContactEventHooks: "The following event hooks are valid: AgentHold,
+ * AgentWhisper, CustomerHold, CustomerQueue, CustomerRemaining,
+ * CustomerWhisper, DefaultAgentUI, DisconnectAgentUI, PauseContact,
+ * ResumeContact." "Only one entry may be present in this map."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html
+ */
+export const EVENT_HOOKS = [
+  "AgentHold",
+  "AgentWhisper",
+  "CustomerHold",
+  "CustomerQueue",
+  "CustomerRemaining",
+  "CustomerWhisper",
+  "DefaultAgentUI",
+  "DisconnectAgentUI",
+  "PauseContact",
+  "ResumeContact",
+] as const;
+export type EventHook = (typeof EVENT_HOOKS)[number];
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

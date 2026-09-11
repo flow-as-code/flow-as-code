@@ -27,6 +27,7 @@ import {
   ActionType,
   CALLBACK_NUMBER_NOT_DIALABLE,
   DTMF_DIGITS,
+  EVENT_HOOKS,
   INPUT_TIME_LIMIT_EXCEEDED,
   INVALID_CALLBACK_NUMBER,
   LOOP_CONTINUE,
@@ -80,6 +81,7 @@ import {
   UpdateContactAttributes,
   UpdateContactCallbackNumber,
   UpdateContactData,
+  UpdateContactEventHooks,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
@@ -1382,6 +1384,38 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       cls: "UpdateContactData",
       entries,
       block: new UpdateContactData(cast<never>({ ...config, next: w.next, onError: w.onError })),
+    };
+  },
+
+  [ActionType.UpdateContactEventHooks]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    if (!paramKeysAre(a.Parameters, ["EventHooks"])) return undefined;
+    const hooks = a.Parameters.EventHooks;
+    if (hooks === null || typeof hooks !== "object" || Array.isArray(hooks)) return undefined;
+    const keys = Object.keys(hooks);
+    if (keys.length !== 1) return undefined;
+    const hook = keys[0]!;
+    if (!(EVENT_HOOKS as readonly string[]).includes(hook)) return undefined;
+    const value = (hooks as Record<string, unknown>)[hook];
+    const ref = refSource(value, "flow", ctx);
+    if (ref === undefined) return undefined;
+    return {
+      cls: "UpdateContactEventHooks",
+      entries: [
+        ["id", a.Identifier],
+        ["hook", hook],
+        ["flow", ref],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UpdateContactEventHooks({
+        id: a.Identifier,
+        hook: cast<never>(hook),
+        flow: cast<never>(value),
+        next: w.next,
+        onError: w.onError,
+      }),
     };
   },
 

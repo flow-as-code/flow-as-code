@@ -23,6 +23,7 @@ import {
   CALLBACK_DELAY_MIN,
   CALLBACK_NUMBER_NOT_DIALABLE,
   DTMF_DIGITS,
+  EVENT_HOOKS,
   INVALID_CALLBACK_NUMBER,
   EXTRA_ERRORS,
   INPUT_TIME_LIMIT_EXCEEDED,
@@ -55,6 +56,7 @@ import {
 } from "./actions.js";
 import type {
   DtmfDigit,
+  EventHook,
   MetricOperator,
   MetricType,
   QueueChannel,
@@ -1177,6 +1179,43 @@ export class UpdateContactData extends Block {
   }
 }
 
+/**
+ * Sets one contact event hook: the flow to run at an event such as customer
+ * queue, hold, whisper or the agent UI. "Only one entry may be present in
+ * this map", so the block takes one `hook` and its `flow`, a flow reference
+ * or a single JSONPath (the admin guide's blocks set it dynamically). The
+ * console writes `EventHooks: { <hook>: <flow ARN> }` with NoMatchingError,
+ * as its Sample inbound flow and Sample queue configurations flow export.
+ * Legal in every flow type.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-customer-queue-flow.html
+ */
+export interface UpdateContactEventHooksConfig extends Wired {
+  hook: EventHook;
+  flow: Ref<"flow"> | JsonPath;
+}
+
+export class UpdateContactEventHooks extends Block {
+  readonly type = ActionType.UpdateContactEventHooks;
+
+  constructor(private readonly config: UpdateContactEventHooksConfig) {
+    super(config.id);
+    if (!EVENT_HOOKS.includes(config.hook)) {
+      throw new Error(
+        `UpdateContactEventHooks "${config.id}" hook ${String(config.hook)} is not an event hook.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { EventHooks: { [this.config.hook]: this.config.flow } };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface UpdateContactAttributesConfig extends Wired {
   attributes: Record<string, string>;
   /** Defaults to Current. */
@@ -1430,7 +1469,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 29.
+ * set survivable: 56 action types are documented and the builder models 30.
  */
 export interface GenericBlockConfig {
   id: string;

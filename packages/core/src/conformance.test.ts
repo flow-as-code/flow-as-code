@@ -417,6 +417,29 @@ describe("FlowDoc schema rejections: contact data", () => {
         a.Parameters.TargetContact = "Flow";
       }),
     ],
+    [
+      "two event hooks in one action",
+      mutate("set-queue-flow", (a) => {
+        a.Parameters.EventHooks = {
+          CustomerQueue: "${cdref:flow:a}",
+          CustomerHold: "${cdref:flow:b}",
+        };
+      }),
+    ],
+    [
+      "an event hook the page does not list",
+      mutate("set-queue-flow", (a) => {
+        a.Parameters.EventHooks = { AgentQueue: "${cdref:flow:a}" };
+      }),
+    ],
+    [
+      "a literal ARN as an event hook's flow",
+      mutate("set-queue-flow", (a) => {
+        a.Parameters.EventHooks = {
+          CustomerQueue: "arn:aws:connect:us-east-1:111122223333:instance/a/contact-flow/b",
+        };
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

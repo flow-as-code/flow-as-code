@@ -52,9 +52,11 @@ export interface CatalogElement {
   constraints?: readonly CatalogConstraint[];
   /** list */
   of?: CatalogElement;
-  /** integer and integerString */
+  /** integer and integerString: the value's bounds; list and map: the entry count's. */
   min?: number;
   max?: number;
+  /** map: the keys the page allows, when it lists them. */
+  keys?: readonly string[];
   /**
    * The page also accepts a single JSONPath identifier in this position
    * ("fully static or fully dynamic"). The kind describes the static form.

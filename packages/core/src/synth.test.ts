@@ -44,6 +44,7 @@ import {
   UnTagContact,
   UpdateContactCallbackNumber,
   UpdateContactData,
+  UpdateContactEventHooks,
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
@@ -673,6 +674,28 @@ describe("guardrails", () => {
       References: { CaseId: "$.Attributes.caseId" },
       TargetContact: "Current",
     });
+  });
+
+  it("writes one event hook as a single-entry map and rejects an unknown hook", () => {
+    expect(
+      () =>
+        new UpdateContactEventHooks({
+          id: "h",
+          hook: "AgentQueue" as never,
+          flow: Refs.flow("x"),
+          next: "n",
+          onError: "e",
+        }),
+    ).toThrow(/is not an event hook/);
+    expect(
+      new UpdateContactEventHooks({
+        id: "h",
+        hook: "CustomerQueue",
+        flow: Refs.flow("queue-experience"),
+        next: "n",
+        onError: "e",
+      }).toAction().Parameters,
+    ).toEqual({ EventHooks: { CustomerQueue: "${cdref:flow:queue-experience}" } });
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

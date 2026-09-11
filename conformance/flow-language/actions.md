@@ -71,6 +71,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Contact tags (remove) | `UnTagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html) |
 | Set voice | `UpdateContactTextToSpeechVoice` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html) |
 | Set contact attributes (Connect-defined fields) | `UpdateContactData` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html) |
+| Set customer queue flow, Set event flow, Set hold flow, Set whisper flow | `UpdateContactEventHooks` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -92,6 +93,7 @@ is never interpolated into a longer string.
 | `CreateCallbackContact` | `ContactFlowId` | `flow` |
 | `CheckMetricData` | `QueueId`, `AgentId` | `queue` |
 | `GetMetricData` | `QueueId`, `AgentId` | `queue` |
+| `UpdateContactEventHooks` | `EventHooks.*` (every value) | `flow` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -469,6 +471,26 @@ individual action pages linked above.
     `integerString` from "It is a string". A `WisdomSessionArn` written as a
     literal ARN fails the `no-literal-arn` rule like any other; a JSONPath is
     the expected form.
+31. `UpdateContactEventHooks` (recorded 2026-09-11) "Sets one or more contact
+    event hooks, which are flows associated with contact events, such as
+    customer whisper or agent hold. The following event hooks are valid:
+    AgentHold, AgentWhisper, CustomerHold, CustomerQueue, CustomerRemaining,
+    CustomerWhisper, DefaultAgentUI, DisconnectAgentUI, PauseContact,
+    ResumeContact." `EventHooks` is "an Object that holds the event hooks to
+    be set. Only one entry may be present in this map." whose entry is "the
+    event hook to be set where the key is the event type and the value is
+    the flow ID or ARN to run when that event occurs. Keys must be defined
+    statically." The value is the first map-valued reference path,
+    `EventHooks.*`, a `flow`; the admin guide's blocks set it dynamically, so
+    a JSONPath is accepted too. Results "None"; the error is
+    `NoMatchingError`. "This is supported in all types of flows." The
+    console's exports of the Sample inbound flow and the Sample queue
+    configurations flow carry one entry each (`CustomerRemaining`,
+    `CustomerQueue`) with a flow ARN, `NoMatchingError` and a `NextAction`,
+    which is the shape the builder writes. The catalog records the map's
+    entry count as `min` 1, `max` 1 and its allowed keys as `keys`.
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-customer-queue-flow.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-event-flow.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -524,6 +546,7 @@ UpdateContactData        { Name?, Description?, LanguageCode?, CustomerId?, Refe
                            VoiceAuthenticationResponseTime?,   // "5" to "10"
                            FraudDetectionThreshold?,           // "0" to "100"
                            WatchlistId?, WisdomSessionArn?, TargetContact: "Current" | "Related" }
+UpdateContactEventHooks  { EventHooks: { [hook]: flow } }   // exactly one entry; hook is one of the ten names
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -574,7 +597,9 @@ treats the last two the same way; the distinction records what the page said.
 
 A parameter marked `dynamic` also accepts a single JSONPath identifier where
 its page says "fully static or fully dynamic"; the kind describes the static
-form, and the schema accepts either.
+form, and the schema accepts either. On a `list` or `map`, `min` and `max`
+bound the entry count, and a `map` may carry `keys`, the keys its page
+allows.
 
 Attribute names are the mechanical `snake_case` of the Flow language key
 (`packages/core/src/hcl-names.ts`): `PromptId` is `prompt_id`,
@@ -588,7 +613,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 29 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 30 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

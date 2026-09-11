@@ -277,7 +277,8 @@
           "key": "Tags",
           "attr": "tags",
           "kind": "map",
-          "required": true
+          "required": true,
+          "max": 6
         }
       ],
       "refs": [],
@@ -581,7 +582,49 @@
     "UpdateContactEventHooks": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_event_hooks",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "EventHooks",
+          "attr": "event_hooks",
+          "kind": "map",
+          "required": true,
+          "min": 1,
+          "max": 1,
+          "keys": [
+            "AgentHold",
+            "AgentWhisper",
+            "CustomerHold",
+            "CustomerQueue",
+            "CustomerRemaining",
+            "CustomerWhisper",
+            "DefaultAgentUI",
+            "DisconnectAgentUI",
+            "PauseContact",
+            "ResumeContact"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "EventHooks.*",
+          "ref": "flow"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateContactMediaProcessing": {
       "category": "contact",

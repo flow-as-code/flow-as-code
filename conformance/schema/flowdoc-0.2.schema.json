@@ -914,6 +914,47 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "UpdateContactEventHooks"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "EventHooks": {
+                    "type": "object",
+                    "maxProperties": 1,
+                    "propertyNames": {
+                      "enum": [
+                        "AgentHold",
+                        "AgentWhisper",
+                        "CustomerHold",
+                        "CustomerQueue",
+                        "CustomerRemaining",
+                        "CustomerWhisper",
+                        "DefaultAgentUI",
+                        "DisconnectAgentUI",
+                        "PauseContact",
+                        "ResumeContact"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/refField"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

@@ -1480,6 +1480,48 @@ describe("UpdateContactData inverts every optional field in the page's spelling"
   });
 });
 
+describe("UpdateContactEventHooks inverts the one hook and its flow", () => {
+  const hooks = (map: unknown): FlowAction => ({
+    Identifier: "hook",
+    Type: "UpdateContactEventHooks",
+    Parameters: { EventHooks: map },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactEventHooks"');
+    expect(out).not.toContain("new UpdateContactEventHooks(");
+  };
+
+  it("emits the hook name and a Refs.flow or jsonPath value", () => {
+    const token = codegen(
+      docWith([hooks({ CustomerQueue: "${cdref:flow:queue-experience}" }), bye]),
+    );
+    expect(token).toContain("new UpdateContactEventHooks({");
+    expect(token).toContain('hook: "CustomerQueue"');
+    expect(token).toContain('flow: Refs.flow("queue-experience")');
+    const dynamic = codegen(docWith([hooks({ CustomerWhisper: "$.Attributes.whisperFlow" }), bye]));
+    expect(dynamic).toContain('flow: jsonPath("$.Attributes.whisperFlow")');
+  });
+
+  it("falls back on no hook, two hooks, a hook the page does not list, or a non-flow token", () => {
+    generic(hooks({}));
+    generic(hooks({ CustomerQueue: "${cdref:flow:a}", CustomerHold: "${cdref:flow:b}" }));
+    generic(hooks({ AgentQueue: "${cdref:flow:a}" }));
+    generic(hooks({ CustomerQueue: "${cdref:module:not-a-flow@prod}" }));
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

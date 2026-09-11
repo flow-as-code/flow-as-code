@@ -29,6 +29,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UnTagContact]: "Set",
   [ActionType.UpdateContactTextToSpeechVoice]: "Set",
   [ActionType.UpdateContactData]: "Set",
+  [ActionType.UpdateContactEventHooks]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -92,6 +93,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UnTagContact]: "untag-contact",
   [ActionType.UpdateContactTextToSpeechVoice]: "set-voice",
   [ActionType.UpdateContactData]: "set-contact-data",
+  [ActionType.UpdateContactEventHooks]: "set-event-hook",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -131,6 +133,10 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { Attributes: {}, TargetContact: "Current" };
     case ActionType.UpdateContactData:
       return { TargetContact: "Current" };
+    case ActionType.UpdateContactEventHooks:
+      // Schema-valid but empty; the block class wants exactly one hook, so
+      // the block is generic until the inspector names one.
+      return { EventHooks: {} };
     case ActionType.UpdateFlowAttributes:
       return { FlowAttributes: {} };
     case ActionType.TagContact:

@@ -118,6 +118,44 @@
           "TargetContact": "Current"
         },
         "Transitions": {
+          "NextAction": "set-queue-flow",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-queue-flow",
+        "Type": "UpdateContactEventHooks",
+        "Parameters": {
+          "EventHooks": {
+            "CustomerQueue": "${cdref:flow:queue-experience}"
+          }
+        },
+        "Transitions": {
+          "NextAction": "set-whisper-flow",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-whisper-flow",
+        "Type": "UpdateContactEventHooks",
+        "Parameters": {
+          "EventHooks": {
+            "CustomerWhisper": "$.Attributes.whisperFlow"
+          }
+        },
+        "Transitions": {
           "NextAction": "greet",
           "Errors": [
             {
@@ -155,11 +193,11 @@
   },
   "layout": {
     "bye": {
-      "x": 1840,
+      "x": 2360,
       "y": 20
     },
     "greet": {
-      "x": 1580,
+      "x": 2100,
       "y": 20
     },
     "set-data": {
@@ -170,12 +208,20 @@
       "x": 1320,
       "y": 20
     },
+    "set-queue-flow": {
+      "x": 1580,
+      "y": 20
+    },
     "set-voice": {
       "x": 540,
       "y": 20
     },
     "set-voice-dynamic": {
       "x": 800,
+      "y": 20
+    },
+    "set-whisper-flow": {
+      "x": 1840,
       "y": 20
     },
     "tag": {
@@ -187,5 +233,11 @@
       "y": 20
     }
   },
-  "refs": []
+  "refs": [
+    {
+      "token": "${cdref:flow:queue-experience}",
+      "type": "flow",
+      "name": "queue-experience"
+    }
+  ]
 }
