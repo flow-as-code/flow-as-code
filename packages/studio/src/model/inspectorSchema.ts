@@ -22,6 +22,10 @@ import {
   QUEUE_CHANNELS,
   TTS_ENGINES,
   TTS_STYLES,
+  VOICE_ID_RESPONSE_TIME_MAX,
+  VOICE_ID_RESPONSE_TIME_MIN,
+  VOICE_ID_THRESHOLD_MAX,
+  VOICE_ID_THRESHOLD_MIN,
   QUEUE_PRIORITY_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
@@ -289,6 +293,75 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       return [{ kind: "json", key: "Tags", label: "Tags (up to six, no aws: keys)" }];
     case ActionType.UnTagContact:
       return [{ kind: "json", key: "TagKeys", label: "Tag keys to remove" }];
+    case ActionType.UpdateContactData:
+      return [
+        {
+          kind: "select",
+          key: "TargetContact",
+          label: "Target contact",
+          options: ["Current", "Related"],
+        },
+        { kind: "text", key: "Name", label: "Name (text or JSONPath)", optional: true },
+        { kind: "text", key: "Description", label: "Description", optional: true },
+        { kind: "text", key: "LanguageCode", label: "Language code", optional: true },
+        { kind: "text", key: "CustomerId", label: "Customer id", optional: true },
+        { kind: "json", key: "References", label: "References" },
+        {
+          kind: "select",
+          key: "IsVoiceIdStreamingEnabled",
+          label: "Voice ID streaming",
+          options: ["TRUE", "FALSE"],
+          optional: true,
+        },
+        {
+          kind: "select",
+          key: "IsVoiceAuthenticationEnabled",
+          label: "Voice authentication",
+          options: ["TRUE", "FALSE"],
+          optional: true,
+        },
+        {
+          kind: "select",
+          key: "IsFraudDetectionEnabled",
+          label: "Fraud detection",
+          options: ["TRUE", "FALSE"],
+          optional: true,
+        },
+        {
+          kind: "number",
+          key: "VoiceAuthenticationThreshold",
+          label: "Voice authentication threshold",
+          min: VOICE_ID_THRESHOLD_MIN,
+          max: VOICE_ID_THRESHOLD_MAX,
+          asString: true,
+          optional: true,
+        },
+        {
+          kind: "number",
+          key: "VoiceAuthenticationResponseTime",
+          label: "Voice authentication response time (seconds)",
+          min: VOICE_ID_RESPONSE_TIME_MIN,
+          max: VOICE_ID_RESPONSE_TIME_MAX,
+          asString: true,
+          optional: true,
+        },
+        {
+          kind: "number",
+          key: "FraudDetectionThreshold",
+          label: "Fraud detection threshold",
+          min: VOICE_ID_THRESHOLD_MIN,
+          max: VOICE_ID_THRESHOLD_MAX,
+          asString: true,
+          optional: true,
+        },
+        { kind: "text", key: "WatchlistId", label: "Watchlist id", optional: true },
+        {
+          kind: "text",
+          key: "WisdomSessionArn",
+          label: "Wisdom session (JSONPath)",
+          optional: true,
+        },
+      ];
     case ActionType.UpdateContactTextToSpeechVoice:
       // The JSONPath forms of the engine and style are edited as a GenericBlock.
       return [

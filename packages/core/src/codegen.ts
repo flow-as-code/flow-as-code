@@ -38,8 +38,13 @@ import {
   QUEUE_CHANNELS,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
+  TARGET_CONTACTS,
   TTS_ENGINES,
   TTS_STYLES,
+  VOICE_ID_RESPONSE_TIME_MAX,
+  VOICE_ID_RESPONSE_TIME_MIN,
+  VOICE_ID_THRESHOLD_MAX,
+  VOICE_ID_THRESHOLD_MIN,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -74,6 +79,7 @@ import {
   TransferToFlow,
   UpdateContactAttributes,
   UpdateContactCallbackNumber,
+  UpdateContactData,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
@@ -1288,6 +1294,94 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       block: new UpdateContactTextToSpeechVoice(
         cast<never>({ ...config, next: w.next, onError: w.onError }),
       ),
+    };
+  },
+
+  [ActionType.UpdateContactData]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    const strings = [
+      ["Name", "name"],
+      ["Description", "description"],
+      ["LanguageCode", "languageCode"],
+      ["CustomerId", "customerId"],
+      ["WatchlistId", "watchlistId"],
+      ["WisdomSessionArn", "wisdomSessionArn"],
+    ] as const;
+    const flags = [
+      ["IsVoiceIdStreamingEnabled", "voiceIdStreaming"],
+      ["IsVoiceAuthenticationEnabled", "voiceAuthentication"],
+      ["IsFraudDetectionEnabled", "fraudDetection"],
+    ] as const;
+    const numbers = [
+      [
+        "VoiceAuthenticationThreshold",
+        "voiceAuthenticationThreshold",
+        VOICE_ID_THRESHOLD_MIN,
+        VOICE_ID_THRESHOLD_MAX,
+      ],
+      [
+        "VoiceAuthenticationResponseTime",
+        "voiceAuthenticationResponseTime",
+        VOICE_ID_RESPONSE_TIME_MIN,
+        VOICE_ID_RESPONSE_TIME_MAX,
+      ],
+      [
+        "FraudDetectionThreshold",
+        "fraudDetectionThreshold",
+        VOICE_ID_THRESHOLD_MIN,
+        VOICE_ID_THRESHOLD_MAX,
+      ],
+    ] as const;
+    const optional = [
+      ...strings.map(([k]) => k),
+      "References",
+      ...flags.map(([k]) => k),
+      ...numbers.map(([k]) => k),
+    ];
+    if (!paramKeysAre(p, ["TargetContact"], optional)) return undefined;
+    const target = p.TargetContact;
+    if (typeof target !== "string" || !(TARGET_CONTACTS as readonly string[]).includes(target)) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (target === "Related") {
+      entries.push(["targetContact", target]);
+      config.targetContact = target;
+    }
+    for (const [key, prop] of strings) {
+      if (p[key] === undefined) continue;
+      if (typeof p[key] !== "string") return undefined;
+      entries.push([prop, p[key]]);
+      config[prop] = p[key];
+    }
+    if (p.References !== undefined) {
+      if (!isStringMap(p.References)) return undefined;
+      entries.push(["references", toV(p.References)]);
+      config.references = p.References;
+    }
+    for (const [key, prop] of flags) {
+      if (p[key] === undefined) continue;
+      if (p[key] !== "TRUE" && p[key] !== "FALSE") return undefined;
+      entries.push([prop, p[key] === "TRUE"]);
+      config[prop] = p[key] === "TRUE";
+    }
+    for (const [key, prop, min, max] of numbers) {
+      const raw = p[key];
+      if (raw === undefined) continue;
+      if (typeof raw !== "string" || !/^(0|[1-9][0-9]*)$/.test(raw)) return undefined;
+      const value = Number(raw);
+      if (value < min || value > max) return undefined;
+      entries.push([prop, value]);
+      config[prop] = value;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "UpdateContactData",
+      entries,
+      block: new UpdateContactData(cast<never>({ ...config, next: w.next, onError: w.onError })),
     };
   },
 

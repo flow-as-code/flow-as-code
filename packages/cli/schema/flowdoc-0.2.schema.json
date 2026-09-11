@@ -834,6 +834,86 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "UpdateContactData"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "Name": {
+                    "type": "string"
+                  },
+                  "Description": {
+                    "type": "string"
+                  },
+                  "LanguageCode": {
+                    "type": "string"
+                  },
+                  "CustomerId": {
+                    "type": "string"
+                  },
+                  "References": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "IsVoiceIdStreamingEnabled": {
+                    "enum": [
+                      "TRUE",
+                      "FALSE"
+                    ]
+                  },
+                  "IsVoiceAuthenticationEnabled": {
+                    "enum": [
+                      "TRUE",
+                      "FALSE"
+                    ]
+                  },
+                  "IsFraudDetectionEnabled": {
+                    "enum": [
+                      "TRUE",
+                      "FALSE"
+                    ]
+                  },
+                  "VoiceAuthenticationThreshold": {
+                    "type": "string",
+                    "pattern": "^(100|[1-9]?[0-9])$"
+                  },
+                  "VoiceAuthenticationResponseTime": {
+                    "type": "string",
+                    "pattern": "^([5-9]|10)$"
+                  },
+                  "FraudDetectionThreshold": {
+                    "type": "string",
+                    "pattern": "^(100|[1-9]?[0-9])$"
+                  },
+                  "WatchlistId": {
+                    "type": "string"
+                  },
+                  "WisdomSessionArn": {
+                    "type": "string"
+                  },
+                  "TargetContact": {
+                    "enum": [
+                      "Current",
+                      "Related"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

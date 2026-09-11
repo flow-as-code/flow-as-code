@@ -43,6 +43,7 @@ import {
   TransferContactToAgent,
   UnTagContact,
   UpdateContactCallbackNumber,
+  UpdateContactData,
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
@@ -649,6 +650,29 @@ describe("guardrails", () => {
         onError: "e",
       }).toAction().Parameters,
     ).toEqual({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "neural" });
+  });
+
+  it("rejects Voice ID settings outside the page's bounds and writes the rest as strings", () => {
+    const base = { id: "d", next: "n", onError: "e" };
+    expect(() => new UpdateContactData({ ...base, voiceAuthenticationThreshold: 101 })).toThrow(
+      /between 0 and 100/,
+    );
+    expect(() => new UpdateContactData({ ...base, voiceAuthenticationResponseTime: 4 })).toThrow(
+      /between 5 and 10/,
+    );
+    expect(
+      new UpdateContactData({
+        ...base,
+        voiceAuthentication: true,
+        voiceAuthenticationThreshold: 80,
+        references: { CaseId: "$.Attributes.caseId" },
+      }).toAction().Parameters,
+    ).toEqual({
+      IsVoiceAuthenticationEnabled: "TRUE",
+      VoiceAuthenticationThreshold: "80",
+      References: { CaseId: "$.Attributes.caseId" },
+      TargetContact: "Current",
+    });
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

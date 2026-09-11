@@ -28,6 +28,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.TagContact]: "Set",
   [ActionType.UnTagContact]: "Set",
   [ActionType.UpdateContactTextToSpeechVoice]: "Set",
+  [ActionType.UpdateContactData]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -90,6 +91,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.TagContact]: "tag-contact",
   [ActionType.UnTagContact]: "untag-contact",
   [ActionType.UpdateContactTextToSpeechVoice]: "set-voice",
+  [ActionType.UpdateContactData]: "set-contact-data",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -127,6 +129,8 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { LoopCount: 1 };
     case ActionType.UpdateContactAttributes:
       return { Attributes: {}, TargetContact: "Current" };
+    case ActionType.UpdateContactData:
+      return { TargetContact: "Current" };
     case ActionType.UpdateFlowAttributes:
       return { FlowAttributes: {} };
     case ActionType.TagContact:

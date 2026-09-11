@@ -43,6 +43,10 @@ import {
   PERCENTAGE_THRESHOLD_MAX,
   QUEUE_PRIORITY_MIN,
   SYSTEM_TAG_PREFIX,
+  VOICE_ID_RESPONSE_TIME_MAX,
+  VOICE_ID_RESPONSE_TIME_MIN,
+  VOICE_ID_THRESHOLD_MAX,
+  VOICE_ID_THRESHOLD_MIN,
   TAG_LIMIT,
   WAIT_COMPLETED,
   WAIT_EVENTS,
@@ -54,6 +58,7 @@ import type {
   MetricOperator,
   MetricType,
   QueueChannel,
+  TargetContact,
   TtsEngine,
   TtsStyle,
   WaitEvent,
@@ -1068,6 +1073,110 @@ export class UpdateContactTextToSpeechVoice extends Block {
   }
 }
 
+/**
+ * Sets Connect-defined fields on the contact: "Sets a collection of connect
+ * defined attributes on specified contact. With this type of operation,
+ * either all attributes are set or none are set." Every field is optional
+ * but the target ("Current" or "Related", written as TargetContact and
+ * defaulting to Current). `references` is the References map, keys and
+ * values static or dynamic. The Voice ID settings are written as the page
+ * spells them: the three flags as "TRUE" or "FALSE", the thresholds and the
+ * response time as decimal strings within the page's bounds. Legal
+ * everywhere.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html
+ */
+export interface UpdateContactDataConfig extends Wired {
+  targetContact?: TargetContact;
+  name?: string;
+  description?: string;
+  languageCode?: string;
+  customerId?: string;
+  references?: Record<string, string>;
+  voiceIdStreaming?: boolean;
+  voiceAuthentication?: boolean;
+  fraudDetection?: boolean;
+  /** 0 to 100. */
+  voiceAuthenticationThreshold?: number;
+  /** 5 to 10 seconds. */
+  voiceAuthenticationResponseTime?: number;
+  /** 0 to 100. */
+  fraudDetectionThreshold?: number;
+  watchlistId?: string;
+  wisdomSessionArn?: string;
+}
+
+export class UpdateContactData extends Block {
+  readonly type = ActionType.UpdateContactData;
+
+  constructor(private readonly config: UpdateContactDataConfig) {
+    super(config.id);
+    const bounded = (name: string, value: number | undefined, min: number, max: number) => {
+      if (value === undefined) return;
+      if (!Number.isInteger(value) || value < min || value > max) {
+        throw new Error(
+          `UpdateContactData "${config.id}" ${name} must be an integer between ${min} and ${max}, got ${value}.`,
+        );
+      }
+    };
+    bounded(
+      "voiceAuthenticationThreshold",
+      config.voiceAuthenticationThreshold,
+      VOICE_ID_THRESHOLD_MIN,
+      VOICE_ID_THRESHOLD_MAX,
+    );
+    bounded(
+      "voiceAuthenticationResponseTime",
+      config.voiceAuthenticationResponseTime,
+      VOICE_ID_RESPONSE_TIME_MIN,
+      VOICE_ID_RESPONSE_TIME_MAX,
+    );
+    bounded(
+      "fraudDetectionThreshold",
+      config.fraudDetectionThreshold,
+      VOICE_ID_THRESHOLD_MIN,
+      VOICE_ID_THRESHOLD_MAX,
+    );
+    for (const [k, v] of Object.entries(config.references ?? {})) {
+      if (typeof v !== "string") {
+        throw new Error(`UpdateContactData "${config.id}" reference "${k}" must be a string.`);
+      }
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const p: Record<string, unknown> = {};
+    if (c.name !== undefined) p.Name = c.name;
+    if (c.description !== undefined) p.Description = c.description;
+    if (c.languageCode !== undefined) p.LanguageCode = c.languageCode;
+    if (c.customerId !== undefined) p.CustomerId = c.customerId;
+    if (c.references !== undefined) p.References = c.references;
+    const flag = (v: boolean) => (v ? "TRUE" : "FALSE");
+    if (c.voiceIdStreaming !== undefined) p.IsVoiceIdStreamingEnabled = flag(c.voiceIdStreaming);
+    if (c.voiceAuthentication !== undefined) {
+      p.IsVoiceAuthenticationEnabled = flag(c.voiceAuthentication);
+    }
+    if (c.fraudDetection !== undefined) p.IsFraudDetectionEnabled = flag(c.fraudDetection);
+    if (c.voiceAuthenticationThreshold !== undefined) {
+      p.VoiceAuthenticationThreshold = String(c.voiceAuthenticationThreshold);
+    }
+    if (c.voiceAuthenticationResponseTime !== undefined) {
+      p.VoiceAuthenticationResponseTime = String(c.voiceAuthenticationResponseTime);
+    }
+    if (c.fraudDetectionThreshold !== undefined) {
+      p.FraudDetectionThreshold = String(c.fraudDetectionThreshold);
+    }
+    if (c.watchlistId !== undefined) p.WatchlistId = c.watchlistId;
+    if (c.wisdomSessionArn !== undefined) p.WisdomSessionArn = c.wisdomSessionArn;
+    p.TargetContact = c.targetContact ?? "Current";
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface UpdateContactAttributesConfig extends Wired {
   attributes: Record<string, string>;
   /** Defaults to Current. */
@@ -1321,7 +1430,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 28.
+ * set survivable: 56 action types are documented and the builder models 29.
  */
 export interface GenericBlockConfig {
   id: string;

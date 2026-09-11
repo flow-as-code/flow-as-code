@@ -26,6 +26,10 @@ import {
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
   QUEUE_PRIORITY_MIN,
+  VOICE_ID_RESPONSE_TIME_MAX,
+  VOICE_ID_RESPONSE_TIME_MIN,
+  VOICE_ID_THRESHOLD_MAX,
+  VOICE_ID_THRESHOLD_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
   FLOW_TYPE_RESTRICTIONS,
@@ -90,6 +94,14 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   },
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
   Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
+  UpdateContactData: {
+    VoiceAuthenticationThreshold: { min: VOICE_ID_THRESHOLD_MIN, max: VOICE_ID_THRESHOLD_MAX },
+    VoiceAuthenticationResponseTime: {
+      min: VOICE_ID_RESPONSE_TIME_MIN,
+      max: VOICE_ID_RESPONSE_TIME_MAX,
+    },
+    FraudDetectionThreshold: { min: VOICE_ID_THRESHOLD_MIN, max: VOICE_ID_THRESHOLD_MAX },
+  },
 };
 
 const KINDS = new Set([
@@ -365,6 +377,7 @@ describe("the action catalog", () => {
     expect(requiredErrors("TagContact")).toEqual([]);
     expect(requiredErrors("UnTagContact")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("UpdateContactTextToSpeechVoice")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("UpdateContactData")).toEqual(["NoMatchingError"]);
     expect(builderErrors("CheckMetricData")).toEqual(["NoMatchingError", "NoMatchingCondition"]);
     expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);

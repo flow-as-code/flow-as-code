@@ -1410,6 +1410,76 @@ describe("UpdateContactTextToSpeechVoice inverts the voice with its optional eng
   });
 });
 
+describe("UpdateContactData inverts every optional field in the page's spelling", () => {
+  const data = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "data",
+    Type: "UpdateContactData",
+    Parameters: { TargetContact: "Current", ...parameters },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([data(parameters), bye]));
+    expect(out).toContain("new UpdateContactData({");
+    expect(out).not.toContain('type: "UpdateContactData"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactData"');
+    expect(out).not.toContain("new UpdateContactData(");
+  };
+
+  it("keeps a Current target implicit and emits the rest as typed fields", () => {
+    const bare = typed({});
+    expect(bare).not.toContain("targetContact");
+    const full = typed({
+      Name: "$.Attributes.name",
+      Description: "Priority caller",
+      LanguageCode: "en-US",
+      CustomerId: "c-1",
+      References: { CaseId: "$.Attributes.caseId" },
+      IsVoiceIdStreamingEnabled: "TRUE",
+      IsVoiceAuthenticationEnabled: "TRUE",
+      IsFraudDetectionEnabled: "FALSE",
+      VoiceAuthenticationThreshold: "80",
+      VoiceAuthenticationResponseTime: "7",
+      FraudDetectionThreshold: "50",
+      WatchlistId: "wl-1",
+      WisdomSessionArn: "$.Wisdom.SessionArn",
+      TargetContact: "Related",
+    });
+    expect(full).toContain('targetContact: "Related"');
+    expect(full).toContain('name: "$.Attributes.name"');
+    expect(full).toContain('references: { CaseId: "$.Attributes.caseId" }');
+    expect(full).toContain("voiceIdStreaming: true");
+    expect(full).toContain("fraudDetection: false");
+    expect(full).toContain("voiceAuthenticationThreshold: 80");
+    expect(full).toContain("voiceAuthenticationResponseTime: 7");
+    expect(full).toContain('wisdomSessionArn: "$.Wisdom.SessionArn"');
+  });
+
+  it("falls back on a missing target, a lowercase flag, a threshold out of range or as a number, or a non-string reference", () => {
+    const noTarget = data({});
+    noTarget.Parameters = {};
+    generic(noTarget);
+    generic(data({ IsFraudDetectionEnabled: "true" }));
+    generic(data({ VoiceAuthenticationThreshold: "101" }));
+    generic(data({ VoiceAuthenticationResponseTime: "4" }));
+    generic(data({ FraudDetectionThreshold: 50 }));
+    generic(data({ References: { CaseId: 1 } }));
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

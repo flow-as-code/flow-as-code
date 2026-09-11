@@ -42,6 +42,7 @@ export const ActionType = {
   TagContact: "TagContact",
   UnTagContact: "UnTagContact",
   UpdateContactTextToSpeechVoice: "UpdateContactTextToSpeechVoice",
+  UpdateContactData: "UpdateContactData",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -353,6 +354,9 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * UpdateContactTextToSpeechVoice: "None. This action is supported in all flow
  * types, and across all channels."
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
+ * UpdateContactData: "This action is supported on all channels and in all
+ * flow types."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
@@ -365,6 +369,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.TagContact,
   ActionType.UnTagContact,
   ActionType.UpdateContactTextToSpeechVoice,
+  ActionType.UpdateContactData,
 ];
 
 /**
@@ -493,6 +498,21 @@ export const TTS_ENGINES = ["standard", "neural", "generative"] as const;
 export type TtsEngine = (typeof TTS_ENGINES)[number];
 export const TTS_STYLES = ["None", "Conversational", "Newscaster"] as const;
 export type TtsStyle = (typeof TTS_STYLES)[number];
+
+/**
+ * UpdateContactData's Voice ID settings, each "It is a string": the three
+ * flags take "TRUE" and "FALSE" ("the only valid values"), the two thresholds
+ * "must be between 0 and 100", and the response time "must be between 5 and
+ * 10". TargetContact is "Current" or "Related", "the only valid values".
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html
+ */
+export const CONTACT_DATA_FLAGS = ["TRUE", "FALSE"] as const;
+export const VOICE_ID_THRESHOLD_MIN = 0;
+export const VOICE_ID_THRESHOLD_MAX = 100;
+export const VOICE_ID_RESPONSE_TIME_MIN = 5;
+export const VOICE_ID_RESPONSE_TIME_MAX = 10;
+export const TARGET_CONTACTS = ["Current", "Related"] as const;
+export type TargetContact = (typeof TARGET_CONTACTS)[number];
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

@@ -69,6 +69,55 @@
           "TextToSpeechVoice": "$.Attributes.voice"
         },
         "Transitions": {
+          "NextAction": "set-data",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-data",
+        "Type": "UpdateContactData",
+        "Parameters": {
+          "CustomerId": "c-1",
+          "Description": "Priority caller",
+          "FraudDetectionThreshold": "50",
+          "IsFraudDetectionEnabled": "FALSE",
+          "IsVoiceAuthenticationEnabled": "TRUE",
+          "IsVoiceIdStreamingEnabled": "TRUE",
+          "LanguageCode": "en-US",
+          "Name": "$.Attributes.name",
+          "References": {
+            "CaseId": "$.Attributes.caseId"
+          },
+          "TargetContact": "Related",
+          "VoiceAuthenticationResponseTime": "7",
+          "VoiceAuthenticationThreshold": "80",
+          "WatchlistId": "wl-1",
+          "WisdomSessionArn": "$.Wisdom.SessionArn"
+        },
+        "Transitions": {
+          "NextAction": "set-data-minimal",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-data-minimal",
+        "Type": "UpdateContactData",
+        "Parameters": {
+          "TargetContact": "Current"
+        },
+        "Transitions": {
           "NextAction": "greet",
           "Errors": [
             {
@@ -106,11 +155,19 @@
   },
   "layout": {
     "bye": {
-      "x": 1320,
+      "x": 1840,
       "y": 20
     },
     "greet": {
+      "x": 1580,
+      "y": 20
+    },
+    "set-data": {
       "x": 1060,
+      "y": 20
+    },
+    "set-data-minimal": {
+      "x": 1320,
       "y": 20
     },
     "set-voice": {

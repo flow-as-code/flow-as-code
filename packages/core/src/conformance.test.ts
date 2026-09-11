@@ -393,6 +393,30 @@ describe("FlowDoc schema rejections: contact data", () => {
         a.Parameters.TextToSpeechVoice = "";
       }),
     ],
+    [
+      "a voice authentication threshold above 100",
+      mutate("set-data", (a) => {
+        a.Parameters.VoiceAuthenticationThreshold = "101";
+      }),
+    ],
+    [
+      "a response time below 5 seconds",
+      mutate("set-data", (a) => {
+        a.Parameters.VoiceAuthenticationResponseTime = "4";
+      }),
+    ],
+    [
+      "a lowercase Voice ID flag",
+      mutate("set-data", (a) => {
+        a.Parameters.IsVoiceAuthenticationEnabled = "true";
+      }),
+    ],
+    [
+      "a target the page does not list",
+      mutate("set-data", (a) => {
+        a.Parameters.TargetContact = "Flow";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

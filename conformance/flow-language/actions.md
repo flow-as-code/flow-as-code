@@ -70,6 +70,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Contact tags | `TagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html) |
 | Contact tags (remove) | `UnTagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html) |
 | Set voice | `UpdateContactTextToSpeechVoice` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html) |
+| Set contact attributes (Connect-defined fields) | `UpdateContactData` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -447,6 +448,27 @@ individual action pages linked above.
     all channels." The page marks nothing required; the builder requires the
     voice. The admin guide's language code has no key on this page.
     https://docs.aws.amazon.com/connect/latest/adminguide/set-voice.html
+30. `UpdateContactData` (recorded 2026-09-11) "Sets a collection of connect
+    defined attributes on specified contact. With this type of operation,
+    either all attributes are set or none are set." Every field is
+    `[Optional]` except `TargetContact`, "[Required] [...] "Current" or
+    "Related" are the only valid values". `Name` "May be set statically or
+    dynamically"; `Description`, `LanguageCode`, `CustomerId`, `WatchlistId`
+    and `WisdomSessionArn` are strings; `References` is "an Object that holds
+    the references to be set" whose keys and values "may be defined
+    statically or dynamically". The Voice ID fields are each "It is a
+    string": `IsVoiceIdStreamingEnabled`, `IsVoiceAuthenticationEnabled` and
+    `IsFraudDetectionEnabled` take `"TRUE"` and `"FALSE"`, "the only valid
+    values"; `VoiceAuthenticationThreshold` and `FraudDetectionThreshold`
+    "must be between 0 and 100"; `VoiceAuthenticationResponseTime` "must be
+    between 5 and 10". `WatchlistId` also says "Value must be between 0 and
+    100", which reads as copied from the threshold lines and is not enforced.
+    Results "None. No conditions are supported"; the error is
+    `NoMatchingError`. "This action is supported on all channels and in all
+    flow types." The page has no JSON example; the thresholds are recorded as
+    `integerString` from "It is a string". A `WisdomSessionArn` written as a
+    literal ARN fails the `no-literal-arn` rule like any other; a JSONPath is
+    the expected form.
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -496,6 +518,12 @@ TagContact               { Tags: { [k]: v } }        // up to six; no aws: keys
 UnTagContact             { TagKeys: string[] }        // static keys; no aws: keys
 UpdateContactTextToSpeechVoice { TextToSpeechVoice, TextToSpeechEngine?: "standard" | "neural" | "generative",
                            TextToSpeechStyle?: "None" | "Conversational" | "Newscaster" }   // each static or a JSONPath
+UpdateContactData        { Name?, Description?, LanguageCode?, CustomerId?, References?: { [k]: v },
+                           IsVoiceIdStreamingEnabled?: "TRUE" | "FALSE", IsVoiceAuthenticationEnabled?: "TRUE" | "FALSE",
+                           IsFraudDetectionEnabled?: "TRUE" | "FALSE", VoiceAuthenticationThreshold?,   // "0" to "100"
+                           VoiceAuthenticationResponseTime?,   // "5" to "10"
+                           FraudDetectionThreshold?,           // "0" to "100"
+                           WatchlistId?, WisdomSessionArn?, TargetContact: "Current" | "Related" }
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -560,7 +588,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 28 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 29 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is
