@@ -349,6 +349,18 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.UpdateContactRecordingBehavior:
       return [{ kind: "json", key: "RecordingBehavior", label: "Recording behavior" }];
+    case ActionType.UpdateContactRecordingAndAnalyticsBehavior:
+      // The voice recording form and the optional screen recording form;
+      // the chat form and the voice analytics settings are edited as a
+      // GenericBlock.
+      return [
+        { kind: "json", key: "VoiceBehavior", label: "Voice recording (VoiceRecordingBehavior)" },
+        {
+          kind: "json",
+          key: "ScreenRecordingBehavior",
+          label: "Screen recording (ScreenRecordedParticipants, optional)",
+        },
+      ];
     case ActionType.UpdateFlowAttributes:
       return [{ kind: "json", key: "FlowAttributes", label: "Flow attributes" }];
     case ActionType.TagContact:

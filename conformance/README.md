@@ -119,7 +119,10 @@ the participant actions (`participant`: a loop of prompts in every message
 kind with an interrupt, one that holds the contact with nothing wired, and a
 Lex V2 bot with intents, session attributes and a timeout, plus a bare one,
 and a view shown with data, a hidden transcript and a time limit, plus a bare
-one).
+one), and a flow of the recording block (`recording-analytics`: voice
+recording of both participants with IVR recording and agent screen recording
+on one block, a voice-only form, a screen-only form, and the chat analytics
+form the builder leaves generic, with its third error).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

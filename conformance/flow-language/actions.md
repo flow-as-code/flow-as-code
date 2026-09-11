@@ -75,6 +75,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Loop prompts | `MessageParticipantIteratively` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html) |
 | Get customer input (Amazon Lex) | `ConnectParticipantWithLexBot` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html) |
 | Show view | `ShowView` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html) |
+| Set recording, analytics, and processing behavior | `UpdateContactRecordingAndAnalyticsBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -611,6 +612,43 @@ individual action pages linked above.
     says whether `NextAction` is required or mirrors a branch; the builder
     writes it as its own path, to be confirmed against a console export.
     https://docs.aws.amazon.com/connect/latest/adminguide/show-view-block.html
+35. `UpdateContactRecordingAndAnalyticsBehavior` (recorded 2026-09-11) "Sets
+    contact recording behavior, including analysis behavior and which
+    participants of the contact to record." Its parameter block holds one
+    channel object ("Only ONE of the following channel behavior objects can be
+    defined per configuration": `ChatBehavior` or `VoiceBehavior`, an
+    `atMostOne` constraint) and an optional `ScreenRecordingBehavior` that "Can
+    be defined independently or alongside any channel behavior". The builder
+    models the two recording forms: `VoiceBehavior.VoiceRecordingBehavior`,
+    whose `RecordedParticipants` is "a list of participants to record, chosen
+    from "Agent" and "Customer". An empty list disables recording. Must be set
+    statically" and whose `IVRRecordingBehavior` "Can be either "Enabled" or
+    "Disabled". Must be set statically", and
+    `ScreenRecordingBehavior.ScreenRecordedParticipants`, which "can only
+    include "Agent"" and is static; either alone or both, since the admin
+    guide asks for "two separate Set recording, analytics, and processing
+    behavior blocks in sequence" to combine screen and channel recording.
+    `VoiceAnalyticsBehavior` ("Can only be set if RecordedParticipants
+    contains both Agent and Customer", a cross-field rule the catalog cannot
+    spell) and the whole `ChatBehavior` object stay generic, as the older
+    action's `AnalyticsBehavior` does. Errors in the page's order:
+    `NoMatchingError` and `ChannelMismatch` ("if the media channel that
+    initiated the contact is not the same as the one defined in the action"),
+    both "Must always be defined"; `InFlightRedactionConfigurationFailed`
+    "Must be defined if chat behavior is defined in action", a condition the
+    catalog records as text and error-branches does not enforce, since the
+    builder never writes the chat form (a lint fixture records that gap). The
+    page has no Restrictions section, so the catalog records the action as
+    unrestricted; the admin guide says "This block is supported for all flow
+    types except journey flows" and only recommends a whisper flow for the
+    recording portion. The page says nothing about `NextAction`; the admin
+    guide's block has a Success branch, and the builder writes it as the
+    block's own path, as for `UpdateContactRecordingBehavior`, to be confirmed
+    against a console export (no recorded sample flow carries the action). The
+    catalog's `recordingEnabler` is the voice list, so
+    recording-consent-before-record treats the block as it treats the older
+    one; screen recording records the agent and is not an enabler.
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -685,6 +723,12 @@ UpdateContactRecordingBehavior {
                        IVRRecordingBehavior?: "Enabled" | "Disabled" },
   AnalyticsBehavior?: { ... }   // large; see the doc page before modeling it
 }
+UpdateContactRecordingAndAnalyticsBehavior {                       // at least one of the two objects
+  VoiceBehavior?: { VoiceRecordingBehavior: { RecordedParticipants: ("Agent"|"Customer")[],
+                                              IVRRecordingBehavior?: "Enabled" | "Disabled" } },
+  ScreenRecordingBehavior?: { ScreenRecordedParticipants: ("Agent")[] }
+  // VoiceBehavior.VoiceAnalyticsBehavior and ChatBehavior: GenericBlock
+}
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -743,7 +787,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 33 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 34 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

@@ -27,6 +27,7 @@ import {
   LOOP_COUNT_MIN,
   OPTIONAL_CATCH_ALL,
   QUEUE_PRIORITY_MIN,
+  REQUIRED_EXTRAS,
   TAG_LIMIT,
   VOICE_ID_RESPONSE_TIME_MAX,
   VOICE_ID_RESPONSE_TIME_MIN,
@@ -317,13 +318,16 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
         );
       }
       const required = t.errors.filter((e) => e.required).map((e) => e.type);
+      const alwaysRequired = new Set(REQUIRED_EXTRAS[type] ?? []);
       const expectedRequired = noCatchAll
         ? extras
-        : OPTIONAL_CATCH_ALL.includes(type)
-          ? []
-          : [catchAll];
+        : emitted.filter((e) =>
+            e === catchAll ? !OPTIONAL_CATCH_ALL.includes(type) : alwaysRequired.has(e),
+          );
       // A conditional error (Wait's ParticipantNotFound) is the builder's but
-      // not required; a required flag on one is caught here as on any extra.
+      // not required; a required flag on one is caught here as on any extra,
+      // and an extra the page always requires (REQUIRED_EXTRAS) must carry
+      // the flag.
       if (required.join(",") !== expectedRequired.join(",")) {
         out.push(
           `${where}: required errors ${required.join(",")}, expected ${expectedRequired.join(",")}`,
@@ -387,6 +391,16 @@ describe("the action catalog", () => {
     expect(requiredErrors("Loop")).toEqual([]);
     expect(builderErrors("Loop")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("UpdateFlowAttributes")).toEqual(["NoMatchingError"]);
+    // Both "Must always be defined"; the chat form's third error is
+    // conditional, and the builder never writes that form.
+    expect(requiredErrors("UpdateContactRecordingAndAnalyticsBehavior")).toEqual([
+      "NoMatchingError",
+      "ChannelMismatch",
+    ]);
+    expect(builderErrors("UpdateContactRecordingAndAnalyticsBehavior")).toEqual([
+      "NoMatchingError",
+      "ChannelMismatch",
+    ]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(requiredErrors("CheckMetricData")).toEqual(["NoMatchingError"]);
@@ -527,6 +541,21 @@ describe("catalogProblems is proven able to fail", () => {
         (p as { max?: number }).max = 259_201;
       }),
     ).toContainEqual(expect.stringContaining("CreateCallbackContact.RetryDelaySeconds: bounds"));
+  });
+  it("on a required extra losing its flag, or a conditional one gaining it", () => {
+    expect(
+      mutate((c) => {
+        modeledAt(c, "UpdateContactRecordingAndAnalyticsBehavior").transitions.errors[1]!.required =
+          false;
+      }),
+    ).toContainEqual(
+      expect.stringContaining("UpdateContactRecordingAndAnalyticsBehavior: required errors"),
+    );
+    expect(
+      mutate((c) => {
+        modeledAt(c, "Wait").transitions.errors[1]!.required = true;
+      }),
+    ).toContainEqual(expect.stringContaining("Wait: required errors"));
   });
   it("on a catalog bound with no constant behind it", () => {
     expect(

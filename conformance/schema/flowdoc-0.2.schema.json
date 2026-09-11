@@ -1395,6 +1395,76 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactRecordingAndAnalyticsBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "VoiceBehavior": {
+                    "type": "object",
+                    "properties": {
+                      "VoiceRecordingBehavior": {
+                        "type": "object",
+                        "properties": {
+                          "RecordedParticipants": {
+                            "type": "array",
+                            "items": {
+                              "enum": [
+                                "Agent",
+                                "Customer"
+                              ]
+                            },
+                            "uniqueItems": true
+                          },
+                          "IVRRecordingBehavior": {
+                            "enum": [
+                              "Enabled",
+                              "Disabled"
+                            ]
+                          }
+                        }
+                      },
+                      "VoiceAnalyticsBehavior": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "ChatBehavior": {
+                    "type": "object"
+                  },
+                  "ScreenRecordingBehavior": {
+                    "type": "object",
+                    "properties": {
+                      "ScreenRecordedParticipants": {
+                        "type": "array",
+                        "items": {
+                          "const": "Agent"
+                        },
+                        "maxItems": 1
+                      }
+                    }
+                  }
+                },
+                "not": {
+                  "required": [
+                    "ChatBehavior",
+                    "VoiceBehavior"
+                  ]
+                }
+              }
+            }
+          }
         }
       ]
     },

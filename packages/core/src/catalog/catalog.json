@@ -639,7 +639,116 @@
     "UpdateContactRecordingAndAnalyticsBehavior": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_recording_and_analytics_behavior",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "VoiceBehavior",
+          "attr": "voice_behavior",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "VoiceRecordingBehavior",
+              "attr": "voice_recording_behavior",
+              "kind": "object",
+              "required": true,
+              "fields": [
+                {
+                  "key": "RecordedParticipants",
+                  "attr": "recorded_participants",
+                  "kind": "list",
+                  "required": true,
+                  "of": {
+                    "kind": "enum",
+                    "values": [
+                      "Agent",
+                      "Customer"
+                    ]
+                  }
+                },
+                {
+                  "key": "IVRRecordingBehavior",
+                  "attr": "ivr_recording_behavior",
+                  "kind": "enum",
+                  "required": false,
+                  "values": [
+                    "Enabled",
+                    "Disabled"
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "VoiceAnalyticsBehavior",
+              "attr": "voice_analytics_behavior",
+              "kind": "json",
+              "required": false
+            }
+          ]
+        },
+        {
+          "key": "ChatBehavior",
+          "attr": "chat_behavior",
+          "kind": "json",
+          "required": false
+        },
+        {
+          "key": "ScreenRecordingBehavior",
+          "attr": "screen_recording_behavior",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "ScreenRecordedParticipants",
+              "attr": "screen_recorded_participants",
+              "kind": "list",
+              "required": true,
+              "of": {
+                "kind": "enum",
+                "values": [
+                  "Agent"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "ChatBehavior",
+            "VoiceBehavior"
+          ]
+        }
+      ],
+      "refs": [],
+      "recordingEnabler": "VoiceBehavior.VoiceRecordingBehavior.RecordedParticipants",
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "ChannelMismatch",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "InFlightRedactionConfigurationFailed",
+            "required": false,
+            "builder": false,
+            "when": "ChatBehavior is defined, a form the builder does not write"
+          }
+        ]
+      }
     },
     "UpdateContactRecordingBehavior": {
       "category": "contact",

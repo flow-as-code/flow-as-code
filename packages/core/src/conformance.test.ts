@@ -572,6 +572,60 @@ describe("FlowDoc schema rejections: participant", () => {
   });
 });
 
+describe("FlowDoc schema rejections: recording and analytics", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/recording-analytics/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+  const voice = (a: Action): Record<string, unknown> =>
+    (a.Parameters.VoiceBehavior as { VoiceRecordingBehavior: Record<string, unknown> })
+      .VoiceRecordingBehavior;
+
+  it("accepts the fixture as committed, chat form included", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a recorded participant other than Agent or Customer",
+      mutate("record-both", (a) => {
+        voice(a).RecordedParticipants = ["Supervisor"];
+      }),
+    ],
+    [
+      "a participant recorded twice",
+      mutate("record-both", (a) => {
+        voice(a).RecordedParticipants = ["Agent", "Agent"];
+      }),
+    ],
+    [
+      "an IVR recording value other than Enabled or Disabled",
+      mutate("record-both", (a) => {
+        voice(a).IVRRecordingBehavior = "On";
+      }),
+    ],
+    [
+      "a screen recorded participant other than Agent",
+      mutate("record-screen", (a) => {
+        a.Parameters.ScreenRecordingBehavior = { ScreenRecordedParticipants: ["Customer"] };
+      }),
+    ],
+    [
+      "a chat and a voice behavior on one block",
+      mutate("record-both", (a) => {
+        a.Parameters.ChatBehavior = { ChatAnalyticsBehavior: { Enabled: "True" } };
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
 // GetParticipantInput's structural rules, from the same reference. The demo
 // flow has no menu, so the dtmf-menu round-trip fixture is the subject.
 describe("FlowDoc schema rejections: GetParticipantInput", () => {

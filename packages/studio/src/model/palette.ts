@@ -24,6 +24,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactTargetQueue]: "Set",
   [ActionType.UpdateContactAttributes]: "Set",
   [ActionType.UpdateContactRecordingBehavior]: "Set",
+  [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "Set",
   [ActionType.UpdateContactRoutingBehavior]: "Set",
   [ActionType.UpdateContactCallbackNumber]: "Set",
   [ActionType.UpdateFlowAttributes]: "Set",
@@ -91,6 +92,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactTargetQueue]: "set-queue",
   [ActionType.UpdateContactAttributes]: "set-attributes",
   [ActionType.UpdateContactRecordingBehavior]: "set-recording",
+  [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "set-recording-analytics",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
   [ActionType.UpdateContactCallbackNumber]: "set-callback-number",
   [ActionType.UpdateFlowAttributes]: "set-flow-attributes",
@@ -166,6 +168,13 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { TextToSpeechVoice: "Joanna" };
     case ActionType.UpdateContactRecordingBehavior:
       return { RecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } };
+    case ActionType.UpdateContactRecordingAndAnalyticsBehavior:
+      // The voice recording form with both participants, as the older
+      // block's default; the page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
+      return {
+        VoiceBehavior: { VoiceRecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } },
+      };
     case ActionType.CreateCallbackContact:
       // Starting values inside the page's bounds; the admin guide states no
       // console defaults for the Transfer to Callback tab. A minute before

@@ -47,6 +47,7 @@ export const ActionType = {
   MessageParticipantIteratively: "MessageParticipantIteratively",
   ConnectParticipantWithLexBot: "ConnectParticipantWithLexBot",
   ShowView: "ShowView",
+  UpdateContactRecordingAndAnalyticsBehavior: "UpdateContactRecordingAndAnalyticsBehavior",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -139,6 +140,19 @@ export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
 export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
 
 /**
+ * UpdateContactRecordingAndAnalyticsBehavior's second required error: "if the
+ * media channel that initiated the contact is not the same as the one defined
+ * in the action. For screen recording, any channel other than voice, chat or
+ * tasks would result in this branch being taken. Must always be defined."
+ * The third, InFlightRedactionConfigurationFailed, "Must be defined if chat
+ * behavior is defined in action"; the builder writes the voice form only, so
+ * it never wires it and the catalog records the condition as text.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
+ */
+export const CHANNEL_MISMATCH = "ChannelMismatch";
+export const IN_FLIGHT_REDACTION_CONFIGURATION_FAILED = "InFlightRedactionConfigurationFailed";
+
+/**
  * Non-terminal modeled actions whose page lists no catch-all. The builder
  * wires exactly EXTRA_ERRORS for them, and every listed error is one the
  * document must wire (error-branches reads the catalog's required flags,
@@ -224,6 +238,24 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // only when a time limit is set.
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
   [ActionType.ShowView]: [NO_MATCHING_ERROR, NO_MATCHING_CONDITION, TIME_LIMIT_EXCEEDED],
+  // The page's order, catch-all first, both "Must always be defined"; the
+  // chat form's InFlightRedactionConfigurationFailed is not written because
+  // the chat form is not modeled.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
+  [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
+};
+
+/**
+ * Extra errors a page marks "Must always be defined" on a type that also has
+ * a catch-all, so error-branches reports each of them as it reports the
+ * catch-all (the catalog's required flags carry it; this table holds the
+ * catalog to the page). A type in WITHOUT_CATCH_ALL needs no entry: every
+ * extra it lists is required.
+ */
+export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
+  // "ChannelMismatch - if the media channel that initiated the contact is not
+  // the same as the one defined in the action. ... Must always be defined."
+  [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: [CHANNEL_MISMATCH],
 };
 
 // The Restrictions section of an action page names flow types in the console's
@@ -442,6 +474,12 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.UpdateContactTextToSpeechVoice,
   ActionType.UpdateContactData,
   ActionType.UpdateContactEventHooks,
+  // No Restrictions section on the page; the admin guide's block "is
+  // supported for all flow types except journey flows", which have no
+  // ConnectType, and it only recommends a whisper flow for the recording
+  // portion.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+  ActionType.UpdateContactRecordingAndAnalyticsBehavior,
 ];
 
 /**

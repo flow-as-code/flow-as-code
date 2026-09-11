@@ -1238,6 +1238,120 @@ describe("CheckMetricData inverts the console's staffing check and a queue-depth
   });
 });
 
+describe("UpdateContactRecordingAndAnalyticsBehavior inverts its voice and screen recording forms", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "record",
+    Type: "UpdateContactRecordingAndAnalyticsBehavior",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "ChannelMismatch", NextAction: "bye" },
+      ],
+      Conditions: [],
+    },
+  });
+  const both = () =>
+    action({
+      VoiceBehavior: {
+        VoiceRecordingBehavior: {
+          RecordedParticipants: ["Agent", "Customer"],
+          IVRRecordingBehavior: "Enabled",
+        },
+      },
+      ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] },
+    });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactRecordingAndAnalyticsBehavior"');
+    expect(out).not.toContain("new UpdateContactRecordingAndAnalyticsBehavior(");
+  };
+
+  it("emits voice, IVR and screen recording with the two errors in the page's order", () => {
+    const out = codegen(docWith([both(), bye]));
+    expect(out).toContain("new UpdateContactRecordingAndAnalyticsBehavior({");
+    expect(out).toContain('recordedParticipants: ["Agent", "Customer"]');
+    expect(out).toContain('ivrRecordingBehavior: "Enabled"');
+    expect(out).toContain('screenRecordedParticipants: ["Agent"]');
+    expect(out).toContain('onChannelMismatch: "bye"');
+    expect(out).toContain('onError: "bye"');
+  });
+
+  it("emits either recording form alone", () => {
+    const voice = codegen(
+      docWith([
+        action({
+          VoiceBehavior: { VoiceRecordingBehavior: { RecordedParticipants: ["Customer"] } },
+        }),
+        bye,
+      ]),
+    );
+    expect(voice).toContain('recordedParticipants: ["Customer"]');
+    expect(voice).not.toContain("ivrRecordingBehavior");
+    expect(voice).not.toContain("screenRecordedParticipants");
+    const screen = codegen(
+      docWith([
+        action({ ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] } }),
+        bye,
+      ]),
+    );
+    expect(screen).toContain("new UpdateContactRecordingAndAnalyticsBehavior({");
+    expect(screen).toContain('screenRecordedParticipants: ["Agent"]');
+    expect(screen).not.toContain("voice:");
+  });
+
+  it("falls back on the chat form, voice analytics, neither form, or an unlisted participant", () => {
+    generic(action({ ChatBehavior: { ChatAnalyticsBehavior: { Enabled: "True" } } }));
+    generic(
+      action({
+        VoiceBehavior: {
+          VoiceRecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] },
+          VoiceAnalyticsBehavior: { Enabled: "True", AnalyticsLanguage: "en-US" },
+        },
+      }),
+    );
+    generic(action({}));
+    generic(
+      action({
+        VoiceBehavior: { VoiceRecordingBehavior: { RecordedParticipants: ["Supervisor"] } },
+      }),
+    );
+    generic(
+      action({
+        VoiceBehavior: {
+          VoiceRecordingBehavior: { RecordedParticipants: ["Agent"], IVRRecordingBehavior: "On" },
+        },
+      }),
+    );
+    generic(action({ ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Customer"] } }));
+  });
+
+  it("falls back on a missing, swapped or extra error", () => {
+    const missing = both();
+    missing.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(missing);
+    const swapped = both();
+    swapped.Transitions.Errors = [
+      { ErrorType: "ChannelMismatch", NextAction: "bye" },
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ];
+    generic(swapped);
+    const extra = both();
+    extra.Transitions.Errors!.push({
+      ErrorType: "InFlightRedactionConfigurationFailed",
+      NextAction: "bye",
+    });
+    generic(extra);
+  });
+});
+
 describe("CheckMetricData reads the console's two error orders by type", () => {
   const queueAge = (
     errors: { ErrorType: string; NextAction: string }[],

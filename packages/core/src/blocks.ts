@@ -22,6 +22,7 @@ import {
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
   CALLBACK_NUMBER_NOT_DIALABLE,
+  CHANNEL_MISMATCH,
   DTMF_DIGITS,
   EVENT_HOOKS,
   INVALID_CALLBACK_NUMBER,
@@ -1548,6 +1549,83 @@ export class UpdateContactRecordingBehavior extends Block {
   }
 }
 
+/**
+ * The voice recording half of UpdateContactRecordingAndAnalyticsBehavior:
+ * `recordedParticipants` is "a list of participants to record, chosen from
+ * "Agent" and "Customer". An empty list disables recording. Must be set
+ * statically", and `ivrRecordingBehavior` "Can be either "Enabled" or
+ * "Disabled". Must be set statically".
+ */
+export interface VoiceRecording {
+  recordedParticipants: ("Agent" | "Customer")[];
+  ivrRecordingBehavior?: "Enabled" | "Disabled";
+}
+
+/**
+ * "Sets contact recording behavior, including analysis behavior and which
+ * participants of the contact to record." The action's parameter block holds
+ * one channel object ("Only ONE of the following channel behavior objects can
+ * be defined per configuration": ChatBehavior or VoiceBehavior) and an
+ * optional ScreenRecordingBehavior that "Can be defined independently or
+ * alongside any channel behavior". The class writes the voice recording form
+ * (`voice`), the screen recording form (`screenRecordedParticipants`, "can
+ * only include "Agent"", static), or both; the admin guide asks for one
+ * recording type per block, so either alone is the console's shape. The
+ * voice analytics settings and the whole chat form parse as a GenericBlock,
+ * as the older action's AnalyticsBehavior does. Two errors, both "Must
+ * always be defined": the catch-all and ChannelMismatch. The page has no
+ * Restrictions section (the admin guide: "supported for all flow types except
+ * journey flows") and says nothing about NextAction; the admin guide's block
+ * has a Success branch, written here as the block's own path.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+ */
+export interface UpdateContactRecordingAndAnalyticsBehaviorConfig extends Wired {
+  voice?: VoiceRecording;
+  screenRecordedParticipants?: "Agent"[];
+  onChannelMismatch: Target;
+}
+
+export class UpdateContactRecordingAndAnalyticsBehavior extends Block {
+  readonly type = ActionType.UpdateContactRecordingAndAnalyticsBehavior;
+
+  constructor(private readonly config: UpdateContactRecordingAndAnalyticsBehaviorConfig) {
+    super(config.id);
+    if (config.voice === undefined && config.screenRecordedParticipants === undefined) {
+      throw new Error(
+        `UpdateContactRecordingAndAnalyticsBehavior "${config.id}" needs voice recording, screen recording, or both.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {};
+    const voice = this.config.voice;
+    if (voice !== undefined) {
+      const recording: Record<string, unknown> = {
+        RecordedParticipants: voice.recordedParticipants,
+      };
+      if (voice.ivrRecordingBehavior !== undefined) {
+        recording.IVRRecordingBehavior = voice.ivrRecordingBehavior;
+      }
+      p.VoiceBehavior = { VoiceRecordingBehavior: recording };
+    }
+    if (this.config.screenRecordedParticipants !== undefined) {
+      p.ScreenRecordingBehavior = {
+        ScreenRecordedParticipants: this.config.screenRecordedParticipants,
+      };
+    }
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [CHANNEL_MISMATCH, this.config.onChannelMismatch],
+    ]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -1745,7 +1823,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 33.
+ * set survivable: 56 action types are documented and the builder models 34.
  */
 export interface GenericBlockConfig {
   id: string;

@@ -134,6 +134,7 @@ describe("addBlock", () => {
       "MessageParticipantIteratively",
       "ConnectParticipantWithLexBot",
       "ShowView",
+      "UpdateContactRecordingAndAnalyticsBehavior",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

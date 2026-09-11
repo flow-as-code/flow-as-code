@@ -48,6 +48,7 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
@@ -174,6 +175,59 @@ describe("error branch wiring", () => {
     const bare = new DequeueContactAndTransferToQueue({ id: "b", ...wired });
     expect(errors(bare)).toEqual(expected);
     expect(bare.toAction().Parameters).toEqual({});
+  });
+
+  it("writes recording and analytics behavior in the page's shapes and refuses an empty block", () => {
+    expect(
+      () =>
+        new UpdateContactRecordingAndAnalyticsBehavior({
+          id: "r",
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "m",
+        }),
+    ).toThrow(/needs voice recording, screen recording, or both/);
+    const block = new UpdateContactRecordingAndAnalyticsBehavior({
+      id: "r",
+      voice: { recordedParticipants: ["Agent", "Customer"], ivrRecordingBehavior: "Disabled" },
+      screenRecordedParticipants: ["Agent"],
+      next: "n",
+      onError: "e",
+      onChannelMismatch: "m",
+    });
+    expect(block.toAction().Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
+      ...EXTRA_ERRORS[ActionType.UpdateContactRecordingAndAnalyticsBehavior]!,
+    ]);
+    expect(block.toAction()).toEqual({
+      Identifier: "r",
+      Type: "UpdateContactRecordingAndAnalyticsBehavior",
+      Parameters: {
+        VoiceBehavior: {
+          VoiceRecordingBehavior: {
+            RecordedParticipants: ["Agent", "Customer"],
+            IVRRecordingBehavior: "Disabled",
+          },
+        },
+        ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "ChannelMismatch", NextAction: "m" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new UpdateContactRecordingAndAnalyticsBehavior({
+        id: "s",
+        screenRecordedParticipants: [],
+        next: "n",
+        onError: "e",
+        onChannelMismatch: "m",
+      }).toAction().Parameters,
+    ).toEqual({ ScreenRecordingBehavior: { ScreenRecordedParticipants: [] } });
   });
 
   it("gives UpdateContactCallbackNumber its two named errors and no catch-all", () => {

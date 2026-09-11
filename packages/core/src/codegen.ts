@@ -26,6 +26,7 @@ import {
   AGENT_METRIC_TYPES,
   ActionType,
   CALLBACK_NUMBER_NOT_DIALABLE,
+  CHANNEL_MISMATCH,
   DTMF_DIGITS,
   EVENT_HOOKS,
   INPUT_TIME_LIMIT_EXCEEDED,
@@ -89,6 +90,7 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
@@ -1838,6 +1840,75 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         next: w.next,
         onError: w.onError,
       }),
+    };
+  },
+
+  [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== CHANNEL_MISMATCH
+    ) {
+      return undefined;
+    }
+    // The voice recording form, the screen recording form, or both; the
+    // chat form and the voice analytics settings stay generic.
+    if (!paramKeysAre(a.Parameters, [], ["VoiceBehavior", "ScreenRecordingBehavior"])) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    const vb = a.Parameters.VoiceBehavior as Record<string, unknown> | undefined;
+    if (vb !== undefined) {
+      if (vb === null || typeof vb !== "object" || Array.isArray(vb)) return undefined;
+      if (!paramKeysAre(vb, ["VoiceRecordingBehavior"])) return undefined;
+      const rb = vb.VoiceRecordingBehavior as Record<string, unknown> | null;
+      if (rb === null || typeof rb !== "object" || Array.isArray(rb)) return undefined;
+      if (!paramKeysAre(rb, ["RecordedParticipants"], ["IVRRecordingBehavior"])) return undefined;
+      const recorded = rb.RecordedParticipants;
+      if (!Array.isArray(recorded) || !recorded.every((p) => p === "Agent" || p === "Customer")) {
+        return undefined;
+      }
+      const voice: [string, V][] = [["recordedParticipants", new ArrV([...recorded])]];
+      const voiceConfig: Record<string, unknown> = { recordedParticipants: recorded };
+      const ivr = rb.IVRRecordingBehavior;
+      if (ivr !== undefined) {
+        if (ivr !== "Enabled" && ivr !== "Disabled") return undefined;
+        voice.push(["ivrRecordingBehavior", ivr]);
+        voiceConfig.ivrRecordingBehavior = ivr;
+      }
+      entries.push(["voice", new ObjV(voice)]);
+      config.voice = voiceConfig;
+    }
+    const sb = a.Parameters.ScreenRecordingBehavior as Record<string, unknown> | undefined;
+    if (sb !== undefined) {
+      if (sb === null || typeof sb !== "object" || Array.isArray(sb)) return undefined;
+      if (!paramKeysAre(sb, ["ScreenRecordedParticipants"])) return undefined;
+      const screen = sb.ScreenRecordedParticipants;
+      if (!Array.isArray(screen) || !screen.every((p) => p === "Agent")) return undefined;
+      entries.push(["screenRecordedParticipants", new ArrV([...screen])]);
+      config.screenRecordedParticipants = screen;
+    }
+    if (vb === undefined && sb === undefined) return undefined;
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onChannelMismatch", errors[1]!.NextAction],
+    );
+    return {
+      cls: "UpdateContactRecordingAndAnalyticsBehavior",
+      entries,
+      block: new UpdateContactRecordingAndAnalyticsBehavior(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onChannelMismatch: errors[1]!.NextAction,
+        }),
+      ),
     };
   },
 
