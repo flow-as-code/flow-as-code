@@ -1174,7 +1174,102 @@
     "CreateCallbackContact": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html",
-      "modeled": false
+      "modeled": true,
+      "block": "create_callback_contact",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "QueueId",
+          "attr": "queue_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        },
+        {
+          "key": "AgentId",
+          "attr": "agent_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        },
+        {
+          "key": "InitialCallDelaySeconds",
+          "attr": "initial_call_delay_seconds",
+          "kind": "integer",
+          "required": true,
+          "min": 1,
+          "max": 259200
+        },
+        {
+          "key": "MaximumConnectionAttempts",
+          "attr": "maximum_connection_attempts",
+          "kind": "integer",
+          "required": true,
+          "min": 1
+        },
+        {
+          "key": "RetryDelaySeconds",
+          "attr": "retry_delay_seconds",
+          "kind": "integer",
+          "required": true,
+          "min": 1,
+          "max": 259200
+        },
+        {
+          "key": "ContactFlowId",
+          "attr": "contact_flow_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "flow"
+        },
+        {
+          "key": "CallerId",
+          "attr": "caller_id",
+          "kind": "stringOrJsonPath",
+          "required": false
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "QueueId",
+            "AgentId"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "QueueId",
+          "ref": "queue"
+        },
+        {
+          "path": "AgentId",
+          "ref": "queue"
+        },
+        {
+          "path": "ContactFlowId",
+          "ref": "flow"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "CreateCustomerProfile": {
       "category": "interaction",

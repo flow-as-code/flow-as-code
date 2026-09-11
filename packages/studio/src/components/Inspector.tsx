@@ -313,7 +313,17 @@ export function Inspector() {
             key={`${selected}:${field.key}`}
             label={field.label}
             value={typeof value === "string" ? value : ""}
-            onCommit={(next) => mutate(() => setParam(doc, selected, field.key, next, field))}
+            onCommit={(next) =>
+              mutate(() =>
+                setParam(
+                  doc,
+                  selected,
+                  field.key,
+                  field.optional === true && next === "" ? undefined : next,
+                  field,
+                ),
+              )
+            }
           />
         );
       case "number": {

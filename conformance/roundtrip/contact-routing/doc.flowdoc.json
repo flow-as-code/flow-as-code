@@ -89,8 +89,49 @@
           "QueueTimeAdjustmentSeconds": 300
         },
         "Transitions": {
-          "NextAction": "done",
+          "NextAction": "offer-callback",
           "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "offer-callback",
+        "Type": "CreateCallbackContact",
+        "Parameters": {
+          "CallerId": "$.SystemEndpoint.Address",
+          "ContactFlowId": "${cdref:flow:callback-greeting}",
+          "InitialCallDelaySeconds": 60,
+          "MaximumConnectionAttempts": 2,
+          "QueueId": "${cdref:queue:callbacks}",
+          "RetryDelaySeconds": 600
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "retry-callback"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "retry-callback",
+        "Type": "CreateCallbackContact",
+        "Parameters": {
+          "InitialCallDelaySeconds": 1,
+          "MaximumConnectionAttempts": 1,
+          "RetryDelaySeconds": 1
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
           "Conditions": []
         }
       },
@@ -131,15 +172,15 @@
       "y": 20
     },
     "apologize": {
-      "x": 1060,
-      "y": 120
+      "x": 1840,
+      "y": 20
     },
     "bump-priority": {
       "x": 20,
       "y": 20
     },
     "done": {
-      "x": 1320,
+      "x": 2100,
       "y": 20
     },
     "hand-to-agent": {
@@ -148,6 +189,14 @@
     },
     "move-to-priority-queue": {
       "x": 280,
+      "y": 20
+    },
+    "offer-callback": {
+      "x": 1320,
+      "y": 20
+    },
+    "retry-callback": {
+      "x": 1580,
       "y": 20
     },
     "stay-in-queue": {
@@ -160,6 +209,16 @@
     }
   },
   "refs": [
+    {
+      "token": "${cdref:flow:callback-greeting}",
+      "type": "flow",
+      "name": "callback-greeting"
+    },
+    {
+      "token": "${cdref:queue:callbacks}",
+      "type": "queue",
+      "name": "callbacks"
+    },
     {
       "token": "${cdref:queue:priority}",
       "type": "queue",

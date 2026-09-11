@@ -31,6 +31,7 @@ export const ActionType = {
   DequeueContactAndTransferToQueue: "DequeueContactAndTransferToQueue",
   TransferContactToAgent: "TransferContactToAgent",
   UpdateContactRoutingBehavior: "UpdateContactRoutingBehavior",
+  CreateCallbackContact: "CreateCallbackContact",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -47,6 +48,7 @@ export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
 export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, RefType>>>> = {
   [ActionType.UpdateContactTargetQueue]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.DequeueContactAndTransferToQueue]: { QueueId: "queue", AgentId: "queue" },
+  [ActionType.CreateCallbackContact]: { QueueId: "queue", AgentId: "queue", ContactFlowId: "flow" },
   [ActionType.CheckHoursOfOperation]: { HoursOfOperationId: "hours" },
   [ActionType.InvokeLambdaFunction]: { LambdaFunctionARN: "lambda" },
   [ActionType.InvokeFlowModule]: { FlowModuleId: "module" },
@@ -211,6 +213,10 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // flows; the action page governs, as for every other row.
   // https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
   [ActionType.UpdateContactRoutingBehavior]: [...INBOUND, ...IN_MODULE],
+  // "This action is supported in contact flows, transfer flows, and customer
+  // queue flows. It is not supported in whisper flows or hold flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html
+  [ActionType.CreateCallbackContact]: [...INBOUND, ...TRANSFER, ...CUSTOMER_QUEUE, ...IN_MODULE],
   // "This action is available in inbound flows and transfer flows. It is not
   // available to hold flows, customer queue flows, or whisper flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html
@@ -257,6 +263,17 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
  * https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
  */
 export const QUEUE_PRIORITY_MIN = 1;
+
+/**
+ * CreateCallbackContact bounds. InitialCallDelaySeconds and RetryDelaySeconds
+ * "Must be larger than 0, no greater than 259,200 (three days), and an
+ * integer"; MaximumConnectionAttempts "Must be larger than zero, and an
+ * integer" with no ceiling on the page.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html
+ */
+export const CALLBACK_DELAY_MIN = 1;
+export const CALLBACK_DELAY_MAX = 259_200;
+export const CALLBACK_ATTEMPTS_MIN = 1;
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

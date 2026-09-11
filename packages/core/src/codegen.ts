@@ -35,6 +35,7 @@ import type { Block, DtmfBranch, GenericBlockConfig, MessageBody } from "./block
 import {
   CheckHoursOfOperation,
   Compare,
+  CreateCallbackContact,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   EndFlowExecution,
@@ -752,6 +753,57 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       ],
       block: new UpdateContactRoutingBehavior(
         cast<never>({ id: a.Identifier, [prop]: value, next: t.NextAction }),
+      ),
+    };
+  },
+
+  [ActionType.CreateCallbackContact]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    const required = ["InitialCallDelaySeconds", "MaximumConnectionAttempts", "RetryDelaySeconds"];
+    if (!paramKeysAre(p, required, ["QueueId", "AgentId", "ContactFlowId", "CallerId"])) {
+      return undefined;
+    }
+    if (p.QueueId !== undefined && p.AgentId !== undefined) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    for (const [key, prop] of [
+      ["QueueId", "queue"],
+      ["AgentId", "agent"],
+    ] as const) {
+      if (p[key] === undefined) continue;
+      const ref = refSource(p[key], "queue", ctx);
+      if (ref === undefined) return undefined;
+      entries.push([prop, ref]);
+      config[prop] = p[key];
+    }
+    for (const [key, prop] of [
+      ["InitialCallDelaySeconds", "initialCallDelaySeconds"],
+      ["MaximumConnectionAttempts", "maximumConnectionAttempts"],
+      ["RetryDelaySeconds", "retryDelaySeconds"],
+    ] as const) {
+      if (typeof p[key] !== "number") return undefined;
+      entries.push([prop, p[key]]);
+      config[prop] = p[key];
+    }
+    if (p.ContactFlowId !== undefined) {
+      const ref = refSource(p.ContactFlowId, "flow", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["flow", ref]);
+      config.flow = p.ContactFlowId;
+    }
+    if (p.CallerId !== undefined) {
+      if (typeof p.CallerId !== "string") return undefined;
+      entries.push(["callerId", p.CallerId]);
+      config.callerId = p.CallerId;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "CreateCallbackContact",
+      entries,
+      block: new CreateCallbackContact(
+        cast<never>({ ...config, next: w.next, onError: w.onError }),
       ),
     };
   },

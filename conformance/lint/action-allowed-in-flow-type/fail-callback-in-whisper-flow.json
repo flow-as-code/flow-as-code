@@ -1,0 +1,57 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "callback",
+      "messageIncludes": "CreateCallbackContact is not allowed in a CUSTOMER_WHISPER flow"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.2",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CUSTOMER_WHISPER",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "callback",
+      "Actions": [
+        {
+          "Identifier": "callback",
+          "Type": "CreateCallbackContact",
+          "Parameters": {
+            "InitialCallDelaySeconds": 60,
+            "MaximumConnectionAttempts": 1,
+            "RetryDelaySeconds": 600
+          },
+          "Transitions": {
+            "NextAction": "end",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "end"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "end",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "callback": {
+        "x": 20,
+        "y": 20
+      },
+      "end": {
+        "x": 280,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

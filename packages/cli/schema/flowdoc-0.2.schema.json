@@ -472,6 +472,55 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "CreateCallbackContact"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "InitialCallDelaySeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 259200
+                  },
+                  "MaximumConnectionAttempts": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "RetryDelaySeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 259200
+                  },
+                  "ContactFlowId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

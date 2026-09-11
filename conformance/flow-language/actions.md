@@ -59,6 +59,7 @@ The two differ, and the console name is what task A01 originally listed.
 | TransferToQueue (in a customer queue flow) | `DequeueContactAndTransferToQueue` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html) |
 | Transfer to agent (beta) | `TransferContactToAgent` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html) |
 | Change routing priority / age | `UpdateContactRoutingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html) |
+| TransferToQueue (Transfer to Callback tab) | `CreateCallbackContact` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -76,6 +77,8 @@ is never interpolated into a longer string.
 |---|---|---|
 | `UpdateContactTargetQueue` | `QueueId`, `AgentId` | `queue` |
 | `DequeueContactAndTransferToQueue` | `QueueId`, `AgentId` | `queue` |
+| `CreateCallbackContact` | `QueueId`, `AgentId` | `queue` |
+| `CreateCallbackContact` | `ContactFlowId` | `flow` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -205,6 +208,30 @@ individual action pages linked above.
     in queue". The page has no JSON example; both values are recorded as JSON
     numbers from "an integer", to be confirmed against a console export.
     https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
+19. `CreateCallbackContact` (recorded 2026-09-11) "Creates a new callback
+    contact. If no customer number is specified, and this is run in context
+    of a contact, the contact's CustomerCallbackNumber is used as the customer
+    number. If you specify a ContactFlowId, then InitialCallDelaySeconds
+    parameter is ignored." `QueueId` and `AgentId` are `[Optional]` and "If
+    QueueId is specified, [AgentId] may not be specified"; with neither, "the
+    contact's current TargetQueue". `InitialCallDelaySeconds` and
+    `RetryDelaySeconds` "Must be larger than 0, no greater than 259,200 (three
+    days), and an integer. Must be defined statically."
+    `MaximumConnectionAttempts` "Must be larger than zero, and an integer." The
+    three carry no `[Optional]` marker and are recorded as required.
+    `ContactFlowId` is `[Optional]`, "Callback contact created will execute
+    this flow post creation". `CallerId` is `[Optional]`, "Must be a valid
+    phone number claimed in your [...] instance", static or a single JSONPath,
+    and is not a reference type. Results "None. No conditions are supported";
+    the error is `NoMatchingError`. "This action is supported in contact
+    flows, transfer flows, and customer queue flows. It is not supported in
+    whisper flows or hold flows." The console emits it from the Transfer to
+    queue block's Transfer to Callback tab ("If the flow block is used to
+    configure callbacks, it is represented as CreateCallbackContact action"),
+    even though the action page links the Set callback number block. The page
+    has no JSON example; the three integers are recorded as JSON numbers, to be
+    confirmed against a console export.
+    https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-queue.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -241,6 +268,8 @@ UpdateContactTargetQueue { QueueId? | AgentId? }
 DequeueContactAndTransferToQueue { QueueId? | AgentId? }   // neither: the contact's current target queue
 TransferContactToAgent   {}
 UpdateContactRoutingBehavior { QueuePriority? | QueueTimeAdjustmentSeconds? }   // integers, never both
+CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, MaximumConnectionAttempts,
+                           RetryDelaySeconds, ContactFlowId?, CallerId? }
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -301,7 +330,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 17 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 18 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

@@ -118,6 +118,7 @@ describe("addBlock", () => {
       "DequeueContactAndTransferToQueue",
       "TransferContactToAgent",
       "UpdateContactRoutingBehavior",
+      "CreateCallbackContact",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

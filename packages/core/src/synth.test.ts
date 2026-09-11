@@ -15,6 +15,7 @@ import {
   ActionType,
   canonicalOrder,
   collectRefs,
+  CreateCallbackContact,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   EndFlowModuleExecution,
@@ -347,6 +348,34 @@ describe("guardrails", () => {
       Type: "UpdateContactRoutingBehavior",
       Parameters: { QueueTimeAdjustmentSeconds: -30 },
       Transitions: { NextAction: "x", Errors: [], Conditions: [] },
+    });
+  });
+
+  it("rejects callback delays outside 1 to 259200 seconds and fewer than one attempt", () => {
+    const base = {
+      id: "cb",
+      initialCallDelaySeconds: 60,
+      maximumConnectionAttempts: 1,
+      retryDelaySeconds: 600,
+      next: "x",
+      onError: "x",
+    };
+    expect(() => new CreateCallbackContact({ ...base, initialCallDelaySeconds: 0 })).toThrow(
+      /between 1 and 259200/,
+    );
+    expect(() => new CreateCallbackContact({ ...base, retryDelaySeconds: 259_201 })).toThrow(
+      /between 1 and 259200/,
+    );
+    expect(() => new CreateCallbackContact({ ...base, maximumConnectionAttempts: 0 })).toThrow(
+      /of at least 1/,
+    );
+    expect(() => new CreateCallbackContact({ ...base, retryDelaySeconds: 1.5 })).toThrow(
+      /must be an integer/,
+    );
+    expect(new CreateCallbackContact(base).toAction().Parameters).toEqual({
+      InitialCallDelaySeconds: 60,
+      MaximumConnectionAttempts: 1,
+      RetryDelaySeconds: 600,
     });
   });
 

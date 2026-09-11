@@ -9,6 +9,9 @@
 import type { RefType } from "@flow-as-code/core";
 import {
   ActionType,
+  CALLBACK_ATTEMPTS_MIN,
+  CALLBACK_DELAY_MAX,
+  CALLBACK_DELAY_MIN,
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
@@ -18,7 +21,15 @@ import {
 import { MESSAGE_BODY_KEYS } from "./mutations.js";
 
 export type FieldDesc =
-  | { kind: "text"; key: string; label: string; multiline?: boolean; clears?: readonly string[] }
+  | {
+      kind: "text";
+      key: string;
+      label: string;
+      multiline?: boolean;
+      clears?: readonly string[];
+      /** An emptied field deletes the parameter instead of storing "". */
+      optional?: boolean;
+    }
   /**
    * Numeric field. min, max, and integrality are enforced by setNumberParam in
    * mutations.ts, not just by the input element: a browser may ignore the
@@ -164,6 +175,53 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           optional: true,
           clears: ["QueuePriority"],
         },
+      ];
+    case ActionType.CreateCallbackContact:
+      return [
+        {
+          kind: "ref",
+          key: "QueueId",
+          label: "Queue",
+          refType: "queue",
+          optional: true,
+          clears: ["AgentId"],
+        },
+        {
+          kind: "ref",
+          key: "AgentId",
+          label: "Agent queue",
+          refType: "queue",
+          optional: true,
+          clears: ["QueueId"],
+        },
+        {
+          kind: "number",
+          key: "InitialCallDelaySeconds",
+          label: "Initial delay (seconds)",
+          min: CALLBACK_DELAY_MIN,
+          max: CALLBACK_DELAY_MAX,
+        },
+        {
+          kind: "number",
+          key: "MaximumConnectionAttempts",
+          label: "Maximum attempts",
+          min: CALLBACK_ATTEMPTS_MIN,
+        },
+        {
+          kind: "number",
+          key: "RetryDelaySeconds",
+          label: "Delay between attempts (seconds)",
+          min: CALLBACK_DELAY_MIN,
+          max: CALLBACK_DELAY_MAX,
+        },
+        {
+          kind: "ref",
+          key: "ContactFlowId",
+          label: "Callback creation flow",
+          refType: "flow",
+          optional: true,
+        },
+        { kind: "text", key: "CallerId", label: "Caller ID (number or JSONPath)", optional: true },
       ];
     case ActionType.UpdateContactAttributes:
       return [

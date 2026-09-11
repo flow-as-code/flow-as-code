@@ -169,6 +169,78 @@ describe("FlowDoc schema rejections", () => {
   });
 });
 
+// The contact-routing round-trip fixture is the subject for the bounds the
+// schema holds on the callback and routing actions.
+describe("FlowDoc schema rejections: contact routing", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/contact-routing/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a callback delay above three days",
+      mutate("offer-callback", (a) => {
+        a.Parameters.InitialCallDelaySeconds = 259_201;
+      }),
+    ],
+    [
+      "zero connection attempts",
+      mutate("offer-callback", (a) => {
+        a.Parameters.MaximumConnectionAttempts = 0;
+      }),
+    ],
+    [
+      "a retry delay written as a string",
+      mutate("offer-callback", (a) => {
+        a.Parameters.RetryDelaySeconds = "600";
+      }),
+    ],
+    [
+      "a callback with both a queue and an agent queue",
+      mutate("offer-callback", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
+    [
+      "a literal ARN as the callback flow",
+      mutate("offer-callback", (a) => {
+        a.Parameters.ContactFlowId =
+          "arn:aws:connect:us-east-1:111122223333:instance/a/contact-flow/b";
+      }),
+    ],
+    [
+      "a queue priority of zero",
+      mutate("bump-priority", (a) => {
+        a.Parameters.QueuePriority = 0;
+      }),
+    ],
+    [
+      "a priority and a time adjustment together",
+      mutate("bump-priority", (a) => {
+        a.Parameters.QueueTimeAdjustmentSeconds = 30;
+      }),
+    ],
+    [
+      "a queue-to-queue transfer naming both a queue and an agent queue",
+      mutate("move-to-priority-queue", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
 // GetParticipantInput's structural rules, from the same reference. The demo
 // flow has no menu, so the dtmf-menu round-trip fixture is the subject.
 describe("FlowDoc schema rejections: GetParticipantInput", () => {

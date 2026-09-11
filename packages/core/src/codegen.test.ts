@@ -754,6 +754,69 @@ describe("UpdateContactRoutingBehavior inverts one adjustment and no error branc
   });
 });
 
+describe("CreateCallbackContact inverts the full and the minimal shape", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "callback",
+    Type: "CreateCallbackContact",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const minimal = {
+    InitialCallDelaySeconds: 60,
+    MaximumConnectionAttempts: 2,
+    RetryDelaySeconds: 600,
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([action(parameters), bye]));
+    expect(out).toContain("new CreateCallbackContact({");
+    expect(out).not.toContain('type: "CreateCallbackContact"');
+    return out;
+  };
+  const generic = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([action(parameters), bye]));
+    expect(out).toContain('type: "CreateCallbackContact"');
+    expect(out).not.toContain("new CreateCallbackContact(");
+  };
+
+  it("emits every optional field it finds, and only those", () => {
+    const full = typed({
+      ...minimal,
+      QueueId: "${cdref:queue:callbacks}",
+      ContactFlowId: "${cdref:flow:callback-greeting}",
+      CallerId: "$.SystemEndpoint.Address",
+    });
+    expect(full).toContain('queue: Refs.queue("callbacks")');
+    expect(full).toContain('flow: Refs.flow("callback-greeting")');
+    expect(full).toContain('callerId: "$.SystemEndpoint.Address"');
+    expect(full).toContain("initialCallDelaySeconds: 60");
+    const bare = typed(minimal);
+    expect(bare).not.toContain("queue:");
+    expect(bare).not.toContain("flow:");
+    expect(bare).not.toContain("callerId:");
+    expect(typed({ ...minimal, AgentId: "$.Attributes.agentArn" })).toContain(
+      'agent: jsonPath("$.Attributes.agentArn")',
+    );
+  });
+
+  it("falls back on both targets, a missing or out-of-range delay, a string count, or a wrong token", () => {
+    generic({ ...minimal, QueueId: "${cdref:queue:a}", AgentId: "${cdref:queue:b}" });
+    generic({ MaximumConnectionAttempts: 2, RetryDelaySeconds: 600 });
+    generic({ ...minimal, InitialCallDelaySeconds: 259_201 });
+    generic({ ...minimal, MaximumConnectionAttempts: "2" });
+    generic({ ...minimal, ContactFlowId: "${cdref:module:not-a-flow@prod}" });
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

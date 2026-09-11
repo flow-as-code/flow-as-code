@@ -17,6 +17,9 @@
 
 import {
   ActionType,
+  CALLBACK_ATTEMPTS_MIN,
+  CALLBACK_DELAY_MAX,
+  CALLBACK_DELAY_MIN,
   DTMF_DIGITS,
   EXTRA_ERRORS,
   INPUT_TIME_LIMIT_EXCEEDED,
@@ -685,6 +688,68 @@ export class InvokeLambdaFunction extends Block {
   }
 }
 
+/**
+ * Creates a callback contact. The number called is the contact's callback
+ * number (UpdateContactCallbackNumber, else the caller ID). The queue is the
+ * one named, an agent queue, or the contact's current target queue when
+ * neither is given. `initialCallDelaySeconds` is ignored by Connect when
+ * `flow` is set: the callback then runs that flow on creation instead of
+ * waiting. `callerId` is a phone number claimed on the instance, static or a
+ * single JSONPath.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html
+ */
+export type CreateCallbackContactConfig = Wired &
+  OptionalQueueTarget & {
+    /** Seconds before the first attempt, 1 to 259200 (three days). */
+    initialCallDelaySeconds: number;
+    /** Attempts at most, at least 1. */
+    maximumConnectionAttempts: number;
+    /** Seconds between an unanswered attempt and the next, 1 to 259200. */
+    retryDelaySeconds: number;
+    flow?: Ref<"flow"> | JsonPath;
+    callerId?: string;
+  };
+
+export class CreateCallbackContact extends Block {
+  readonly type = ActionType.CreateCallbackContact;
+
+  constructor(private readonly config: CreateCallbackContactConfig) {
+    super(config.id);
+    const bounded = (name: string, value: number, min: number, max?: number) => {
+      if (!Number.isInteger(value) || value < min || (max !== undefined && value > max)) {
+        const range = max === undefined ? `of at least ${min}` : `between ${min} and ${max}`;
+        throw new Error(
+          `CreateCallbackContact "${config.id}" ${name} must be an integer ${range}, got ${value}.`,
+        );
+      }
+    };
+    bounded(
+      "initialCallDelaySeconds",
+      config.initialCallDelaySeconds,
+      CALLBACK_DELAY_MIN,
+      CALLBACK_DELAY_MAX,
+    );
+    bounded("maximumConnectionAttempts", config.maximumConnectionAttempts, CALLBACK_ATTEMPTS_MIN);
+    bounded("retryDelaySeconds", config.retryDelaySeconds, CALLBACK_DELAY_MIN, CALLBACK_DELAY_MAX);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {};
+    if (this.config.queue !== undefined) p.QueueId = this.config.queue;
+    if (this.config.agent !== undefined) p.AgentId = this.config.agent;
+    p.InitialCallDelaySeconds = this.config.initialCallDelaySeconds;
+    p.MaximumConnectionAttempts = this.config.maximumConnectionAttempts;
+    p.RetryDelaySeconds = this.config.retryDelaySeconds;
+    if (this.config.flow !== undefined) p.ContactFlowId = this.config.flow;
+    if (this.config.callerId !== undefined) p.CallerId = this.config.callerId;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Passthrough
 // ---------------------------------------------------------------------------
@@ -692,7 +757,7 @@ export class InvokeLambdaFunction extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 17.
+ * set survivable: 56 action types are documented and the builder models 18.
  */
 export interface GenericBlockConfig {
   id: string;
