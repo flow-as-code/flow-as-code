@@ -29,6 +29,7 @@ export const ActionType = {
   EndFlowModuleExecution: "EndFlowModuleExecution",
   InvokeLambdaFunction: "InvokeLambdaFunction",
   DequeueContactAndTransferToQueue: "DequeueContactAndTransferToQueue",
+  TransferContactToAgent: "TransferContactToAgent",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -61,6 +62,10 @@ export const TERMINAL_ACTIONS: readonly string[] = [
   ActionType.DisconnectParticipant,
   ActionType.EndFlowExecution,
   ActionType.EndFlowModuleExecution,
+  // "Ends the current flow and transfers the customer to an agent." No
+  // parameters, no results, no errors.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html
+  ActionType.TransferContactToAgent,
 ];
 
 /**
@@ -182,6 +187,10 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // names (inbound, transfer, whisper, hold); a module has no flow type of
   // its own, so MODULE stays, as the note above IN_MODULE explains.
   [ActionType.DequeueContactAndTransferToQueue]: [...CUSTOMER_QUEUE, ...IN_MODULE],
+  // "This action is supported in only transfer to agent and transfer to queue
+  // flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html
+  [ActionType.TransferContactToAgent]: [...TRANSFER, ...IN_MODULE],
   // "This action is available in inbound flows and transfer flows. It is not
   // available to hold flows, customer queue flows, or whisper flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html

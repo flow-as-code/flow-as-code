@@ -289,6 +289,7 @@ describe("the action catalog", () => {
     expect(requiredErrors("GetParticipantInput")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DequeueContactAndTransferToQueue")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DisconnectParticipant")).toEqual([]);
+    expect(requiredErrors("TransferContactToAgent")).toEqual([]);
     expect(requiredErrors("NotAnAction")).toEqual([]);
   });
 

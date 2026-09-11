@@ -34,6 +34,7 @@ import {
   serialize,
   serializeContent,
   synth,
+  TransferContactToAgent,
 } from "./index.js";
 
 const fixture = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
@@ -169,6 +170,12 @@ describe("error branch wiring", () => {
     const doc = synth(appointmentLine());
     const hangUp = doc.content.Actions.find((a) => a.Identifier === "hang-up")!;
     expect(hangUp.Transitions).toEqual({});
+    expect(new TransferContactToAgent({ id: "agent" }).toAction()).toEqual({
+      Identifier: "agent",
+      Type: "TransferContactToAgent",
+      Parameters: {},
+      Transitions: {},
+    });
   });
 
   it("gives GetParticipantInput every menu-form error, NextAction on the no-match path", () => {

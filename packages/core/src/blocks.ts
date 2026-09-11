@@ -466,6 +466,31 @@ export class DequeueContactAndTransferToQueue extends Block {
   }
 }
 
+/**
+ * Terminal. "Ends the current flow and transfers the customer to an agent. If
+ * the agent is already with someone else, the contact is disconnected." Voice
+ * only, legal in transfer flows only, and the console marks the block beta
+ * and recommends UpdateContactTargetQueue plus TransferContactToQueue for
+ * agent-to-agent transfers on every channel.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-agent-block.html
+ */
+export class TransferContactToAgent extends Block {
+  readonly type = ActionType.TransferContactToAgent;
+
+  constructor(config: { id: string }) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    return {};
+  }
+}
+
 export interface UpdateContactAttributesConfig extends Wired {
   attributes: Record<string, string>;
   /** Defaults to Current. */
@@ -610,7 +635,7 @@ export class InvokeLambdaFunction extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 15.
+ * set survivable: 56 action types are documented and the builder models 16.
  */
 export interface GenericBlockConfig {
   id: string;

@@ -57,6 +57,7 @@ The two differ, and the console name is what task A01 originally listed.
 | (end) | `EndFlowExecution` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-endflowexecution.html) |
 | TransferToQueue | `UpdateContactTargetQueue` **and** `TransferContactToQueue` | contact | [set](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttargetqueue.html), [transfer](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoqueue.html) |
 | TransferToQueue (in a customer queue flow) | `DequeueContactAndTransferToQueue` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html) |
+| Transfer to agent (beta) | `TransferContactToAgent` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -106,8 +107,9 @@ individual action pages linked above.
    `PromptId` and `SSML` are voice only; other channels support only `Text`.
 6. `Compare` fails with `NoMatchingCondition`, not `NoMatchingError`. It is the
    only action in the modeled set that does.
-7. `DisconnectParticipant`, `EndFlowExecution`, and `EndFlowModuleExecution`
-   have **no** errors and are terminal (`Transitions: {}`).
+7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
+   `TransferContactToAgent` have **no** errors and are terminal
+   (`Transitions: {}`).
 8. `EndFlowExecution` is available only in whisper and customer queue flows.
    `EndFlowModuleExecution` only in modules. `InvokeFlowModule` in inbound
    flows and, since modules can invoke modules ("up to five levels of
@@ -172,6 +174,16 @@ individual action pages linked above.
     block in a Customer Queue flow, you must add a Loop prompts block before
     this one."
     https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-queue.html
+17. `TransferContactToAgent` (recorded 2026-09-11) "Ends the current flow and
+    transfers the customer to an agent. If the agent is already with someone
+    else, the contact is disconnected." "No parameters are expected", results
+    and errors "None", and "This action is supported in only transfer to agent
+    and transfer to queue flows." "Transfer contact to agent works only for
+    voice interactions." Neither page says how the agent is chosen; the admin
+    guide marks the block beta, says it "does not have any branches", and
+    recommends Set working queue (`UpdateContactTargetQueue` then
+    `TransferContactToQueue`) for agent-to-agent transfers on every channel.
+    https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-agent-block.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -206,6 +218,7 @@ EndFlowModuleExecution   {}
 TransferContactToQueue   {}
 UpdateContactTargetQueue { QueueId? | AgentId? }
 DequeueContactAndTransferToQueue { QueueId? | AgentId? }   // neither: the contact's current target queue
+TransferContactToAgent   {}
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -259,7 +272,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 15 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 16 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

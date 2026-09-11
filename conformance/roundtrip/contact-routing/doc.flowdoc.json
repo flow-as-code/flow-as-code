@@ -37,7 +37,7 @@
           "AgentId": "$.Attributes.preferredAgentArn"
         },
         "Transitions": {
-          "NextAction": "done",
+          "NextAction": "hand-to-agent",
           "Errors": [
             {
               "ErrorType": "QueueAtCapacity",
@@ -88,6 +88,12 @@
         }
       },
       {
+        "Identifier": "hand-to-agent",
+        "Type": "TransferContactToAgent",
+        "Parameters": {},
+        "Transitions": {}
+      },
+      {
         "Identifier": "done",
         "Type": "EndFlowModuleExecution",
         "Parameters": {},
@@ -104,13 +110,17 @@
       "x": 1060,
       "y": 20
     },
+    "hand-to-agent": {
+      "x": 540,
+      "y": 20
+    },
     "move-to-priority-queue": {
       "x": 20,
       "y": 20
     },
     "stay-in-queue": {
       "x": 540,
-      "y": 20
+      "y": 120
     },
     "try-agent-queue": {
       "x": 280,

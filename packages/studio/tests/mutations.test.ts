@@ -116,6 +116,7 @@ describe("addBlock", () => {
       "InvokeLambdaFunction",
       "GetParticipantInput",
       "DequeueContactAndTransferToQueue",
+      "TransferContactToAgent",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

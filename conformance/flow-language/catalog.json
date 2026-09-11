@@ -273,7 +273,21 @@
     "TransferContactToAgent": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html",
-      "modeled": false
+      "modeled": true,
+      "block": "transfer_contact_to_agent",
+      "terminal": true,
+      "flowTypes": [
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "none",
+        "conditions": "none",
+        "errors": []
+      }
     },
     "TransferContactToQueue": {
       "category": "contact",

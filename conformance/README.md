@@ -98,7 +98,8 @@ builder refuses and so must stay GenericBlock (`repeated-key`), and edge cases
 layout, an explicit start, and a modeled Type that must fall back to
 GenericBlock), and a module of the contact-routing actions
 (`contact-routing`: queue-to-queue transfer to a queue token, to an agent
-queue by JSONPath, and to the current target queue with no parameter).
+queue by JSONPath, and to the current target queue with no parameter, and a
+terminal transfer to an agent).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

@@ -87,6 +87,7 @@ const EXPECTED: Record<string, string[]> = {
   TransferContactToQueue: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
   UpdateContactTargetQueue: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
   DequeueContactAndTransferToQueue: ["CUSTOMER_QUEUE", "MODULE"],
+  TransferContactToAgent: ["AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
   TransferToFlow: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
   UpdateContactRecordingBehavior: [
     "CONTACT_FLOW",

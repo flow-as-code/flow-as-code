@@ -174,6 +174,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
     case ActionType.DisconnectParticipant:
     case ActionType.EndFlowExecution:
     case ActionType.EndFlowModuleExecution:
+    case ActionType.TransferContactToAgent:
     case ActionType.TransferContactToQueue:
       return [];
     default:

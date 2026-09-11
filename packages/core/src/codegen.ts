@@ -44,6 +44,7 @@ import {
   InvokeFlowModule,
   InvokeLambdaFunction,
   MessageParticipant,
+  TransferContactToAgent,
   TransferContactToQueue,
   TransferToFlow,
   UpdateContactAttributes,
@@ -506,6 +507,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     terminal(a, () => new DisconnectParticipant({ id: a.Identifier })),
   [ActionType.EndFlowExecution]: (a) =>
     terminal(a, () => new EndFlowExecution({ id: a.Identifier })),
+  [ActionType.TransferContactToAgent]: (a) =>
+    terminal(a, () => new TransferContactToAgent({ id: a.Identifier })),
   [ActionType.EndFlowModuleExecution]: (a) =>
     terminal(a, () => new EndFlowModuleExecution({ id: a.Identifier })),
 

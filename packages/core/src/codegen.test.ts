@@ -689,6 +689,30 @@ describe("DequeueContactAndTransferToQueue inverts the three targets the class w
   });
 });
 
+describe("TransferContactToAgent is terminal", () => {
+  const transfer = (): FlowAction => ({
+    Identifier: "hand-off",
+    Type: "TransferContactToAgent",
+    Parameters: {},
+    Transitions: {},
+  });
+
+  it("inverts the bare terminal shape", () => {
+    expect(codegen(docWith([transfer()]))).toContain(
+      'new TransferContactToAgent({ id: "hand-off" })',
+    );
+  });
+
+  it("falls back when the action carries a transition or a parameter", () => {
+    const wired = transfer();
+    wired.Transitions = { NextAction: "hand-off", Errors: [], Conditions: [] };
+    expect(codegen(docWith([wired]))).toContain('type: "TransferContactToAgent"');
+    const withParam = transfer();
+    withParam.Parameters = { AgentId: "${cdref:queue:front-desk}" };
+    expect(codegen(docWith([withParam]))).toContain('type: "TransferContactToAgent"');
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();
