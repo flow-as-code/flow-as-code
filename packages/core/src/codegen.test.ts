@@ -1280,6 +1280,43 @@ describe("GetMetricData inverts its optional queue, agent queue and channel", ()
   });
 });
 
+describe("TagContact inverts a string map of up to six user-defined tags", () => {
+  const tag = (tags: unknown): FlowAction => ({
+    Identifier: "tag",
+    Type: "TagContact",
+    Parameters: { Tags: tags },
+    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "TagContact"');
+    expect(out).not.toContain("new TagContact(");
+  };
+
+  it("emits the tags verbatim, dynamic values included", () => {
+    const out = codegen(docWith([tag({ team: "cx", tier: "$.Attributes.tier" }), bye]));
+    expect(out).toContain("new TagContact({");
+    expect(out).toContain('team: "cx"');
+    expect(out).toContain('tier: "$.Attributes.tier"');
+  });
+
+  it("falls back on no tags, seven tags, a system-tag key, a non-string value, or an error branch", () => {
+    generic(tag({}));
+    generic(tag(Object.fromEntries("abcdefg".split("").map((k) => [k, k]))));
+    generic(tag({ "aws:connect:instanceId": "x" }));
+    generic(tag({ count: 1 }));
+    const withError = tag({ team: "cx" });
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(withError);
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

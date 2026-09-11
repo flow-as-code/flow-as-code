@@ -725,6 +725,36 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "TagContact"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "Tags": {
+                    "type": "object",
+                    "maxProperties": 6,
+                    "propertyNames": {
+                      "pattern": "^(?!aws:)"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

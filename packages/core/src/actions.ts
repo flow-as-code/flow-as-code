@@ -39,6 +39,7 @@ export const ActionType = {
   UpdateFlowAttributes: "UpdateFlowAttributes",
   CheckMetricData: "CheckMetricData",
   GetMetricData: "GetMetricData",
+  TagContact: "TagContact",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -131,12 +132,16 @@ export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
  * UpdateFlowAttributes: errors "None"; the admin guide's block has an Error
  * branch for attributes over 32 KB with no documented error type.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
+ * TagContact: errors "None"; the admin guide's block has an Error branch with
+ * no documented error type.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
  */
 export const WITHOUT_CATCH_ALL: readonly string[] = [
   ActionType.UpdateContactRoutingBehavior,
   ActionType.UpdateContactCallbackNumber,
   ActionType.Loop,
   ActionType.UpdateFlowAttributes,
+  ActionType.TagContact,
 ];
 
 /**
@@ -339,6 +344,8 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
  * GetMetricData: "This action is available in every type of flow."
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html
+ * TagContact: "None. This can be used in any type of flow and any channel."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
@@ -348,6 +355,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Wait,
   ActionType.UpdateFlowAttributes,
   ActionType.GetMetricData,
+  ActionType.TagContact,
 ];
 
 /**
@@ -453,6 +461,15 @@ export type MetricOperator = (typeof METRIC_OPERATORS)[number];
  */
 export const QUEUE_CHANNELS = ["Voice", "Chat"] as const;
 export type QueueChannel = (typeof QUEUE_CHANNELS)[number];
+
+/**
+ * TagContact: "You can create up to 6 user-defined tags", and "A system tag is
+ * prefixed with aws:. You cannot change it."
+ * https://docs.aws.amazon.com/connect/latest/adminguide/contact-tags-block.html
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
+ */
+export const TAG_LIMIT = 6;
+export const SYSTEM_TAG_PREFIX = "aws:";
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

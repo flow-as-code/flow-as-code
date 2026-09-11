@@ -341,6 +341,45 @@ describe("FlowDoc schema rejections: flow control", () => {
   });
 });
 
+describe("FlowDoc schema rejections: contact data", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/contact-data/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "seven tags",
+      mutate("tag", (a) => {
+        a.Parameters.Tags = Object.fromEntries("abcdefg".split("").map((k) => [k, k]));
+      }),
+    ],
+    [
+      "a system tag key",
+      mutate("tag", (a) => {
+        a.Parameters.Tags = { "aws:connect:instanceId": "x" };
+      }),
+    ],
+    [
+      "a non-string tag value",
+      mutate("tag", (a) => {
+        a.Parameters.Tags = { count: 1 };
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
 // GetParticipantInput's structural rules, from the same reference. The demo
 // flow has no menu, so the dtmf-menu round-trip fixture is the subject.
 describe("FlowDoc schema rejections: GetParticipantInput", () => {

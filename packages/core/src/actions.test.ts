@@ -157,6 +157,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "GetMetricData",
       "InvokeLambdaFunction",
       "Loop",
+      "TagContact",
       "UpdateContactAttributes",
       "UpdateFlowAttributes",
       "Wait",

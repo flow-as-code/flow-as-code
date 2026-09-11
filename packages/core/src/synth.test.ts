@@ -39,6 +39,7 @@ import {
   serialize,
   serializeContent,
   synth,
+  TagContact,
   TransferContactToAgent,
   UpdateContactCallbackNumber,
   UpdateContactRoutingBehavior,
@@ -601,6 +602,27 @@ describe("guardrails", () => {
     expect(new GetMetricData({ id: "g", next: "n", onError: "e" }).toAction().Parameters).toEqual(
       {},
     );
+  });
+
+  it("rejects a tag set that is empty, over six, or uses the system prefix", () => {
+    expect(() => new TagContact({ id: "t", tags: {}, next: "n" })).toThrow(/between 1 and 6/);
+    expect(
+      () =>
+        new TagContact({
+          id: "t",
+          tags: Object.fromEntries("abcdefg".split("").map((k) => [k, k])),
+          next: "n",
+        }),
+    ).toThrow(/between 1 and 6/);
+    expect(() => new TagContact({ id: "t", tags: { "aws:x": "y" }, next: "n" })).toThrow(
+      /reserved for system tags/,
+    );
+    expect(new TagContact({ id: "t", tags: { team: "cx" }, next: "n" }).toAction()).toEqual({
+      Identifier: "t",
+      Type: "TagContact",
+      Parameters: { Tags: { team: "cx" } },
+      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

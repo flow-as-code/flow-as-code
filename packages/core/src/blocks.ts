@@ -42,6 +42,8 @@ import {
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
   QUEUE_PRIORITY_MIN,
+  SYSTEM_TAG_PREFIX,
+  TAG_LIMIT,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -930,6 +932,55 @@ export class UpdateContactRoutingBehavior extends Block {
   }
 }
 
+/**
+ * Tags the contact: "Sets a collection of tag to the current contact. With
+ * this type of operation, either all tags are set or none are set." Keys and
+ * values are strings, "defined statically or dynamically"; a key may not use
+ * the `aws:` prefix reserved for system tags, and a contact carries at most
+ * six user-defined tags. The page lists no errors; the admin guide's block
+ * has an Error branch with no documented type. The builder requires at least
+ * one tag, which is the builder's choice. Legal everywhere.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/contact-tags-block.html
+ */
+export interface TagContactConfig {
+  id: string;
+  tags: Record<string, string>;
+  next: Target;
+}
+
+export class TagContact extends Block {
+  readonly type = ActionType.TagContact;
+
+  constructor(private readonly config: TagContactConfig) {
+    super(config.id);
+    const keys = Object.keys(config.tags);
+    if (keys.length === 0 || keys.length > TAG_LIMIT) {
+      throw new Error(
+        `TagContact "${config.id}" takes between 1 and ${TAG_LIMIT} tags, got ${keys.length}.`,
+      );
+    }
+    for (const k of keys) {
+      if (k.startsWith(SYSTEM_TAG_PREFIX)) {
+        throw new Error(
+          `TagContact "${config.id}" tag "${k}" uses the ${SYSTEM_TAG_PREFIX} prefix, which is reserved for system tags.`,
+        );
+      }
+      if (typeof config.tags[k] !== "string") {
+        throw new Error(`TagContact "${config.id}" tag "${k}" must be a string.`);
+      }
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { Tags: this.config.tags };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, []);
+  }
+}
+
 export interface UpdateContactAttributesConfig extends Wired {
   attributes: Record<string, string>;
   /** Defaults to Current. */
@@ -1183,7 +1234,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 25.
+ * set survivable: 56 action types are documented and the builder models 26.
  */
 export interface GenericBlockConfig {
   id: string;

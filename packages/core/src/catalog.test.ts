@@ -362,6 +362,7 @@ describe("the action catalog", () => {
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(requiredErrors("CheckMetricData")).toEqual(["NoMatchingError"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("TagContact")).toEqual([]);
     expect(builderErrors("CheckMetricData")).toEqual(["NoMatchingError", "NoMatchingCondition"]);
     expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);

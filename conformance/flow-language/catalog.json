@@ -268,7 +268,24 @@
     "TagContact": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html",
-      "modeled": false
+      "modeled": true,
+      "block": "tag_contact",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "Tags",
+          "attr": "tags",
+          "kind": "map",
+          "required": true
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": []
+      }
     },
     "TransferContactToAgent": {
       "category": "contact",

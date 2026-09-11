@@ -67,6 +67,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Set contact attributes (Flow namespace) | `UpdateFlowAttributes` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html) |
 | Check staffing, Check queue status | `CheckMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html) |
 | Get queue metrics | `GetMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html) |
+| Contact tags | `TagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -120,8 +121,9 @@ individual action pages linked above.
    `PromptId` and `SSML` are voice only; other channels support only `Text`.
 6. `Compare` and `DistributeByPercentage` fail with `NoMatchingCondition`,
    not `NoMatchingError` (`CONDITION_CATCH_ALL` in actions.ts).
-   `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber`, `Loop` and
-   `UpdateFlowAttributes` list no catch-all at all (rules 18, 20, 21 and 24).
+   `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber`, `Loop`,
+   `UpdateFlowAttributes` and `TagContact` list no catch-all at all (rules
+   18, 20, 21, 24 and 27).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
    (`Transitions: {}`).
@@ -403,6 +405,20 @@ individual action pages linked above.
     documented key, the `$.Metrics.Queue.*` attribute names, a 5 to 10 second
     delay, and "Dynamic attributes can only return metrics for one channel".
     https://docs.aws.amazon.com/connect/latest/adminguide/get-queue-metrics.html
+27. `TagContact` (recorded 2026-09-11) "Sets a collection of tag to the
+    current contact. With this type of operation, either all tags are set or
+    none are set." `Tags` is "an Object that holds the tags to be set" whose
+    entries are `"Key1":"Value1"`; "Both the key and value may be defined
+    statically or dynamically." "A system tag is prefixed with aws:. You
+    cannot change it." Results and errors "None"; the admin guide's block
+    "has two branches: Success and Error" with no documented error type, so an
+    export carrying one stays a GenericBlock. "None. This can be used in any
+    type of flow and any channel." The admin guide adds "You can create up to
+    6 user-defined tags", which the schema and the builder enforce, and that
+    tags are cost-allocation tags read back as `$.Tags`. The page does not
+    say `Tags` is required or non-empty; the builder requires one tag, which
+    is the builder's choice.
+    https://docs.aws.amazon.com/connect/latest/adminguide/contact-tags-block.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -448,6 +464,7 @@ DistributeByPercentage   {}
 UpdateFlowAttributes     { FlowAttributes: { [k]: FlowAttribute } }   // value shape not documented; kept opaque
 CheckMetricData          { MetricType, QueueId? | AgentId? }
 GetMetricData            { QueueId? | AgentId?, QueueChannel?: "Voice" | "Chat" }   // channel static or a single JSONPath
+TagContact               { Tags: { [k]: v } }        // up to six; no aws: keys
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -512,7 +529,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 25 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 26 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

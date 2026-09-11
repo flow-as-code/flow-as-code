@@ -36,6 +36,8 @@ import {
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_THRESHOLD_MAX,
   QUEUE_CHANNELS,
+  SYSTEM_TAG_PREFIX,
+  TAG_LIMIT,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -63,6 +65,7 @@ import {
   InvokeLambdaFunction,
   Loop,
   MessageParticipant,
+  TagContact,
   TransferContactToAgent,
   TransferContactToQueue,
   TransferToFlow,
@@ -1193,6 +1196,27 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         onInvalidNumber: errors[0]!.NextAction,
         onNotDialable: errors[1]!.NextAction,
       }),
+    };
+  },
+
+  [ActionType.TagContact]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    if (!paramKeysAre(a.Parameters, ["Tags"])) return undefined;
+    const tags = a.Parameters.Tags;
+    if (!isStringMap(tags)) return undefined;
+    const keys = Object.keys(tags);
+    if (keys.length === 0 || keys.length > TAG_LIMIT) return undefined;
+    if (keys.some((k) => k.startsWith(SYSTEM_TAG_PREFIX))) return undefined;
+    return {
+      cls: "TagContact",
+      entries: [
+        ["id", a.Identifier],
+        ["tags", toV(tags)],
+        ["next", t.NextAction],
+      ],
+      block: new TagContact({ id: a.Identifier, tags, next: t.NextAction }),
     };
   },
 
