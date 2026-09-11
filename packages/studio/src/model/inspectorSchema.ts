@@ -20,6 +20,8 @@ import {
   LOOP_COUNT_MIN,
   METRIC_TYPES,
   QUEUE_CHANNELS,
+  TTS_ENGINES,
+  TTS_STYLES,
   QUEUE_PRIORITY_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
@@ -287,6 +289,25 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       return [{ kind: "json", key: "Tags", label: "Tags (up to six, no aws: keys)" }];
     case ActionType.UnTagContact:
       return [{ kind: "json", key: "TagKeys", label: "Tag keys to remove" }];
+    case ActionType.UpdateContactTextToSpeechVoice:
+      // The JSONPath forms of the engine and style are edited as a GenericBlock.
+      return [
+        { kind: "text", key: "TextToSpeechVoice", label: "Voice (Polly name or JSONPath)" },
+        {
+          kind: "select",
+          key: "TextToSpeechEngine",
+          label: "Engine",
+          options: TTS_ENGINES,
+          optional: true,
+        },
+        {
+          kind: "select",
+          key: "TextToSpeechStyle",
+          label: "Speaking style",
+          options: TTS_STYLES,
+          optional: true,
+        },
+      ];
     case ActionType.InvokeFlowModule:
       return [{ kind: "ref", key: "FlowModuleId", label: "Module", refType: "module" }];
     case ActionType.InvokeLambdaFunction:

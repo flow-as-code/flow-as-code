@@ -128,6 +128,7 @@ describe("addBlock", () => {
       "GetMetricData",
       "TagContact",
       "UnTagContact",
+      "UpdateContactTextToSpeechVoice",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

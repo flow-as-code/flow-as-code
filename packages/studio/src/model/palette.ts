@@ -27,6 +27,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.GetMetricData]: "Set",
   [ActionType.TagContact]: "Set",
   [ActionType.UnTagContact]: "Set",
+  [ActionType.UpdateContactTextToSpeechVoice]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -88,6 +89,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.GetMetricData]: "get-metrics",
   [ActionType.TagContact]: "tag-contact",
   [ActionType.UnTagContact]: "untag-contact",
+  [ActionType.UpdateContactTextToSpeechVoice]: "set-voice",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -133,6 +135,10 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { Tags: {} };
     case ActionType.UnTagContact:
       return { TagKeys: [] };
+    case ActionType.UpdateContactTextToSpeechVoice:
+      // "This defaults to Joanna if this action is never run."
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
+      return { TextToSpeechVoice: "Joanna" };
     case ActionType.UpdateContactRecordingBehavior:
       return { RecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } };
     case ActionType.CreateCallbackContact:

@@ -160,6 +160,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "TagContact",
       "UnTagContact",
       "UpdateContactAttributes",
+      "UpdateContactTextToSpeechVoice",
       "UpdateFlowAttributes",
       "Wait",
     ]);

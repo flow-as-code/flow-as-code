@@ -381,6 +381,18 @@ describe("FlowDoc schema rejections: contact data", () => {
         a.Parameters.TagKeys = ["aws:connect:instanceId"];
       }),
     ],
+    [
+      "a text-to-speech engine the pages do not list",
+      mutate("set-voice", (a) => {
+        a.Parameters.TextToSpeechEngine = "premium";
+      }),
+    ],
+    [
+      "an empty voice name",
+      mutate("set-voice", (a) => {
+        a.Parameters.TextToSpeechVoice = "";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

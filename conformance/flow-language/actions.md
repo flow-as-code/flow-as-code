@@ -69,6 +69,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Get queue metrics | `GetMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html) |
 | Contact tags | `TagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html) |
 | Contact tags (remove) | `UnTagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html) |
+| Set voice | `UpdateContactTextToSpeechVoice` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -430,6 +431,22 @@ individual action pages linked above.
     The page does not say `TagKeys` is required or non-empty; the builder
     requires one key, which is the builder's choice, and refuses the `aws:`
     prefix the page reserves for system tags.
+29. `UpdateContactTextToSpeechVoice` (recorded 2026-09-11) "Updates the Amazon
+    Polly voice used by text-to-speech for voice contacts [...]. This defaults
+    to Joanna if this action is never run." `TextToSpeechVoice` is "A string
+    holding the name of an Amazon Polly voice. May be defined statically or
+    dynamically."; `TextToSpeechEngine` "The engine associated with the
+    Amazon Polly voice", whose values standard, neural and generative come
+    from the admin guide; `TextToSpeechStyle` "could be None, Coversational,
+    or Newscaster" (the page's spelling; the admin guide and the catalog
+    spell Conversational). All three "May be defined statically or
+    dynamically", so the two enums are `dynamic`. "Results in error if voice
+    or engine are invalid, or if the selected voice does not support the
+    selected engine"; the error is `NoMatchingError`, "Must always be
+    defined". "None. This action is supported in all flow types, and across
+    all channels." The page marks nothing required; the builder requires the
+    voice. The admin guide's language code has no key on this page.
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-voice.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -477,6 +494,8 @@ CheckMetricData          { MetricType, QueueId? | AgentId? }
 GetMetricData            { QueueId? | AgentId?, QueueChannel?: "Voice" | "Chat" }   // channel static or a single JSONPath
 TagContact               { Tags: { [k]: v } }        // up to six; no aws: keys
 UnTagContact             { TagKeys: string[] }        // static keys; no aws: keys
+UpdateContactTextToSpeechVoice { TextToSpeechVoice, TextToSpeechEngine?: "standard" | "neural" | "generative",
+                           TextToSpeechStyle?: "None" | "Conversational" | "Newscaster" }   // each static or a JSONPath
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -541,7 +560,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 27 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 28 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

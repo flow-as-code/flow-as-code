@@ -111,7 +111,7 @@ the console's threshold form, a flow attribute set as an opaque object, a
 staffing check and a queue-depth check in the console's error order, and a
 queue metric load with a static channel and one with a dynamic channel), and
 a flow of the contact-data actions (`contact-data`: a tag set with a dynamic
-value and a tag removal).
+value, a tag removal, and a voice change with a static and a dynamic engine).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

@@ -49,7 +49,15 @@ import {
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
 } from "./actions.js";
-import type { DtmfDigit, MetricOperator, MetricType, QueueChannel, WaitEvent } from "./actions.js";
+import type {
+  DtmfDigit,
+  MetricOperator,
+  MetricType,
+  QueueChannel,
+  TtsEngine,
+  TtsStyle,
+  WaitEvent,
+} from "./actions.js";
 import type { Condition, ConditionOperator, FlowAction, Transitions } from "./flowdoc.js";
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
@@ -1021,6 +1029,45 @@ export class UnTagContact extends Block {
   }
 }
 
+/**
+ * Sets the Amazon Polly voice for text-to-speech on the contact: "This
+ * defaults to Joanna if this action is never run." `voice` is "the name of an
+ * Amazon Polly voice"; `engine` and `style` are optional, each static or a
+ * single JSONPath ("May be defined statically or dynamically"). "Results in
+ * error if voice or engine are invalid, or if the selected voice does not
+ * support the selected engine." Legal everywhere; on chat the admin guide
+ * says the block takes the Success branch with no effect.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-voice.html
+ */
+export interface UpdateContactTextToSpeechVoiceConfig extends Wired {
+  voice: string;
+  engine?: TtsEngine | JsonPath;
+  style?: TtsStyle | JsonPath;
+}
+
+export class UpdateContactTextToSpeechVoice extends Block {
+  readonly type = ActionType.UpdateContactTextToSpeechVoice;
+
+  constructor(private readonly config: UpdateContactTextToSpeechVoiceConfig) {
+    super(config.id);
+    if (typeof config.voice !== "string" || config.voice === "") {
+      throw new Error(`UpdateContactTextToSpeechVoice "${config.id}" needs a voice name.`);
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = { TextToSpeechVoice: this.config.voice };
+    if (this.config.engine !== undefined) p.TextToSpeechEngine = this.config.engine;
+    if (this.config.style !== undefined) p.TextToSpeechStyle = this.config.style;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface UpdateContactAttributesConfig extends Wired {
   attributes: Record<string, string>;
   /** Defaults to Current. */
@@ -1274,7 +1321,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 27.
+ * set survivable: 56 action types are documented and the builder models 28.
  */
 export interface GenericBlockConfig {
   id: string;

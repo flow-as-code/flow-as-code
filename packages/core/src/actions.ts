@@ -41,6 +41,7 @@ export const ActionType = {
   GetMetricData: "GetMetricData",
   TagContact: "TagContact",
   UnTagContact: "UnTagContact",
+  UpdateContactTextToSpeechVoice: "UpdateContactTextToSpeechVoice",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -349,6 +350,9 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
  * UnTagContact: "This action can be used in flows of all types."
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html
+ * UpdateContactTextToSpeechVoice: "None. This action is supported in all flow
+ * types, and across all channels."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
@@ -360,6 +364,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.GetMetricData,
   ActionType.TagContact,
   ActionType.UnTagContact,
+  ActionType.UpdateContactTextToSpeechVoice,
 ];
 
 /**
@@ -474,6 +479,20 @@ export type QueueChannel = (typeof QUEUE_CHANNELS)[number];
  */
 export const TAG_LIMIT = 6;
 export const SYSTEM_TAG_PREFIX = "aws:";
+
+/**
+ * UpdateContactTextToSpeechVoice engines and styles. The action page names
+ * the styles ("None, Coversational, or Newscaster", its own spelling; the
+ * admin guide spells Conversational) and only describes the engine; the
+ * admin guide lists standard, neural and generative. Each "May be defined
+ * statically or dynamically".
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-voice.html
+ */
+export const TTS_ENGINES = ["standard", "neural", "generative"] as const;
+export type TtsEngine = (typeof TTS_ENGINES)[number];
+export const TTS_STYLES = ["None", "Conversational", "Newscaster"] as const;
+export type TtsStyle = (typeof TTS_STYLES)[number];
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

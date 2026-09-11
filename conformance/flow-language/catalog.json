@@ -662,7 +662,54 @@
     "UpdateContactTextToSpeechVoice": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_text_to_speech_voice",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "TextToSpeechVoice",
+          "attr": "text_to_speech_voice",
+          "kind": "stringOrJsonPath",
+          "required": true
+        },
+        {
+          "key": "TextToSpeechEngine",
+          "attr": "text_to_speech_engine",
+          "kind": "enum",
+          "required": false,
+          "values": [
+            "standard",
+            "neural",
+            "generative"
+          ],
+          "dynamic": true
+        },
+        {
+          "key": "TextToSpeechStyle",
+          "attr": "text_to_speech_style",
+          "kind": "enum",
+          "required": false,
+          "values": [
+            "None",
+            "Conversational",
+            "Newscaster"
+          ],
+          "dynamic": true
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdatePreviousContactParticipantState": {
       "category": "contact",

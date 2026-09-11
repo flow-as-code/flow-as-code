@@ -782,6 +782,58 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "UpdateContactTextToSpeechVoice"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "TextToSpeechVoice": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "TextToSpeechEngine": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "standard",
+                          "neural",
+                          "generative"
+                        ]
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  },
+                  "TextToSpeechStyle": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "None",
+                          "Conversational",
+                          "Newscaster"
+                        ]
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

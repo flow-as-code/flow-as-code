@@ -1356,6 +1356,60 @@ describe("UnTagContact inverts a list of user-defined tag keys", () => {
   });
 });
 
+describe("UpdateContactTextToSpeechVoice inverts the voice with its optional engine and style", () => {
+  const voice = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "voice",
+    Type: "UpdateContactTextToSpeechVoice",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([voice(parameters), bye]));
+    expect(out).toContain("new UpdateContactTextToSpeechVoice({");
+    expect(out).not.toContain('type: "UpdateContactTextToSpeechVoice"');
+    return out;
+  };
+  const generic = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([voice(parameters), bye]));
+    expect(out).toContain('type: "UpdateContactTextToSpeechVoice"');
+    expect(out).not.toContain("new UpdateContactTextToSpeechVoice(");
+  };
+
+  it("emits the voice alone, with a static engine and style, or with dynamic ones", () => {
+    expect(typed({ TextToSpeechVoice: "Joanna" })).toContain('voice: "Joanna"');
+    const full = typed({
+      TextToSpeechVoice: "Matthew",
+      TextToSpeechEngine: "neural",
+      TextToSpeechStyle: "Conversational",
+    });
+    expect(full).toContain('engine: "neural"');
+    expect(full).toContain('style: "Conversational"');
+    const dynamic = typed({
+      TextToSpeechVoice: "$.Attributes.voice",
+      TextToSpeechEngine: "$.Attributes.engine",
+    });
+    expect(dynamic).toContain('voice: "$.Attributes.voice"');
+    expect(dynamic).toContain('engine: jsonPath("$.Attributes.engine")');
+  });
+
+  it("falls back on an empty voice, an engine or style the pages do not list, or an extra key", () => {
+    generic({ TextToSpeechVoice: "" });
+    generic({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "premium" });
+    generic({ TextToSpeechVoice: "Joanna", TextToSpeechStyle: "Coversational" });
+    generic({ TextToSpeechVoice: "Joanna", LanguageCode: "en-US" });
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

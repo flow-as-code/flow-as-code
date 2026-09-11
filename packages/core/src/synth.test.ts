@@ -44,6 +44,7 @@ import {
   UnTagContact,
   UpdateContactCallbackNumber,
   UpdateContactRoutingBehavior,
+  UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
   Wait,
 } from "./index.js";
@@ -633,6 +634,21 @@ describe("guardrails", () => {
     expect(new UnTagContact({ ...base, tagKeys: ["tier"] }).toAction().Parameters).toEqual({
       TagKeys: ["tier"],
     });
+  });
+
+  it("rejects a voice change with no voice name", () => {
+    expect(
+      () => new UpdateContactTextToSpeechVoice({ id: "v", voice: "", next: "n", onError: "e" }),
+    ).toThrow(/needs a voice name/);
+    expect(
+      new UpdateContactTextToSpeechVoice({
+        id: "v",
+        voice: "Joanna",
+        engine: "neural",
+        next: "n",
+        onError: "e",
+      }).toAction().Parameters,
+    ).toEqual({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "neural" });
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

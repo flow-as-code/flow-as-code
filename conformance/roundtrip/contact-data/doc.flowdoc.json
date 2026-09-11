@@ -32,6 +32,43 @@
           ]
         },
         "Transitions": {
+          "NextAction": "set-voice",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-voice",
+        "Type": "UpdateContactTextToSpeechVoice",
+        "Parameters": {
+          "TextToSpeechEngine": "neural",
+          "TextToSpeechStyle": "Conversational",
+          "TextToSpeechVoice": "Matthew"
+        },
+        "Transitions": {
+          "NextAction": "set-voice-dynamic",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-voice-dynamic",
+        "Type": "UpdateContactTextToSpeechVoice",
+        "Parameters": {
+          "TextToSpeechEngine": "$.Attributes.engine",
+          "TextToSpeechVoice": "$.Attributes.voice"
+        },
+        "Transitions": {
           "NextAction": "greet",
           "Errors": [
             {
@@ -69,11 +106,19 @@
   },
   "layout": {
     "bye": {
-      "x": 800,
+      "x": 1320,
       "y": 20
     },
     "greet": {
+      "x": 1060,
+      "y": 20
+    },
+    "set-voice": {
       "x": 540,
+      "y": 20
+    },
+    "set-voice-dynamic": {
+      "x": 800,
       "y": 20
     },
     "tag": {

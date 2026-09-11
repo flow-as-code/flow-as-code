@@ -38,6 +38,8 @@ import {
   QUEUE_CHANNELS,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
+  TTS_ENGINES,
+  TTS_STYLES,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -75,6 +77,7 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
+  UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
   Wait,
 } from "./blocks.js";
@@ -1244,6 +1247,47 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         next: w.next,
         onError: w.onError,
       }),
+    };
+  },
+
+  [ActionType.UpdateContactTextToSpeechVoice]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["TextToSpeechVoice"], ["TextToSpeechEngine", "TextToSpeechStyle"])) {
+      return undefined;
+    }
+    const voice = p.TextToSpeechVoice;
+    if (typeof voice !== "string" || voice === "") return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["voice", voice],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, voice };
+    for (const [key, prop, allowed] of [
+      ["TextToSpeechEngine", "engine", TTS_ENGINES],
+      ["TextToSpeechStyle", "style", TTS_STYLES],
+    ] as const) {
+      const value = p[key];
+      if (value === undefined) continue;
+      if (typeof value !== "string") return undefined;
+      if ((allowed as readonly string[]).includes(value)) {
+        entries.push([prop, value]);
+      } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(value)) {
+        ctx.jsonPath = true;
+        entries.push([prop, new Raw(`jsonPath(${quoteString(value)})`)]);
+      } else {
+        return undefined;
+      }
+      config[prop] = value;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "UpdateContactTextToSpeechVoice",
+      entries,
+      block: new UpdateContactTextToSpeechVoice(
+        cast<never>({ ...config, next: w.next, onError: w.onError }),
+      ),
     };
   },
 
