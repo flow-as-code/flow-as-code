@@ -118,6 +118,27 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           clears: ["QueueId"],
         },
       ];
+    case ActionType.DequeueContactAndTransferToQueue:
+      // Both optional: with neither, the contact goes to its current target
+      // queue. Setting one clears the other, as for UpdateContactTargetQueue.
+      return [
+        {
+          kind: "ref",
+          key: "QueueId",
+          label: "Queue",
+          refType: "queue",
+          optional: true,
+          clears: ["AgentId"],
+        },
+        {
+          kind: "ref",
+          key: "AgentId",
+          label: "Agent queue",
+          refType: "queue",
+          optional: true,
+          clears: ["QueueId"],
+        },
+      ];
     case ActionType.UpdateContactAttributes:
       return [
         { kind: "json", key: "Attributes", label: "Attributes" },

@@ -13,6 +13,9 @@ import type {
 } from "./index.js";
 import {
   ActionType,
+  canonicalOrder,
+  collectRefs,
+  DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   EndFlowModuleExecution,
   EXTRA_ERRORS,
@@ -23,13 +26,11 @@ import {
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
   InvokeLambdaFunction,
-  NO_MATCHING_ERROR,
-  Refs,
-  canonicalOrder,
-  collectRefs,
   jsonPath,
   materializeWithMap,
+  NO_MATCHING_ERROR,
   parseToken,
+  Refs,
   serialize,
   serializeContent,
   synth,
@@ -134,6 +135,25 @@ describe("error branch wiring", () => {
       { ErrorType: "QueueAtCapacity", NextAction: "announce-busy" },
       { ErrorType: "NoMatchingError", NextAction: "apologize" },
     ]);
+  });
+
+  it("gives DequeueContactAndTransferToQueue the same two errors, with or without a target", () => {
+    const errors = (block: DequeueContactAndTransferToQueue) => block.toAction().Transitions.Errors;
+    const wired = { next: "n", onQueueAtCapacity: "full", onError: "err" };
+    const expected = [
+      { ErrorType: "QueueAtCapacity", NextAction: "full" },
+      { ErrorType: "NoMatchingError", NextAction: "err" },
+    ];
+    const toQueue = new DequeueContactAndTransferToQueue({
+      id: "a",
+      queue: Refs.queue("priority"),
+      ...wired,
+    });
+    expect(errors(toQueue)).toEqual(expected);
+    expect(toQueue.toAction().Parameters).toEqual({ QueueId: "${cdref:queue:priority}" });
+    const bare = new DequeueContactAndTransferToQueue({ id: "b", ...wired });
+    expect(errors(bare)).toEqual(expected);
+    expect(bare.toAction().Parameters).toEqual({});
   });
 
   it("gives CheckHoursOfOperation exactly the two conditions Connect requires", () => {

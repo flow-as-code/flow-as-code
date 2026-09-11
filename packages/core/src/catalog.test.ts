@@ -284,9 +284,10 @@ describe("the action catalog", () => {
     expect(modeledTypes().sort()).toEqual([...Object.values(ActionType)].sort());
   });
 
-  it("requires only the catch-all branch of the fourteen types modeled today", () => {
+  it("requires the catch-all branch of every type modeled with one", () => {
     expect(requiredErrors("Compare")).toEqual(["NoMatchingCondition"]);
     expect(requiredErrors("GetParticipantInput")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("DequeueContactAndTransferToQueue")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DisconnectParticipant")).toEqual([]);
     expect(requiredErrors("NotAnAction")).toEqual([]);
   });
@@ -298,6 +299,10 @@ describe("the action catalog", () => {
       "NoMatchingError",
     ]);
     expect(builderErrors("TransferContactToQueue")).toEqual(["QueueAtCapacity", "NoMatchingError"]);
+    expect(builderErrors("DequeueContactAndTransferToQueue")).toEqual([
+      "QueueAtCapacity",
+      "NoMatchingError",
+    ]);
     expect(builderErrors("DisconnectParticipant")).toEqual([]);
   });
 });

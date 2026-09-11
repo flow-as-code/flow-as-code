@@ -56,6 +56,7 @@ The two differ, and the console name is what task A01 originally listed.
 | TransferToFlow | `TransferToFlow` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html) |
 | (end) | `EndFlowExecution` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-endflowexecution.html) |
 | TransferToQueue | `UpdateContactTargetQueue` **and** `TransferContactToQueue` | contact | [set](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttargetqueue.html), [transfer](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoqueue.html) |
+| TransferToQueue (in a customer queue flow) | `DequeueContactAndTransferToQueue` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -71,7 +72,8 @@ is never interpolated into a longer string.
 
 | `Type` | Field | Ref type |
 |---|---|---|
-| `UpdateContactTargetQueue` | `QueueId` | `queue` |
+| `UpdateContactTargetQueue` | `QueueId`, `AgentId` | `queue` |
+| `DequeueContactAndTransferToQueue` | `QueueId`, `AgentId` | `queue` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -151,6 +153,25 @@ individual action pages linked above.
     whisper flows or hold flows". The admin page's flow-type table also marks
     the outbound whisper flow as supported; the action page is the one cited
     by the `action-allowed-in-flow-type` table, as for every other entry.
+16. `DequeueContactAndTransferToQueue` (recorded 2026-09-11) is the console's
+    Transfer to queue block "but only when used in a Customer queue flow": it
+    dequeues the contact and places it in the named queue, or in the contact's
+    current target queue when neither `QueueId` nor `AgentId` is given. Both
+    are `[Optional]`, "If AgentId is specified, [QueueId] may not be
+    specified" and the reverse, so at most one. `AgentId` is "an agent ID or
+    agent ARN, representing an agent queue", the `queue` reference type as on
+    `UpdateContactTargetQueue`. Errors are `QueueAtCapacity` "if the
+    destination queue is at capacity and the contact cannot be queued within
+    it" and `NoMatchingError`. "This action is only supported in the customer
+    queue flow. It is not supported in any other type of flow." The page says
+    nothing about `NextAction`; the admin guide's block has a Success branch
+    ("three possible outcomes in this case: Success, At capacity, Error"), so
+    the builder wires one. The admin guide adds two limits the page does not:
+    "Queue-to-queue transfers can be done only 11 times because there is a
+    maximum limit of 12 contacts in a contact chain" and "When you use this
+    block in a Customer Queue flow, you must add a Loop prompts block before
+    this one."
+    https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-queue.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -184,6 +205,7 @@ EndFlowExecution         {}
 EndFlowModuleExecution   {}
 TransferContactToQueue   {}
 UpdateContactTargetQueue { QueueId? | AgentId? }
+DequeueContactAndTransferToQueue { QueueId? | AgentId? }   // neither: the contact's current target queue
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -237,7 +259,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 14 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 15 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

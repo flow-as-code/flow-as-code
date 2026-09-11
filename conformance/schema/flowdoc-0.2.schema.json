@@ -389,6 +389,56 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "DequeueContactAndTransferToQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "DequeueContactAndTransferToQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

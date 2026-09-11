@@ -86,7 +86,7 @@ Actions, `Errors` and `Conditions` arrays present (possibly empty) on every
 non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 `layout` covering every action. A provider generates code from `doc.flowdoc.json`,
 executes it, synthesizes the result, and must get the same document back
-(ignoring `meta`). The seven cases cover the demo flow (`appointment-line`), a
+(ignoring `meta`). The eight cases cover the demo flow (`appointment-line`), a
 flow of entirely unmodeled action types with tokens inside parameters
 (`unknown-actions`), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
@@ -96,7 +96,9 @@ of `GetParticipantInput` menus with Text, SSML and PromptId bodies
 builder refuses and so must stay GenericBlock (`repeated-key`), and edge cases
 (SSML, PromptId refs, Compare branches, JSONPath refs, hand-placed
 layout, an explicit start, and a modeled Type that must fall back to
-GenericBlock).
+GenericBlock), and a module of the contact-routing actions
+(`contact-routing`: queue-to-queue transfer to a queue token, to an agent
+queue by JSONPath, and to the current target queue with no parameter).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

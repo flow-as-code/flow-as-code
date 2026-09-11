@@ -628,6 +628,67 @@ describe("GetParticipantInput inverts only the shape the class emits", () => {
   });
 });
 
+describe("DequeueContactAndTransferToQueue inverts the three targets the class writes", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "requeue",
+    Type: "DequeueContactAndTransferToQueue",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "QueueAtCapacity", NextAction: "bye" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const doc = docWith([action(parameters), bye]);
+    const out = codegen(doc);
+    expect(out).toContain("new DequeueContactAndTransferToQueue({");
+    expect(out).not.toContain('type: "DequeueContactAndTransferToQueue"');
+    return out;
+  };
+  const generic = (edit: (a: FlowAction) => void) => {
+    const a = action({ QueueId: "${cdref:queue:priority}" });
+    edit(a);
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "DequeueContactAndTransferToQueue"');
+    expect(out).not.toContain("new DequeueContactAndTransferToQueue(");
+  };
+
+  it("emits queue, agent, or no target at all", () => {
+    expect(typed({ QueueId: "${cdref:queue:priority}" })).toContain(
+      'queue: Refs.queue("priority")',
+    );
+    expect(typed({ AgentId: "$.Attributes.agentArn" })).toContain(
+      'agent: jsonPath("$.Attributes.agentArn")',
+    );
+    const bare = typed({});
+    expect(bare).not.toContain("queue:");
+    expect(bare).not.toContain("agent:");
+    expect(bare).toContain('onQueueAtCapacity: "bye"');
+  });
+
+  it("falls back when both targets are set, a token is the wrong type, or an error is missing", () => {
+    generic((a) => {
+      a.Parameters.AgentId = "${cdref:queue:overflow}";
+    });
+    generic((a) => {
+      a.Parameters.QueueId = "${cdref:flow:not-a-queue}";
+    });
+    generic((a) => {
+      a.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    });
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

@@ -142,7 +142,64 @@
     "DequeueContactAndTransferToQueue": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html",
-      "modeled": false
+      "modeled": true,
+      "block": "dequeue_contact_and_transfer_to_queue",
+      "terminal": false,
+      "flowTypes": [
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "QueueId",
+          "attr": "queue_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        },
+        {
+          "key": "AgentId",
+          "attr": "agent_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "QueueId",
+            "AgentId"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "QueueId",
+          "ref": "queue"
+        },
+        {
+          "path": "AgentId",
+          "ref": "queue"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "QueueAtCapacity",
+            "required": false,
+            "builder": true
+          },
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "EndFlowModuleExecution": {
       "category": "contact",

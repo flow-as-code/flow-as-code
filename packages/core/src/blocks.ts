@@ -387,6 +387,9 @@ export type QueueTarget =
   | { queue: Ref<"queue"> | JsonPath; agent?: never }
   | { agent: Ref<"queue"> | JsonPath; queue?: never };
 
+/** A queue, an agent queue, or neither. */
+export type OptionalQueueTarget = QueueTarget | { queue?: never; agent?: never };
+
 export type UpdateContactTargetQueueConfig = Wired & QueueTarget;
 
 export class UpdateContactTargetQueue extends Block {
@@ -425,6 +428,38 @@ export class TransferContactToQueue extends Block {
 
   protected transitions(): Transitions {
     const extra = EXTRA_ERRORS[ActionType.TransferContactToQueue] ?? [];
+    const errors: [string, Target][] = extra.map((e) => [e, this.config.onQueueAtCapacity]);
+    errors.push([NO_MATCHING_ERROR, this.config.onError]);
+    return wire(this.config.next, errors);
+  }
+}
+
+/**
+ * Queue-to-queue transfer: dequeues the contact and places it in the queue
+ * named, or in the contact's current target queue when neither `queue` nor
+ * `agent` is given. Only legal in a customer queue flow. The action page lists
+ * QueueAtCapacity beside the catch-all, as TransferContactToQueue does.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html
+ */
+export type DequeueContactAndTransferToQueueConfig = Wired & {
+  onQueueAtCapacity: Target;
+} & OptionalQueueTarget;
+
+export class DequeueContactAndTransferToQueue extends Block {
+  readonly type = ActionType.DequeueContactAndTransferToQueue;
+
+  constructor(private readonly config: DequeueContactAndTransferToQueueConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    if (this.config.queue !== undefined) return { QueueId: this.config.queue };
+    if (this.config.agent !== undefined) return { AgentId: this.config.agent };
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    const extra = EXTRA_ERRORS[ActionType.DequeueContactAndTransferToQueue] ?? [];
     const errors: [string, Target][] = extra.map((e) => [e, this.config.onQueueAtCapacity]);
     errors.push([NO_MATCHING_ERROR, this.config.onError]);
     return wire(this.config.next, errors);
@@ -575,7 +610,7 @@ export class InvokeLambdaFunction extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 14.
+ * set survivable: 56 action types are documented and the builder models 15.
  */
 export interface GenericBlockConfig {
   id: string;

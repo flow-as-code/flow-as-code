@@ -28,6 +28,7 @@ export const ActionType = {
   InvokeFlowModule: "InvokeFlowModule",
   EndFlowModuleExecution: "EndFlowModuleExecution",
   InvokeLambdaFunction: "InvokeLambdaFunction",
+  DequeueContactAndTransferToQueue: "DequeueContactAndTransferToQueue",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -43,6 +44,7 @@ export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
  */
 export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, RefType>>>> = {
   [ActionType.UpdateContactTargetQueue]: { QueueId: "queue", AgentId: "queue" },
+  [ActionType.DequeueContactAndTransferToQueue]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.CheckHoursOfOperation]: { HoursOfOperationId: "hours" },
   [ActionType.InvokeLambdaFunction]: { LambdaFunctionARN: "lambda" },
   [ActionType.InvokeFlowModule]: { FlowModuleId: "module" },
@@ -77,6 +79,10 @@ export const INPUT_TIME_LIMIT_EXCEEDED = "InputTimeLimitExceeded";
  */
 export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.TransferContactToQueue]: ["QueueAtCapacity"],
+  // "QueueAtCapacity - if the destination queue is at capacity and the
+  // contact cannot be queued within it."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html
+  [ActionType.DequeueContactAndTransferToQueue]: ["QueueAtCapacity"],
   // NoMatchingCondition "Must be defined only if StoreInput is False", which
   // is the only form the builder emits; the order is the admin page's example.
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
@@ -169,6 +175,13 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // It is not supported in whisper flows, hold flows, or customer queue flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttargetqueue.html
   [ActionType.UpdateContactTargetQueue]: [...INBOUND, ...TRANSFER, ...IN_MODULE],
+  // "This action is only supported in the customer queue flow. It is not
+  // supported in any other type of flow."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html
+  // "Any other type of flow" is read as the flow types the page's vocabulary
+  // names (inbound, transfer, whisper, hold); a module has no flow type of
+  // its own, so MODULE stays, as the note above IN_MODULE explains.
+  [ActionType.DequeueContactAndTransferToQueue]: [...CUSTOMER_QUEUE, ...IN_MODULE],
   // "This action is available in inbound flows and transfer flows. It is not
   // available to hold flows, customer queue flows, or whisper flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html

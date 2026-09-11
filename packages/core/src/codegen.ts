@@ -35,6 +35,7 @@ import type { Block, DtmfBranch, GenericBlockConfig, MessageBody } from "./block
 import {
   CheckHoursOfOperation,
   Compare,
+  DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   EndFlowExecution,
   EndFlowModuleExecution,
@@ -676,6 +677,54 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         onQueueAtCapacity: errors[0]!.NextAction,
         onError: errors[1]!.NextAction,
       }),
+    };
+  },
+
+  [ActionType.DequeueContactAndTransferToQueue]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== "QueueAtCapacity" ||
+      errors[1]!.ErrorType !== NO_MATCHING_ERROR
+    ) {
+      return undefined;
+    }
+    const keys = Object.keys(a.Parameters);
+    if (
+      keys.length > 1 ||
+      (keys[0] !== undefined && keys[0] !== "QueueId" && keys[0] !== "AgentId")
+    ) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const target: Record<string, unknown> = {};
+    const field = keys[0];
+    if (field !== undefined) {
+      const ref = refSource(a.Parameters[field], "queue", ctx);
+      if (ref === undefined) return undefined;
+      const prop = field === "QueueId" ? "queue" : "agent";
+      entries.push([prop, ref]);
+      target[prop] = a.Parameters[field];
+    }
+    entries.push(
+      ["next", t.NextAction],
+      ["onQueueAtCapacity", errors[0]!.NextAction],
+      ["onError", errors[1]!.NextAction],
+    );
+    return {
+      cls: "DequeueContactAndTransferToQueue",
+      entries,
+      block: new DequeueContactAndTransferToQueue(
+        cast<never>({
+          id: a.Identifier,
+          ...target,
+          next: t.NextAction,
+          onQueueAtCapacity: errors[0]!.NextAction,
+          onError: errors[1]!.NextAction,
+        }),
+      ),
     };
   },
 
