@@ -17,7 +17,7 @@
 // wrong now produces a refusal the user can read, not a corrupted block.
 
 import type { Condition, ConditionOperator, DtmfDigit, FlowAction } from "@flow-as-code/core";
-import { ActionType, TERMINAL_ACTIONS } from "@flow-as-code/core";
+import { ActionType, TERMINAL_ACTIONS, conditionsKind, nextRule } from "@flow-as-code/core";
 import { isModeled } from "./palette.js";
 
 /** Terminal actions carry an empty Transitions object and have no errors. */
@@ -57,7 +57,13 @@ export function isDtmfMenu(action: FlowAction): boolean {
  */
 export function acceptsNextAction(action: FlowAction): boolean {
   if (isTerminalType(action.Type)) return false;
-  return action.Type !== ActionType.Compare && !isDtmfMenu(action);
+  if (action.Type === ActionType.GetParticipantInput) return !isDtmfMenu(action);
+  // The catalog's rule for the type: "none" is Compare and its kind (every
+  // path is a condition); a NextAction that mirrors an error branch is authored
+  // through that branch, as the menu's is; anything else takes a drag.
+  const rule = nextRule(action.Type);
+  if (rule === undefined) return true;
+  return rule !== "none" && !rule.startsWith("mirrors:error:");
 }
 
 /**
@@ -74,9 +80,12 @@ export function acceptsNextAction(action: FlowAction): boolean {
  */
 export function acceptsConditions(action: FlowAction): boolean {
   if (isTerminalType(action.Type)) return false;
-  if (action.Type === ActionType.Compare) return true;
   if (action.Type === ActionType.GetParticipantInput) return isDtmfMenu(action);
-  if (isModeled(action.Type)) return false;
+  if (isModeled(action.Type)) {
+    // A fixed set of conditions is the block class's to write, not a drag's.
+    const kind = conditionsKind(action.Type);
+    return kind !== undefined && kind !== "none" && kind !== "fixed";
+  }
   return (action.Transitions.Conditions ?? []).length > 0;
 }
 
@@ -173,10 +182,16 @@ function usedKeys(action: FlowAction): Set<string> {
  * branch left to add.
  */
 export function defaultConditionFor(action: FlowAction): Condition | undefined {
-  if (action.Type !== ActionType.GetParticipantInput) {
-    return { Operator: DEFAULT_CONDITION_OPERATOR, Operands: [...DEFAULT_CONDITION_OPERANDS] };
+  const kind = conditionsKind(action.Type);
+  if (kind === "dtmf") {
+    const used = usedKeys(action);
+    const key = DTMF_KEY_ORDER.find((k) => !used.has(k));
+    return key === undefined ? undefined : { Operator: "Equals", Operands: [key] };
   }
-  const used = usedKeys(action);
-  const key = DTMF_KEY_ORDER.find((k) => !used.has(k));
-  return key === undefined ? undefined : { Operator: "Equals", Operands: [key] };
+  // A numeric branch (a percentage split, a metric check) compares with an
+  // operator its inspector can change; every other kind starts as the empty
+  // Equals placeholder the inspector fills in.
+  const operator: ConditionOperator =
+    kind === "numeric" ? "NumberLessThan" : DEFAULT_CONDITION_OPERATOR;
+  return { Operator: operator, Operands: [...DEFAULT_CONDITION_OPERANDS] };
 }

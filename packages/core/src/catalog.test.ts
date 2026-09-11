@@ -24,6 +24,7 @@ import {
 } from "./actions.js";
 import {
   actionCatalog,
+  builderErrors,
   modeledTypes,
   requiredErrors,
   type ActionCatalog,
@@ -222,20 +223,30 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       );
     }
 
-    // Errors: the builder's order (extras, then the catch-all) is a prefix of the
-    // catalog's, and today the catch-all is the only branch a document must wire.
+    // Errors: the branches marked builder are exactly what the block class
+    // emits (the extras, then the catch-all), and today the catch-all is the
+    // only branch a document must wire. Conditions name a known kind.
     if (!terminal) {
       const catchAll = type === ActionType.Compare ? NO_MATCHING_CONDITION : NO_MATCHING_ERROR;
       const emitted = [...(EXTRA_ERRORS[type] ?? []), catchAll];
-      const listed = t.errors.map((e) => e.type);
-      if (listed.slice(0, emitted.length).join(",") !== emitted.join(",")) {
+      const wired = t.errors.filter((e) => e.builder).map((e) => e.type);
+      if (wired.join(",") !== emitted.join(",")) {
         out.push(
-          `${where}: errors ${listed.join(",")} do not start with the builder's ${emitted.join(",")}`,
+          `${where}: builder errors ${wired.join(",")} differ from the block's ${emitted.join(",")}`,
         );
       }
       const required = t.errors.filter((e) => e.required).map((e) => e.type);
       if (required.join(",") !== catchAll)
         out.push(`${where}: required errors ${required.join(",")}, expected ${catchAll}`);
+    }
+    if (!["none", "fixed", "dtmf", "enum", "numeric", "custom"].includes(t.conditions)) {
+      out.push(`${where}: conditions kind ${t.conditions} is unknown`);
+    }
+    if (
+      t.conditions === "fixed" &&
+      !(Array.isArray(t.conditionOperands) && t.conditionOperands.length > 0)
+    ) {
+      out.push(`${where}: fixed conditions without conditionOperands`);
     }
   }
   return out;
@@ -278,6 +289,16 @@ describe("the action catalog", () => {
     expect(requiredErrors("GetParticipantInput")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DisconnectParticipant")).toEqual([]);
     expect(requiredErrors("NotAnAction")).toEqual([]);
+  });
+
+  it("names the branches the builder wires, in the builder's order", () => {
+    expect(builderErrors("GetParticipantInput")).toEqual([
+      "InputTimeLimitExceeded",
+      "NoMatchingCondition",
+      "NoMatchingError",
+    ]);
+    expect(builderErrors("TransferContactToQueue")).toEqual(["QueueAtCapacity", "NoMatchingError"]);
+    expect(builderErrors("DisconnectParticipant")).toEqual([]);
   });
 });
 
@@ -333,6 +354,11 @@ describe("catalogProblems is proven able to fail", () => {
         (c) => (modeledAt(c, "TransferContactToQueue").transitions.errors[0]!.required = true),
       ),
     ).toContainEqual(expect.stringContaining("TransferContactToQueue: required errors"));
+  });
+  it("on a builder flag the block class does not honour", () => {
+    expect(
+      mutate((c) => (modeledAt(c, "GetParticipantInput").transitions.errors[3]!.builder = true)),
+    ).toContainEqual(expect.stringContaining("GetParticipantInput: builder errors"));
   });
   it("on a category page losing a type", () => {
     expect(

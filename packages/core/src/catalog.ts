@@ -75,17 +75,37 @@ export interface CatalogError {
   type: string;
   /** Whether error-branches reports the branch as missing. */
   required: boolean;
+  /**
+   * Whether the builder's modeled form wires this branch, which is also the
+   * vocabulary the studio offers when a drag from the error handle looks for a
+   * branch to create. False for an error that exists only in a form the
+   * builder does not model (GetParticipantInput's InvalidPhoneNumber).
+   */
+  builder: boolean;
   /** Free text from the action page, when the error exists only in some forms. */
   when?: string;
 }
 
 /** `required`, `none`, `mirrors:error:<type>`, or `mirrors:condition:<operand>`. */
 export type NextRule = string;
-export type ConditionsKind = "none" | "boolean" | "dtmf" | "custom";
+
+/**
+ * What an action's Conditions may hold:
+ *   none     no conditions at all
+ *   fixed    exactly the Equals conditions conditionOperands lists, no others
+ *   dtmf     Equals on one key each, 0 to 9, * or #
+ *   enum     Equals on values the action defines at run time (intent names,
+ *            view actions, events), one branch each
+ *   numeric  the Number* operators over a value the action produces
+ *   custom   any operator over any operand, as Compare takes
+ */
+export type ConditionsKind = "none" | "fixed" | "dtmf" | "enum" | "numeric" | "custom";
 
 export interface CatalogTransitions {
   next: NextRule;
   conditions: ConditionsKind;
+  /** For kind fixed: the operands, in the order the builder emits them. */
+  conditionOperands?: readonly string[];
   /** In the order the builder emits them. */
   errors: readonly CatalogError[];
 }
@@ -155,6 +175,21 @@ export function requiredErrors(type: string): string[] {
   return (modeledEntry(type)?.transitions.errors ?? [])
     .filter((e) => e.required)
     .map((e) => e.type);
+}
+
+/** The error branches the builder's modeled form wires, in its order; empty when none. */
+export function builderErrors(type: string): string[] {
+  return (modeledEntry(type)?.transitions.errors ?? []).filter((e) => e.builder).map((e) => e.type);
+}
+
+/** How an action of this type uses Conditions, or undefined for an unmodeled type. */
+export function conditionsKind(type: string): ConditionsKind | undefined {
+  return modeledEntry(type)?.transitions.conditions;
+}
+
+/** The catalog's rule for NextAction on this type, or undefined for an unmodeled type. */
+export function nextRule(type: string): NextRule | undefined {
+  return modeledEntry(type)?.transitions.next;
 }
 
 /** Paths that hold billed prompt text; empty for actions that play nothing. */

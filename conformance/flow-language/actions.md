@@ -216,6 +216,15 @@ every table in `packages/core/src/actions.ts` to it, so the prose here, the
 data, and the code cannot disagree. Add a type to both files in the same
 commit; the test says which one is behind.
 
+Each modeled entry's `transitions` records what the action's Transitions may
+hold: `next` (`required`, `none`, or `mirrors:error:<type>` and
+`mirrors:condition:<operand>` when the builder writes NextAction as a copy of
+another branch), `conditions` (`none`, `fixed` with `conditionOperands`,
+`dtmf`, `enum`, `numeric`, or `custom`), and `errors` in the builder's order,
+each marked `required` (the error-branches rule reports it missing) and
+`builder` (the builder's modeled form wires it; the studio offers exactly those
+when a drag looks for a branch to create).
+
 Attribute names are the mechanical `snake_case` of the Flow language key
 (`packages/core/src/hcl-names.ts`): `PromptId` is `prompt_id`,
 `LambdaFunctionARN` is `lambda_function_arn`, `LexV2Bot` is `lex_v2_bot`.

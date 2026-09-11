@@ -30,11 +30,10 @@
 
 import type { Condition, FlowAction, FlowDoc, ModeledActionType, Point } from "@flow-as-code/core";
 import {
+  builderErrors,
   ActionType,
-  EXTRA_ERRORS,
   MAX_ACTIONS_PER_FLOW,
   NO_MATCHING_CONDITION,
-  NO_MATCHING_ERROR,
   canonicalize,
   collectRefs,
 } from "@flow-as-code/core";
@@ -521,8 +520,10 @@ function wireMissingError(doc: FlowDoc, action: FlowAction, target: string): Flo
   // keeps its errors the way any unmodeled block does.
   if (!isModeled(action.Type)) return undefined;
   if (action.Type === ActionType.GetParticipantInput && !isDtmfMenu(action)) return undefined;
-  const catchAll = action.Type === ActionType.Compare ? NO_MATCHING_CONDITION : NO_MATCHING_ERROR;
-  const wanted = [...(EXTRA_ERRORS[action.Type] ?? []), catchAll];
+  // The branches the block class wires, in its order, from the catalog: the
+  // extras and then the catch-all for most types, two named errors and no
+  // catch-all for some, none at all for others.
+  const wanted = builderErrors(action.Type);
   const wired = new Set((action.Transitions.Errors ?? []).map((e) => e.ErrorType));
   const missing = wanted.find((e) => !wired.has(e));
   if (missing === undefined) return undefined;

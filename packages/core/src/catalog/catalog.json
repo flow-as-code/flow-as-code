@@ -197,7 +197,8 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -237,11 +238,13 @@
         "errors": [
           {
             "type": "QueueAtCapacity",
-            "required": false
+            "required": false,
+            "builder": true
           },
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -288,7 +291,8 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -396,7 +400,8 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -464,7 +469,8 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -727,20 +733,24 @@
         "errors": [
           {
             "type": "InputTimeLimitExceeded",
-            "required": false
+            "required": false,
+            "builder": true
           },
           {
             "type": "NoMatchingCondition",
             "required": false,
+            "builder": true,
             "when": "StoreInput is \"False\" or absent"
           },
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           },
           {
             "type": "InvalidPhoneNumber",
             "required": false,
+            "builder": false,
             "when": "StoreInput is \"True\" and PhoneNumberValidation is specified"
           }
         ]
@@ -846,7 +856,8 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -891,11 +902,16 @@
       ],
       "transitions": {
         "next": "mirrors:condition:False",
-        "conditions": "boolean",
+        "conditions": "fixed",
+        "conditionOperands": [
+          "True",
+          "False"
+        ],
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -937,7 +953,8 @@
         "errors": [
           {
             "type": "NoMatchingCondition",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -1016,7 +1033,8 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
@@ -1126,7 +1144,8 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true
+            "required": true,
+            "builder": true
           }
         ]
       }
