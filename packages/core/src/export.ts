@@ -734,7 +734,10 @@ export function exportFlow(
 
   // Actions the instance never gave a position get the same deterministic
   // auto-layout synth would have assigned, so the studio can open the result.
-  const auto = Object.values(lifted.layout).length === actions.length ? {} : autoLayout(actions);
+  const auto =
+    Object.values(lifted.layout).length === actions.length
+      ? {}
+      : autoLayout(actions, raw.StartAction);
   const layout: Record<string, Point> = {};
   for (const action of actions) {
     layout[action.Identifier] = lifted.layout[action.Identifier] ??

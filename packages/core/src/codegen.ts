@@ -1050,7 +1050,7 @@ function flowConfigEntries(doc: FlowDoc): [string, V][] {
   // hand-placed positions are worth carrying in source. Either way
   // synth(codegen(doc)) reproduces doc.layout.
   if (doc.layout !== undefined) {
-    const auto = autoLayout(doc.content.Actions);
+    const auto = autoLayout(doc.content.Actions, doc.content.StartAction);
     if (stableJson(doc.layout) !== stableJson(auto)) {
       const layoutEntries = Object.keys(doc.layout)
         .sort()

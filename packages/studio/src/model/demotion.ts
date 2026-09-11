@@ -181,8 +181,8 @@ export function probeDemotion(doc: FlowDoc): DemotionProbe {
   let probe: DemotionProbe;
   try {
     // Layout is irrelevant to which blocks invert, and codegen runs a full
-    // dagre pass whenever `layout` is present in order to decide whether the
-    // positions are a derivable default. Dropping it makes the probe roughly
+    // auto-layout pass whenever `layout` is present in order to decide whether
+    // the positions are a derivable default. Dropping it makes the probe roughly
     // an order of magnitude cheaper on large flows: it runs on every guarded
     // mutation, so a canvas drag on a 100-action flow was paying about 690ms
     // of graph layout per frame for an answer that does not depend on it.

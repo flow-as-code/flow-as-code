@@ -261,6 +261,14 @@ const PAGES = [
     description:
       "The technical difference against the L2 CDK construct library the AWS Contact Center blog described: references that stay ${cdref:type:name} tokens through to deploy time rather than ARNs written in by a centralized mapping table, and a Terraform path alongside the CDK one.",
   },
+  {
+    source: "docs/adr/0005-owned-layout.md",
+    slug: "docs/adr-owned-layout",
+    group: "Decisions",
+    title: "ADR-0005: An owned auto-layout replaces dagre",
+    description:
+      "Why the positions synth assigns to unplaced actions are computed by a small algorithm specified under conformance/ rather than by a layout library: a Terraform companion omits a position exactly when it equals auto-layout, so a second implementation has to reach the same integers.",
+  },
 ];
 
 /** The /docs/ index, which is a page of the site like any other. */

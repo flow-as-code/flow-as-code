@@ -126,7 +126,7 @@ function projectLayout(
   const actions = doc.content.Actions;
   const layout = doc.layout ?? {};
   const missing = actions.some((a) => layout[a.Identifier] === undefined);
-  const auto = missing ? autoLayout(actions) : {};
+  const auto = missing ? autoLayout(actions, doc.content.StartAction) : {};
 
   // Pre-existing Metadata (an imported document, say) is carried through, and
   // it is RESOLVED like everything else: the strictness check scans the whole

@@ -77,7 +77,7 @@ export function synth(flow: Flow, options: SynthOptions = {}): FlowDoc {
   const actions = flow.all().map((b) => b.toAction());
 
   // Hand-placed positions win; everything else gets deterministic auto-layout.
-  const auto = autoLayout(actions);
+  const auto = autoLayout(actions, startId);
   const layout: Record<string, Point> = {};
   for (const a of actions) {
     layout[a.Identifier] = flow.layout[a.Identifier] ?? auto[a.Identifier]!;

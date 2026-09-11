@@ -5,7 +5,7 @@
 // Public surface of @flow-as-code/core. See SPEC.md and docs/01-flowdoc-spec.md.
 //
 // Implemented: FlowDoc types, Refs, builder blocks, deterministic
-// serialization, dagre auto-layout, synth, lint, codegen, materialization,
+// serialization, auto-layout, synth, lint, codegen, materialization,
 // export from a live instance, and the simulate scenario format, runner, and
 // reporters. Watch (A04) lives in @flow-as-code/cli.
 
@@ -21,7 +21,14 @@ export * from "./flow.js";
 export * from "./synth.js";
 export * from "./codegen.js";
 export * from "./package-names.js";
-export { autoLayout, NODE_WIDTH, NODE_HEIGHT } from "./layout.js";
+export {
+  autoLayout,
+  LAYOUT_MARGIN,
+  NODE_GAP,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  RANK_GAP,
+} from "./layout.js";
 export { canonicalize, serialize } from "./serialize.js";
 export {
   MaterializeError,

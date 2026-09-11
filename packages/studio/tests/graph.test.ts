@@ -40,7 +40,7 @@ describe("docToGraph on the demo doc", () => {
 
   it("uses doc.layout positions verbatim", () => {
     const welcome = graph.nodes.find((n) => n.id === "welcome");
-    expect(welcome?.position).toEqual({ x: 280, y: 170 });
+    expect(welcome?.position).toEqual({ x: 280, y: 20 });
   });
 
   it("emits one edge per transition, error edges flagged and labeled", () => {
@@ -81,7 +81,7 @@ describe("layout fallback", () => {
     const doc = demoDoc();
     delete doc.layout!.welcome;
     const graph = docToGraph(doc);
-    expect(graph.nodes.find((n) => n.id === "check-hours")?.position).toEqual({ x: 540, y: 50 });
+    expect(graph.nodes.find((n) => n.id === "check-hours")?.position).toEqual({ x: 540, y: 20 });
     expect(graph.nodes.find((n) => n.id === "welcome")?.position).toBeDefined();
   });
 });

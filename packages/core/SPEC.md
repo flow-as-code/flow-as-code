@@ -35,7 +35,7 @@ Added 2026-09-01: `prompt-length-3000` also counts a `GetParticipantInput` body,
 
 `no-literal-arn` and `no-unresolved-token` are hard rules: the studio may never save through them (docs/02-studio-design.md). Every other rule reports.
 
-The engine is browser-safe and dependency-free, exported separately as `@flow-as-code/core/lint` so the studio's worker does not carry dagre. Enforced by a static import-graph test, not by running under a DOM shim, which would prove nothing since `node:fs` still resolves there.
+The engine is browser-safe and dependency-free, exported separately as `@flow-as-code/core/lint` so the studio's worker carries only what lint needs. Enforced by a static import-graph test, not by running under a DOM shim, which would prove nothing since `node:fs` still resolves there.
 
 ## Export
 
@@ -82,7 +82,7 @@ does not exist.
 
 ## FlowDoc (added 2026-08-30)
 
-- Synthesis emits FlowDoc per docs/01-flowdoc-spec.md (content + layout + refs + meta), not bare Flow JSON. Deterministic ordering and dagre auto-layout for missing positions.
+- Synthesis emits FlowDoc per docs/01-flowdoc-spec.md (content + layout + refs + meta), not bare Flow JSON. Deterministic ordering and the owned auto-layout (`conformance/layout/README.md`, `src/layout.ts`; it replaced dagre on 2026-09-11 so a second implementation can reproduce omitted positions) for missing positions.
 - Format 0.2 (2026-09-11): the `view` reference type (version in the alias slot, `Refs.view(name, version?)`), `meta.sourceKind` (`ts` or `tf`), and an optional top-level `description` carried by `FlowConfig`, `synth`, codegen and export. `migrateFlowDoc` (`src/migrate.ts`) reads 0.1 and 0.2 and returns 0.2; `conformance/migrate/` holds the cases; every reader in the repository migrates on the way in.
 - GenericBlock: any unmodeled Action round-trips verbatim through builder, studio, and codegen.
 

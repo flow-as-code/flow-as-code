@@ -212,47 +212,47 @@
   "layout": {
     "announce-busy": {
       "x": 1840,
-      "y": 150
+      "y": 120
     },
     "announce-closed": {
-      "x": 1840,
+      "x": 800,
       "y": 20
     },
     "apologize": {
       "x": 1840,
-      "y": 250
+      "y": 20
     },
     "check-hours": {
       "x": 540,
-      "y": 50
+      "y": 20
     },
     "enable-logging": {
       "x": 20,
-      "y": 170
+      "y": 20
     },
     "hang-up": {
       "x": 2100,
-      "y": 110
+      "y": 20
     },
     "look-up-appointment": {
       "x": 1060,
-      "y": 140
+      "y": 20
     },
     "record-lookup-result": {
       "x": 1320,
-      "y": 100
+      "y": 20
     },
     "set-working-queue": {
       "x": 800,
-      "y": 180
+      "y": 120
     },
     "transfer": {
       "x": 1580,
-      "y": 140
+      "y": 20
     },
     "welcome": {
       "x": 280,
-      "y": 170
+      "y": 20
     }
   },
   "refs": [

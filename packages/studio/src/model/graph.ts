@@ -125,7 +125,7 @@ export function conditionSummary(operator: string, operands: readonly unknown[])
 export function positionsFor(doc: FlowDoc): Record<string, Point> {
   const layout = doc.layout ?? {};
   const missing = doc.content.Actions.some((a) => layout[a.Identifier] === undefined);
-  const fallback = missing ? autoLayout(doc.content.Actions) : {};
+  const fallback = missing ? autoLayout(doc.content.Actions, doc.content.StartAction) : {};
   const out: Record<string, Point> = {};
   for (const a of doc.content.Actions) {
     out[a.Identifier] = layout[a.Identifier] ?? fallback[a.Identifier] ?? { x: 0, y: 0 };

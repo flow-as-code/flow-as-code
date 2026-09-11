@@ -10,7 +10,7 @@ A local-first visual editor over FlowDoc, with live bidirectional sync to typed 
 
 ## Canvas
 
-- React Flow (`@xyflow/react` 12). One node per Action; edges per transition, error edges styled distinctly. Deterministic dagre auto-layout for docs without `layout`.
+- React Flow (`@xyflow/react` 12). One node per Action; edges per transition, error edges styled distinctly. Deterministic auto-layout (`conformance/layout/README.md`) for docs without `layout`.
 - Palette groups mirror the Connect console taxonomy (Interact, Set, Branch, Integrate, Terminate) but only blocks `@flow-as-code/core` models are insertable; everything else renders as a read-only GenericBlock with raw JSON inspection.
 - Reference fields are typed pickers, not text: choosing a queue creates/uses `${cdref:queue:...}`. A refs sidebar lists every token in the doc with usage counts. Literal ARN entry is rejected in the UI (same rule as lint).
 - Inline lint: the lint engine runs in a worker on every change; findings badge nodes and list in a panel. The studio can never save a doc that fails `no-literal-arn` or `no-unresolved-token`.

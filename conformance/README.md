@@ -9,6 +9,9 @@ schema/flowdoc-0.1.schema.json    the previous version, frozen; migrate inputs v
 migrate/<case>/input.flowdoc.json a document at an older version
 migrate/<case>/expected.flowdoc.json the exact bytes migrateFlowDoc turns it into
 migrate/invalid.json              versions no build reads, which must be refused
+layout/README.md                  the auto-layout algorithm every implementation assigns to unplaced actions
+layout/<case>/doc.flowdoc.json    a document whose actions the algorithm lays out
+layout/<case>/expected.layout.json the positions it must produce, byte-exact
 flow-language/actions.md          Connect action types, shapes, and cited doc URLs
 flow-language/catalog.json        the same facts as data; a second implementation generates its schema from it
 demo/appointment-line.flowdoc.json  the canonical demo flow
