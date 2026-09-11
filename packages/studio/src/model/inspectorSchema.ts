@@ -19,6 +19,7 @@ import {
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
   METRIC_TYPES,
+  QUEUE_CHANNELS,
   QUEUE_PRIORITY_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
@@ -322,6 +323,35 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           refType: "queue",
           optional: true,
           clears: ["QueueId"],
+        },
+      ];
+    case ActionType.GetMetricData:
+      // With neither queue nor agent queue the contact's target queue is
+      // read; without a channel, every channel. The JSONPath form of the
+      // channel is edited as a GenericBlock.
+      return [
+        {
+          kind: "ref",
+          key: "QueueId",
+          label: "Queue",
+          refType: "queue",
+          optional: true,
+          clears: ["AgentId"],
+        },
+        {
+          kind: "ref",
+          key: "AgentId",
+          label: "Agent queue",
+          refType: "queue",
+          optional: true,
+          clears: ["QueueId"],
+        },
+        {
+          kind: "select",
+          key: "QueueChannel",
+          label: "Channel",
+          options: QUEUE_CHANNELS,
+          optional: true,
         },
       ];
     case ActionType.DistributeByPercentage:

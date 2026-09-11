@@ -680,6 +680,51 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "GetMetricData"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "QueueChannel": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "Voice",
+                          "Chat"
+                        ]
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

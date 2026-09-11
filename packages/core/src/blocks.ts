@@ -47,7 +47,7 @@ import {
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
 } from "./actions.js";
-import type { DtmfDigit, MetricOperator, MetricType, WaitEvent } from "./actions.js";
+import type { DtmfDigit, MetricOperator, MetricType, QueueChannel, WaitEvent } from "./actions.js";
 import type { Condition, ConditionOperator, FlowAction, Transitions } from "./flowdoc.js";
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
@@ -701,6 +701,41 @@ export class CheckMetricData extends Block {
   }
 }
 
+/**
+ * GetMetricData: loads the real-time metrics of the named queue, an agent
+ * queue, or the contact's target queue "and makes them available on the flow
+ * run data" (the admin guide lists them as $.Metrics.Queue.* attributes).
+ * `channel` narrows them to "Voice" or "Chat", statically or by a single
+ * JSONPath ("Can be set dynamically"); without it "metrics are returned for
+ * all channels". Legal in every flow type.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-queue-metrics.html
+ */
+export type GetMetricDataConfig = Wired &
+  OptionalQueueTarget & {
+    channel?: QueueChannel | JsonPath;
+  };
+
+export class GetMetricData extends Block {
+  readonly type = ActionType.GetMetricData;
+
+  constructor(private readonly config: GetMetricDataConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {};
+    if (this.config.queue !== undefined) p.QueueId = this.config.queue;
+    if (this.config.agent !== undefined) p.AgentId = this.config.agent;
+    if (this.config.channel !== undefined) p.QueueChannel = this.config.channel;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 /** Terminal. Only legal in whisper and customer queue flows. */
 export class EndFlowExecution extends Block {
   readonly type = ActionType.EndFlowExecution;
@@ -1148,7 +1183,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 24.
+ * set survivable: 56 action types are documented and the builder models 25.
  */
 export interface GenericBlockConfig {
   id: string;

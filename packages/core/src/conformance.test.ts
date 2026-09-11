@@ -317,6 +317,18 @@ describe("FlowDoc schema rejections: flow control", () => {
         a.Parameters.AgentId = "${cdref:queue:agents}";
       }),
     ],
+    [
+      "a metric load for a channel the page does not list",
+      mutate("load-metrics", (a) => {
+        a.Parameters.QueueChannel = "Email";
+      }),
+    ],
+    [
+      "a metric load naming both a queue and an agent queue",
+      mutate("load-metrics", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

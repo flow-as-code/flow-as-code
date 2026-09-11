@@ -1225,7 +1225,67 @@
     "GetMetricData": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html",
-      "modeled": false
+      "modeled": true,
+      "block": "get_metric_data",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "QueueId",
+          "attr": "queue_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        },
+        {
+          "key": "AgentId",
+          "attr": "agent_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "queue"
+        },
+        {
+          "key": "QueueChannel",
+          "attr": "queue_channel",
+          "kind": "enum",
+          "required": false,
+          "values": [
+            "Voice",
+            "Chat"
+          ],
+          "dynamic": true
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "QueueId",
+            "AgentId"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "QueueId",
+          "ref": "queue"
+        },
+        {
+          "path": "AgentId",
+          "ref": "queue"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "Loop": {
       "category": "flowControl",

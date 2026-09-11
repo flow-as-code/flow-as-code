@@ -38,6 +38,7 @@ export const ActionType = {
   DistributeByPercentage: "DistributeByPercentage",
   UpdateFlowAttributes: "UpdateFlowAttributes",
   CheckMetricData: "CheckMetricData",
+  GetMetricData: "GetMetricData",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -56,6 +57,7 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.DequeueContactAndTransferToQueue]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.CreateCallbackContact]: { QueueId: "queue", AgentId: "queue", ContactFlowId: "flow" },
   [ActionType.CheckMetricData]: { QueueId: "queue", AgentId: "queue" },
+  [ActionType.GetMetricData]: { QueueId: "queue", AgentId: "queue" },
   [ActionType.CheckHoursOfOperation]: { HoursOfOperationId: "hours" },
   [ActionType.InvokeLambdaFunction]: { LambdaFunctionARN: "lambda" },
   [ActionType.InvokeFlowModule]: { FlowModuleId: "module" },
@@ -335,6 +337,8 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * UpdateFlowAttributes: "This action is supported on all channels and in all
  * flow types."
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
+ * GetMetricData: "This action is available in every type of flow."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
@@ -343,6 +347,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Loop,
   ActionType.Wait,
   ActionType.UpdateFlowAttributes,
+  ActionType.GetMetricData,
 ];
 
 /**
@@ -439,6 +444,15 @@ export const METRIC_OPERATORS = [
   "NumberLessOrEqualTo",
 ] as const;
 export type MetricOperator = (typeof METRIC_OPERATORS)[number];
+
+/**
+ * GetMetricData.QueueChannel: "Either "Voice" or "Chat". Can be set
+ * dynamically. Determines the channel for which metrics are returned. If not
+ * specified, metrics are returned for all channels."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html
+ */
+export const QUEUE_CHANNELS = ["Voice", "Chat"] as const;
+export type QueueChannel = (typeof QUEUE_CHANNELS)[number];
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

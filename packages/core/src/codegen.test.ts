@@ -1232,6 +1232,54 @@ describe("CheckMetricData inverts the console's staffing check and a queue-depth
   });
 });
 
+describe("GetMetricData inverts its optional queue, agent queue and channel", () => {
+  const load = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "load",
+    Type: "GetMetricData",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([load(parameters), bye]));
+    expect(out).toContain("new GetMetricData({");
+    expect(out).not.toContain('type: "GetMetricData"');
+    return out;
+  };
+  const generic = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([load(parameters), bye]));
+    expect(out).toContain('type: "GetMetricData"');
+    expect(out).not.toContain("new GetMetricData(");
+  };
+
+  it("emits nothing, a queue with a static channel, or an agent queue with a dynamic one", () => {
+    const bare = typed({});
+    expect(bare).not.toContain("queue:");
+    expect(bare).not.toContain("channel:");
+    const voice = typed({ QueueId: "${cdref:queue:front-desk}", QueueChannel: "Voice" });
+    expect(voice).toContain('queue: Refs.queue("front-desk")');
+    expect(voice).toContain('channel: "Voice"');
+    const dynamic = typed({ AgentId: "$.Attributes.agentArn", QueueChannel: "$.Channel" });
+    expect(dynamic).toContain('agent: jsonPath("$.Attributes.agentArn")');
+    expect(dynamic).toContain('channel: jsonPath("$.Channel")');
+  });
+
+  it("falls back on both targets, a channel the page does not list, or a wrong token", () => {
+    generic({ QueueId: "${cdref:queue:a}", AgentId: "${cdref:queue:b}" });
+    generic({ QueueChannel: "Email" });
+    generic({ QueueId: "${cdref:hours:not-a-queue}" });
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

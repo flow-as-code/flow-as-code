@@ -93,7 +93,7 @@
           ],
           "Conditions": [
             {
-              "NextAction": "queue-depth",
+              "NextAction": "load-metrics",
               "Condition": {
                 "Operator": "NumberGreaterThan",
                 "Operands": [
@@ -102,6 +102,24 @@
               }
             }
           ]
+        }
+      },
+      {
+        "Identifier": "load-metrics",
+        "Type": "GetMetricData",
+        "Parameters": {
+          "QueueChannel": "Voice",
+          "QueueId": "${cdref:queue:front-desk}"
+        },
+        "Transitions": {
+          "NextAction": "queue-depth",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
         }
       },
       {
@@ -125,7 +143,7 @@
           ],
           "Conditions": [
             {
-              "NextAction": "wait-for-customer",
+              "NextAction": "load-agent-metrics",
               "Condition": {
                 "Operator": "NumberLessThan",
                 "Operands": [
@@ -143,6 +161,24 @@
               }
             }
           ]
+        }
+      },
+      {
+        "Identifier": "load-agent-metrics",
+        "Type": "GetMetricData",
+        "Parameters": {
+          "AgentId": "$.Attributes.preferredAgentArn",
+          "QueueChannel": "$.Channel"
+        },
+        "Transitions": {
+          "NextAction": "wait-for-customer",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
         }
       },
       {
@@ -301,7 +337,7 @@
       "y": 20
     },
     "bye": {
-      "x": 1840,
+      "x": 2360,
       "y": 20
     },
     "dynamic-loop": {
@@ -312,9 +348,17 @@
       "x": 20,
       "y": 20
     },
-    "queue-depth": {
+    "load-agent-metrics": {
+      "x": 1580,
+      "y": 20
+    },
+    "load-metrics": {
       "x": 1060,
       "y": 120
+    },
+    "queue-depth": {
+      "x": 1320,
+      "y": 20
     },
     "remember": {
       "x": 280,
@@ -329,11 +373,11 @@
       "y": 120
     },
     "wait-briefly": {
-      "x": 1580,
+      "x": 2100,
       "y": 20
     },
     "wait-for-customer": {
-      "x": 1320,
+      "x": 1840,
       "y": 20
     }
   },

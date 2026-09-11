@@ -66,6 +66,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Distribute by percentage | `DistributeByPercentage` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html) |
 | Set contact attributes (Flow namespace) | `UpdateFlowAttributes` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html) |
 | Check staffing, Check queue status | `CheckMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html) |
+| Get queue metrics | `GetMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -86,6 +87,7 @@ is never interpolated into a longer string.
 | `CreateCallbackContact` | `QueueId`, `AgentId` | `queue` |
 | `CreateCallbackContact` | `ContactFlowId` | `flow` |
 | `CheckMetricData` | `QueueId`, `AgentId` | `queue` |
+| `GetMetricData` | `QueueId`, `AgentId` | `queue` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -386,6 +388,21 @@ individual action pages linked above.
     flows. It is not available in any type of whisper or hold flows."
     https://docs.aws.amazon.com/connect/latest/adminguide/check-staffing.html
     https://docs.aws.amazon.com/connect/latest/adminguide/check-queue-status.html
+26. `GetMetricData` (recorded 2026-09-11) "Loads real time queue metrics for
+    the queue specified by queue ID, agent ID (for agent queues), or the
+    target queue, and makes them available on the flow run data." `QueueId`
+    and `AgentId` are `[Optional]`, "If AgentId is specified, [QueueId] may
+    not be specified", "*Dynamic values are supported*" (the asterisks are the
+    page's own); `QueueChannel` is `[Optional]`, "Either "Voice" or "Chat".
+    Can be set dynamically. Determines the channel for which metrics are
+    returned. If not specified, metrics are returned for all channels."
+    Results "None. No conditions are supported"; the error is
+    `NoMatchingError`. "This action is available in every type of flow." The
+    page's parameter block is missing a comma between `AgentId` and
+    `QueueChannel`. The admin guide adds a Get contact metrics setting with no
+    documented key, the `$.Metrics.Queue.*` attribute names, a 5 to 10 second
+    delay, and "Dynamic attributes can only return metrics for one channel".
+    https://docs.aws.amazon.com/connect/latest/adminguide/get-queue-metrics.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -430,6 +447,7 @@ Wait                     { TimeLimitSeconds, Events?: ("CustomerReturned" | "Bot
 DistributeByPercentage   {}
 UpdateFlowAttributes     { FlowAttributes: { [k]: FlowAttribute } }   // value shape not documented; kept opaque
 CheckMetricData          { MetricType, QueueId? | AgentId? }
+GetMetricData            { QueueId? | AgentId?, QueueChannel?: "Voice" | "Chat" }   // channel static or a single JSONPath
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -494,7 +512,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 24 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 25 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

@@ -25,6 +25,7 @@ import {
   Flow,
   FlowModule,
   GenericBlock,
+  GetMetricData,
   GetParticipantInput,
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
@@ -576,6 +577,30 @@ describe("guardrails", () => {
         ],
       },
     });
+  });
+
+  it("writes GetMetricData's optional queue and channel and its catch-all", () => {
+    expect(
+      new GetMetricData({
+        id: "g",
+        queue: Refs.queue("front-desk"),
+        channel: "Chat",
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "g",
+      Type: "GetMetricData",
+      Parameters: { QueueId: "${cdref:queue:front-desk}", QueueChannel: "Chat" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    expect(new GetMetricData({ id: "g", next: "n", onError: "e" }).toAction().Parameters).toEqual(
+      {},
+    );
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

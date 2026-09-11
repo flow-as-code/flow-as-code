@@ -35,6 +35,7 @@ import {
   METRIC_TYPES,
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_THRESHOLD_MAX,
+  QUEUE_CHANNELS,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -56,6 +57,7 @@ import {
   EndFlowExecution,
   EndFlowModuleExecution,
   GenericBlock,
+  GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
   InvokeLambdaFunction,
@@ -860,6 +862,45 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           onError: errors[0]!.NextAction,
         }),
       ),
+    };
+  },
+
+  [ActionType.GetMetricData]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, [], ["QueueId", "AgentId", "QueueChannel"])) return undefined;
+    if (p.QueueId !== undefined && p.AgentId !== undefined) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    for (const [key, prop] of [
+      ["QueueId", "queue"],
+      ["AgentId", "agent"],
+    ] as const) {
+      if (p[key] === undefined) continue;
+      const ref = refSource(p[key], "queue", ctx);
+      if (ref === undefined) return undefined;
+      entries.push([prop, ref]);
+      config[prop] = p[key];
+    }
+    if (p.QueueChannel !== undefined) {
+      const channel = p.QueueChannel;
+      if (typeof channel !== "string") return undefined;
+      if ((QUEUE_CHANNELS as readonly string[]).includes(channel)) {
+        entries.push(["channel", channel]);
+      } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(channel)) {
+        ctx.jsonPath = true;
+        entries.push(["channel", new Raw(`jsonPath(${quoteString(channel)})`)]);
+      } else {
+        return undefined;
+      }
+      config.channel = channel;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "GetMetricData",
+      entries,
+      block: new GetMetricData(cast<never>({ ...config, next: w.next, onError: w.onError })),
     };
   },
 
