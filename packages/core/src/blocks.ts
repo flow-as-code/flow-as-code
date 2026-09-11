@@ -36,6 +36,8 @@ import {
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
   PARTICIPANT_NOT_FOUND,
+  PERCENTAGE_FLOOR,
+  PERCENTAGE_THRESHOLD_MAX,
   QUEUE_PRIORITY_MIN,
   WAIT_COMPLETED,
   WAIT_EVENTS,
@@ -498,6 +500,72 @@ export class Wait extends Block {
   }
 }
 
+/**
+ * One branch of a percentage split: `percent` of contacts (a whole number,
+ * at least 1) take `target`.
+ */
+export interface PercentageBranch {
+  percent: number;
+  target: Target;
+}
+
+/**
+ * DistributeByPercentage: a random number from 1 to 100 routed by a chain of
+ * NumberLessThan thresholds. Each branch claims its percentage after the ones
+ * before it; the thresholds may not exceed 100, so the branches claim at most
+ * 99% and `onRemainder` (the NoMatchingCondition branch, which NextAction
+ * mirrors as the console writes it) takes what is left.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/distribute-by-percentage.html
+ */
+export interface DistributeByPercentageConfig {
+  id: string;
+  branches: PercentageBranch[];
+  onRemainder: Target;
+}
+
+export class DistributeByPercentage extends Block {
+  readonly type = ActionType.DistributeByPercentage;
+
+  constructor(private readonly config: DistributeByPercentageConfig) {
+    super(config.id);
+    if (config.branches.length === 0) {
+      throw new Error(`DistributeByPercentage "${config.id}" needs at least one branch.`);
+    }
+    let threshold = 1;
+    for (const b of config.branches) {
+      if (!Number.isInteger(b.percent) || b.percent < PERCENTAGE_FLOOR) {
+        throw new Error(
+          `DistributeByPercentage "${config.id}" percent must be an integer of at least ${PERCENTAGE_FLOOR}, got ${b.percent}.`,
+        );
+      }
+      threshold += b.percent;
+    }
+    if (threshold > PERCENTAGE_THRESHOLD_MAX) {
+      throw new Error(
+        `DistributeByPercentage "${config.id}" branches claim ${threshold - 1}%; at most ${PERCENTAGE_THRESHOLD_MAX - 1}% may be claimed, the remainder is onRemainder.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    let threshold = 1;
+    const conditions: ConditionTransitionInput[] = this.config.branches.map((b) => {
+      threshold += b.percent;
+      return { target: b.target, operator: "NumberLessThan", operands: [String(threshold)] };
+    });
+    return wire(
+      this.config.onRemainder,
+      [[NO_MATCHING_CONDITION, this.config.onRemainder]],
+      conditions,
+    );
+  }
+}
+
 /** Terminal. Only legal in whisper and customer queue flows. */
 export class EndFlowExecution extends Block {
   readonly type = ActionType.EndFlowExecution;
@@ -927,7 +995,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 21.
+ * set survivable: 56 action types are documented and the builder models 22.
  */
 export interface GenericBlockConfig {
   id: string;

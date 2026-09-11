@@ -15,7 +15,7 @@
           "Text": "Please hold while we look that up."
         },
         "Transitions": {
-          "NextAction": "again",
+          "NextAction": "split",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
@@ -23,6 +23,40 @@
             }
           ],
           "Conditions": []
+        }
+      },
+      {
+        "Identifier": "split",
+        "Type": "DistributeByPercentage",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "again",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "31"
+                ]
+              }
+            },
+            {
+              "NextAction": "wait-for-customer",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "51"
+                ]
+              }
+            }
+          ]
         }
       },
       {
@@ -177,27 +211,31 @@
   },
   "layout": {
     "again": {
-      "x": 280,
+      "x": 540,
       "y": 20
     },
     "bye": {
-      "x": 1320,
+      "x": 1580,
       "y": 20
     },
     "dynamic-loop": {
-      "x": 540,
+      "x": 800,
       "y": 20
     },
     "greet": {
       "x": 20,
       "y": 20
     },
+    "split": {
+      "x": 280,
+      "y": 20
+    },
     "wait-briefly": {
-      "x": 1060,
+      "x": 1320,
       "y": 20
     },
     "wait-for-customer": {
-      "x": 800,
+      "x": 1060,
       "y": 20
     }
   },

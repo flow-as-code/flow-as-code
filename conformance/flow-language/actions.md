@@ -63,6 +63,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Set callback number | `UpdateContactCallbackNumber` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html) |
 | Loop | `Loop` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html) |
 | Wait | `Wait` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html) |
+| Distribute by percentage | `DistributeByPercentage` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -112,10 +113,10 @@ individual action pages linked above.
    `ASYNCHRONOUS`.
 5. `MessageParticipant` accepts exactly one of `PromptId`, `Text`, or `SSML`.
    `PromptId` and `SSML` are voice only; other channels support only `Text`.
-6. `Compare` fails with `NoMatchingCondition`, not `NoMatchingError`. It is the
-   only action in the modeled set that does. `UpdateContactRoutingBehavior`
-   and `UpdateContactCallbackNumber` list no catch-all at all (rules 18 and
-   20).
+6. `Compare` and `DistributeByPercentage` fail with `NoMatchingCondition`,
+   not `NoMatchingError` (`CONDITION_CATCH_ALL` in actions.ts).
+   `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber` and `Loop`
+   list no catch-all at all (rules 18, 20 and 21).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
    (`Transitions: {}`).
@@ -296,6 +297,24 @@ individual action pages linked above.
     flow-language keys the action page does not document; those round-trip
     as a GenericBlock.
     https://docs.aws.amazon.com/connect/latest/adminguide/wait.html
+23. `DistributeByPercentage` (recorded 2026-09-11) "Returns a random number
+    between 1 and 100 (inclusive) as its result, allowing comparisons against
+    it." No parameters. "Comparisons are supported, but they must be a chain
+    of NumericLessThan comparisons, with each subsequent comparison checking
+    the previous value, plus the percentage that is desired to go down this
+    next action, and no Comparison comparing a value larger than 100."
+    `NoMatchingCondition` "if no Condition matches. This is the default
+    option in the flow editor." The console's Sample AB test flow, recorded
+    under `conformance/export/omitted-parameters`, writes the operator as
+    `NumberLessThan` (the schema's spelling), the operands as strings, each
+    threshold as 1 plus the percentages so far (3%, 6%, 8% are `"4"`, `"10"`,
+    `"18"`), omits `Parameters` entirely, and mirrors `NextAction` onto the
+    `NoMatchingCondition` target; the builder writes the same shape from
+    percentages and reads it back. "This action is available in inbound
+    flows, transfer flows, and customer queue flows. It is not available to
+    hold flows or to whisper flows." The admin guide's flow-type list adds
+    the outbound whisper flow; the action page governs.
+    https://docs.aws.amazon.com/connect/latest/adminguide/distribute-by-percentage.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -337,6 +356,7 @@ CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, Maximum
 UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier, never static
 Loop                     { LoopCount }              // 0 to 100, static or a single JSONPath
 Wait                     { TimeoutSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }
+DistributeByPercentage   {}
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -401,7 +421,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 21 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 22 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

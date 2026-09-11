@@ -1018,6 +1018,59 @@ describe("Wait inverts the timeout, its events, and the conditional ParticipantN
   });
 });
 
+describe("DistributeByPercentage inverts the console's threshold chain into percentages", () => {
+  const split = (operands: string[]): FlowAction => ({
+    Identifier: "split",
+    Type: "DistributeByPercentage",
+    Parameters: {},
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingCondition", NextAction: "bye" }],
+      Conditions: operands.map((o) => ({
+        NextAction: "bye",
+        Condition: { Operator: "NumberLessThan", Operands: [o] },
+      })),
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "DistributeByPercentage"');
+    expect(out).not.toContain("new DistributeByPercentage(");
+  };
+
+  it("reads the Sample AB test thresholds 4, 10, 18 as 3%, 6%, 8%", () => {
+    const out = codegen(docWith([split(["4", "10", "18"]), bye]));
+    expect(out).toContain("new DistributeByPercentage({");
+    expect(out).toContain('{ percent: 3, target: "bye" }');
+    expect(out).toContain('{ percent: 6, target: "bye" }');
+    expect(out).toContain('{ percent: 8, target: "bye" }');
+    expect(out).toContain('onRemainder: "bye"');
+    expect(codegen(docWith([split(["100"]), bye]))).toContain("percent: 99");
+  });
+
+  it("falls back on a threshold above 100, a non-increasing chain, a non-integer, another operator, an unmirrored NextAction, or a parameter", () => {
+    generic(split(["101"]));
+    generic(split(["10", "10"]));
+    generic(split(["1"]));
+    generic(split(["4.5"]));
+    const other = split(["4"]);
+    other.Transitions.Conditions![0]!.Condition.Operator = "NumberGreaterThan";
+    generic(other);
+    const unmirrored = split(["4"]);
+    unmirrored.Transitions.NextAction = "split";
+    generic(unmirrored);
+    const withParam = split(["4"]);
+    withParam.Parameters = { Seed: 1 };
+    generic(withParam);
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

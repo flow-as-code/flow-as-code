@@ -293,6 +293,10 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
         { kind: "json", key: "ResponseValidation", label: "Response validation" },
       ];
+    case ActionType.DistributeByPercentage:
+      // No parameters; the branches are the condition editor, each operand
+      // the threshold below which a draw takes that branch.
+      return [];
     case ActionType.DisconnectParticipant:
     case ActionType.EndFlowExecution:
     case ActionType.EndFlowModuleExecution:

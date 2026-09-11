@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ActionType,
+  CONDITION_CATCH_ALL,
   EXTRA_ERRORS,
   FLOW_TYPE_RESTRICTIONS,
   FLOW_TYPE_UNRESTRICTED,
@@ -230,7 +231,9 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
     // (WITHOUT_CATCH_ALL) emits its extras alone and must wire each of them.
     // Conditions name a known kind.
     if (!terminal) {
-      const catchAll = type === ActionType.Compare ? NO_MATCHING_CONDITION : NO_MATCHING_ERROR;
+      const catchAll = CONDITION_CATCH_ALL.includes(type)
+        ? NO_MATCHING_CONDITION
+        : NO_MATCHING_ERROR;
       const extras = EXTRA_ERRORS[type] ?? [];
       const noCatchAll = WITHOUT_CATCH_ALL.includes(type);
       const emitted = noCatchAll || extras.includes(catchAll) ? extras : [...extras, catchAll];
@@ -306,6 +309,8 @@ describe("the action catalog", () => {
     expect(requiredErrors("Loop")).toEqual([]);
     expect(builderErrors("Loop")).toEqual([]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
+    expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);
     // No catch-all: both named errors are required and both are the builder's.
     expect(requiredErrors("UpdateContactCallbackNumber")).toEqual([

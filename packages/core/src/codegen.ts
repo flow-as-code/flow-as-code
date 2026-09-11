@@ -31,6 +31,7 @@ import {
   LOOP_CONTINUE,
   LOOP_DONE,
   PARTICIPANT_NOT_FOUND,
+  PERCENTAGE_THRESHOLD_MAX,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -47,6 +48,7 @@ import {
   CreateCallbackContact,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
+  DistributeByPercentage,
   EndFlowExecution,
   EndFlowModuleExecution,
   GenericBlock,
@@ -684,6 +686,54 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         ...(events.length > 0 ? { onEvent: cast<never>(onEvent) } : {}),
         onError: errors[0]!.NextAction,
         ...(errors.length === 2 ? { onParticipantNotFound: errors[1]!.NextAction } : {}),
+      }),
+    };
+  },
+
+  [ActionType.DistributeByPercentage]: (a) => {
+    const t = a.Transitions;
+    if (Object.keys(a.Parameters).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length !== 1 || errors[0]!.ErrorType !== NO_MATCHING_CONDITION) return undefined;
+    // The console mirrors NextAction onto the remainder branch, and so does the class.
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    const branches: { percent: number; target: string }[] = [];
+    let previous = 1;
+    for (const c of conditions) {
+      const operand = c.Condition.Operands[0];
+      if (c.Condition.Operator !== "NumberLessThan" || c.Condition.Operands.length !== 1) {
+        return undefined;
+      }
+      if (typeof operand !== "string" || !/^[1-9][0-9]*$/.test(operand)) return undefined;
+      const threshold = Number(operand);
+      if (threshold <= previous || threshold > PERCENTAGE_THRESHOLD_MAX) return undefined;
+      branches.push({ percent: threshold - previous, target: c.NextAction });
+      previous = threshold;
+    }
+    return {
+      cls: "DistributeByPercentage",
+      entries: [
+        ["id", a.Identifier],
+        [
+          "branches",
+          new ArrV(
+            branches.map(
+              (b) =>
+                new ObjV([
+                  ["percent", b.percent],
+                  ["target", b.target],
+                ]),
+            ),
+          ),
+        ],
+        ["onRemainder", errors[0]!.NextAction],
+      ],
+      block: new DistributeByPercentage({
+        id: a.Identifier,
+        branches,
+        onRemainder: errors[0]!.NextAction,
       }),
     };
   },

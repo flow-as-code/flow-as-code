@@ -35,6 +35,7 @@ export const ActionType = {
   UpdateContactCallbackNumber: "UpdateContactCallbackNumber",
   Loop: "Loop",
   Wait: "Wait",
+  DistributeByPercentage: "DistributeByPercentage",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -75,11 +76,27 @@ export const TERMINAL_ACTIONS: readonly string[] = [
 ];
 
 /**
- * The catch-all error every non-terminal modeled action supports. `Compare` is
- * the exception: it fails with NoMatchingCondition instead.
+ * The catch-all error every non-terminal modeled action supports, except the
+ * types in CONDITION_CATCH_ALL, which fail with NoMatchingCondition instead,
+ * and the types in WITHOUT_CATCH_ALL, whose pages list none.
  */
 export const NO_MATCHING_ERROR = "NoMatchingError";
 export const NO_MATCHING_CONDITION = "NoMatchingCondition";
+
+/**
+ * Non-terminal modeled actions whose only error is NoMatchingCondition: every
+ * path is a condition and that branch is the remainder.
+ *
+ * Compare: "NoMatchingCondition if no Condition matches."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html
+ * DistributeByPercentage: "NoMatchingCondition if no Condition matches. This
+ * is the default option in the flow editor."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html
+ */
+export const CONDITION_CATCH_ALL: readonly string[] = [
+  ActionType.Compare,
+  ActionType.DistributeByPercentage,
+];
 
 /** The error GetParticipantInput takes when no digit arrives in time. */
 export const INPUT_TIME_LIMIT_EXCEEDED = "InputTimeLimitExceeded";
@@ -246,6 +263,13 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // queue flows. It is not supported in whisper flows or hold flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html
   [ActionType.CreateCallbackContact]: [...INBOUND, ...TRANSFER, ...CUSTOMER_QUEUE, ...IN_MODULE],
+  // "This action is available in inbound flows, transfer flows, and customer
+  // queue flows. It is not available to hold flows or to whisper flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html
+  // The admin guide's block page also lists the outbound whisper flow; the
+  // action page governs.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/distribute-by-percentage.html
+  [ActionType.DistributeByPercentage]: [...INBOUND, ...TRANSFER, ...CUSTOMER_QUEUE, ...IN_MODULE],
   // "This is supported only in contact flows, transfer flows, and customer
   // queue flows. This is not supported in whispers or hold flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html
@@ -343,6 +367,20 @@ export const WAIT_TIMEOUT_MAX = 604_800;
 export const WAIT_COMPLETED = "WaitCompleted";
 export const WAIT_EVENTS = ["CustomerReturned", "BotParticipantDisconnected"] as const;
 export type WaitEvent = (typeof WAIT_EVENTS)[number];
+
+/**
+ * DistributeByPercentage draws "a random number between 1 and 100
+ * (inclusive)" and its conditions "must be a chain of NumericLessThan
+ * comparisons, with each subsequent comparison checking the previous value,
+ * plus the percentage that is desired to go down this next action, and no
+ * Comparison comparing a value larger than 100". The console writes each
+ * threshold as 1 plus the percentages so far (3%, 6%, 8% become 4, 10, 18 in
+ * its Sample AB test flow), so the branches may claim at most 99% and the
+ * NoMatchingCondition branch takes the rest.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html
+ */
+export const PERCENTAGE_FLOOR = 1;
+export const PERCENTAGE_THRESHOLD_MAX = 100;
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

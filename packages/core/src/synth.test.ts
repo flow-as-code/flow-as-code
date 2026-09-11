@@ -18,6 +18,7 @@ import {
   CreateCallbackContact,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
+  DistributeByPercentage,
   EndFlowModuleExecution,
   EXTRA_ERRORS,
   Flow,
@@ -463,6 +464,48 @@ describe("guardrails", () => {
           },
         ],
       },
+    });
+  });
+
+  it("rejects a percentage split with no branch, a zero branch, or more than 99% claimed", () => {
+    expect(() => new DistributeByPercentage({ id: "s", branches: [], onRemainder: "r" })).toThrow(
+      /at least one branch/,
+    );
+    expect(
+      () =>
+        new DistributeByPercentage({
+          id: "s",
+          branches: [{ percent: 0, target: "a" }],
+          onRemainder: "r",
+        }),
+    ).toThrow(/at least 1/);
+    expect(
+      () =>
+        new DistributeByPercentage({
+          id: "s",
+          branches: [
+            { percent: 50, target: "a" },
+            { percent: 50, target: "b" },
+          ],
+          onRemainder: "r",
+        }),
+    ).toThrow(/claim 100%/);
+    expect(
+      new DistributeByPercentage({
+        id: "s",
+        branches: [
+          { percent: 3, target: "a" },
+          { percent: 6, target: "b" },
+        ],
+        onRemainder: "r",
+      }).toAction().Transitions,
+    ).toEqual({
+      NextAction: "r",
+      Errors: [{ ErrorType: "NoMatchingCondition", NextAction: "r" }],
+      Conditions: [
+        { NextAction: "a", Condition: { Operator: "NumberLessThan", Operands: ["4"] } },
+        { NextAction: "b", Condition: { Operator: "NumberLessThan", Operands: ["10"] } },
+      ],
     });
   });
 

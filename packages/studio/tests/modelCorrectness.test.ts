@@ -367,6 +367,24 @@ describe("C3 a new block can be wired up", () => {
     expectSchemaValid(done);
   });
 
+  it("a percentage split takes a 1% branch per drag and stays typed once its remainder is wired", () => {
+    const { doc, id } = addBlock(demoDoc(), "DistributeByPercentage", { x: 0, y: 900 });
+    const one = connectNodes(doc, id, "welcome", "primary")!;
+    const two = connectNodes(one, id, "apologize", "primary")!;
+    expect(getAction(two, id)?.Transitions.Conditions).toEqual([
+      { NextAction: "welcome", Condition: { Operator: "NumberLessThan", Operands: ["2"] } },
+      { NextAction: "apologize", Condition: { Operator: "NumberLessThan", Operands: ["3"] } },
+    ]);
+    const wired = connectNodes(two, id, "hang-up", "error")!;
+    expect(getAction(wired, id)?.Transitions.NextAction).toBe("hang-up");
+    expect([...demotedIds(wired)]).toEqual(["enable-logging"]);
+    // A third branch on the typed block is a 1% claim too, not the empty
+    // placeholder, so the block stays typed.
+    const three = connectNodes(wired, id, "welcome", "primary")!;
+    expect(getAction(three, id)?.Transitions.Conditions?.[2]?.Condition.Operands).toEqual(["4"]);
+    expect([...demotedIds(three)]).toEqual(["enable-logging"]);
+  });
+
   it("an action whose last transition was detached can be rewired", () => {
     // A block that reached the canvas with no transitions (from a file, or an
     // older studio) must keep its source handle and stay wireable.

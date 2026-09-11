@@ -235,6 +235,18 @@ export function defaultConditionFor(action: FlowAction): Condition | undefined {
     const key = DTMF_KEY_ORDER.find((k) => !used.has(k));
     return key === undefined ? undefined : { Operator: "Equals", Operands: [key] };
   }
+  // A percentage split's branches are a chain of NumberLessThan thresholds
+  // its block class computes from percentages, so a drag claims the next 1%
+  // (threshold one above the last) and the inspector's branch editor adjusts
+  // it; the empty placeholder would demote the block.
+  if (action.Type === ActionType.DistributeByPercentage) {
+    const last = Math.max(
+      1,
+      ...(action.Transitions.Conditions ?? []).map((c) => Number(c.Condition.Operands[0])),
+    );
+    const next = Number.isFinite(last) ? last + 1 : 2;
+    return next > 100 ? undefined : { Operator: "NumberLessThan", Operands: [String(next)] };
+  }
   const listed = listedOperands(action.Type);
   if ((kind === "fixed" || kind === "enum") && listed.length > 0) {
     const used = usedKeys(action);
