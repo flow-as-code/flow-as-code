@@ -66,15 +66,16 @@ describe.skipIf(!instanceArn)("live export", () => {
 
       expect(result.flows.length).toBeGreaterThan(0);
 
-      // A fresh instance carries two stock flows that fail by design on an
+      // A fresh instance carries one stock flow that fails by design on an
       // unknown ARN (SPEC.md, Export, verified 2026-09-01): "Sample Lambda
       // integration" calls a Lambda in an AWS-owned account that
-      // ListLambdaFunctions cannot return, and "Sample after contact work
-      // flow" shows an AWS-managed view whose ARN carries `aws` as its account.
-      // Both ARNs sit outside the instance's account, and that is the whole
-      // tolerance: an unknown ARN in the instance's own account is a resource
-      // the inventory should have mapped, so it fails the test like any other
-      // reason would.
+      // ListLambdaFunctions cannot return. That ARN sits outside the
+      // instance's account, and that is the whole tolerance: an unknown ARN in
+      // the instance's own account is a resource the inventory should have
+      // mapped, so it fails the test like any other reason would. The stock
+      // "Sample after contact work flow" used to be the second such case; since
+      // FlowDoc 0.2 its AWS-managed view is reverse-mapped through ListViews,
+      // and the assertion below holds it to that.
       const accountOf = (arn: string) => arn.split(":")[4];
       const byDesign = result.failures.filter((f) => {
         const unknown = f.unknownArns ?? [];
@@ -94,6 +95,18 @@ describe.skipIf(!instanceArn)("live export", () => {
             .map((f) => f.name)
             .join(", ")}`,
         );
+      }
+
+      // The stock after contact work flow, when the instance still has it,
+      // exports with its AWS-managed view as a versioned view reference
+      // (conformance/export/managed-view is the recorded shape of this).
+      const acwListed = result.inventory.contactFlows.some(
+        (f) => f.name === "Sample after contact work flow",
+      );
+      if (acwListed) {
+        const acw = result.flows.find((f) => f.doc.name === "sample-after-contact-work-flow");
+        expect(acw, "the stock after contact work flow no longer fails export").toBeDefined();
+        expect(serialize(acw!.doc)).toContain("${cdref:view:after-contact-work@");
       }
 
       for (const flow of result.flows) {

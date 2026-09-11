@@ -23,6 +23,7 @@ import type {
   ExecutionSummary,
   FlowTestClient,
   InstanceInventory,
+  ViewSummary,
   LexBotSummary,
   ResourceSummary,
   TestExecutionStatus,
@@ -138,6 +139,10 @@ export class FixtureClient implements ConnectInventoryClient {
   listPrompts(): Promise<ResourceSummary[]> {
     return Promise.resolve(this.inventory.prompts);
   }
+  listViews(): Promise<ViewSummary[]> {
+    return Promise.resolve(this.inventory.views ?? []);
+  }
+
   listLambdaFunctions(): Promise<string[]> {
     return Promise.resolve(this.inventory.lambdaFunctions);
   }

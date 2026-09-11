@@ -1,0 +1,56 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "view-with-version",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "wrap-up",
+    "Actions": [
+      {
+        "Identifier": "wrap-up",
+        "Type": "ShowView",
+        "Parameters": {
+          "InvocationTimeLimitSeconds": "480",
+          "ViewResource": {
+            "Id": "${cdref:view:after-contact-work@1}"
+          }
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "hang-up": {
+      "x": 280,
+      "y": 20
+    },
+    "wrap-up": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:view:after-contact-work@1}",
+      "type": "view",
+      "name": "after-contact-work",
+      "alias": "1"
+    }
+  ]
+}

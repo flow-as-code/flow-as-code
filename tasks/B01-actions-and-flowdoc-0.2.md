@@ -42,3 +42,9 @@ Acceptance: every table in actions.ts equals the catalog and the check is proven
 - Fifteen fixtures carried dagre coordinates (the demo and its four copies and goldens, four round-trip cases, three lint cases with content metadata, the materialize demo case) and were regenerated once; the derived goldens followed (`materialize/demo-with-map/expected.content.json`, three emit-tf `.tftpl` files, two CDK template snapshots). The recorded live fixture `conformance/export/demo-instance/flows/cccc3333-...-0001.json` carries the demo's positions in its Metadata, because it is the demo as deployed, so its positions moved with the demo; every other export input is hand-placed and did not.
 - The six layout cases' expected positions were worked by hand from the specification before the implementation ran against them; `layout.test.ts` holds the implementation to them and to the grid the four constants define.
 - `@flow-as-code/core` has no runtime dependency now.
+
+## Notes (2026-09-11, B01d)
+
+- `ListViews` joined the inventory (no `Type` filter; page maximum 100), `parseConnectArn` reads the AWS-managed `view/<name>:<version>` form that nests under no instance, `buildReverseMap` maps views, and `rewriteArns` carries the ARN's version into the token's alias slot. A non-slug version (`$LATEST`) stays an unknown ARN.
+- `conformance/export/managed-view/` records the stock after contact work flow exporting; `conformance/materialize/view-with-version/` records the token resolving back to the versioned ARN. The fixture assumes ListViews returns the bare name and the version-less ARN for an AWS-managed view; the live integration test now asserts the stock flow exports, and the fixture is corrected to the API's real shape if the assumption is wrong. Still to verify live.
+- `unknown-arns` keeps an inventory with no views, so the same ARN there is still reported as unknown: the two cases together prove both paths.
