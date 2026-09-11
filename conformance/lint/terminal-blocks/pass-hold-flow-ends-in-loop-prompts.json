@@ -1,0 +1,34 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "case",
+  "connectType": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "hold-music",
+    "Actions": [
+      {
+        "Identifier": "hold-music",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "SSML": "<speak>You are on hold</speak>"
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      }
+    ]
+  },
+  "layout": {
+    "hold-music": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

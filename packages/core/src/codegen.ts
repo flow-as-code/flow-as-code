@@ -32,6 +32,7 @@ import {
   INVALID_CALLBACK_NUMBER,
   LOOP_CONTINUE,
   LOOP_DONE,
+  MESSAGES_INTERRUPTED,
   METRIC_OPERATORS,
   METRIC_TYPES,
   PARTICIPANT_NOT_FOUND,
@@ -73,6 +74,7 @@ import {
   InvokeLambdaFunction,
   Loop,
   MessageParticipant,
+  MessageParticipantIteratively,
   TagContact,
   TransferContactToAgent,
   UnTagContact,
@@ -449,6 +451,89 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         next: w.next,
         onError: w.onError,
       }),
+    };
+  },
+
+  [ActionType.MessageParticipantIteratively]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction !== undefined) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length > 1 || (errors.length === 1 && errors[0]!.ErrorType !== NO_MATCHING_ERROR)) {
+      return undefined;
+    }
+    const conditions = t.Conditions ?? [];
+    if (conditions.length > 1 || !conditions.every(isCondition)) return undefined;
+    const interrupt = conditions[0];
+    if (
+      interrupt !== undefined &&
+      stableJson(interrupt.Condition) !==
+        stableJson({ Operator: "Equals", Operands: [MESSAGES_INTERRUPTED] })
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["Messages"], ["InterruptFrequencySeconds"])) return undefined;
+    const raw = a.Parameters.Messages;
+    if (!Array.isArray(raw) || raw.length === 0) return undefined;
+    const messages: Record<string, unknown>[] = [];
+    const messageV: V[] = [];
+    for (const m of raw) {
+      if (m === null || typeof m !== "object" || Array.isArray(m)) return undefined;
+      const keys = Object.keys(m as Record<string, unknown>);
+      if (keys.length !== 1) return undefined;
+      const [key] = keys;
+      const value = (m as Record<string, unknown>)[key!];
+      if (key === "Text" && typeof value === "string") {
+        messages.push({ text: value });
+        messageV.push(new ObjV([["text", value]]));
+      } else if (key === "SSML" && typeof value === "string") {
+        messages.push({ ssml: value });
+        messageV.push(new ObjV([["ssml", value]]));
+      } else if (key === "PromptId") {
+        const ref = refSource(value, "prompt", ctx);
+        if (ref === undefined) return undefined;
+        messages.push({ prompt: value });
+        messageV.push(new ObjV([["prompt", ref]]));
+      } else if (key === "Media") {
+        const media = value as Record<string, unknown> | null;
+        if (
+          media === null ||
+          typeof media !== "object" ||
+          !paramKeysAre(media, ["Uri", "SourceType", "MediaType"]) ||
+          typeof media.Uri !== "string" ||
+          media.SourceType !== "S3" ||
+          media.MediaType !== "Audio"
+        ) {
+          return undefined;
+        }
+        messages.push({ media: { uri: media.Uri } });
+        messageV.push(new ObjV([["media", new ObjV([["uri", media.Uri]])]]));
+      } else {
+        return undefined;
+      }
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["messages", new ArrV(messageV)],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, messages };
+    const seconds = a.Parameters.InterruptFrequencySeconds;
+    if ((seconds !== undefined) !== (interrupt !== undefined)) return undefined;
+    if (seconds !== undefined) {
+      if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+      const n = Number(seconds);
+      if (!Number.isSafeInteger(n)) return undefined;
+      entries.push(["interruptFrequencySeconds", n], ["onInterrupt", interrupt!.NextAction]);
+      config.interruptFrequencySeconds = n;
+      config.onInterrupt = interrupt!.NextAction;
+    }
+    if (errors.length === 1) {
+      entries.push(["onError", errors[0]!.NextAction]);
+      config.onError = errors[0]!.NextAction;
+    }
+    return {
+      cls: "MessageParticipantIteratively",
+      entries,
+      block: new MessageParticipantIteratively(cast<never>(config)),
     };
   },
 

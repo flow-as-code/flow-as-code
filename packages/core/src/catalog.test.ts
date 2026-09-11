@@ -25,6 +25,7 @@ import {
   LAMBDA_TIMEOUT_MIN,
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
+  OPTIONAL_CATCH_ALL,
   QUEUE_PRIORITY_MIN,
   VOICE_ID_RESPONSE_TIME_MAX,
   VOICE_ID_RESPONSE_TIME_MIN,
@@ -305,7 +306,11 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
         );
       }
       const required = t.errors.filter((e) => e.required).map((e) => e.type);
-      const expectedRequired = noCatchAll ? extras : [catchAll];
+      const expectedRequired = noCatchAll
+        ? extras
+        : OPTIONAL_CATCH_ALL.includes(type)
+          ? []
+          : [catchAll];
       // A conditional error (Wait's ParticipantNotFound) is the builder's but
       // not required; a required flag on one is caught here as on any extra.
       if (required.join(",") !== expectedRequired.join(",")) {
@@ -379,6 +384,9 @@ describe("the action catalog", () => {
     expect(requiredErrors("UpdateContactTextToSpeechVoice")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("UpdateContactData")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("UpdateContactEventHooks")).toEqual(["NoMatchingError"]);
+    // Listed but optional on the page, and absent from the console's hold flows.
+    expect(requiredErrors("MessageParticipantIteratively")).toEqual([]);
+    expect(builderErrors("MessageParticipantIteratively")).toEqual(["NoMatchingError"]);
     expect(builderErrors("CheckMetricData")).toEqual(["NoMatchingError", "NoMatchingCondition"]);
     expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);
@@ -476,6 +484,14 @@ describe("catalogProblems is proven able to fail", () => {
     expect(
       mutate((c) => (modeledAt(c, "GetParticipantInput").transitions.errors[3]!.builder = true)),
     ).toContainEqual(expect.stringContaining("GetParticipantInput: builder errors"));
+  });
+  it("on a catch-all the page leaves optional being marked required", () => {
+    expect(
+      mutate(
+        (c) =>
+          (modeledAt(c, "MessageParticipantIteratively").transitions.errors[0]!.required = true),
+      ),
+    ).toContainEqual(expect.stringContaining("MessageParticipantIteratively: required errors"));
   });
   it("on a bound that drifts from the actions.ts constant", () => {
     expect(

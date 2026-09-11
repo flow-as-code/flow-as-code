@@ -955,6 +955,75 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "MessageParticipantIteratively"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "Messages": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "maxProperties": 1,
+                      "additionalProperties": false,
+                      "properties": {
+                        "Text": {
+                          "type": "string"
+                        },
+                        "SSML": {
+                          "type": "string"
+                        },
+                        "PromptId": {
+                          "$ref": "#/$defs/refField"
+                        },
+                        "Media": {
+                          "type": "object",
+                          "required": [
+                            "Uri",
+                            "SourceType",
+                            "MediaType"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "Uri": {
+                              "type": "string"
+                            },
+                            "SourceType": {
+                              "enum": [
+                                "S3"
+                              ]
+                            },
+                            "MediaType": {
+                              "enum": [
+                                "Audio"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "InterruptFrequencySeconds": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

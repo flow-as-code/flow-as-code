@@ -445,6 +445,53 @@ describe("FlowDoc schema rejections: contact data", () => {
   });
 });
 
+describe("FlowDoc schema rejections: participant", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/participant/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a loop message with two bodies",
+      mutate("hold-music", (a) => {
+        a.Parameters.Messages = [{ Text: "hi", SSML: "<speak>hi</speak>" }];
+      }),
+    ],
+    [
+      "a loop with no messages",
+      mutate("hold-music", (a) => {
+        a.Parameters.Messages = [];
+      }),
+    ],
+    [
+      "an interrupt frequency written as a JSON number",
+      mutate("hold-music", (a) => {
+        a.Parameters.InterruptFrequencySeconds = 30;
+      }),
+    ],
+    [
+      "a media message from somewhere other than S3",
+      mutate("hold-music", (a) => {
+        a.Parameters.Messages = [
+          { Media: { Uri: "s3://b/x", SourceType: "HTTP", MediaType: "Audio" } },
+        ];
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
 // GetParticipantInput's structural rules, from the same reference. The demo
 // flow has no menu, so the dtmf-menu round-trip fixture is the subject.
 describe("FlowDoc schema rejections: GetParticipantInput", () => {

@@ -33,6 +33,7 @@ import {
   jsonPath,
   Loop,
   materializeWithMap,
+  MessageParticipantIteratively,
   NO_MATCHING_ERROR,
   parseToken,
   Refs,
@@ -696,6 +697,44 @@ describe("guardrails", () => {
         onError: "e",
       }).toAction().Parameters,
     ).toEqual({ EventHooks: { CustomerQueue: "${cdref:flow:queue-experience}" } });
+  });
+
+  it("writes a message loop with no next action and pairs the interrupt with its branch", () => {
+    expect(() => new MessageParticipantIteratively({ id: "l", messages: [] })).toThrow(
+      /at least one message/,
+    );
+    expect(
+      () =>
+        new MessageParticipantIteratively({
+          id: "l",
+          messages: [{ text: "hi" }],
+          interruptFrequencySeconds: 30,
+        }),
+    ).toThrow(/exactly when/);
+    expect(
+      new MessageParticipantIteratively({
+        id: "l",
+        messages: [{ text: "hi" }, { media: { uri: "s3://b/x.wav" } }],
+        interruptFrequencySeconds: 30,
+        onInterrupt: "i",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "l",
+      Type: "MessageParticipantIteratively",
+      Parameters: {
+        Messages: [
+          { Text: "hi" },
+          { Media: { Uri: "s3://b/x.wav", SourceType: "S3", MediaType: "Audio" } },
+        ],
+        InterruptFrequencySeconds: "30",
+      },
+      Transitions: {
+        Errors: [],
+        Conditions: [
+          { NextAction: "i", Condition: { Operator: "Equals", Operands: ["MessagesInterrupted"] } },
+        ],
+      },
+    });
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

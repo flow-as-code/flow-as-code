@@ -1522,6 +1522,90 @@ describe("UpdateContactEventHooks inverts the one hook and its flow", () => {
   });
 });
 
+describe("MessageParticipantIteratively inverts the console's hold-loop and interrupt shapes", () => {
+  const loop = (
+    messages: unknown[],
+    extra: { seconds?: string; interrupt?: boolean; error?: boolean } = {},
+  ): FlowAction => ({
+    Identifier: "hold-music",
+    Type: "MessageParticipantIteratively",
+    Parameters: {
+      Messages: messages,
+      ...(extra.seconds === undefined ? {} : { InterruptFrequencySeconds: extra.seconds }),
+    },
+    Transitions: {
+      Errors: extra.error === true ? [{ ErrorType: "NoMatchingError", NextAction: "end" }] : [],
+      Conditions:
+        extra.interrupt === true
+          ? [
+              {
+                NextAction: "end",
+                Condition: { Operator: "Equals", Operands: ["MessagesInterrupted"] },
+              },
+            ]
+          : [],
+    },
+  });
+  const end: FlowAction = {
+    Identifier: "end",
+    Type: "EndFlowExecution",
+    Parameters: {},
+    Transitions: {},
+  };
+  const docOf = (a: FlowAction): FlowDoc => ({
+    ...docWith([a, end]),
+    connectType: "CUSTOMER_QUEUE",
+  });
+  const typed = (a: FlowAction) => {
+    const out = codegen(docOf(a));
+    expect(out).toContain("new MessageParticipantIteratively({");
+    expect(out).not.toContain('type: "MessageParticipantIteratively"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docOf(a));
+    expect(out).toContain('type: "MessageParticipantIteratively"');
+    expect(out).not.toContain("new MessageParticipantIteratively(");
+  };
+  const media = { Media: { Uri: "s3://bucket/hold.wav", SourceType: "S3", MediaType: "Audio" } };
+
+  it("emits the default hold flow's shape: messages, no next, no error", () => {
+    const out = typed(loop([{ SSML: "<speak>You are on hold</speak>" }]));
+    expect(out).toContain('{ ssml: "<speak>You are on hold</speak>" }');
+    expect(out).not.toContain("onError");
+    expect(out).not.toContain("onInterrupt");
+  });
+
+  it("emits every message kind, the interrupt pair, and the optional catch-all", () => {
+    const out = typed(
+      loop(
+        [{ Text: "Thank you for holding." }, { PromptId: "${cdref:prompt:hold-music}" }, media],
+        { seconds: "30", interrupt: true, error: true },
+      ),
+    );
+    expect(out).toContain('{ text: "Thank you for holding." }');
+    expect(out).toContain('{ prompt: Refs.prompt("hold-music") }');
+    expect(out).toContain('{ media: { uri: "s3://bucket/hold.wav" } }');
+    expect(out).toContain("interruptFrequencySeconds: 30");
+    expect(out).toContain('onInterrupt: "end"');
+    expect(out).toContain('onError: "end"');
+  });
+
+  it("falls back on a NextAction, an unpaired interrupt, a two-key message, a non-S3 media, or no messages", () => {
+    const withNext = loop([{ Text: "hi" }]);
+    withNext.Transitions.NextAction = "end";
+    generic(withNext);
+    generic(loop([{ Text: "hi" }], { seconds: "30" }));
+    generic(loop([{ Text: "hi" }], { interrupt: true }));
+    generic(loop([{ Text: "hi", SSML: "<speak>hi</speak>" }]));
+    generic(loop([{ Media: { Uri: "s3://b/x", SourceType: "HTTP", MediaType: "Audio" } }]));
+    generic(loop([]));
+    const asNumber = loop([{ Text: "hi" }], { seconds: "30", interrupt: true });
+    asNumber.Parameters.InterruptFrequencySeconds = 30;
+    generic(asNumber);
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

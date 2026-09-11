@@ -18,6 +18,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.MessageParticipant]: "Interact",
   [ActionType.GetParticipantInput]: "Interact",
   [ActionType.Wait]: "Interact",
+  [ActionType.MessageParticipantIteratively]: "Interact",
   [ActionType.UpdateContactTargetQueue]: "Set",
   [ActionType.UpdateContactAttributes]: "Set",
   [ActionType.UpdateContactRecordingBehavior]: "Set",
@@ -70,6 +71,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.MessageParticipant]: "message",
   [ActionType.GetParticipantInput]: "menu",
   [ActionType.Wait]: "wait",
+  [ActionType.MessageParticipantIteratively]: "loop-prompts",
   [ActionType.DisconnectParticipant]: "disconnect",
   [ActionType.CheckHoursOfOperation]: "check-hours",
   [ActionType.Compare]: "compare",
@@ -116,6 +118,8 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { Text: "New menu", InputTimeLimitSeconds: "5", StoreInput: "False" };
     case ActionType.Compare:
       return { ComparisonValue: "$.Attributes.value" };
+    case ActionType.MessageParticipantIteratively:
+      return { Messages: [{ Text: "Please hold." }] };
     case ActionType.Wait:
       // A minute; the page states no console default. Events are added in
       // the inspector before their branches are dragged.

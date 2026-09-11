@@ -1262,7 +1262,128 @@
     "MessageParticipantIteratively": {
       "category": "participant",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html",
-      "modeled": false
+      "modeled": true,
+      "block": "message_participant_iteratively",
+      "terminal": false,
+      "flowTypes": [
+        "CUSTOMER_QUEUE",
+        "CUSTOMER_HOLD",
+        "AGENT_HOLD",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "Messages",
+          "attr": "messages",
+          "kind": "list",
+          "required": true,
+          "min": 1,
+          "of": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "Text",
+                "attr": "text",
+                "kind": "string",
+                "required": false
+              },
+              {
+                "key": "PromptId",
+                "attr": "prompt_id",
+                "kind": "ref",
+                "required": false,
+                "ref": "prompt"
+              },
+              {
+                "key": "SSML",
+                "attr": "ssml",
+                "kind": "string",
+                "required": false
+              },
+              {
+                "key": "Media",
+                "attr": "media",
+                "kind": "object",
+                "required": false,
+                "fields": [
+                  {
+                    "key": "Uri",
+                    "attr": "uri",
+                    "kind": "string",
+                    "required": true
+                  },
+                  {
+                    "key": "SourceType",
+                    "attr": "source_type",
+                    "kind": "enum",
+                    "required": true,
+                    "values": [
+                      "S3"
+                    ]
+                  },
+                  {
+                    "key": "MediaType",
+                    "attr": "media_type",
+                    "kind": "enum",
+                    "required": true,
+                    "values": [
+                      "Audio"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "rule": "exactlyOne",
+                "keys": [
+                  "Text",
+                  "PromptId",
+                  "SSML",
+                  "Media"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "key": "InterruptFrequencySeconds",
+          "attr": "interrupt_frequency_seconds",
+          "kind": "integerString",
+          "required": false,
+          "min": 1
+        }
+      ],
+      "refs": [
+        {
+          "path": "Messages[].PromptId",
+          "ref": "prompt"
+        }
+      ],
+      "textBodies": [
+        "Messages[].Text",
+        "Messages[].SSML"
+      ],
+      "announces": [
+        "Messages[].Text",
+        "Messages[].PromptId",
+        "Messages[].SSML"
+      ],
+      "transitions": {
+        "next": "none",
+        "conditions": "enum",
+        "conditionOperands": [
+          "MessagesInterrupted"
+        ],
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": false,
+            "builder": true
+          }
+        ],
+        "waits": true
+      }
     },
     "ShowView": {
       "category": "participant",

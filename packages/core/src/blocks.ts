@@ -35,6 +35,7 @@ import {
   LOOP_COUNT_MIN,
   LOOP_DONE,
   LAMBDA_TIMEOUT_MIN,
+  MESSAGES_INTERRUPTED,
   METRIC_OPERATORS,
   METRIC_TYPES,
   NO_MATCHING_CONDITION,
@@ -162,6 +163,90 @@ export class MessageParticipant extends Block {
 
   protected transitions(): Transitions {
     return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
+ * One entry of a message loop: text, SSML, a prompt, or an audio file in S3.
+ * The action page shows each as its own one-key object and the console
+ * writes one kind per entry.
+ */
+export type LoopMessage =
+  | { text: string; ssml?: never; prompt?: never; media?: never }
+  | { ssml: string; text?: never; prompt?: never; media?: never }
+  | { prompt: Ref<"prompt"> | JsonPath; text?: never; ssml?: never; media?: never }
+  | { media: { uri: string }; text?: never; ssml?: never; prompt?: never };
+
+/**
+ * Loop prompts: "Loops a sequence of prompts while a customer or agent is on
+ * hold or in queue." The loop never completes on its own, so the block has no
+ * success path; the console writes no NextAction and, in its default hold and
+ * queue flows, no error branch either. With `interruptFrequencySeconds` the
+ * loop completes with the MessagesInterrupted result every so many seconds
+ * and `onInterrupt` takes it (the console's Sample interruptible queue flow
+ * writes the seconds as a decimal string); the two go together. `onError` is
+ * the optional catch-all. Legal in customer queue and hold flows.
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/loop-prompts.html
+ */
+export interface MessageParticipantIterativelyConfig {
+  id: string;
+  messages: LoopMessage[];
+  interruptFrequencySeconds?: number;
+  onInterrupt?: Target;
+  onError?: Target;
+}
+
+export class MessageParticipantIteratively extends Block {
+  readonly type = ActionType.MessageParticipantIteratively;
+
+  constructor(private readonly config: MessageParticipantIterativelyConfig) {
+    super(config.id);
+    if (config.messages.length === 0) {
+      throw new Error(`MessageParticipantIteratively "${config.id}" needs at least one message.`);
+    }
+    const seconds = config.interruptFrequencySeconds;
+    if (seconds !== undefined && (!Number.isInteger(seconds) || seconds < 1)) {
+      throw new Error(
+        `MessageParticipantIteratively "${config.id}" interruptFrequencySeconds must be a positive integer, got ${seconds}.`,
+      );
+    }
+    if ((seconds !== undefined) !== (config.onInterrupt !== undefined)) {
+      throw new Error(
+        `MessageParticipantIteratively "${config.id}" takes onInterrupt exactly when it has interruptFrequencySeconds.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {
+      Messages: this.config.messages.map((m) => {
+        if (m.text !== undefined) return { Text: m.text };
+        if (m.ssml !== undefined) return { SSML: m.ssml };
+        if (m.prompt !== undefined) return { PromptId: m.prompt };
+        return { Media: { Uri: m.media.uri, SourceType: "S3", MediaType: "Audio" } };
+      }),
+    };
+    if (this.config.interruptFrequencySeconds !== undefined) {
+      p.InterruptFrequencySeconds = String(this.config.interruptFrequencySeconds);
+    }
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    const errors: [string, Target][] =
+      this.config.onError === undefined ? [] : [[NO_MATCHING_ERROR, this.config.onError]];
+    const conditions: ConditionTransitionInput[] =
+      this.config.onInterrupt === undefined
+        ? []
+        : [
+            {
+              target: this.config.onInterrupt,
+              operator: "Equals",
+              operands: [MESSAGES_INTERRUPTED],
+            },
+          ];
+    return wire(undefined, errors, conditions);
   }
 }
 
@@ -1469,7 +1554,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 30.
+ * set survivable: 56 action types are documented and the builder models 31.
  */
 export interface GenericBlockConfig {
   id: string;

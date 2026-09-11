@@ -119,6 +119,13 @@ export interface CatalogTransitions {
   conditionOperands?: readonly string[];
   /** In the order the builder emits them. */
   errors: readonly CatalogError[];
+  /**
+   * The action holds the participant until something outside the flow moves
+   * them on (an agent answers, an interrupt fires), so a flow may end in it
+   * with nothing wired: the console's hold flows do. terminal-blocks treats
+   * such an action as an end.
+   */
+  waits?: boolean;
 }
 
 export type ActionCategory = "contact" | "participant" | "flowControl" | "interaction";
@@ -201,6 +208,11 @@ export function conditionsKind(type: string): ConditionsKind | undefined {
 /** The catalog's rule for NextAction on this type, or undefined for an unmodeled type. */
 export function nextRule(type: string): NextRule | undefined {
   return modeledEntry(type)?.transitions.next;
+}
+
+/** Whether a flow may end in this action with nothing wired (see CatalogTransitions.waits). */
+export function holdsParticipant(type: string): boolean {
+  return modeledEntry(type)?.transitions.waits === true;
 }
 
 /** Paths that hold billed prompt text; empty for actions that play nothing. */

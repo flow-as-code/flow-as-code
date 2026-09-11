@@ -44,6 +44,7 @@ export const ActionType = {
   UpdateContactTextToSpeechVoice: "UpdateContactTextToSpeechVoice",
   UpdateContactData: "UpdateContactData",
   UpdateContactEventHooks: "UpdateContactEventHooks",
+  MessageParticipantIteratively: "MessageParticipantIteratively",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -71,6 +72,8 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.TransferToFlow]: { ContactFlowId: "flow" },
   [ActionType.MessageParticipant]: { PromptId: "prompt" },
   [ActionType.GetParticipantInput]: { PromptId: "prompt" },
+  // A list-valued path: the PromptId of every message in the loop.
+  [ActionType.MessageParticipantIteratively]: { "Messages[].PromptId": "prompt" },
 };
 
 /**
@@ -151,6 +154,20 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
 ];
 
 /**
+ * Non-terminal modeled actions whose page lists the catch-all without
+ * requiring it and whose console form may omit it: the builder wires it when
+ * asked and error-branches does not report its absence.
+ *
+ * MessageParticipantIteratively: "NoMatchingError - if no other Error
+ * matches", and the console's default hold and queue flows carry no error
+ * branch ("Some existing flows have a version of the Loop prompts block that
+ * doesn't have an Error branch").
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/loop-prompts.html
+ */
+export const OPTIONAL_CATCH_ALL: readonly string[] = [ActionType.MessageParticipantIteratively];
+
+/**
  * Additional error types beyond the catch-all, by action type, in the order
  * the builder emits them. For a type in WITHOUT_CATCH_ALL this is the whole
  * list. A list that names the catch-all itself fixes its position, for a type
@@ -196,6 +213,7 @@ const INBOUND = ["CONTACT_FLOW"] as const;
 const TRANSFER = ["AGENT_TRANSFER", "QUEUE_TRANSFER"] as const;
 const WHISPER = ["CUSTOMER_WHISPER", "AGENT_WHISPER", "OUTBOUND_WHISPER"] as const;
 const CUSTOMER_QUEUE = ["CUSTOMER_QUEUE"] as const;
+const HOLD = ["CUSTOMER_HOLD", "AGENT_HOLD"] as const;
 
 // A module has no flow type of its own. It runs under whichever flow invokes
 // it ("You can use modules across all flow types"), and AWS documents the
@@ -237,6 +255,10 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // supported; the action page governs here, as it does for every other row.
   // https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
   [ActionType.GetParticipantInput]: [...INBOUND, ...TRANSFER, ...CUSTOMER_QUEUE, ...IN_MODULE],
+  // "This action is supported in Customer Queue, Customer Hold, and Agent
+  // Hold flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html
+  [ActionType.MessageParticipantIteratively]: [...CUSTOMER_QUEUE, ...HOLD, ...IN_MODULE],
   // "This action is supported for all channels and in contact flows, transfer
   // flows, and customer queue flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-disconnectparticipant.html
@@ -540,6 +562,13 @@ export const EVENT_HOOKS = [
   "ResumeContact",
 ] as const;
 export type EventHook = (typeof EVENT_HOOKS)[number];
+
+/**
+ * MessageParticipantIteratively's one run result: "When the timeout elapses,
+ * the action completes with the result as "MessagesInterrupted"."
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html
+ */
+export const MESSAGES_INTERRUPTED = "MessagesInterrupted";
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

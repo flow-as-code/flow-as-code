@@ -68,6 +68,7 @@ const EXPECTED: Record<string, string[]> = {
     "CUSTOMER_QUEUE",
     "MODULE",
   ],
+  MessageParticipantIteratively: ["CUSTOMER_QUEUE", "CUSTOMER_HOLD", "AGENT_HOLD", "MODULE"],
   CheckHoursOfOperation: [
     "CONTACT_FLOW",
     "AGENT_TRANSFER",

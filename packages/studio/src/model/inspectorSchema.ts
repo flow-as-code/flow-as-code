@@ -131,6 +131,22 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.Compare:
       return [{ kind: "text", key: "ComparisonValue", label: "Comparison value (JSONPath)" }];
+    case ActionType.MessageParticipantIteratively:
+      // Messages is a list of one-key objects (Text, SSML, PromptId, or Media
+      // with Uri, SourceType S3 and MediaType Audio). The interrupt frequency
+      // and the MessagesInterrupted branch go together: a drag from the
+      // primary handle adds the branch once the seconds are set.
+      return [
+        { kind: "json", key: "Messages", label: "Messages (Text, SSML, PromptId or Media)" },
+        {
+          kind: "number",
+          key: "InterruptFrequencySeconds",
+          label: "Interrupt every (seconds)",
+          min: 1,
+          asString: true,
+          optional: true,
+        },
+      ];
     case ActionType.Wait:
       // Events is the list of interrupting events, each of which must also
       // have a branch (a drag from the primary handle adds the next listed

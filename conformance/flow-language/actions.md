@@ -72,6 +72,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Set voice | `UpdateContactTextToSpeechVoice` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html) |
 | Set contact attributes (Connect-defined fields) | `UpdateContactData` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html) |
 | Set customer queue flow, Set event flow, Set hold flow, Set whisper flow | `UpdateContactEventHooks` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html) |
+| Loop prompts | `MessageParticipantIteratively` | participant | [doc](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -94,6 +95,7 @@ is never interpolated into a longer string.
 | `CheckMetricData` | `QueueId`, `AgentId` | `queue` |
 | `GetMetricData` | `QueueId`, `AgentId` | `queue` |
 | `UpdateContactEventHooks` | `EventHooks.*` (every value) | `flow` |
+| `MessageParticipantIteratively` | `Messages[].PromptId` (each message) | `prompt` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -491,6 +493,33 @@ individual action pages linked above.
     entry count as `min` 1, `max` 1 and its allowed keys as `keys`.
     https://docs.aws.amazon.com/connect/latest/adminguide/set-customer-queue-flow.html
     https://docs.aws.amazon.com/connect/latest/adminguide/set-event-flow.html
+32. `MessageParticipantIteratively` (recorded 2026-09-11) "Loops a sequence of
+    prompts while a customer or agent is on hold or in queue. This block can
+    be configured with an interruption timeout when in a Queue flow that
+    interrupts the message loop to run other flow logic." `Messages` is "A
+    List of messages to be played in a loop", each entry one of `Text`,
+    `PromptId`, `SSML` or `Media` (`Uri`, `SourceType` "S3", `MediaType`
+    "Audio"); the page shows one key per entry and the console writes one,
+    which the catalog records as `exactlyOne`. `InterruptFrequencySeconds` is
+    "[Optional] Time to elapse before the action completes with
+    "MessagesInterrupted" run result"; "Conditions are supported, but only
+    the "Equals" operator is supported. The only supported operand is
+    MessagesInterrupted." The error is `NoMatchingError`, listed without
+    "must always be defined". "This action is supported in Customer Queue,
+    Customer Hold, and Agent Hold flows." "PromptId" is supported only for
+    the Voice channel"; on chat "it immediately takes the error branch. If no
+    error branch is available, the flow stop running and the contact is
+    routed to next available agent." The console's exports of its default
+    hold and queue flows carry `Messages` alone with `Errors` and
+    `Conditions` empty and no `NextAction`; its Sample interruptible queue
+    flow adds `"InterruptFrequencySeconds": "30"` and the `MessagesInterrupted`
+    condition, still with no `NextAction` and no error. So `next` is `none`,
+    the catch-all is optional (`OPTIONAL_CATCH_ALL` in actions.ts, so
+    error-branches does not report it), the seconds are an `integerString`
+    paired with the branch, and the catalog marks the action `waits`: a flow
+    may end in it with nothing wired, as the console's hold flows do, and
+    terminal-blocks treats it as an end.
+    https://docs.aws.amazon.com/connect/latest/adminguide/loop-prompts.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -547,6 +576,8 @@ UpdateContactData        { Name?, Description?, LanguageCode?, CustomerId?, Refe
                            FraudDetectionThreshold?,           // "0" to "100"
                            WatchlistId?, WisdomSessionArn?, TargetContact: "Current" | "Related" }
 UpdateContactEventHooks  { EventHooks: { [hook]: flow } }   // exactly one entry; hook is one of the ten names
+MessageParticipantIteratively { Messages: ({ Text } | { SSML } | { PromptId } | { Media: { Uri, SourceType: "S3", MediaType: "Audio" } })[],
+                           InterruptFrequencySeconds? }   // "30"; no NextAction; the loop holds the participant
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -587,7 +618,10 @@ another branch), `conditions` (`none`, `fixed` with `conditionOperands`,
 each marked `required` (the error-branches rule reports it missing) and
 `builder` (the builder's modeled form wires it; the studio offers exactly those
 when a drag looks for a branch to create). A type whose page lists no errors
-has an empty list, and the studio renders no error handle for it.
+has an empty list, and the studio renders no error handle for it. `waits`
+marks an action that holds the participant until something outside the flow
+moves them on, so a flow may end in it with nothing wired; terminal-blocks
+treats such an action as an end.
 
 Constraints use `exactlyOne` when one of the keys must be present,
 `atMostOne` when the keys are alternatives for one role (a queue or an agent
@@ -613,7 +647,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 30 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 31 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

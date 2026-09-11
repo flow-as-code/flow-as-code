@@ -86,7 +86,7 @@ Actions, `Errors` and `Conditions` arrays present (possibly empty) on every
 non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 `layout` covering every action. A provider generates code from `doc.flowdoc.json`,
 executes it, synthesizes the result, and must get the same document back
-(ignoring `meta`). The ten cases cover the demo flow (`appointment-line`), a
+(ignoring `meta`). The eleven cases cover the demo flow (`appointment-line`), a
 flow of entirely unmodeled action types with tokens inside parameters
 (`unknown-actions`), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
@@ -113,7 +113,9 @@ queue metric load with a static channel and one with a dynamic channel), and
 a flow of the contact-data actions (`contact-data`: a tag set with a dynamic
 value, a tag removal, a voice change with a static and a dynamic engine, a
 contact data update with every Voice ID field and a minimal one, and an event
-hook set to a flow token and one set by JSONPath).
+hook set to a flow token and one set by JSONPath), and a customer queue flow of
+the participant actions (`participant`: a loop of prompts in every message
+kind with an interrupt, and one that holds the contact with nothing wired).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

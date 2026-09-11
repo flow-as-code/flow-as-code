@@ -1,0 +1,120 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "participant",
+  "description": "Participant actions in a customer queue flow.",
+  "connectType": "CUSTOMER_QUEUE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "hold-music",
+    "Actions": [
+      {
+        "Identifier": "hold-music",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "InterruptFrequencySeconds": "30",
+          "Messages": [
+            {
+              "Text": "Thank you for holding."
+            },
+            {
+              "PromptId": "${cdref:prompt:hold-music}"
+            },
+            {
+              "SSML": "<speak>An agent will be with you <break time=\"1s\"/> shortly.</speak>"
+            },
+            {
+              "Media": {
+                "MediaType": "Audio",
+                "SourceType": "S3",
+                "Uri": "s3://prompts/hold.wav"
+              }
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hold-quietly"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "still-waiting",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "MessagesInterrupted"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "still-waiting",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Still waiting? An agent will be right with you."
+        },
+        "Transitions": {
+          "NextAction": "hold-music",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hold-quietly",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "SSML": "<speak><break time=\"10s\"/></speak>"
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "end",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "end": {
+      "x": 540,
+      "y": 20
+    },
+    "hold-music": {
+      "x": 20,
+      "y": 20
+    },
+    "hold-quietly": {
+      "x": 280,
+      "y": 20
+    },
+    "still-waiting": {
+      "x": 280,
+      "y": 120
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:prompt:hold-music}",
+      "type": "prompt",
+      "name": "hold-music"
+    }
+  ]
+}
