@@ -13,6 +13,7 @@ import {
   INPUT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
   LAMBDA_TIMEOUT_MIN,
+  QUEUE_PRIORITY_MIN,
 } from "@flow-as-code/core";
 import { MESSAGE_BODY_KEYS } from "./mutations.js";
 
@@ -33,6 +34,10 @@ export type FieldDesc =
       integer?: boolean;
       /** Stored as a decimal string, for parameters Connect spells that way. */
       asString?: boolean;
+      /** An empty field deletes the parameter instead of being refused. */
+      optional?: boolean;
+      /** Keys deleted when this one is set, for mutually exclusive parameters. */
+      clears?: readonly string[];
     }
   | { kind: "select"; key: string; label: string; options: readonly string[]; optional?: boolean }
   | {
@@ -137,6 +142,27 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           refType: "queue",
           optional: true,
           clears: ["QueueId"],
+        },
+      ];
+    case ActionType.UpdateContactRoutingBehavior:
+      // One or the other, never both (the action page): setting one clears
+      // the other, and an emptied field is deleted. Emptying the last one
+      // leaves a shape the block class refuses, which the guard reports.
+      return [
+        {
+          kind: "number",
+          key: "QueuePriority",
+          label: "Queue priority (1 is highest)",
+          min: QUEUE_PRIORITY_MIN,
+          optional: true,
+          clears: ["QueueTimeAdjustmentSeconds"],
+        },
+        {
+          kind: "number",
+          key: "QueueTimeAdjustmentSeconds",
+          label: "Queue time adjustment (seconds)",
+          optional: true,
+          clears: ["QueuePriority"],
         },
       ];
     case ActionType.UpdateContactAttributes:

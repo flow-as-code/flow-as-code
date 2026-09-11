@@ -17,12 +17,31 @@
 // wrong now produces a refusal the user can read, not a corrupted block.
 
 import type { Condition, ConditionOperator, DtmfDigit, FlowAction } from "@flow-as-code/core";
-import { ActionType, TERMINAL_ACTIONS, conditionsKind, nextRule } from "@flow-as-code/core";
+import {
+  ActionType,
+  TERMINAL_ACTIONS,
+  builderErrors,
+  conditionsKind,
+  nextRule,
+} from "@flow-as-code/core";
 import { isModeled } from "./palette.js";
 
 /** Terminal actions carry an empty Transitions object and have no errors. */
 export function isTerminalType(type: string): boolean {
   return TERMINAL_ACTIONS.includes(type);
+}
+
+/**
+ * Whether a drag from this action's error handle has a branch to create. An
+ * unmodeled action's errors are whatever it came with, and the handle is how
+ * a detached one is re-attached, so it always offers; a modeled action offers
+ * when its page lists an error. UpdateContactRoutingBehavior lists none, so
+ * its node renders no error handle unless an existing edge needs one.
+ */
+export function offersErrorBranch(action: FlowAction): boolean {
+  if (isTerminalType(action.Type)) return false;
+  if (!isModeled(action.Type)) return true;
+  return builderErrors(action.Type).length > 0;
 }
 
 /**

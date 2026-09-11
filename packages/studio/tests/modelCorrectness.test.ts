@@ -18,6 +18,7 @@ import {
   defaultConditionFor,
   isDtmfMenu,
   isTerminalType,
+  offersErrorBranch,
   normalizeOperands,
 } from "../src/model/capabilities.js";
 import { conditionEdgeId, docToGraph, errorEdgeId, nextEdgeId } from "../src/model/graph.js";
@@ -139,6 +140,15 @@ describe("M2 a drag from a Compare creates a branch, never a NextAction", () => 
     expect(acceptsNextAction(getAction(demoDoc(), "welcome")!)).toBe(true);
     expect(acceptsNextAction(getAction(demoDoc(), "hang-up")!)).toBe(false);
     expect(isTerminalType("EndFlowExecution")).toBe(true);
+    // An error handle is offered where the type has an error to wire: not on
+    // a terminal, always on an unmodeled block, never on a modeled type whose
+    // page lists no error.
+    expect(offersErrorBranch(getAction(demoDoc(), "welcome")!)).toBe(true);
+    expect(offersErrorBranch(getAction(demoDoc(), "hang-up")!)).toBe(false);
+    expect(offersErrorBranch(getAction(demoDoc(), "enable-logging")!)).toBe(true);
+    const { doc, id } = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
+    expect(offersErrorBranch(getAction(doc, id)!)).toBe(false);
+    expect(connectNodes(doc, id, "hang-up", "error")).toBeUndefined();
   });
 });
 
@@ -161,6 +171,29 @@ describe("M3 numeric parameters honour the field's bounds", () => {
       );
       expect(result.ok, `${raw} should be refused`).toBe(false);
     }
+  });
+
+  it("deletes an optional parameter on an empty field and clears its rival on a value", () => {
+    const { doc, id } = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
+    expect(getAction(doc, id)?.Parameters).toEqual({ QueuePriority: 5 });
+    const aged = setNumberParam(doc, id, "QueueTimeAdjustmentSeconds", "-30", {
+      optional: true,
+      clears: ["QueuePriority"],
+    });
+    expect(aged.ok).toBe(true);
+    if (!aged.ok) return;
+    expect(getAction(aged.doc, id)?.Parameters).toEqual({ QueueTimeAdjustmentSeconds: -30 });
+    expectSchemaValid(aged.doc);
+    // Once wired the block is typed, and emptying its only field leaves {}
+    // which the block class refuses, so the guard reports the demotion rather
+    // than letting it happen silently.
+    const wired = connectNodes(aged.doc, id, "hang-up", "primary")!;
+    expect([...demotedIds(wired)]).not.toContain(id);
+    expect(() =>
+      setNumberParam(wired, id, "QueueTimeAdjustmentSeconds", "", { optional: true }),
+    ).toThrow(MutationRefused);
+    // Without optional, an empty field is still refused with a message.
+    expect(setNumberParam(wired, id, "QueueTimeAdjustmentSeconds", "", {}).ok).toBe(false);
   });
 
   it("accepts an in-range integer and keeps the doc schema-valid", () => {
@@ -269,6 +302,24 @@ describe("C3 a new block can be wired up", () => {
     expect(getAction(doc, id)?.Transitions).toEqual({});
     const wired = connectNodes(doc, id, "hang-up", "primary")!;
     expect(getAction(wired, id)?.Transitions.NextAction).toBe("hang-up");
+  });
+
+  it("a palette-inserted block is typed as soon as its branches are wired", () => {
+    // connectNodes writes Transitions in synth normal form (Errors and
+    // Conditions present), which is the form every block class emits and the
+    // form codegen compares against; without it the new block stayed a
+    // GenericBlock until a save and re-synth wrote the arrays back.
+    const { doc, id } = addBlock(demoDoc(), "MessageParticipant", { x: 0, y: 900 });
+    const next = connectNodes(doc, id, "hang-up", "primary")!;
+    const wired = connectNodes(next, id, "apologize", "error")!;
+    expect(getAction(wired, id)?.Transitions).toEqual({
+      NextAction: "hang-up",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "apologize" }],
+      Conditions: [],
+    });
+    expect([...demotedIds(wired)]).toEqual(["enable-logging"]);
+    // A terminal action keeps its empty object.
+    expect(getAction(wired, "hang-up")?.Transitions).toEqual({});
   });
 
   it("an action whose last transition was detached can be rewired", () => {

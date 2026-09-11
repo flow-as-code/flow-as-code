@@ -26,6 +26,7 @@ import {
   LAMBDA_TIMEOUT_MIN,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
+  QUEUE_PRIORITY_MIN,
 } from "./actions.js";
 import type { DtmfDigit } from "./actions.js";
 import type { Condition, ConditionOperator, FlowAction, Transitions } from "./flowdoc.js";
@@ -491,6 +492,62 @@ export class TransferContactToAgent extends Block {
   }
 }
 
+/** A queue priority or a queue time adjustment, never both. */
+export type RoutingAdjustment =
+  | { queuePriority: number; queueTimeAdjustmentSeconds?: never }
+  | { queueTimeAdjustmentSeconds: number; queuePriority?: never };
+
+/**
+ * Moves the contact in queue: `queuePriority` (1 is highest; new contacts
+ * start at 5) or `queueTimeAdjustmentSeconds` (added to the contact's time in
+ * queue; longer is routed first; may be negative). The page lists no errors
+ * and no results, so the block has a success path only. Inbound flows only.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
+ */
+export type UpdateContactRoutingBehaviorConfig = { id: string; next: Target } & RoutingAdjustment;
+
+export class UpdateContactRoutingBehavior extends Block {
+  readonly type = ActionType.UpdateContactRoutingBehavior;
+
+  constructor(private readonly config: UpdateContactRoutingBehaviorConfig) {
+    super(config.id);
+    const id = config.id;
+    const { queuePriority: priority, queueTimeAdjustmentSeconds: seconds } = config;
+    if (priority !== undefined && seconds !== undefined) {
+      throw new Error(
+        `UpdateContactRoutingBehavior "${id}" takes queuePriority or queueTimeAdjustmentSeconds, not both.`,
+      );
+    }
+    if (priority !== undefined) {
+      if (!Number.isSafeInteger(priority) || priority < QUEUE_PRIORITY_MIN) {
+        throw new Error(
+          `UpdateContactRoutingBehavior "${id}" queuePriority must be an integer of at least ${QUEUE_PRIORITY_MIN}, got ${priority}.`,
+        );
+      }
+    } else if (seconds !== undefined) {
+      if (!Number.isSafeInteger(seconds)) {
+        throw new Error(
+          `UpdateContactRoutingBehavior "${id}" queueTimeAdjustmentSeconds must be an integer, got ${seconds}.`,
+        );
+      }
+    } else {
+      throw new Error(
+        `UpdateContactRoutingBehavior "${id}" needs queuePriority or queueTimeAdjustmentSeconds.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return this.config.queuePriority !== undefined
+      ? { QueuePriority: this.config.queuePriority }
+      : { QueueTimeAdjustmentSeconds: this.config.queueTimeAdjustmentSeconds };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, []);
+  }
+}
+
 export interface UpdateContactAttributesConfig extends Wired {
   attributes: Record<string, string>;
   /** Defaults to Current. */
@@ -635,7 +692,7 @@ export class InvokeLambdaFunction extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 16.
+ * set survivable: 56 action types are documented and the builder models 17.
  */
 export interface GenericBlockConfig {
   id: string;

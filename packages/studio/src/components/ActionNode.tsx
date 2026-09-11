@@ -21,7 +21,7 @@
 // no transition is ever unrenderable.
 
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import { isTerminalType } from "../model/capabilities.js";
+import { isTerminalType, offersErrorBranch } from "../model/capabilities.js";
 import type { NodeModel } from "../model/graph.js";
 import { useStudio } from "../state/studio.js";
 
@@ -62,7 +62,7 @@ export function ActionNode({ data, selected }: NodeProps<ActionFlowNode>) {
   const { model, errorCount, warningCount, handles, demoted, dangling } = data;
   const terminal = isTerminalType(model.action.Type);
   const showPrimary = !terminal || handles.primary;
-  const showError = !terminal || handles.error;
+  const showError = offersErrorBranch(model.action) || handles.error;
   // A modeled type codegen cannot currently express. Never silent: the block
   // is still editable, but the user is told the generator would emit it raw.
   const inexpressible = demoted && !model.isGeneric;

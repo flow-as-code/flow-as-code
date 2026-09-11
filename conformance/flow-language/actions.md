@@ -58,6 +58,7 @@ The two differ, and the console name is what task A01 originally listed.
 | TransferToQueue | `UpdateContactTargetQueue` **and** `TransferContactToQueue` | contact | [set](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttargetqueue.html), [transfer](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoqueue.html) |
 | TransferToQueue (in a customer queue flow) | `DequeueContactAndTransferToQueue` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html) |
 | Transfer to agent (beta) | `TransferContactToAgent` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html) |
+| Change routing priority / age | `UpdateContactRoutingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -184,6 +185,26 @@ individual action pages linked above.
     recommends Set working queue (`UpdateContactTargetQueue` then
     `TransferContactToQueue`) for agent-to-agent transfers on every channel.
     https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-agent-block.html
+18. `UpdateContactRoutingBehavior` (recorded 2026-09-11) "can move the contact
+    forward or backward in queue, or specify a queue priority". `QueuePriority`
+    "Cannot be specified if QueueTimeAdjustmentSeconds is specified. Must be
+    statically defined, must be larger than zero, and a valid integer value";
+    the admin guide gives the range "1 (highest) - 9223372036854775807
+    (lowest)" and "Default priority: 5". `QueueTimeAdjustmentSeconds` "Cannot
+    be specified if QueuePriority is specified. Must be statically defined and
+    a valid integer value"; the admin guide says the block can "add or
+    subtract" time, so negative values are accepted. Neither page says one of
+    the two is required, so the catalog records `neverBoth`; the builder
+    requires one, which is the builder's choice. Results and errors are both
+    "None", so the block has a success path and no error branch, the first
+    modeled action with none. "This is supported only in inbound contact
+    flows. It is not supported in transfer flows, whisper flows, customer
+    queue flows, or hold flows." The admin guide's flow-type list also names
+    customer queue and transfer flows; the action page governs. Timing: "it
+    takes at least 60 seconds for a change to take effect for contacts already
+    in queue". The page has no JSON example; both values are recorded as JSON
+    numbers from "an integer", to be confirmed against a console export.
+    https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -219,6 +240,7 @@ TransferContactToQueue   {}
 UpdateContactTargetQueue { QueueId? | AgentId? }
 DequeueContactAndTransferToQueue { QueueId? | AgentId? }   // neither: the contact's current target queue
 TransferContactToAgent   {}
+UpdateContactRoutingBehavior { QueuePriority? | QueueTimeAdjustmentSeconds? }   // integers, never both
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -258,7 +280,14 @@ another branch), `conditions` (`none`, `fixed` with `conditionOperands`,
 `dtmf`, `enum`, `numeric`, or `custom`), and `errors` in the builder's order,
 each marked `required` (the error-branches rule reports it missing) and
 `builder` (the builder's modeled form wires it; the studio offers exactly those
-when a drag looks for a branch to create).
+when a drag looks for a branch to create). A type whose page lists no errors
+has an empty list, and the studio renders no error handle for it.
+
+Constraints use `exactlyOne` when one of the keys must be present,
+`atMostOne` when the keys are alternatives for one role (a queue or an agent
+queue) and any may be absent, and `neverBoth` when two independent settings
+merely conflict (a priority or a time adjustment). A second implementation
+treats the last two the same way; the distinction records what the page said.
 
 Attribute names are the mechanical `snake_case` of the Flow language key
 (`packages/core/src/hcl-names.ts`): `PromptId` is `prompt_id`,
@@ -272,7 +301,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 16 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 17 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

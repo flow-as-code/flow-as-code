@@ -49,6 +49,7 @@ import {
   TransferToFlow,
   UpdateContactAttributes,
   UpdateContactRecordingBehavior,
+  UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
 } from "./blocks.js";
 import type {
@@ -727,6 +728,30 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           onQueueAtCapacity: errors[0]!.NextAction,
           onError: errors[1]!.NextAction,
         }),
+      ),
+    };
+  },
+
+  [ActionType.UpdateContactRoutingBehavior]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    const keys = Object.keys(a.Parameters);
+    if (keys.length !== 1) return undefined;
+    const field = keys[0]!;
+    if (field !== "QueuePriority" && field !== "QueueTimeAdjustmentSeconds") return undefined;
+    const value = a.Parameters[field];
+    if (typeof value !== "number") return undefined;
+    const prop = field === "QueuePriority" ? "queuePriority" : "queueTimeAdjustmentSeconds";
+    return {
+      cls: "UpdateContactRoutingBehavior",
+      entries: [
+        ["id", a.Identifier],
+        [prop, value],
+        ["next", t.NextAction],
+      ],
+      block: new UpdateContactRoutingBehavior(
+        cast<never>({ id: a.Identifier, [prop]: value, next: t.NextAction }),
       ),
     };
   },

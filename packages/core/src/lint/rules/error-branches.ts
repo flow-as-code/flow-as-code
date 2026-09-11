@@ -19,7 +19,8 @@ import type { Rule } from "../types.js";
  */
 export const errorBranches: Rule = {
   id: "error-branches",
-  description: "Every non-terminal modeled action must wire its catch-all error branch.",
+  description:
+    "Every non-terminal modeled action must wire the error branches its page requires, the catch-all for most.",
   check({ doc, report }) {
     for (const action of doc.content.Actions) {
       if (isTerminal(action)) continue;

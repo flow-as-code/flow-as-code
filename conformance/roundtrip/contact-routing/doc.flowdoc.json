@@ -6,9 +6,21 @@
   "connectType": "MODULE",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "move-to-priority-queue",
+    "StartAction": "bump-priority",
     "Settings": {},
     "Actions": [
+      {
+        "Identifier": "bump-priority",
+        "Type": "UpdateContactRoutingBehavior",
+        "Parameters": {
+          "QueuePriority": 1
+        },
+        "Transitions": {
+          "NextAction": "move-to-priority-queue",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
       {
         "Identifier": "move-to-priority-queue",
         "Type": "DequeueContactAndTransferToQueue",
@@ -60,13 +72,25 @@
           "Errors": [
             {
               "ErrorType": "QueueAtCapacity",
-              "NextAction": "apologize"
+              "NextAction": "age-in-queue"
             },
             {
               "ErrorType": "NoMatchingError",
               "NextAction": "apologize"
             }
           ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "age-in-queue",
+        "Type": "UpdateContactRoutingBehavior",
+        "Parameters": {
+          "QueueTimeAdjustmentSeconds": 300
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
           "Conditions": []
         }
       },
@@ -102,28 +126,36 @@
     ]
   },
   "layout": {
-    "apologize": {
-      "x": 800,
-      "y": 20
-    },
-    "done": {
+    "age-in-queue": {
       "x": 1060,
       "y": 20
     },
-    "hand-to-agent": {
-      "x": 540,
-      "y": 20
+    "apologize": {
+      "x": 1060,
+      "y": 120
     },
-    "move-to-priority-queue": {
+    "bump-priority": {
       "x": 20,
       "y": 20
     },
+    "done": {
+      "x": 1320,
+      "y": 20
+    },
+    "hand-to-agent": {
+      "x": 800,
+      "y": 20
+    },
+    "move-to-priority-queue": {
+      "x": 280,
+      "y": 20
+    },
     "stay-in-queue": {
-      "x": 540,
+      "x": 800,
       "y": 120
     },
     "try-agent-queue": {
-      "x": 280,
+      "x": 540,
       "y": 20
     }
   },

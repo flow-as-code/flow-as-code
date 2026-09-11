@@ -117,6 +117,7 @@ describe("addBlock", () => {
       "GetParticipantInput",
       "DequeueContactAndTransferToQueue",
       "TransferContactToAgent",
+      "UpdateContactRoutingBehavior",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

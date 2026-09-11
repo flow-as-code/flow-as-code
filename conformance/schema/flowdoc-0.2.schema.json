@@ -439,6 +439,39 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "UpdateContactRoutingBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueuePriority": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "QueueTimeAdjustmentSeconds": {
+                    "type": "integer"
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueuePriority",
+                    "QueueTimeAdjustmentSeconds"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

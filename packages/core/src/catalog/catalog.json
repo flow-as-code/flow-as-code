@@ -485,7 +485,43 @@
     "UpdateContactRoutingBehavior": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_routing_behavior",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "QueuePriority",
+          "attr": "queue_priority",
+          "kind": "integer",
+          "required": false,
+          "min": 1
+        },
+        {
+          "key": "QueueTimeAdjustmentSeconds",
+          "attr": "queue_time_adjustment_seconds",
+          "kind": "integer",
+          "required": false
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "neverBoth",
+          "keys": [
+            "QueuePriority",
+            "QueueTimeAdjustmentSeconds"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": []
+      }
     },
     "UpdateContactTargetQueue": {
       "category": "contact",

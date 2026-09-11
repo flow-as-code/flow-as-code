@@ -2,7 +2,7 @@
 
 ## Builder model
 
-- `Flow`, `FlowModule` classes; blocks as typed classes named after the Connect action they emit, not the console block. Modeled as of 2026-09-11 (`src/blocks.ts`, sixteen classes): `MessageParticipant`, `GetParticipantInput` (DTMF menu form only, see below), `DisconnectParticipant`, `CheckHoursOfOperation`, `Compare`, `TransferToFlow`, `EndFlowExecution`, `UpdateContactTargetQueue`, `TransferContactToQueue`, `DequeueContactAndTransferToQueue`, `TransferContactToAgent`, `UpdateContactAttributes`, `UpdateContactRecordingBehavior`, `InvokeFlowModule`, `EndFlowModuleExecution`, `InvokeLambdaFunction`. Every other action type, and every unmodeled form of a modeled one, round-trips as `GenericBlock`. See conformance/flow-language/actions.md for the mapping and the citations.
+- `Flow`, `FlowModule` classes; blocks as typed classes named after the Connect action they emit, not the console block. Modeled as of 2026-09-11 (`src/blocks.ts`, seventeen classes): `MessageParticipant`, `GetParticipantInput` (DTMF menu form only, see below), `DisconnectParticipant`, `CheckHoursOfOperation`, `Compare`, `TransferToFlow`, `EndFlowExecution`, `UpdateContactTargetQueue`, `TransferContactToQueue`, `DequeueContactAndTransferToQueue`, `TransferContactToAgent`, `UpdateContactRoutingBehavior`, `UpdateContactAttributes`, `UpdateContactRecordingBehavior`, `InvokeFlowModule`, `EndFlowModuleExecution`, `InvokeLambdaFunction`. Every other action type, and every unmodeled form of a modeled one, round-trips as `GenericBlock`. See conformance/flow-language/actions.md for the mapping and the citations.
 - Blocks map one-to-one onto Actions. "Transfer to queue" is two blocks, because Connect models it as two actions.
 - Branch wiring is explicit and type-checked: error branches are required properties on each block's config object, so omitting one is a compile-time error. See docs/adr/0002-error-branch-enforcement.md.
 - Synth emits declaration order, not a graph-derived canonical order. See docs/adr/0003-action-ordering.md.
@@ -34,6 +34,8 @@ Eleven rules, in the order `allRules` lists them (`src/lint/rules/index.ts`): no
 Added 2026-09-01: `prompt-length-3000` also counts a `GetParticipantInput` body, which is billed the same way as a message. `recording-consent-before-record` treats a `GetParticipantInput` that plays a body as an announcement; a menu with no body is silent and does not satisfy the rule. Content is what counts on both announcing actions: an empty or blank `Text` or `SSML` plays nothing, on a menu or a `MessageParticipant`, and the studio writes `Text: ""` until the author types. `action-allowed-in-flow-type` restricts `GetParticipantInput` to contact, transfer, customer queue and module flows.
 
 `no-literal-arn` and `no-unresolved-token` are hard rules: the studio may never save through them (docs/02-studio-design.md). Every other rule reports.
+
+`error-branches` (since 2026-09-11) reports whichever branches the catalog marks required: the catch-all for most types, each listed error for a type whose page has no catch-all, and nothing for `UpdateContactRoutingBehavior`, whose page lists no errors at all. `WITHOUT_CATCH_ALL` in `src/actions.ts` names those types and `catalog.test.ts` holds the flags to it.
 
 The engine is browser-safe and dependency-free, exported separately as `@flow-as-code/core/lint` so the studio's worker carries only what lint needs. Enforced by a static import-graph test, not by running under a DOM shim, which would prove nothing since `node:fs` still resolves there.
 

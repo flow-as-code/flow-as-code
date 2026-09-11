@@ -35,6 +35,7 @@ import {
   serializeContent,
   synth,
   TransferContactToAgent,
+  UpdateContactRoutingBehavior,
 } from "./index.js";
 
 const fixture = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
@@ -322,6 +323,31 @@ describe("guardrails", () => {
       /between 1 and 8/,
     );
     expect(() => new InvokeLambdaFunction({ ...config, timeoutSeconds: 8 })).not.toThrow();
+  });
+
+  it("rejects a queue priority below 1, a fractional adjustment, and an empty routing change", () => {
+    expect(
+      () => new UpdateContactRoutingBehavior({ id: "r", queuePriority: 0, next: "x" }),
+    ).toThrow(/at least 1/);
+    expect(
+      () =>
+        new UpdateContactRoutingBehavior({ id: "r", queueTimeAdjustmentSeconds: 1.5, next: "x" }),
+    ).toThrow(/must be an integer/);
+    expect(() => new UpdateContactRoutingBehavior({ id: "r", next: "x" } as never)).toThrow(
+      /needs queuePriority or queueTimeAdjustmentSeconds/,
+    );
+    expect(
+      new UpdateContactRoutingBehavior({
+        id: "r",
+        queueTimeAdjustmentSeconds: -30,
+        next: "x",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "r",
+      Type: "UpdateContactRoutingBehavior",
+      Parameters: { QueueTimeAdjustmentSeconds: -30 },
+      Transitions: { NextAction: "x", Errors: [], Conditions: [] },
+    });
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

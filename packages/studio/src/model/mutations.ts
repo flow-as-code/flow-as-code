@@ -28,7 +28,14 @@
 // vocabulary, and which edits would clobber content the user cannot get back.
 // Legality is the guard's job, and it has exactly one implementation.
 
-import type { Condition, FlowAction, FlowDoc, ModeledActionType, Point } from "@flow-as-code/core";
+import type {
+  Condition,
+  FlowAction,
+  FlowDoc,
+  ModeledActionType,
+  Point,
+  Transitions,
+} from "@flow-as-code/core";
 import {
   builderErrors,
   ActionType,
@@ -185,12 +192,30 @@ export function normalize(doc: FlowDoc): FlowDoc {
   return canonicalize({ ...doc, refs: collectRefs(doc.content) });
 }
 
+/**
+ * Transitions in synth normal form: `Errors` and `Conditions` present (empty
+ * when nothing is wired) on any action that has a transition at all, `{}` on
+ * a terminal one. Every block class writes this form, and codegen verifies an
+ * inversion by comparing bytes, so a block whose Transitions were built up by
+ * gestures (`{ NextAction }`, then an error) stayed a GenericBlock until a
+ * save and re-synth wrote the arrays back. Writing them here makes a wired
+ * palette block typed at the moment it is wired.
+ */
+function normalTransitions(t: Transitions): Transitions {
+  if (Object.keys(t).length === 0) return t;
+  return { ...t, Errors: t.Errors ?? [], Conditions: t.Conditions ?? [] };
+}
+
 function withAction(doc: FlowDoc, id: string, f: (a: FlowAction) => FlowAction): FlowDoc {
   return {
     ...doc,
     content: {
       ...doc.content,
-      Actions: doc.content.Actions.map((a) => (a.Identifier === id ? f(a) : a)),
+      Actions: doc.content.Actions.map((a) => {
+        if (a.Identifier !== id) return a;
+        const next = f(a);
+        return { ...next, Transitions: normalTransitions(next.Transitions) };
+      }),
     },
   };
 }
@@ -313,6 +338,10 @@ export interface NumberBounds {
    * emits the same), and a JSON 5 there is a shape only GenericBlock holds.
    */
   asString?: boolean;
+  /** An empty field deletes the parameter instead of being refused. */
+  optional?: boolean;
+  /** Keys deleted when this one is set, for mutually exclusive parameters. */
+  clears?: readonly string[];
 }
 
 export type SetNumberResult = { ok: true; doc: FlowDoc } | { ok: false; error: string };
@@ -338,6 +367,7 @@ export const setNumberParam = guard(
   ): SetNumberResult => {
     const text = typeof raw === "string" ? raw.trim() : raw;
     if (text === "" || text === null || text === undefined) {
+      if (bounds.optional === true) return { ok: true, doc: setParamImpl(doc, id, key, undefined) };
       return { ok: false, error: "Enter a number." };
     }
     const value = Number(text);
@@ -352,7 +382,7 @@ export const setNumberParam = guard(
       return { ok: false, error: `Must be at most ${bounds.max}.` };
     }
     const stored = bounds.asString === true ? String(value) : value;
-    return { ok: true, doc: setParamImpl(doc, id, key, stored) };
+    return { ok: true, doc: setParamImpl(doc, id, key, stored, { clears: bounds.clears }) };
   },
 );
 

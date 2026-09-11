@@ -30,6 +30,7 @@ export const ActionType = {
   InvokeLambdaFunction: "InvokeLambdaFunction",
   DequeueContactAndTransferToQueue: "DequeueContactAndTransferToQueue",
   TransferContactToAgent: "TransferContactToAgent",
+  UpdateContactRoutingBehavior: "UpdateContactRoutingBehavior",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -79,8 +80,20 @@ export const NO_MATCHING_CONDITION = "NoMatchingCondition";
 export const INPUT_TIME_LIMIT_EXCEEDED = "InputTimeLimitExceeded";
 
 /**
+ * Non-terminal modeled actions whose page lists no catch-all. The builder
+ * wires exactly EXTRA_ERRORS for them, and every listed error is one the
+ * document must wire (error-branches reads the catalog's required flags,
+ * which catalog.test.ts holds to this list).
+ *
+ * UpdateContactRoutingBehavior: results "None", errors "None".
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
+ */
+export const WITHOUT_CATCH_ALL: readonly string[] = [ActionType.UpdateContactRoutingBehavior];
+
+/**
  * Additional error types beyond the catch-all, by action type, in the order
- * the builder emits them.
+ * the builder emits them. For a type in WITHOUT_CATCH_ALL this is the whole
+ * list.
  */
 export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.TransferContactToQueue]: ["QueueAtCapacity"],
@@ -191,6 +204,13 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoagent.html
   [ActionType.TransferContactToAgent]: [...TRANSFER, ...IN_MODULE],
+  // "This is supported only in inbound contact flows. It is not supported in
+  // transfer flows, whisper flows, customer queue flows, or hold flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
+  // The admin guide's block page also lists customer queue and transfer
+  // flows; the action page governs, as for every other row.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
+  [ActionType.UpdateContactRoutingBehavior]: [...INBOUND, ...IN_MODULE],
   // "This action is available in inbound flows and transfer flows. It is not
   // available to hold flows, customer queue flows, or whisper flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html
@@ -227,6 +247,16 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.UpdateContactAttributes,
   ActionType.InvokeLambdaFunction,
 ];
+
+/**
+ * UpdateContactRoutingBehavior.QueuePriority lower bound: "must be larger than
+ * zero, and a valid integer value". The console caps it at 9223372036854775807
+ * (a signed 64-bit integer), which a JSON number cannot carry through
+ * JavaScript, so the builder takes any safe integer at or above this floor.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/change-routing-priority.html
+ */
+export const QUEUE_PRIORITY_MIN = 1;
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

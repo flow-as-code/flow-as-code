@@ -713,6 +713,47 @@ describe("TransferContactToAgent is terminal", () => {
   });
 });
 
+describe("UpdateContactRoutingBehavior inverts one adjustment and no error branch", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "bump",
+    Type: "UpdateContactRoutingBehavior",
+    Parameters: parameters,
+    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([action(parameters), bye]));
+    expect(out).toContain("new UpdateContactRoutingBehavior({");
+    expect(out).not.toContain('type: "UpdateContactRoutingBehavior"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactRoutingBehavior"');
+    expect(out).not.toContain("new UpdateContactRoutingBehavior(");
+  };
+
+  it("emits a priority or a time adjustment as a number", () => {
+    expect(typed({ QueuePriority: 1 })).toContain("queuePriority: 1");
+    expect(typed({ QueueTimeAdjustmentSeconds: -30 })).toContain("queueTimeAdjustmentSeconds: -30");
+  });
+
+  it("falls back on both, on neither, on a string, on a priority below 1, or on an error branch", () => {
+    generic(action({ QueuePriority: 1, QueueTimeAdjustmentSeconds: 30 }));
+    generic(action({}));
+    generic(action({ QueuePriority: "1" }));
+    generic(action({ QueuePriority: 0 }));
+    const withError = action({ QueuePriority: 1 });
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(withError);
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

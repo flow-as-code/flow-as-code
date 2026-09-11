@@ -21,6 +21,7 @@ import {
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
   TERMINAL_ACTIONS,
+  WITHOUT_CATCH_ALL,
 } from "./actions.js";
 import {
   actionCatalog,
@@ -224,11 +225,15 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
     }
 
     // Errors: the branches marked builder are exactly what the block class
-    // emits (the extras, then the catch-all), and today the catch-all is the
-    // only branch a document must wire. Conditions name a known kind.
+    // emits (the extras, then the catch-all), and the catch-all is the branch
+    // a document must wire; a type whose page lists no catch-all
+    // (WITHOUT_CATCH_ALL) emits its extras alone and must wire each of them.
+    // Conditions name a known kind.
     if (!terminal) {
       const catchAll = type === ActionType.Compare ? NO_MATCHING_CONDITION : NO_MATCHING_ERROR;
-      const emitted = [...(EXTRA_ERRORS[type] ?? []), catchAll];
+      const extras = EXTRA_ERRORS[type] ?? [];
+      const noCatchAll = WITHOUT_CATCH_ALL.includes(type);
+      const emitted = noCatchAll ? extras : [...extras, catchAll];
       const wired = t.errors.filter((e) => e.builder).map((e) => e.type);
       if (wired.join(",") !== emitted.join(",")) {
         out.push(
@@ -236,8 +241,12 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
         );
       }
       const required = t.errors.filter((e) => e.required).map((e) => e.type);
-      if (required.join(",") !== catchAll)
-        out.push(`${where}: required errors ${required.join(",")}, expected ${catchAll}`);
+      const expectedRequired = noCatchAll ? extras : [catchAll];
+      if (required.join(",") !== expectedRequired.join(",")) {
+        out.push(
+          `${where}: required errors ${required.join(",")}, expected ${expectedRequired.join(",")}`,
+        );
+      }
     }
     if (!["none", "fixed", "dtmf", "enum", "numeric", "custom"].includes(t.conditions)) {
       out.push(`${where}: conditions kind ${t.conditions} is unknown`);
@@ -290,6 +299,8 @@ describe("the action catalog", () => {
     expect(requiredErrors("DequeueContactAndTransferToQueue")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DisconnectParticipant")).toEqual([]);
     expect(requiredErrors("TransferContactToAgent")).toEqual([]);
+    expect(requiredErrors("UpdateContactRoutingBehavior")).toEqual([]);
+    expect(builderErrors("UpdateContactRoutingBehavior")).toEqual([]);
     expect(requiredErrors("NotAnAction")).toEqual([]);
   });
 
@@ -360,6 +371,16 @@ describe("catalogProblems is proven able to fail", () => {
         (c) => (modeledAt(c, "TransferContactToQueue").transitions.errors[0]!.required = true),
       ),
     ).toContainEqual(expect.stringContaining("TransferContactToQueue: required errors"));
+  });
+  it("on a catch-all the page does not list", () => {
+    expect(
+      mutate(
+        (c) =>
+          (modeledAt(c, "UpdateContactRoutingBehavior").transitions.errors = [
+            { type: "NoMatchingError", required: true, builder: true },
+          ]),
+      ),
+    ).toContainEqual(expect.stringContaining("UpdateContactRoutingBehavior: builder errors"));
   });
   it("on a builder flag the block class does not honour", () => {
     expect(
