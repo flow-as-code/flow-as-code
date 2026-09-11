@@ -40,10 +40,13 @@ import {
   TransferContactToAgent,
   UpdateContactCallbackNumber,
   UpdateContactRoutingBehavior,
+  UpdateFlowAttributes,
   Wait,
 } from "./index.js";
 
 const fixture = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
+
+const cast = <T>(value: unknown): T => value as T;
 
 describe("A01 acceptance: synth of the demo flow", () => {
   it("matches the committed conformance fixture byte for byte", () => {
@@ -506,6 +509,20 @@ describe("guardrails", () => {
         { NextAction: "a", Condition: { Operator: "NumberLessThan", Operands: ["4"] } },
         { NextAction: "b", Condition: { Operator: "NumberLessThan", Operands: ["10"] } },
       ],
+    });
+  });
+
+  it("writes flow attributes verbatim and rejects a non-object", () => {
+    expect(
+      () => new UpdateFlowAttributes({ id: "f", attributes: cast<never>(["a"]), next: "n" }),
+    ).toThrow(/must be an object/);
+    expect(
+      new UpdateFlowAttributes({ id: "f", attributes: { retries: "2" }, next: "n" }).toAction(),
+    ).toEqual({
+      Identifier: "f",
+      Type: "UpdateFlowAttributes",
+      Parameters: { FlowAttributes: { retries: "2" } },
+      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
     });
   });
 

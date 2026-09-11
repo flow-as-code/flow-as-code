@@ -36,6 +36,7 @@ export const ActionType = {
   Loop: "Loop",
   Wait: "Wait",
   DistributeByPercentage: "DistributeByPercentage",
+  UpdateFlowAttributes: "UpdateFlowAttributes",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -123,11 +124,15 @@ export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
  * Loop: errors "None"; its results are the two fixed conditions.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
+ * UpdateFlowAttributes: errors "None"; the admin guide's block has an Error
+ * branch for attributes over 32 KB with no documented error type.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
  */
 export const WITHOUT_CATCH_ALL: readonly string[] = [
   ActionType.UpdateContactRoutingBehavior,
   ActionType.UpdateContactCallbackNumber,
   ActionType.Loop,
+  ActionType.UpdateFlowAttributes,
 ];
 
 /**
@@ -314,6 +319,9 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * Wait: "This is supported in every type of flow, but is supported only by
  * the chat channel."
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+ * UpdateFlowAttributes: "This action is supported on all channels and in all
+ * flow types."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
@@ -321,6 +329,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.InvokeLambdaFunction,
   ActionType.Loop,
   ActionType.Wait,
+  ActionType.UpdateFlowAttributes,
 ];
 
 /**

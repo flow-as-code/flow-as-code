@@ -65,6 +65,7 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
+  UpdateFlowAttributes,
   Wait,
 } from "./blocks.js";
 import type {
@@ -734,6 +735,30 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         id: a.Identifier,
         branches,
         onRemainder: errors[0]!.NextAction,
+      }),
+    };
+  },
+
+  [ActionType.UpdateFlowAttributes]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    if (!paramKeysAre(a.Parameters, ["FlowAttributes"])) return undefined;
+    const attributes = a.Parameters.FlowAttributes;
+    if (attributes === null || typeof attributes !== "object" || Array.isArray(attributes)) {
+      return undefined;
+    }
+    return {
+      cls: "UpdateFlowAttributes",
+      entries: [
+        ["id", a.Identifier],
+        ["attributes", toV(attributes)],
+        ["next", t.NextAction],
+      ],
+      block: new UpdateFlowAttributes({
+        id: a.Identifier,
+        attributes: cast<Record<string, unknown>>(attributes),
+        next: t.NextAction,
       }),
     };
   },

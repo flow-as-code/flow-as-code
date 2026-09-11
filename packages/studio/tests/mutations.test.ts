@@ -123,6 +123,7 @@ describe("addBlock", () => {
       "Loop",
       "Wait",
       "DistributeByPercentage",
+      "UpdateFlowAttributes",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

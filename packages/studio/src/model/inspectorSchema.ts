@@ -273,6 +273,8 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.UpdateContactRecordingBehavior:
       return [{ kind: "json", key: "RecordingBehavior", label: "Recording behavior" }];
+    case ActionType.UpdateFlowAttributes:
+      return [{ kind: "json", key: "FlowAttributes", label: "Flow attributes" }];
     case ActionType.InvokeFlowModule:
       return [{ kind: "ref", key: "FlowModuleId", label: "Module", refType: "module" }];
     case ActionType.InvokeLambdaFunction:

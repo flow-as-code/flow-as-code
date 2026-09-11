@@ -156,6 +156,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "InvokeLambdaFunction",
       "Loop",
       "UpdateContactAttributes",
+      "UpdateFlowAttributes",
       "Wait",
     ]);
   });

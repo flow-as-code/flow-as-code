@@ -308,6 +308,7 @@ describe("the action catalog", () => {
     expect(builderErrors("UpdateContactRoutingBehavior")).toEqual([]);
     expect(requiredErrors("Loop")).toEqual([]);
     expect(builderErrors("Loop")).toEqual([]);
+    expect(requiredErrors("UpdateFlowAttributes")).toEqual([]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);

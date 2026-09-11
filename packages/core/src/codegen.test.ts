@@ -1071,6 +1071,45 @@ describe("DistributeByPercentage inverts the console's threshold chain into perc
   });
 });
 
+describe("UpdateFlowAttributes inverts an opaque attributes object with no error branch", () => {
+  const action = (attributes: unknown): FlowAction => ({
+    Identifier: "remember",
+    Type: "UpdateFlowAttributes",
+    Parameters: { FlowAttributes: attributes },
+    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateFlowAttributes"');
+    expect(out).not.toContain("new UpdateFlowAttributes(");
+  };
+
+  it("emits the object verbatim, nested values included", () => {
+    const out = codegen(docWith([action({ retries: "2", nested: { Value: "x" } }), bye]));
+    expect(out).toContain("new UpdateFlowAttributes({");
+    expect(out).toContain('retries: "2"');
+    expect(out).toContain('nested: { Value: "x" }');
+    expect(codegen(docWith([action({}), bye]))).toContain("attributes: {}");
+  });
+
+  it("falls back on a non-object, a missing key, or an error branch", () => {
+    generic(action("retries=2"));
+    generic(action(["a"]));
+    const missing = action({});
+    missing.Parameters = {};
+    generic(missing);
+    const withError = action({});
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(withError);
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

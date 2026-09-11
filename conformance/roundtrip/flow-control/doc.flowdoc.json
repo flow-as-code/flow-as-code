@@ -15,13 +15,27 @@
           "Text": "Please hold while we look that up."
         },
         "Transitions": {
-          "NextAction": "split",
+          "NextAction": "remember",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
               "NextAction": "bye"
             }
           ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "remember",
+        "Type": "UpdateFlowAttributes",
+        "Parameters": {
+          "FlowAttributes": {
+            "lastPrompt": "greet"
+          }
+        },
+        "Transitions": {
+          "NextAction": "split",
+          "Errors": [],
           "Conditions": []
         }
       },
@@ -211,31 +225,35 @@
   },
   "layout": {
     "again": {
-      "x": 540,
+      "x": 800,
       "y": 20
     },
     "bye": {
-      "x": 1580,
+      "x": 1840,
       "y": 20
     },
     "dynamic-loop": {
-      "x": 800,
+      "x": 1060,
       "y": 20
     },
     "greet": {
       "x": 20,
       "y": 20
     },
-    "split": {
+    "remember": {
       "x": 280,
       "y": 20
     },
+    "split": {
+      "x": 540,
+      "y": 20
+    },
     "wait-briefly": {
-      "x": 1320,
+      "x": 1580,
       "y": 20
     },
     "wait-for-customer": {
-      "x": 1060,
+      "x": 1320,
       "y": 20
     }
   },

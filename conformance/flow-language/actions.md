@@ -64,6 +64,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Loop | `Loop` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html) |
 | Wait | `Wait` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html) |
 | Distribute by percentage | `DistributeByPercentage` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html) |
+| Set contact attributes (Flow namespace) | `UpdateFlowAttributes` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -115,8 +116,8 @@ individual action pages linked above.
    `PromptId` and `SSML` are voice only; other channels support only `Text`.
 6. `Compare` and `DistributeByPercentage` fail with `NoMatchingCondition`,
    not `NoMatchingError` (`CONDITION_CATCH_ALL` in actions.ts).
-   `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber` and `Loop`
-   list no catch-all at all (rules 18, 20 and 21).
+   `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber`, `Loop` and
+   `UpdateFlowAttributes` list no catch-all at all (rules 18, 20, 21 and 24).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
    (`Transitions: {}`).
@@ -315,6 +316,22 @@ individual action pages linked above.
     hold flows or to whisper flows." The admin guide's flow-type list adds
     the outbound whisper flow; the action page governs.
     https://docs.aws.amazon.com/connect/latest/adminguide/distribute-by-percentage.html
+24. `UpdateFlowAttributes` (recorded 2026-09-11) "Sets a collection of
+    attributes on the current flow. These attributes are not carried over to
+    the subsequent flows. With this type of operation, either all attributes
+    are set or none are set." The page's parameter block is not valid JSON
+    (a doubled quote, a missing quote, prose inside the braces) and says only
+    "An Object that holds the attributes to be set. Keys are of type String,
+    Values are of type FlowAttribute" without defining FlowAttribute, so the
+    catalog records `FlowAttributes` as kind `json` and the builder writes
+    the object it is given verbatim, to be confirmed against a console
+    export. Results and errors "None"; the admin guide's block has an Error
+    branch for attributes over 32 KB with no documented type, so an export
+    carrying one stays a GenericBlock. "This action is supported on all
+    channels and in all flow types." The admin guide adds that flow
+    attributes "aren't passed to modules", "don't appear in the contact
+    record" and may not contain `$` or `.` in a key.
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-contact-attributes.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -357,6 +374,7 @@ UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier
 Loop                     { LoopCount }              // 0 to 100, static or a single JSONPath
 Wait                     { TimeoutSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }
 DistributeByPercentage   {}
+UpdateFlowAttributes     { FlowAttributes: { [k]: FlowAttribute } }   // value shape not documented; kept opaque
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -421,7 +439,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 22 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 23 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

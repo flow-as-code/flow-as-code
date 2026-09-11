@@ -1229,7 +1229,24 @@
     "UpdateFlowAttributes": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_flow_attributes",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "FlowAttributes",
+          "attr": "flow_attributes",
+          "kind": "json",
+          "required": true
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": []
+      }
     },
     "UpdateFlowLoggingBehavior": {
       "category": "flowControl",

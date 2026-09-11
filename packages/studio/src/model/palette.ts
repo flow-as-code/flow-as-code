@@ -23,6 +23,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactRecordingBehavior]: "Set",
   [ActionType.UpdateContactRoutingBehavior]: "Set",
   [ActionType.UpdateContactCallbackNumber]: "Set",
+  [ActionType.UpdateFlowAttributes]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -78,6 +79,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactRecordingBehavior]: "set-recording",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
   [ActionType.UpdateContactCallbackNumber]: "set-callback-number",
+  [ActionType.UpdateFlowAttributes]: "set-flow-attributes",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -111,6 +113,8 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { LoopCount: 1 };
     case ActionType.UpdateContactAttributes:
       return { Attributes: {}, TargetContact: "Current" };
+    case ActionType.UpdateFlowAttributes:
+      return { FlowAttributes: {} };
     case ActionType.UpdateContactRecordingBehavior:
       return { RecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } };
     case ActionType.CreateCallbackContact:

@@ -566,6 +566,44 @@ export class DistributeByPercentage extends Block {
   }
 }
 
+/**
+ * Sets attributes on the current flow: "These attributes are not carried
+ * over to the subsequent flows. With this type of operation, either all
+ * attributes are set or none are set." The action page's parameter block is
+ * malformed and does not spell out the value shape, so `attributes` is
+ * written to FlowAttributes verbatim (the FlowDoc records it as an opaque
+ * object) until a console export settles it. No errors on the page; the
+ * admin guide's Error branch (attributes over 32 KB) has no documented type.
+ * Legal in every flow type and channel.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-contact-attributes.html
+ */
+export interface UpdateFlowAttributesConfig {
+  id: string;
+  attributes: Record<string, unknown>;
+  next: Target;
+}
+
+export class UpdateFlowAttributes extends Block {
+  readonly type = ActionType.UpdateFlowAttributes;
+
+  constructor(private readonly config: UpdateFlowAttributesConfig) {
+    super(config.id);
+    const a = config.attributes;
+    if (a === null || typeof a !== "object" || Array.isArray(a)) {
+      throw new Error(`UpdateFlowAttributes "${config.id}" attributes must be an object.`);
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { FlowAttributes: this.config.attributes };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, []);
+  }
+}
+
 /** Terminal. Only legal in whisper and customer queue flows. */
 export class EndFlowExecution extends Block {
   readonly type = ActionType.EndFlowExecution;
@@ -995,7 +1033,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 22.
+ * set survivable: 56 action types are documented and the builder models 23.
  */
 export interface GenericBlockConfig {
   id: string;
