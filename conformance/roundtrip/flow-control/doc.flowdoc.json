@@ -63,7 +63,7 @@
           "LoopCount": "$.Attributes.retries"
         },
         "Transitions": {
-          "NextAction": "bye",
+          "NextAction": "wait-for-customer",
           "Errors": [],
           "Conditions": [
             {
@@ -76,11 +76,91 @@
               }
             },
             {
-              "NextAction": "bye",
+              "NextAction": "wait-for-customer",
               "Condition": {
                 "Operator": "Equals",
                 "Operands": [
                   "DoneLooping"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "wait-for-customer",
+        "Type": "Wait",
+        "Parameters": {
+          "Events": [
+            "CustomerReturned",
+            "BotParticipantDisconnected"
+          ],
+          "TimeoutSeconds": 300
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ParticipantNotFound",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "wait-briefly",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "WaitCompleted"
+                ]
+              }
+            },
+            {
+              "NextAction": "greet",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "CustomerReturned"
+                ]
+              }
+            },
+            {
+              "NextAction": "bye",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "BotParticipantDisconnected"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "wait-briefly",
+        "Type": "Wait",
+        "Parameters": {
+          "TimeoutSeconds": "$.Attributes.graceSeconds"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "bye",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "WaitCompleted"
                 ]
               }
             }
@@ -101,7 +181,7 @@
       "y": 20
     },
     "bye": {
-      "x": 800,
+      "x": 1320,
       "y": 20
     },
     "dynamic-loop": {
@@ -110,6 +190,14 @@
     },
     "greet": {
       "x": 20,
+      "y": 20
+    },
+    "wait-briefly": {
+      "x": 1060,
+      "y": 20
+    },
+    "wait-for-customer": {
+      "x": 800,
       "y": 20
     }
   },

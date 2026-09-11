@@ -62,6 +62,7 @@ The two differ, and the console name is what task A01 originally listed.
 | TransferToQueue (Transfer to Callback tab) | `CreateCallbackContact` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html) |
 | Set callback number | `UpdateContactCallbackNumber` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html) |
 | Loop | `Loop` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html) |
+| Wait | `Wait` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -270,6 +271,31 @@ individual action pages linked above.
     block runs", and describes an array-looping mode whose flow-language keys
     the action page does not document.
     https://docs.aws.amazon.com/connect/latest/adminguide/loop.html
+22. `Wait` (recorded 2026-09-11) "Pauses the flow for a specified duration,
+    or until a specified event happens, whichever happens first."
+    `TimeoutSeconds` "can be either statically defined, or a single valid
+    JSONPath identifier. If defined statically, this must be a positive
+    integer value no greater than 604800 (seven days)"; `Events` is "An
+    optional list of all events that can trigger an interrupt. The supported
+    events currently are "CustomerReturned" and "BotParticipantDisconnected".
+    This must be defined statically." Results: "If an event interrupts the
+    wait, the run result is the event that interrupted. If no event
+    interrupts the Wait and the time elapses, the run result is
+    WaitCompleted." "Conditions are supported, but only the "Equals" operator
+    is supported. "WaitCompleted" is always required operand, and every
+    specified event is also required to be present as a condition operand."
+    Errors: `NoMatchingError`, and `ParticipantNotFound` "The supported event
+    currently is "BotParticipantDisconnected"", which the builder wires
+    exactly when that event is waited for. "This is supported in every type
+    of flow, but is supported only by the chat channel." The page does not
+    say whether `TimeoutSeconds` is required; the builder requires it. It
+    says nothing about `NextAction`; the builder mirrors it onto the
+    catch-all, as the console's exported flows do for other actions, to be
+    confirmed against an export. The admin guide's block has more (participant
+    type, Lambda, case and external-tool events, a Continue branch) whose
+    flow-language keys the action page does not document; those round-trip
+    as a GenericBlock.
+    https://docs.aws.amazon.com/connect/latest/adminguide/wait.html
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -310,6 +336,7 @@ CreateCallbackContact    { QueueId? | AgentId?, InitialCallDelaySeconds, Maximum
                            RetryDelaySeconds, ContactFlowId?, CallerId? }
 UpdateContactCallbackNumber { CallbackNumber }     // single JSONPath identifier, never static
 Loop                     { LoopCount }              // 0 to 100, static or a single JSONPath
+Wait                     { TimeoutSeconds, Events?: ("CustomerReturned" | "BotParticipantDisconnected")[] }
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -374,7 +401,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 20 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 21 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is

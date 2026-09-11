@@ -30,6 +30,11 @@ import {
   INVALID_CALLBACK_NUMBER,
   LOOP_CONTINUE,
   LOOP_DONE,
+  PARTICIPANT_NOT_FOUND,
+  WAIT_COMPLETED,
+  WAIT_EVENTS,
+  WAIT_TIMEOUT_MAX,
+  WAIT_TIMEOUT_MIN,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
@@ -58,6 +63,7 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
+  Wait,
 } from "./blocks.js";
 import type {
   ConditionOperator,
@@ -604,6 +610,80 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         count: cast<never>(count),
         onContinue: cont!.NextAction,
         onDone: done!.NextAction,
+      }),
+    };
+  },
+
+  [ActionType.Wait]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (errors.length === 0 || errors.length > 2) return undefined;
+    if (errors[0]!.ErrorType !== NO_MATCHING_ERROR) return undefined;
+    if (errors.length === 2 && errors[1]!.ErrorType !== PARTICIPANT_NOT_FOUND) return undefined;
+    // The class mirrors NextAction onto the catch-all.
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    const [timeout, ...events] = conditions;
+    if (
+      stableJson(timeout!.Condition) !==
+      stableJson({ Operator: "Equals", Operands: [WAIT_COMPLETED] })
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["TimeoutSeconds"], ["Events"])) return undefined;
+    const listed = a.Parameters.Events;
+    const eventNames = events.map((c) => c.Condition.Operands[0]);
+    // Events and their conditions name the same events, in the class's order.
+    const expected: string[] = listed === undefined ? [] : cast<string[]>(listed);
+    if (!Array.isArray(expected) || stableJson(expected) !== stableJson(eventNames)) {
+      return undefined;
+    }
+    const order = WAIT_EVENTS.filter((e) => eventNames.includes(e));
+    if (stableJson(order) !== stableJson(eventNames)) return undefined;
+    for (const c of events) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+    }
+    const bot = eventNames.includes("BotParticipantDisconnected");
+    if (bot !== (errors.length === 2)) return undefined;
+    const seconds = a.Parameters.TimeoutSeconds;
+    let secondsV: V;
+    if (typeof seconds === "number") {
+      if (!Number.isInteger(seconds) || seconds < WAIT_TIMEOUT_MIN || seconds > WAIT_TIMEOUT_MAX) {
+        return undefined;
+      }
+      secondsV = seconds;
+    } else if (typeof seconds === "string" && /^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(seconds)) {
+      ctx.jsonPath = true;
+      secondsV = new Raw(`jsonPath(${quoteString(seconds)})`);
+    } else {
+      return undefined;
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["timeoutSeconds", secondsV],
+      ["onTimeout", timeout!.NextAction],
+    ];
+    const onEvent: Record<string, string> = {};
+    for (const c of events) onEvent[cast<string>(c.Condition.Operands[0])] = c.NextAction;
+    if (events.length > 0) {
+      entries.push([
+        "onEvent",
+        new ObjV(events.map((c) => [cast<string>(c.Condition.Operands[0]), c.NextAction])),
+      ]);
+    }
+    entries.push(["onError", errors[0]!.NextAction]);
+    if (errors.length === 2) entries.push(["onParticipantNotFound", errors[1]!.NextAction]);
+    return {
+      cls: "Wait",
+      entries,
+      block: new Wait({
+        id: a.Identifier,
+        timeoutSeconds: cast<never>(seconds),
+        onTimeout: timeout!.NextAction,
+        ...(events.length > 0 ? { onEvent: cast<never>(onEvent) } : {}),
+        onError: errors[0]!.NextAction,
+        ...(errors.length === 2 ? { onParticipantNotFound: errors[1]!.NextAction } : {}),
       }),
     };
   },

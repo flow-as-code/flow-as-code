@@ -1222,7 +1222,57 @@
     "Wait": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html",
-      "modeled": false
+      "modeled": true,
+      "block": "wait",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "TimeoutSeconds",
+          "attr": "timeout_seconds",
+          "kind": "integer",
+          "required": true,
+          "min": 1,
+          "max": 604800,
+          "dynamic": true
+        },
+        {
+          "key": "Events",
+          "attr": "events",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "enum",
+            "values": [
+              "CustomerReturned",
+              "BotParticipantDisconnected"
+            ]
+          }
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "mirrors:error:NoMatchingError",
+        "conditions": "enum",
+        "conditionOperands": [
+          "WaitCompleted",
+          "CustomerReturned",
+          "BotParticipantDisconnected"
+        ],
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "ParticipantNotFound",
+            "required": false,
+            "builder": true,
+            "when": "Events includes BotParticipantDisconnected"
+          }
+        ]
+      }
     },
     "AssociateContactToCustomerProfile": {
       "category": "interaction",

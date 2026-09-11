@@ -247,6 +247,64 @@ describe("FlowDoc schema rejections: contact routing", () => {
   });
 });
 
+describe("FlowDoc schema rejections: flow control", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/flow-control/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a loop count above 100",
+      mutate("again", (a) => {
+        a.Parameters.LoopCount = 101;
+      }),
+    ],
+    [
+      "a loop count spelled as a string",
+      mutate("again", (a) => {
+        a.Parameters.LoopCount = "2";
+      }),
+    ],
+    [
+      "a wait longer than seven days",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.TimeoutSeconds = 604_801;
+      }),
+    ],
+    [
+      "a wait event the page does not list",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.Events = ["CustomerReturned", "LambdaReturned"];
+      }),
+    ],
+    [
+      "a wait event listed twice",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.Events = ["CustomerReturned", "CustomerReturned"];
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+
+  it("still accepts a JSONPath loop count and wait timeout", () => {
+    const doc = mutate("wait-for-customer", (a) => {
+      a.Parameters.TimeoutSeconds = "$.Attributes.holdSeconds";
+    });
+    expect(validate(doc)).toBe(true);
+  });
+});
+
 // GetParticipantInput's structural rules, from the same reference. The demo
 // flow has no menu, so the dtmf-menu round-trip fixture is the subject.
 describe("FlowDoc schema rejections: GetParticipantInput", () => {

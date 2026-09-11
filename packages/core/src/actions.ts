@@ -34,6 +34,7 @@ export const ActionType = {
   CreateCallbackContact: "CreateCallbackContact",
   UpdateContactCallbackNumber: "UpdateContactCallbackNumber",
   Loop: "Loop",
+  Wait: "Wait",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -92,6 +93,9 @@ export const INPUT_TIME_LIMIT_EXCEEDED = "InputTimeLimitExceeded";
 export const INVALID_CALLBACK_NUMBER = "InvalidCallbackNumber";
 export const CALLBACK_NUMBER_NOT_DIALABLE = "CallbackNumberNotDialable";
 
+/** Wait's second error, raised when no bot participant is on the contact. */
+export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
+
 /**
  * Non-terminal modeled actions whose page lists no catch-all. The builder
  * wires exactly EXTRA_ERRORS for them, and every listed error is one the
@@ -112,7 +116,8 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
 /**
  * Additional error types beyond the catch-all, by action type, in the order
  * the builder emits them. For a type in WITHOUT_CATCH_ALL this is the whole
- * list.
+ * list. A list that names the catch-all itself fixes its position, for a type
+ * whose page or console puts it first.
  */
 export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.TransferContactToQueue]: ["QueueAtCapacity"],
@@ -122,6 +127,11 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.DequeueContactAndTransferToQueue]: ["QueueAtCapacity"],
   // The page's order; there is no catch-all (WITHOUT_CATCH_ALL).
   [ActionType.UpdateContactCallbackNumber]: [INVALID_CALLBACK_NUMBER, CALLBACK_NUMBER_NOT_DIALABLE],
+  // The page's order, catch-all first: "ParticipantNotFound - The supported
+  // event currently is BotParticipantDisconnected", so the builder wires it
+  // only when that event is waited for.
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+  [ActionType.Wait]: [NO_MATCHING_ERROR, PARTICIPANT_NOT_FOUND],
   // NoMatchingCondition "Must be defined only if StoreInput is False", which
   // is the only form the builder emits; the order is the admin page's example.
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
@@ -277,12 +287,16 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html
  * Loop: "This is supported in every type of flow."
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
+ * Wait: "This is supported in every type of flow, but is supported only by
+ * the chat channel."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
   ActionType.UpdateContactAttributes,
   ActionType.InvokeLambdaFunction,
   ActionType.Loop,
+  ActionType.Wait,
 ];
 
 /**
@@ -317,6 +331,18 @@ export const LOOP_COUNT_MIN = 0;
 export const LOOP_COUNT_MAX = 100;
 export const LOOP_CONTINUE = "ContinueLooping";
 export const LOOP_DONE = "DoneLooping";
+
+/**
+ * Wait.TimeoutSeconds "must be a positive integer value no greater than
+ * 604800 (seven days)" when static; the run results a Wait can branch on,
+ * "WaitCompleted" always and each event in Events; and the events themselves.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+ */
+export const WAIT_TIMEOUT_MIN = 1;
+export const WAIT_TIMEOUT_MAX = 604_800;
+export const WAIT_COMPLETED = "WaitCompleted";
+export const WAIT_EVENTS = ["CustomerReturned", "BotParticipantDisconnected"] as const;
+export type WaitEvent = (typeof WAIT_EVENTS)[number];
 
 /** InvokeLambdaFunction.InvocationTimeLimitSeconds bounds, per the doc page. */
 export const LAMBDA_TIMEOUT_MIN = 1;

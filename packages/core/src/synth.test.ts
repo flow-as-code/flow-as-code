@@ -39,6 +39,7 @@ import {
   TransferContactToAgent,
   UpdateContactCallbackNumber,
   UpdateContactRoutingBehavior,
+  Wait,
 } from "./index.js";
 
 const fixture = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
@@ -421,6 +422,45 @@ describe("guardrails", () => {
         Conditions: [
           { NextAction: "a", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
           { NextAction: "b", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
+        ],
+      },
+    });
+  });
+
+  it("rejects a Wait timeout outside 1 to 604800 seconds and an unpaired ParticipantNotFound", () => {
+    const base = { id: "w", timeoutSeconds: 30, onTimeout: "t", onError: "e" };
+    expect(() => new Wait({ ...base, timeoutSeconds: 0 })).toThrow(/between 1 and 604800/);
+    expect(() => new Wait({ ...base, timeoutSeconds: 604_801 })).toThrow(/between 1 and 604800/);
+    expect(() => new Wait({ ...base, onParticipantNotFound: "p" })).toThrow(/exactly when/);
+    expect(() => new Wait({ ...base, onEvent: { BotParticipantDisconnected: "b" } })).toThrow(
+      /exactly when/,
+    );
+    expect(
+      new Wait({
+        ...base,
+        onEvent: { BotParticipantDisconnected: "b", CustomerReturned: "c" },
+        onParticipantNotFound: "p",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "w",
+      Type: "Wait",
+      Parameters: {
+        TimeoutSeconds: 30,
+        Events: ["CustomerReturned", "BotParticipantDisconnected"],
+      },
+      Transitions: {
+        NextAction: "e",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "ParticipantNotFound", NextAction: "p" },
+        ],
+        Conditions: [
+          { NextAction: "t", Condition: { Operator: "Equals", Operands: ["WaitCompleted"] } },
+          { NextAction: "c", Condition: { Operator: "Equals", Operands: ["CustomerReturned"] } },
+          {
+            NextAction: "b",
+            Condition: { Operator: "Equals", Operands: ["BotParticipantDisconnected"] },
+          },
         ],
       },
     });

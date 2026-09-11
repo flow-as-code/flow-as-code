@@ -17,6 +17,7 @@ export type PaletteCategory = "Interact" | "Set" | "Branch" | "Integrate" | "Ter
 export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategory>> = {
   [ActionType.MessageParticipant]: "Interact",
   [ActionType.GetParticipantInput]: "Interact",
+  [ActionType.Wait]: "Interact",
   [ActionType.UpdateContactTargetQueue]: "Set",
   [ActionType.UpdateContactAttributes]: "Set",
   [ActionType.UpdateContactRecordingBehavior]: "Set",
@@ -59,6 +60,7 @@ export function categoryOf(type: ModeledActionType): PaletteCategory {
 export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.MessageParticipant]: "message",
   [ActionType.GetParticipantInput]: "menu",
+  [ActionType.Wait]: "wait",
   [ActionType.DisconnectParticipant]: "disconnect",
   [ActionType.CheckHoursOfOperation]: "check-hours",
   [ActionType.Compare]: "compare",
@@ -96,6 +98,11 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { Text: "New menu", InputTimeLimitSeconds: "5", StoreInput: "False" };
     case ActionType.Compare:
       return { ComparisonValue: "$.Attributes.value" };
+    case ActionType.Wait:
+      // A minute; the page states no console default. Events are added in
+      // the inspector before their branches are dragged.
+      // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+      return { TimeoutSeconds: 60 };
     case ActionType.Loop:
       // The smallest count that loops at all; the page states no console
       // default. https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html

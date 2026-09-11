@@ -104,7 +104,8 @@ adjustment, the one modeled action with no error branch, a callback number
 set from a JSONPath with its two named errors and no catch-all, and a
 callback contact in its full form, with a queue, a creation flow and a caller
 ID, and in its minimal one), and a flow of the flow-control actions
-(`flow-control`: a Loop whose continue path is a back edge).
+(`flow-control`: a Loop whose continue path is a back edge, and a Wait with
+both events and its conditional ParticipantNotFound branch).
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

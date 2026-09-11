@@ -233,7 +233,7 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       const catchAll = type === ActionType.Compare ? NO_MATCHING_CONDITION : NO_MATCHING_ERROR;
       const extras = EXTRA_ERRORS[type] ?? [];
       const noCatchAll = WITHOUT_CATCH_ALL.includes(type);
-      const emitted = noCatchAll ? extras : [...extras, catchAll];
+      const emitted = noCatchAll || extras.includes(catchAll) ? extras : [...extras, catchAll];
       const wired = t.errors.filter((e) => e.builder).map((e) => e.type);
       if (wired.join(",") !== emitted.join(",")) {
         out.push(
@@ -242,6 +242,8 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       }
       const required = t.errors.filter((e) => e.required).map((e) => e.type);
       const expectedRequired = noCatchAll ? extras : [catchAll];
+      // A conditional error (Wait's ParticipantNotFound) is the builder's but
+      // not required; a required flag on one is caught here as on any extra.
       if (required.join(",") !== expectedRequired.join(",")) {
         out.push(
           `${where}: required errors ${required.join(",")}, expected ${expectedRequired.join(",")}`,
@@ -303,6 +305,8 @@ describe("the action catalog", () => {
     expect(builderErrors("UpdateContactRoutingBehavior")).toEqual([]);
     expect(requiredErrors("Loop")).toEqual([]);
     expect(builderErrors("Loop")).toEqual([]);
+    expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
+    expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);
     // No catch-all: both named errors are required and both are the builder's.
     expect(requiredErrors("UpdateContactCallbackNumber")).toEqual([
       "InvalidCallbackNumber",

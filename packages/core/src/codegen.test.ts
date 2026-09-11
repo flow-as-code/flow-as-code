@@ -941,6 +941,83 @@ describe("Loop inverts the two fixed conditions with NextAction mirroring the do
   });
 });
 
+describe("Wait inverts the timeout, its events, and the conditional ParticipantNotFound", () => {
+  const wait = (events: string[], withBotError: boolean): FlowAction => ({
+    Identifier: "hold",
+    Type: "Wait",
+    Parameters: { TimeoutSeconds: 300, ...(events.length > 0 ? { Events: events } : {}) },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        ...(withBotError ? [{ ErrorType: "ParticipantNotFound", NextAction: "bye" }] : []),
+      ],
+      Conditions: [
+        { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["WaitCompleted"] } },
+        ...events.map((e) => ({
+          NextAction: "hold",
+          Condition: { Operator: "Equals", Operands: [e] },
+        })),
+      ],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new Wait({");
+    expect(out).not.toContain('type: "Wait"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "Wait"');
+    expect(out).not.toContain("new Wait(");
+  };
+
+  it("emits the plain timeout, one event, and both events with the bot error", () => {
+    const plain = typed(wait([], false));
+    expect(plain).toContain("timeoutSeconds: 300");
+    expect(plain).not.toContain("onEvent");
+    expect(plain).not.toContain("onParticipantNotFound");
+    expect(typed(wait(["CustomerReturned"], false))).toContain(
+      'onEvent: { CustomerReturned: "hold" }',
+    );
+    const both = typed(wait(["CustomerReturned", "BotParticipantDisconnected"], true));
+    expect(both).toContain('BotParticipantDisconnected: "hold"');
+    expect(both).toContain('onParticipantNotFound: "bye"');
+    const dynamic = wait([], false);
+    dynamic.Parameters.TimeoutSeconds = "$.Attributes.holdSeconds";
+    expect(typed(dynamic)).toContain('timeoutSeconds: jsonPath("$.Attributes.holdSeconds")');
+  });
+
+  it("falls back when events and conditions disagree, the bot error is unpaired, the order is swapped, or the timeout is out of range", () => {
+    generic(wait(["BotParticipantDisconnected"], false));
+    generic(wait(["CustomerReturned"], true));
+    const listedOnly = wait([], false);
+    listedOnly.Parameters.Events = ["CustomerReturned"];
+    generic(listedOnly);
+    const swapped = wait(["CustomerReturned", "BotParticipantDisconnected"], true);
+    swapped.Parameters.Events = ["BotParticipantDisconnected", "CustomerReturned"];
+    swapped.Transitions.Conditions = [
+      swapped.Transitions.Conditions![0]!,
+      swapped.Transitions.Conditions![2]!,
+      swapped.Transitions.Conditions![1]!,
+    ];
+    generic(swapped);
+    const tooLong = wait([], false);
+    tooLong.Parameters.TimeoutSeconds = 604_801;
+    generic(tooLong);
+    const unmirrored = wait([], false);
+    unmirrored.Transitions.NextAction = "hold";
+    generic(unmirrored);
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

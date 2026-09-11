@@ -576,6 +576,48 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "Wait"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "TimeoutSeconds": {
+                    "oneOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 604800
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  },
+                  "Events": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "CustomerReturned",
+                        "BotParticipantDisconnected"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

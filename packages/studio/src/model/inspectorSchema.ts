@@ -19,6 +19,8 @@ import {
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
   QUEUE_PRIORITY_MIN,
+  WAIT_TIMEOUT_MAX,
+  WAIT_TIMEOUT_MIN,
 } from "@flow-as-code/core";
 import { MESSAGE_BODY_KEYS } from "./mutations.js";
 
@@ -121,6 +123,24 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.Compare:
       return [{ kind: "text", key: "ComparisonValue", label: "Comparison value (JSONPath)" }];
+    case ActionType.Wait:
+      // Events is the list of interrupting events, each of which must also
+      // have a branch (a drag from the primary handle adds the next listed
+      // one). The JSONPath form of the timeout is edited as a GenericBlock.
+      return [
+        {
+          kind: "number",
+          key: "TimeoutSeconds",
+          label: "Timeout (seconds)",
+          min: WAIT_TIMEOUT_MIN,
+          max: WAIT_TIMEOUT_MAX,
+        },
+        {
+          kind: "json",
+          key: "Events",
+          label: "Events (CustomerReturned, BotParticipantDisconnected)",
+        },
+      ];
     case ActionType.Loop:
       // The dynamic (JSONPath) form of the count is not offered here; a Loop
       // carrying one is edited as a GenericBlock.

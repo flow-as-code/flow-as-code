@@ -35,9 +35,14 @@ import {
   LAMBDA_TIMEOUT_MIN,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
+  PARTICIPANT_NOT_FOUND,
   QUEUE_PRIORITY_MIN,
+  WAIT_COMPLETED,
+  WAIT_EVENTS,
+  WAIT_TIMEOUT_MAX,
+  WAIT_TIMEOUT_MIN,
 } from "./actions.js";
-import type { DtmfDigit } from "./actions.js";
+import type { DtmfDigit, WaitEvent } from "./actions.js";
 import type { Condition, ConditionOperator, FlowAction, Transitions } from "./flowdoc.js";
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
@@ -418,6 +423,78 @@ export class Loop extends Block {
         { target: this.config.onDone, operator: "Equals", operands: [LOOP_DONE] },
       ],
     );
+  }
+}
+
+/**
+ * Wait: pause for `timeoutSeconds` (1 to 604800, static or a single JSONPath)
+ * or until one of the events in `onEvent` interrupts, whichever comes first.
+ * Each event named in `onEvent` is written to Events and gets its Equals
+ * condition; `onTimeout` is the WaitCompleted condition the page always
+ * requires. `onParticipantNotFound` is required exactly when
+ * BotParticipantDisconnected is waited for ("The supported event currently is
+ * BotParticipantDisconnected"). Chat only; legal in every flow type. The page
+ * says nothing about NextAction; the class mirrors it onto the catch-all, the
+ * way the console writes exported flows, to be confirmed against an export.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/wait.html
+ */
+export interface WaitConfig {
+  id: string;
+  timeoutSeconds: number | JsonPath;
+  /** The WaitCompleted path. */
+  onTimeout: Target;
+  /** One path per event waited for, in the order the class writes them. */
+  onEvent?: Partial<Record<WaitEvent, Target>>;
+  onError: Target;
+  onParticipantNotFound?: Target;
+}
+
+export class Wait extends Block {
+  readonly type = ActionType.Wait;
+
+  constructor(private readonly config: WaitConfig) {
+    super(config.id);
+    const t = config.timeoutSeconds;
+    if (
+      typeof t === "number" &&
+      (!Number.isInteger(t) || t < WAIT_TIMEOUT_MIN || t > WAIT_TIMEOUT_MAX)
+    ) {
+      throw new Error(
+        `Wait "${config.id}" timeoutSeconds must be an integer between ${WAIT_TIMEOUT_MIN} and ${WAIT_TIMEOUT_MAX}, got ${t}.`,
+      );
+    }
+    const bot = config.onEvent?.BotParticipantDisconnected !== undefined;
+    if (bot !== (config.onParticipantNotFound !== undefined)) {
+      throw new Error(
+        `Wait "${config.id}" takes onParticipantNotFound exactly when it waits for BotParticipantDisconnected.`,
+      );
+    }
+  }
+
+  private events(): WaitEvent[] {
+    return WAIT_EVENTS.filter((e) => this.config.onEvent?.[e] !== undefined);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = { TimeoutSeconds: this.config.timeoutSeconds };
+    const events = this.events();
+    if (events.length > 0) p.Events = events;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    const errors: [string, Target][] = [[NO_MATCHING_ERROR, this.config.onError]];
+    if (this.config.onParticipantNotFound !== undefined) {
+      errors.push([PARTICIPANT_NOT_FOUND, this.config.onParticipantNotFound]);
+    }
+    const conditions: ConditionTransitionInput[] = [
+      { target: this.config.onTimeout, operator: "Equals", operands: [WAIT_COMPLETED] },
+    ];
+    for (const e of this.events()) {
+      conditions.push({ target: this.config.onEvent![e]!, operator: "Equals", operands: [e] });
+    }
+    return wire(this.config.onError, errors, conditions);
   }
 }
 
@@ -850,7 +927,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 20.
+ * set survivable: 56 action types are documented and the builder models 21.
  */
 export interface GenericBlockConfig {
   id: string;
