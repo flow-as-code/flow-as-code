@@ -18,8 +18,27 @@
           }
         },
         "Transitions": {
-          "NextAction": "greet",
+          "NextAction": "untag",
           "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "untag",
+        "Type": "UnTagContact",
+        "Parameters": {
+          "TagKeys": [
+            "tier"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "greet",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
           "Conditions": []
         }
       },
@@ -50,15 +69,19 @@
   },
   "layout": {
     "bye": {
-      "x": 540,
+      "x": 800,
       "y": 20
     },
     "greet": {
-      "x": 280,
+      "x": 540,
       "y": 20
     },
     "tag": {
       "x": 20,
+      "y": 20
+    },
+    "untag": {
+      "x": 280,
       "y": 20
     }
   },

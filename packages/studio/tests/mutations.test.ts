@@ -127,6 +127,7 @@ describe("addBlock", () => {
       "CheckMetricData",
       "GetMetricData",
       "TagContact",
+      "UnTagContact",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

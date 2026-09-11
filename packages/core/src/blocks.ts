@@ -981,6 +981,46 @@ export class TagContact extends Block {
   }
 }
 
+/**
+ * Removes tags from the contact: "You cannot remove system-defined tags. You
+ * can only remove already existing user-defined tags from a contact." Keys
+ * "can only be set statically". The page lists NoMatchingError. The builder
+ * requires at least one key, which is the builder's choice. Legal everywhere.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html
+ */
+export interface UnTagContactConfig extends Wired {
+  tagKeys: string[];
+}
+
+export class UnTagContact extends Block {
+  readonly type = ActionType.UnTagContact;
+
+  constructor(private readonly config: UnTagContactConfig) {
+    super(config.id);
+    if (config.tagKeys.length === 0) {
+      throw new Error(`UnTagContact "${config.id}" needs at least one tag key.`);
+    }
+    for (const k of config.tagKeys) {
+      if (typeof k !== "string" || k === "") {
+        throw new Error(`UnTagContact "${config.id}" tag keys must be non-empty strings.`);
+      }
+      if (k.startsWith(SYSTEM_TAG_PREFIX)) {
+        throw new Error(
+          `UnTagContact "${config.id}" cannot remove "${k}": the ${SYSTEM_TAG_PREFIX} prefix marks a system tag.`,
+        );
+      }
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { TagKeys: this.config.tagKeys };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface UpdateContactAttributesConfig extends Wired {
   attributes: Record<string, string>;
   /** Defaults to Current. */
@@ -1234,7 +1274,7 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 26.
+ * set survivable: 56 action types are documented and the builder models 27.
  */
 export interface GenericBlockConfig {
   id: string;

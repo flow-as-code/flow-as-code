@@ -755,6 +755,33 @@
           "if": {
             "properties": {
               "Type": {
+                "const": "UnTagContact"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "TagKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?!aws:).+"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
                 "const": "MessageParticipant"
               }
             },

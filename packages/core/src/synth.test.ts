@@ -41,6 +41,7 @@ import {
   synth,
   TagContact,
   TransferContactToAgent,
+  UnTagContact,
   UpdateContactCallbackNumber,
   UpdateContactRoutingBehavior,
   UpdateFlowAttributes,
@@ -622,6 +623,15 @@ describe("guardrails", () => {
       Type: "TagContact",
       Parameters: { Tags: { team: "cx" } },
       Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
+  });
+
+  it("rejects an untag with no keys or a system-tag key", () => {
+    const base = { id: "u", next: "n", onError: "e" };
+    expect(() => new UnTagContact({ ...base, tagKeys: [] })).toThrow(/at least one tag key/);
+    expect(() => new UnTagContact({ ...base, tagKeys: ["aws:x"] })).toThrow(/system tag/);
+    expect(new UnTagContact({ ...base, tagKeys: ["tier"] }).toAction().Parameters).toEqual({
+      TagKeys: ["tier"],
     });
   });
 

@@ -340,7 +340,33 @@
     "UnTagContact": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html",
-      "modeled": false
+      "modeled": true,
+      "block": "un_tag_contact",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "TagKeys",
+          "attr": "tag_keys",
+          "kind": "list",
+          "required": true,
+          "of": {
+            "kind": "string"
+          }
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateCase": {
       "category": "contact",

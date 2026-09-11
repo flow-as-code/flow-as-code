@@ -375,6 +375,12 @@ describe("FlowDoc schema rejections: contact data", () => {
         a.Parameters.Tags = { count: 1 };
       }),
     ],
+    [
+      "removing a system tag",
+      mutate("untag", (a) => {
+        a.Parameters.TagKeys = ["aws:connect:instanceId"];
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

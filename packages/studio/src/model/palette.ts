@@ -26,6 +26,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateFlowAttributes]: "Set",
   [ActionType.GetMetricData]: "Set",
   [ActionType.TagContact]: "Set",
+  [ActionType.UnTagContact]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -86,6 +87,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateFlowAttributes]: "set-flow-attributes",
   [ActionType.GetMetricData]: "get-metrics",
   [ActionType.TagContact]: "tag-contact",
+  [ActionType.UnTagContact]: "untag-contact",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -129,6 +131,8 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // Schema-valid but empty; the block class wants at least one tag, so
       // the block is generic until the inspector fills one in.
       return { Tags: {} };
+    case ActionType.UnTagContact:
+      return { TagKeys: [] };
     case ActionType.UpdateContactRecordingBehavior:
       return { RecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } };
     case ActionType.CreateCallbackContact:

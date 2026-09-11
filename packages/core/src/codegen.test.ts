@@ -1317,6 +1317,45 @@ describe("TagContact inverts a string map of up to six user-defined tags", () =>
   });
 });
 
+describe("UnTagContact inverts a list of user-defined tag keys", () => {
+  const untag = (keys: unknown): FlowAction => ({
+    Identifier: "untag",
+    Type: "UnTagContact",
+    Parameters: { TagKeys: keys },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UnTagContact"');
+    expect(out).not.toContain("new UnTagContact(");
+  };
+
+  it("emits the keys as an array", () => {
+    const out = codegen(docWith([untag(["tier", "team"]), bye]));
+    expect(out).toContain("new UnTagContact({");
+    expect(out).toContain('tagKeys: ["tier", "team"]');
+  });
+
+  it("falls back on no keys, a system-tag key, a non-string, or a missing catch-all", () => {
+    generic(untag([]));
+    generic(untag(["aws:connect:instanceId"]));
+    generic(untag([1]));
+    const unwired = untag(["tier"]);
+    unwired.Transitions.Errors = [];
+    generic(unwired);
+  });
+});
+
 describe("@keep comments survive regeneration", () => {
   it("re-attaches @keep comments to the matching block and the export", () => {
     const doc = demoDoc();

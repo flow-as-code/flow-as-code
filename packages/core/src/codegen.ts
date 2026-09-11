@@ -67,6 +67,7 @@ import {
   MessageParticipant,
   TagContact,
   TransferContactToAgent,
+  UnTagContact,
   TransferContactToQueue,
   TransferToFlow,
   UpdateContactAttributes,
@@ -1217,6 +1218,32 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         ["next", t.NextAction],
       ],
       block: new TagContact({ id: a.Identifier, tags, next: t.NextAction }),
+    };
+  },
+
+  [ActionType.UnTagContact]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    if (!paramKeysAre(a.Parameters, ["TagKeys"])) return undefined;
+    const keys = a.Parameters.TagKeys;
+    if (!Array.isArray(keys) || keys.length === 0) return undefined;
+    if (!keys.every((k) => typeof k === "string" && k !== "" && !k.startsWith(SYSTEM_TAG_PREFIX))) {
+      return undefined;
+    }
+    return {
+      cls: "UnTagContact",
+      entries: [
+        ["id", a.Identifier],
+        ["tagKeys", new ArrV([...cast<string[]>(keys)])],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UnTagContact({
+        id: a.Identifier,
+        tagKeys: cast<string[]>(keys),
+        next: w.next,
+        onError: w.onError,
+      }),
     };
   },
 

@@ -158,6 +158,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "InvokeLambdaFunction",
       "Loop",
       "TagContact",
+      "UnTagContact",
       "UpdateContactAttributes",
       "UpdateFlowAttributes",
       "Wait",

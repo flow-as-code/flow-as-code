@@ -40,6 +40,7 @@ export const ActionType = {
   CheckMetricData: "CheckMetricData",
   GetMetricData: "GetMetricData",
   TagContact: "TagContact",
+  UnTagContact: "UnTagContact",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -346,6 +347,8 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html
  * TagContact: "None. This can be used in any type of flow and any channel."
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
+ * UnTagContact: "This action can be used in flows of all types."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html
  */
 export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.Compare,
@@ -356,6 +359,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.UpdateFlowAttributes,
   ActionType.GetMetricData,
   ActionType.TagContact,
+  ActionType.UnTagContact,
 ];
 
 /**

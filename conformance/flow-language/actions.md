@@ -68,6 +68,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Check staffing, Check queue status | `CheckMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html) |
 | Get queue metrics | `GetMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html) |
 | Contact tags | `TagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html) |
+| Contact tags (remove) | `UnTagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html) |
 | Set (attributes) | `UpdateContactAttributes` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html) |
 | StartRecording | `UpdateContactRecordingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html) |
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
@@ -419,6 +420,16 @@ individual action pages linked above.
     say `Tags` is required or non-empty; the builder requires one tag, which
     is the builder's choice.
     https://docs.aws.amazon.com/connect/latest/adminguide/contact-tags-block.html
+28. `UnTagContact` (recorded 2026-09-11) "Removes a collection of tags on the
+    current contact. [...] You cannot remove system-defined tags. You can only
+    remove already existing user-defined tags from a contact." `TagKeys` is
+    "an Object that holds the tag-keys for the tags to be removed", a list of
+    keys, and "Key(s) can only be set statically." Results "None"; the error
+    is `NoMatchingError`. "This action is supported across all the Connect
+    Customer media channels. This action can be used in flows of all types."
+    The page does not say `TagKeys` is required or non-empty; the builder
+    requires one key, which is the builder's choice, and refuses the `aws:`
+    prefix the page reserves for system tags.
 
 ### Flow-type restrictions are a rule category, not a rule
 
@@ -465,6 +476,7 @@ UpdateFlowAttributes     { FlowAttributes: { [k]: FlowAttribute } }   // value s
 CheckMetricData          { MetricType, QueueId? | AgentId? }
 GetMetricData            { QueueId? | AgentId?, QueueChannel?: "Voice" | "Chat" }   // channel static or a single JSONPath
 TagContact               { Tags: { [k]: v } }        // up to six; no aws: keys
+UnTagContact             { TagKeys: string[] }        // static keys; no aws: keys
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
 InvokeLambdaFunction     { LambdaFunctionARN, InvocationTimeLimitSeconds, InvocationType,
@@ -529,7 +541,7 @@ be named where a flat key could not.
 
 56 action types are documented across the four category pages (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 26 of them. Everything
+the 49 recorded on 2026-08-31) and the builder models 27 of them. Everything
 not in the modeled set above parses to a GenericBlock and round-trips
 verbatim. That is what makes a small modeled set survivable. The demo fixture
 deliberately includes one (`UpdateFlowLoggingBehavior`) so passthrough is
