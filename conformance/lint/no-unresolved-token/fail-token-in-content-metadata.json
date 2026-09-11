@@ -6,7 +6,7 @@
     }
   ],
   "doc": {
-    "flowdoc": "0.1",
+    "flowdoc": "0.2",
     "kind": "flow",
     "name": "appointment-line",
     "connectType": "CONTACT_FLOW",

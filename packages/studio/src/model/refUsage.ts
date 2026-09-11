@@ -70,4 +70,5 @@ export const REF_TYPE_ORDER: readonly RefType[] = [
   "prompt",
   "flow",
   "module",
+  "view",
 ];

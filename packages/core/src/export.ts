@@ -209,6 +209,8 @@ export interface DescribedContactFlow {
   state?: string;
   status?: string;
   version?: string;
+  /** The description Connect shows, carried into FlowDoc.description. */
+  description?: string;
   /** The Flow language JSON, as a string. */
   content: string;
   contentSha256?: string;
@@ -578,7 +580,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * both spellings are live output and mean the same thing.
  *
  * FlowDoc requires the key on every action
- * (conformance/schema/flowdoc-0.1.schema.json, `$defs.action.required`), so
+ * (conformance/schema/flowdoc-0.2.schema.json, `$defs.action.required`), so
  * passing the omission through produced a schema-invalid document, and codegen
  * read `Object.keys(a.Parameters)` straight off it and threw
  * "Cannot convert undefined or null to object". Filling in the empty map
@@ -665,6 +667,8 @@ export interface ExportFlowOptions {
   connectType: ConnectType;
   /** Defaults to "module" when connectType is MODULE, "flow" otherwise. */
   kind?: "flow" | "module";
+  /** The flow's description, when the instance has one. */
+  description?: string;
   /** Recorded in meta.generator. Defaults to the package identity. */
   generator?: string;
   /** Merged into meta, after generator. */
@@ -741,6 +745,9 @@ export function exportFlow(
     flowdoc: FLOWDOC_VERSION,
     kind: options.kind ?? (options.connectType === "MODULE" ? "module" : "flow"),
     name: options.name,
+    ...(options.description === undefined || options.description === ""
+      ? {}
+      : { description: options.description }),
     connectType: options.connectType,
     content: flowContent,
     layout,
@@ -891,6 +898,7 @@ export async function exportInstance(
     const doc = exportFlow(described.content, reverseMap, {
       name: entry.name,
       connectType,
+      description: described.description,
       generator: options.generator,
       meta: {
         // Provenance, deliberately without the ARN. An exported FlowDoc is an
@@ -1047,6 +1055,7 @@ export function createConnectInventoryClient(
     state: f.State,
     status: f.Status,
     version: f.Version === undefined ? undefined : String(f.Version),
+    description: f.Description,
     content: f.Content ?? "",
     contentSha256: f.FlowContentSha256 ?? f.FlowModuleContentSha256,
   });

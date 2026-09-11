@@ -47,6 +47,7 @@ const RETURNS: Record<string, string> = {
   lex: "ARN of the Lex bot alias",
   prompt: "ARN of the prompt",
   queue: "ARN of the queue, e.g. queue.attrQueueArn",
+  view: "ARN of the view, with the version the token pins when it pins one",
 };
 
 /** What each reference type names, for the comment on an unused method. */
@@ -57,6 +58,7 @@ const NOUNS: Record<string, string> = {
   lex: "Lex bot alias",
   prompt: "prompt",
   queue: "queue",
+  view: "view",
 };
 
 /**

@@ -78,7 +78,10 @@ function writeExported(flow: ExportedFlow, outDir: string, withCode: boolean): W
     const source = codegen(doc, previous === undefined ? {} : { previous });
     writeFileSync(tsPath, source, "utf8");
     files.push(tsFile);
-    text = serialize({ ...doc, meta: { ...doc.meta, sourceHash: `sha256:${sha256Hex(source)}` } });
+    text = serialize({
+      ...doc,
+      meta: { ...doc.meta, sourceHash: `sha256:${sha256Hex(source)}`, sourceKind: "ts" },
+    });
   } else {
     text = serialize(doc);
   }

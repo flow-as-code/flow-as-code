@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 // FlowDoc: the single interchange format. See docs/01-flowdoc-spec.md and
-// conformance/schema/flowdoc-0.1.schema.json, which is the normative form of
-// these types.
+// conformance/schema/flowdoc-0.2.schema.json, which is the normative form of
+// these types. A 0.1 document is read through migrateFlowDoc (migrate.ts).
 
-export const FLOWDOC_VERSION = "0.1";
+export const FLOWDOC_VERSION = "0.2";
 
 /** The only Flow language version Connect supports. */
 export const FLOW_LANGUAGE_VERSION = "2019-10-30";
@@ -126,7 +126,7 @@ export interface Point {
   y: number;
 }
 
-export type RefType = "queue" | "hours" | "lambda" | "lex" | "prompt" | "flow" | "module";
+export type RefType = "queue" | "hours" | "lambda" | "lex" | "prompt" | "flow" | "module" | "view";
 
 export interface RefEntry {
   token: string;
@@ -135,9 +135,15 @@ export interface RefEntry {
   alias?: string;
 }
 
+/** Which companion file a document was generated from and is hashed against. */
+export type SourceKind = "ts" | "tf";
+
 export interface FlowDocMeta {
   generator?: string;
+  /** `sha256:<hex>` of the companion file named by sourceKind. */
   sourceHash?: string;
+  /** Absent means "ts", the only companion before FlowDoc 0.2. */
+  sourceKind?: SourceKind;
   [key: string]: unknown;
 }
 
@@ -145,6 +151,8 @@ export interface FlowDoc {
   flowdoc: typeof FLOWDOC_VERSION;
   kind: "flow" | "module";
   name: string;
+  /** The flow's description as Connect shows it. Optional; at most 500 characters. */
+  description?: string;
   connectType: ConnectType;
   content: FlowContent;
   layout?: Record<string, Point>;
@@ -198,7 +206,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  *
  * Deliberately shallow: it checks the shape the library dereferences without
  * asking, not the FlowDoc schema. Full validation is
- * conformance/schema/flowdoc-0.1.schema.json, which `flow-cli lint` runs;
+ * conformance/schema/flowdoc-0.2.schema.json, which `flow-cli lint` runs;
  * doing it here would make every entry point pay for an Ajv compile and would
  * reject documents the studio legitimately holds mid-edit.
  *

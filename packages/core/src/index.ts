@@ -10,6 +10,7 @@
 // reporters. Watch (A04) lives in @flow-as-code/cli.
 
 export * from "./flowdoc.js";
+export * from "./migrate.js";
 export * from "./refs.js";
 export * from "./actions.js";
 export * from "./catalog.js";

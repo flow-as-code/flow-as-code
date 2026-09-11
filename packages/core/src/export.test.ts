@@ -457,7 +457,7 @@ describe("exportInstance", () => {
 
   it("exports every flow and module the instance can represent", async () => {
     const client = new FixtureClient("demo-instance");
-    const result = await exportInstance(client, { codegen: true, generator: "core@0.1" });
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
 
     expect(result.flows.map((f) => f.doc.name)).toEqual([
       "appointment-line",
@@ -552,7 +552,7 @@ describe("exportInstance", () => {
     const client = new FixtureClient("omitted-parameters");
     const result = await exportInstance(client, {
       codegen: true,
-      generator: "core@0.1",
+      generator: "core@0.2",
     });
 
     expect(result.failures).toEqual([]);

@@ -271,7 +271,16 @@ function refSource(value: unknown, type: RefType, ctx: Ctx): Raw | undefined {
       ctx.refs = true;
       return new Raw(`Refs.module(${quoteString(entry.name)}, ${quoteString(entry.alias)})`);
     }
-    if (entry.alias !== undefined) return undefined; // only module refs carry aliases
+    if (type === "view") {
+      // The alias slot holds the view version, and a view need not pin one.
+      ctx.refs = true;
+      return new Raw(
+        entry.alias === undefined
+          ? `Refs.view(${quoteString(entry.name)})`
+          : `Refs.view(${quoteString(entry.name)}, ${quoteString(entry.alias)})`,
+      );
+    }
+    if (entry.alias !== undefined) return undefined; // only module and view refs carry aliases
     ctx.refs = true;
     return new Raw(`Refs.${type}(${quoteString(entry.name)})`);
   }
@@ -1024,6 +1033,7 @@ export function factoryName(name: string, taken: ReadonlySet<string> = new Set()
 
 function flowConfigEntries(doc: FlowDoc): [string, V][] {
   const entries: [string, V][] = [["name", doc.name]];
+  if (doc.description !== undefined) entries.push(["description", doc.description]);
   if (doc.kind !== "module") entries.push(["connectType", doc.connectType]);
   // A module's empty Settings is synth's default, so it is not worth emitting;
   // a non-empty one must be, or synth would re-default it and the round trip

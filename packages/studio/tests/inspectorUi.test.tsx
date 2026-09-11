@@ -219,6 +219,6 @@ describe("delete block", () => {
 
 describe("schema helper", () => {
   it("is the same validator the write path uses", () => {
-    expect(schemaErrorsFor({ flowdoc: "0.1" }).length).toBeGreaterThan(0);
+    expect(schemaErrorsFor({ flowdoc: "0.2" }).length).toBeGreaterThan(0);
   });
 });

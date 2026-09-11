@@ -91,7 +91,8 @@
     "lex",
     "prompt",
     "flow",
-    "module"
+    "module",
+    "view"
   ],
   "flowTypeGroups": {
     "INBOUND": [

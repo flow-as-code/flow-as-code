@@ -49,7 +49,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { FlowDoc } from "@flow-as-code/core";
+import type { SourceKind, FlowDoc } from "@flow-as-code/core";
 import { PACKAGE_NAMES, SLUG_PATTERN, serialize } from "@flow-as-code/core";
 
 import { cliVersion } from "./version.js";
@@ -415,8 +415,12 @@ export async function synthFile(sourcePath: string): Promise<SynthFileResult> {
 }
 
 /** Serializes a doc with the meta this CLI stamps. Byte-stable. */
-export function serializeWithMeta(doc: FlowDoc, sourceHash: string): string {
-  return serialize({ ...doc, meta: { generator: generator(), sourceHash } });
+export function serializeWithMeta(
+  doc: FlowDoc,
+  sourceHash: string,
+  sourceKind: SourceKind = "ts",
+): string {
+  return serialize({ ...doc, meta: { generator: generator(), sourceHash, sourceKind } });
 }
 
 /**

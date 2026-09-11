@@ -33,6 +33,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  migrateFlowDoc,
   allRules,
   collectRefs,
   lint,
@@ -72,14 +73,16 @@ const aliasKey = (name: string, alias: string | undefined): string =>
   `${name}@${alias ?? DEFAULT_MODULE_ALIAS}`;
 
 function loadDocs(source: string | FlowDoc[]): FlowDoc[] {
-  if (Array.isArray(source)) return [...source];
+  if (Array.isArray(source)) return source.map((doc) => migrateFlowDoc(doc, "FlowSet"));
   const files = readdirSync(source)
     .filter((f) => f.endsWith(".flowdoc.json"))
     .sort();
   if (files.length === 0) {
     throw new Error(`FlowSet source directory "${source}" contains no *.flowdoc.json files.`);
   }
-  return files.map((f) => JSON.parse(readFileSync(join(source, f), "utf8")) as FlowDoc);
+  return files.map((f) =>
+    migrateFlowDoc(JSON.parse(readFileSync(join(source, f), "utf8")), `FlowSet ${f}`),
+  );
 }
 
 /**

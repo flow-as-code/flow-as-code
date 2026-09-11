@@ -7,7 +7,7 @@
   ],
   "docs": [
     {
-      "flowdoc": "0.1",
+      "flowdoc": "0.2",
       "kind": "flow",
       "name": "entry",
       "connectType": "CONTACT_FLOW",
@@ -60,7 +60,7 @@
       ]
     },
     {
-      "flowdoc": "0.1",
+      "flowdoc": "0.2",
       "kind": "module",
       "name": "m1",
       "connectType": "MODULE",
@@ -113,7 +113,7 @@
       ]
     },
     {
-      "flowdoc": "0.1",
+      "flowdoc": "0.2",
       "kind": "module",
       "name": "m2",
       "connectType": "MODULE",
@@ -166,7 +166,7 @@
       ]
     },
     {
-      "flowdoc": "0.1",
+      "flowdoc": "0.2",
       "kind": "module",
       "name": "m3",
       "connectType": "MODULE",
@@ -219,7 +219,7 @@
       ]
     },
     {
-      "flowdoc": "0.1",
+      "flowdoc": "0.2",
       "kind": "module",
       "name": "m4",
       "connectType": "MODULE",
@@ -272,7 +272,7 @@
       ]
     },
     {
-      "flowdoc": "0.1",
+      "flowdoc": "0.2",
       "kind": "module",
       "name": "m5",
       "connectType": "MODULE",
@@ -325,7 +325,7 @@
       ]
     },
     {
-      "flowdoc": "0.1",
+      "flowdoc": "0.2",
       "kind": "module",
       "name": "m6",
       "connectType": "MODULE",

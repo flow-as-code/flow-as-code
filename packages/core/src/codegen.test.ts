@@ -30,7 +30,7 @@ const demoDoc = (): FlowDoc =>
 /** A minimal hand-rolled FlowDoc for shapes the builder cannot produce. */
 function docWith(actions: FlowDoc["content"]["Actions"]): FlowDoc {
   return {
-    flowdoc: "0.1",
+    flowdoc: "0.2",
     kind: "flow",
     name: "hand-rolled",
     connectType: "CONTACT_FLOW",

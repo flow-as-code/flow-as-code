@@ -5,13 +5,15 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { migrateFlowDoc, serialize } from "./index.js";
 
 // The conformance directory is the cross-language contract (conformance/README.md).
 // These assertions are what a future Go provider must also satisfy.
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
 
-const schema = JSON.parse(read("conformance/schema/flowdoc-0.1.schema.json"));
+const schema = JSON.parse(read("conformance/schema/flowdoc-0.2.schema.json"));
+const schema01 = JSON.parse(read("conformance/schema/flowdoc-0.1.schema.json"));
 const demoRaw = read("conformance/demo/appointment-line.flowdoc.json");
 const demo = JSON.parse(demoRaw);
 
@@ -278,7 +280,11 @@ describe("all conformance fixtures are schema-valid", () => {
           ? [`${dir}${e.name}`]
           : [],
     );
-  const files = collect("conformance/").filter((f) => !f.includes("/schema/"));
+  // conformance/migrate inputs are older versions by design; their own suite
+  // below validates them against the schema they name.
+  const files = collect("conformance/").filter(
+    (f) => !f.includes("/schema/") && !f.includes("/migrate/"),
+  );
 
   it("finds a non-trivial number of fixtures", () => {
     expect(files.length).toBeGreaterThan(15);
@@ -324,5 +330,72 @@ describe("kind and connectType agree", () => {
 
   it("rejects a flow whose connectType is MODULE", () => {
     expect(validator({ ...base, kind: "flow", connectType: "MODULE" })).toBe(false);
+  });
+});
+
+// A version bump ships a migration plus fixtures (docs/01-flowdoc-spec.md,
+// Versioning). conformance/migrate holds an input at each older version and
+// the exact bytes it becomes; a second implementation runs the same files.
+describe("FlowDoc migration", () => {
+  const validate02 = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const validate01 = new Ajv2020({ allErrors: true, strict: false }).compile(schema01);
+  const cases = readdirSync(new URL("conformance/migrate/", root), { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+
+  it("has a case per older version", () => {
+    expect(cases).toEqual(["minimal-0.1", "with-meta-0.1"]);
+  });
+
+  it.each(cases)("%s: the input is valid at its own version and migrates byte for byte", (c) => {
+    const input = JSON.parse(read(`conformance/migrate/${c}/input.flowdoc.json`));
+    expect(validate01(input), JSON.stringify(validate01.errors)).toBe(true);
+    expect(validate02(input)).toBe(false);
+    const migrated = migrateFlowDoc(input);
+    expect(serialize(migrated)).toBe(read(`conformance/migrate/${c}/expected.flowdoc.json`));
+    expect(validate02(migrated), JSON.stringify(validate02.errors)).toBe(true);
+    expect(validate01(migrated)).toBe(false);
+  });
+
+  it("returns a current document unchanged", () => {
+    expect(migrateFlowDoc(demo)).toBe(demo);
+  });
+
+  it("refuses every version it does not read", () => {
+    const { versions } = JSON.parse(read("conformance/migrate/invalid.json")) as {
+      versions: unknown[];
+    };
+    expect(versions.length).toBeGreaterThan(3);
+    for (const version of versions) {
+      expect(() => migrateFlowDoc({ ...demo, flowdoc: version })).toThrow(/is not supported/);
+    }
+  });
+
+  it("0.2 accepts what 0.1 could not say: a view token, a version pin on it, sourceKind, description", () => {
+    const doc = JSON.parse(demoRaw);
+    doc.description = "The demo appointment line.";
+    doc.meta = { ...doc.meta, sourceKind: "tf" };
+    doc.content.Actions.push({
+      Identifier: "show-acw",
+      Type: "ShowView",
+      Parameters: { ViewResource: { Id: "${cdref:view:after-contact-work@1}" } },
+      Transitions: {},
+    });
+    doc.refs.push({
+      token: "${cdref:view:after-contact-work@1}",
+      type: "view",
+      name: "after-contact-work",
+      alias: "1",
+    });
+    expect(validate02(doc), JSON.stringify(validate02.errors)).toBe(true);
+    doc.flowdoc = "0.1";
+    expect(validate01(doc)).toBe(false);
+  });
+
+  it("0.2 still refuses a sourceKind it does not know", () => {
+    const doc = JSON.parse(demoRaw);
+    doc.meta = { ...doc.meta, sourceKind: "yaml" };
+    expect(validate02(doc)).toBe(false);
   });
 });

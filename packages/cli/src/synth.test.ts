@@ -93,6 +93,7 @@ describe("flow-cli synth", () => {
     expect(doc.meta).toEqual({
       generator: generator(),
       sourceHash: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+      sourceKind: "ts",
     });
     // Everything but meta matches the canonical demo byte for byte.
     expect(serialize(stripMeta(doc))).toBe(await demoFixtureBytes());

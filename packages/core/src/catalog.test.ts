@@ -265,6 +265,7 @@ describe("the action catalog", () => {
       "prompt",
       "flow",
       "module",
+      "view",
     ]);
   });
 

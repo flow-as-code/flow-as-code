@@ -29,3 +29,9 @@ Acceptance: every table in actions.ts equals the catalog and the check is proven
 - Landed `conformance/flow-language/catalog.json` (56 types, 14 modeled entries transcribed from actions.md and blocks.ts), `packages/core/src/{catalog,hcl-names,paths}.ts`, `refPathsOf` and `readRefPath` in refs.ts, and the catalog-driven `error-branches`, `prompt-length-3000` and `recording-consent-before-record`. Messages are byte-identical to before; the lint fixtures did not change.
 - `catalog.test.ts` is written as a `catalogProblems()` function so the same checks run against the real catalog (expected empty) and against seven deliberate mutations (expected non-empty). The proof that the guard can fail is therefore a permanent test rather than a one-off in a pull request.
 - `UpdateContactTargetQueue`: the action page marks QueueId and AgentId each optional and forbids both together, so the catalog records `atMostOne`; the builder's requirement of one is the builder's choice, not Connect's.
+
+## Notes (2026-09-11, B01b)
+
+- FlowDoc 0.2 landed as a derived schema (`flowdoc-0.2.schema.json`, 0.1 frozen byte for byte), `migrateFlowDoc` in core, and migration on every read path: `loadDocs` and the bridge's `parseDoc` in the CLI, `parseFlowDoc` in the studio, `FlowSet`'s loader, and `emitTf`'s entry. The CLI and the studio validate against the schema of the version a file names, then migrate, so a 0.1 file keeps the rules it was written to.
+- `view` joins the token grammar with its version in the alias slot; `TokenBinder.view` is optional so existing binders compile. `description` is a document field, not a companion-only argument, so the studio, TypeScript and (later) HCL agree on it; export reads it from `DescribeContactFlow`.
+- 61 JSON fixtures and 8 test files moved to `"0.2"`; `tests/flowdocVersion.test.ts` sweeps the repository so no 0.1 literal can return outside `conformance/migrate/`.

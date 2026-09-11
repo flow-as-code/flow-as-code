@@ -76,6 +76,8 @@ const ident = (slug: string): string => {
  * Lex V2 is the exception: aws_lexv2models_bot exports only `id`
  * (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lexv2models_bot),
  * so the hint is a variable rather than an attribute that does not exist.
+ * Views are the same case: the AWS-managed ones a flow usually shows have no
+ * resource in hashicorp/aws at all, so the hint is a variable too.
  */
 const ADDRESS_SHAPE: Readonly<Record<RefType, (name: string) => string>> = {
   queue: (n) => `aws_connect_queue.${n}.arn`,
@@ -85,6 +87,7 @@ const ADDRESS_SHAPE: Readonly<Record<RefType, (name: string) => string>> = {
   flow: (n) => `aws_connect_contact_flow.${n}.arn`,
   module: (n) => `aws_connect_contact_flow_module.${n}.arn`,
   lex: (n) => `var.${n}_bot_alias_arn`,
+  view: (n) => `var.${n}_view_arn`,
 };
 
 /**

@@ -67,8 +67,10 @@ export const ALLOWED_URLS = new Set([
   "https://json-schema.org/draft/2020-12/vocab/unevaluated",
   "https://json-schema.org/draft/2020-12/vocab/validation",
   "https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#",
-  // $id of the bundled FlowDoc schema itself (conformance/schema).
+  // $id of each bundled FlowDoc schema (conformance/schema): the current one
+  // and every older version the studio still reads.
   "https://flow-as-code.dev/schema/flowdoc-0.1.schema.json",
+  "https://flow-as-code.dev/schema/flowdoc-0.2.schema.json",
   ...catalogCitations(),
   // Citations @flow-as-code/tf WRITES into the HCL it emits, as comments above the
   // resources they document (packages/tf/src/emit.ts). The studio bundles

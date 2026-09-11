@@ -27,6 +27,7 @@ import {
   SLUG_PATTERN,
   collectRefs,
   lookupRefValue,
+  migrateFlowDoc,
   parseToken,
   refKey,
   refVariableName,
@@ -500,7 +501,7 @@ function versionsExample(needsAwscc: boolean): string {
  * and paths come back sorted.
  */
 export function emitTf(docs: readonly FlowDoc[], options: EmitTfOptions = {}): EmitTfResult {
-  const ordered = checkDocs(docs);
+  const ordered = checkDocs(docs.map((doc) => migrateFlowDoc(doc, "emitTf")));
   const problems: string[] = [];
 
   const instanceId = options.instanceIdExpression ?? DEFAULT_INSTANCE_ID_EXPRESSION;

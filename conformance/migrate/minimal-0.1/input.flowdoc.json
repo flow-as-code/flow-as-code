@@ -1,0 +1,25 @@
+{
+  "flowdoc": "0.1",
+  "kind": "flow",
+  "name": "minimal",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "end",
+    "Actions": [
+      {
+        "Identifier": "end",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "end": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

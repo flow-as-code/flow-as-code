@@ -4,7 +4,11 @@ Cross-language and cross-tool contract. The future Go provider vendors this
 directory and must pass identically.
 
 ```
-schema/flowdoc-0.1.schema.json    machine-readable FlowDoc definition
+schema/flowdoc-0.2.schema.json    machine-readable FlowDoc definition (current version)
+schema/flowdoc-0.1.schema.json    the previous version, frozen; migrate inputs validate against it
+migrate/<case>/input.flowdoc.json a document at an older version
+migrate/<case>/expected.flowdoc.json the exact bytes migrateFlowDoc turns it into
+migrate/invalid.json              versions no build reads, which must be refused
 flow-language/actions.md          Connect action types, shapes, and cited doc URLs
 flow-language/catalog.json        the same facts as data; a second implementation generates its schema from it
 demo/appointment-line.flowdoc.json  the canonical demo flow

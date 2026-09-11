@@ -83,6 +83,7 @@ does not exist.
 ## FlowDoc (added 2026-08-30)
 
 - Synthesis emits FlowDoc per docs/01-flowdoc-spec.md (content + layout + refs + meta), not bare Flow JSON. Deterministic ordering and dagre auto-layout for missing positions.
+- Format 0.2 (2026-09-11): the `view` reference type (version in the alias slot, `Refs.view(name, version?)`), `meta.sourceKind` (`ts` or `tf`), and an optional top-level `description` carried by `FlowConfig`, `synth`, codegen and export. `migrateFlowDoc` (`src/migrate.ts`) reads 0.1 and 0.2 and returns 0.2; `conformance/migrate/` holds the cases; every reader in the repository migrates on the way in.
 - GenericBlock: any unmodeled Action round-trips verbatim through builder, studio, and codegen.
 
 ## Codegen (FlowDoc -> TypeScript)

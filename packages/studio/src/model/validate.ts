@@ -10,20 +10,31 @@
 //
 // Two independent checks, both required:
 //   1. the two hard lint rules, via @flow-as-code/core's own hasBlockingFindings, and
-//   2. structural validity against conformance/schema/flowdoc-0.1.schema.json,
+//   2. structural validity against conformance/schema/flowdoc-0.2.schema.json,
 //      the cross-language contract the Go provider validates against too.
+//
+// A file read from disk is validated against the schema of the version its
+// `flowdoc` field names and then migrated, so the canvas only ever holds the
+// current version while a 0.1 file written before FlowDoc 0.2 still opens.
 // A mutation bug can produce a schema-invalid doc that lints clean (a
 // MessageParticipant with no body, say), so the schema check is not optional.
 
-import type { FlowDoc } from "@flow-as-code/core";
+import type { FlowDoc, SupportedFlowDocVersion } from "@flow-as-code/core";
+import {
+  FLOWDOC_VERSION,
+  SUPPORTED_FLOWDOC_VERSIONS,
+  isSupportedFlowDocVersion,
+  migrateFlowDoc,
+} from "@flow-as-code/core";
 import type { Finding } from "@flow-as-code/core/lint";
 import { allRules, hasBlockingFindings, lint } from "@flow-as-code/core/lint";
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
-// Imported, not fetched: the schema is bundled at build time so the studio
+// Imported, not fetched: the schemas are bundled at build time so the studio
 // validates with no network access (docs/02-studio-design.md, local-first).
-import schema from "../../../../conformance/schema/flowdoc-0.1.schema.json" with { type: "json" };
+import schema01 from "../../../../conformance/schema/flowdoc-0.1.schema.json" with { type: "json" };
+import schema from "../../../../conformance/schema/flowdoc-0.2.schema.json" with { type: "json" };
 
-export const FLOWDOC_VERSION = "0.1";
+export { FLOWDOC_VERSION };
 
 /**
  * The rules that block a save (no-literal-arn, no-unresolved-token today).
@@ -37,7 +48,11 @@ export const HARD_RULES: readonly string[] = allRules
 const HARD_RULE_IDS = new Set(HARD_RULES);
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
-const validateSchema: ValidateFunction = ajv.compile(schema as object);
+const validators: Readonly<Record<SupportedFlowDocVersion, ValidateFunction>> = {
+  "0.1": ajv.compile(schema01 as object),
+  "0.2": ajv.compile(schema as object),
+};
+const validateSchema: ValidateFunction = validators[FLOWDOC_VERSION];
 
 function describe(error: ErrorObject): string {
   const where = error.instancePath === "" ? "(root)" : error.instancePath;
@@ -93,9 +108,10 @@ export function assertSaveable(doc: FlowDoc): void {
 }
 
 /**
- * Parses text read from disk into a FlowDoc, refusing anything that is not a
- * schema-valid FlowDoc 0.1. Used by every read path (opened file, directory
- * store) so a malformed document can never reach the canvas.
+ * Parses text read from disk into a FlowDoc at the current version, refusing
+ * anything that is not a schema-valid FlowDoc at a version this build reads.
+ * Used by every read path (opened file, directory store) so a malformed
+ * document can never reach the canvas.
  */
 export function parseFlowDoc(text: string): FlowDoc {
   let parsed: unknown;
@@ -106,13 +122,16 @@ export function parseFlowDoc(text: string): FlowDoc {
       cause: err,
     });
   }
-  const doc = parsed as FlowDoc;
-  if (doc === null || typeof doc !== "object" || doc.flowdoc !== FLOWDOC_VERSION) {
-    throw new Error(`Not a FlowDoc ${FLOWDOC_VERSION} file.`);
+  const version = (parsed as { flowdoc?: unknown } | null)?.flowdoc;
+  if (parsed === null || typeof parsed !== "object" || !isSupportedFlowDocVersion(version)) {
+    throw new Error(
+      `Not a FlowDoc file (this build reads ${SUPPORTED_FLOWDOC_VERSIONS.join(" and ")}).`,
+    );
   }
-  if (!validateSchema(doc)) {
-    const errors = (validateSchema.errors ?? []).map(describe).slice(0, 5).join("; ");
-    throw new Error(`Not a valid FlowDoc ${FLOWDOC_VERSION}: ${errors}`);
+  const validate = validators[version];
+  if (!validate(parsed)) {
+    const errors = (validate.errors ?? []).map(describe).slice(0, 5).join("; ");
+    throw new Error(`Not a valid FlowDoc ${version}: ${errors}`);
   }
-  return doc;
+  return migrateFlowDoc(parsed, "parseFlowDoc");
 }

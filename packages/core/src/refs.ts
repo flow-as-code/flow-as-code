@@ -25,7 +25,7 @@ export type JsonPath = string & { readonly __jsonPath: true };
 export type RefValue<T extends RefType> = Ref<T> | JsonPath;
 
 export const TOKEN_PATTERN =
-  /^\$\{cdref:(queue|hours|lambda|lex|prompt|flow|module):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?\}$/;
+  /^\$\{cdref:(queue|hours|lambda|lex|prompt|flow|module|view):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?\}$/;
 
 /** Matches tokens anywhere in a string, for building the refs index. */
 const TOKEN_SCAN = /\$\{cdref:[a-z]+:[^}]+\}/g;
@@ -63,6 +63,13 @@ export const Refs = {
   flow: (name: string): Ref<"flow"> => token("flow", name),
   /** Module references carry an alias so a flow can pin which version it invokes. */
   module: (name: string, alias: string): Ref<"module"> => token("module", name, alias),
+  /**
+   * A view, optionally pinned to a version. The console writes the version
+   * into the ARN (`arn:aws:connect:<region>:aws:view/after-contact-work:1`),
+   * so the token carries it in the alias slot: `${cdref:view:after-contact-work@1}`.
+   * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
+   */
+  view: (name: string, version?: string): Ref<"view"> => token("view", name, version),
 } as const;
 
 /** Wraps a JSONPath expression for use in a reference-bearing parameter. */

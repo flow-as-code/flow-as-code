@@ -15,5 +15,5 @@ that trips a second rule incidentally still tests only its own.
 a set gets one.
 
 Every pass fixture is also validated against
-`conformance/schema/flowdoc-0.1.schema.json`, so a fixture cannot pass lint by
+`conformance/schema/flowdoc-0.2.schema.json`, so a fixture cannot pass lint by
 being malformed in a way the schema would have caught.

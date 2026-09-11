@@ -24,7 +24,7 @@ import { existsSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { codegen, type FlowDoc } from "@flow-as-code/core";
+import { codegen, migrateFlowDoc, type FlowDoc } from "@flow-as-code/core";
 
 import { flowDocProblems } from "../docs.js";
 import { serializeWithMeta, sha256Hex, synthFile } from "../synth.js";
@@ -117,7 +117,7 @@ export function parseDoc(text: string, what: string): FlowDoc {
   if (problems.length > 0) {
     throw new BridgeError(422, `${what} is not a valid FlowDoc: ${problems.join("; ")}`);
   }
-  return parsed as FlowDoc;
+  return migrateFlowDoc(parsed, what);
 }
 
 /** The document on disk, exactly as the file holds it. */

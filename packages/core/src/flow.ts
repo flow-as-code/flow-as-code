@@ -12,6 +12,8 @@ import type { Point } from "./flowdoc.js";
 
 export interface FlowConfig {
   name: string;
+  /** The flow's description as Connect shows it. Optional; at most 500 characters. */
+  description?: string;
   connectType?: ConnectType;
   /** Defaults to the first block added. */
   start?: string | Block;
@@ -21,6 +23,7 @@ export interface FlowConfig {
 
 export class Flow {
   readonly name: string;
+  readonly description?: string;
   readonly connectType: ConnectType;
   readonly kind: "flow" | "module" = "flow";
   readonly layout: Record<string, Point>;
@@ -37,6 +40,7 @@ export class Flow {
       );
     }
     this.name = config.name;
+    if (config.description !== undefined) this.description = config.description;
     this.connectType = config.connectType ?? "CONTACT_FLOW";
     this.layout = config.layout ?? {};
     if (config.start !== undefined) this.explicitStart = targetId(config.start);
