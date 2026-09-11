@@ -2,7 +2,8 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-import { ActionType } from "../../actions.js";
+import { announcePaths, recordingEnablerPath } from "../../catalog.js";
+import { readPath } from "../../paths.js";
 import { actionsById, transitionTargets } from "../graph.js";
 import type { FlowAction, FlowDoc } from "../../flowdoc.js";
 import type { Rule } from "../types.js";
@@ -13,18 +14,20 @@ import type { Rule } from "../types.js";
  * reaching an action which enables recording passes through an action that
  * plays the participant something first. What that message says is the
  * operator's business; that one exists is checkable here.
+ *
+ * Which actions enable recording, and which play something, comes from the
+ * catalog (conformance/flow-language/catalog.json): recordingEnabler names
+ * the list whose non-empty value turns recording on ("An empty list disables
+ * recording", per the action's documentation), and announces names the
+ * fields whose non-blank string the participant hears.
  */
 function enablesRecording(action: FlowAction): boolean {
-  if (action.Type !== ActionType.UpdateContactRecordingBehavior) return false;
-  const behavior = action.Parameters.RecordingBehavior;
-  if (behavior === null || typeof behavior !== "object") return false;
-  const participants = (behavior as { RecordedParticipants?: unknown }).RecordedParticipants;
-  // An empty list disables recording, per the action's documentation.
-  return Array.isArray(participants) && participants.length > 0;
+  const path = recordingEnablerPath(action.Type);
+  if (path === undefined) return false;
+  return readPath(action.Parameters, path).some(
+    (hit) => Array.isArray(hit.value) && hit.value.length > 0,
+  );
 }
-
-/** The parameters that play something on the two announcing actions. */
-const BODY_FIELDS = ["Text", "SSML", "PromptId"] as const;
 
 /**
  * MessageParticipant carries exactly one of Text, SSML, or PromptId.
@@ -39,16 +42,11 @@ const BODY_FIELDS = ["Text", "SSML", "PromptId"] as const;
  * nothing on either action.
  */
 function announces(action: FlowAction): boolean {
-  if (
-    action.Type !== ActionType.MessageParticipant &&
-    action.Type !== ActionType.GetParticipantInput
-  ) {
-    return false;
-  }
-  return BODY_FIELDS.some((k) => {
-    const body = action.Parameters[k];
-    return typeof body === "string" && body.trim() !== "";
-  });
+  return announcePaths(action.Type).some((path) =>
+    readPath(action.Parameters, path).some(
+      (hit) => typeof hit.value === "string" && hit.value.trim() !== "",
+    ),
+  );
 }
 
 /** Ids from which `targetId` is reachable without passing an announcement. */
