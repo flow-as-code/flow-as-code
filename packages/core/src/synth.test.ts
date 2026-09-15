@@ -44,7 +44,7 @@ import {
   synth,
   TagContact,
   TransferContactToAgent,
-  UnTagContact,
+  UntagContact,
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
@@ -205,7 +205,7 @@ describe("error branch wiring", () => {
     ).toThrow(/must be Enabled or Disabled/);
   });
 
-  it("writes recording and analytics behavior in the page's shapes and refuses an empty block", () => {
+  it("writes recording and analytics behavior in the page's shapes and takes one form per block", () => {
     expect(
       () =>
         new UpdateContactRecordingAndAnalyticsBehavior({
@@ -214,11 +214,21 @@ describe("error branch wiring", () => {
           onError: "e",
           onChannelMismatch: "m",
         }),
-    ).toThrow(/needs voice recording, screen recording, or both/);
+    ).toThrow(/exactly one of voice recording and screen recording/);
+    expect(
+      () =>
+        new UpdateContactRecordingAndAnalyticsBehavior({
+          id: "r",
+          voice: { recordedParticipants: ["Agent"] },
+          screenRecordedParticipants: ["Agent"],
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "m",
+        }),
+    ).toThrow(/exactly one of voice recording and screen recording/);
     const block = new UpdateContactRecordingAndAnalyticsBehavior({
       id: "r",
       voice: { recordedParticipants: ["Agent", "Customer"], ivrRecordingBehavior: "Disabled" },
-      screenRecordedParticipants: ["Agent"],
       next: "n",
       onError: "e",
       onChannelMismatch: "m",
@@ -236,7 +246,6 @@ describe("error branch wiring", () => {
             IVRRecordingBehavior: "Disabled",
           },
         },
-        ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] },
       },
       Transitions: {
         NextAction: "n",
@@ -703,31 +712,36 @@ describe("guardrails", () => {
   });
 
   it("rejects a tag set that is empty, over six, or uses the system prefix", () => {
-    expect(() => new TagContact({ id: "t", tags: {}, next: "n" })).toThrow(/between 1 and 6/);
+    const base = { id: "t", next: "n", onError: "e" };
+    expect(() => new TagContact({ ...base, tags: {} })).toThrow(/between 1 and 6/);
     expect(
       () =>
         new TagContact({
-          id: "t",
+          ...base,
           tags: Object.fromEntries("abcdefg".split("").map((k) => [k, k])),
-          next: "n",
         }),
     ).toThrow(/between 1 and 6/);
-    expect(() => new TagContact({ id: "t", tags: { "aws:x": "y" }, next: "n" })).toThrow(
+    expect(() => new TagContact({ ...base, tags: { "aws:x": "y" } })).toThrow(
       /reserved for system tags/,
     );
-    expect(new TagContact({ id: "t", tags: { team: "cx" }, next: "n" }).toAction()).toEqual({
+    // The catch-all the service requires, although the page lists none.
+    expect(new TagContact({ ...base, tags: { team: "cx" } }).toAction()).toEqual({
       Identifier: "t",
       Type: "TagContact",
       Parameters: { Tags: { team: "cx" } },
-      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
     });
   });
 
   it("rejects an untag with no keys or a system-tag key", () => {
     const base = { id: "u", next: "n", onError: "e" };
-    expect(() => new UnTagContact({ ...base, tagKeys: [] })).toThrow(/at least one tag key/);
-    expect(() => new UnTagContact({ ...base, tagKeys: ["aws:x"] })).toThrow(/system tag/);
-    expect(new UnTagContact({ ...base, tagKeys: ["tier"] }).toAction().Parameters).toEqual({
+    expect(() => new UntagContact({ ...base, tagKeys: [] })).toThrow(/at least one tag key/);
+    expect(() => new UntagContact({ ...base, tagKeys: ["aws:x"] })).toThrow(/system tag/);
+    expect(new UntagContact({ ...base, tagKeys: ["tier"] }).toAction().Parameters).toEqual({
       TagKeys: ["tier"],
     });
   });
@@ -740,11 +754,16 @@ describe("guardrails", () => {
       new UpdateContactTextToSpeechVoice({
         id: "v",
         voice: "Joanna",
-        engine: "neural",
+        engine: "Neural",
         next: "n",
         onError: "e",
       }).toAction().Parameters,
-    ).toEqual({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "neural" });
+    ).toEqual({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "Neural" });
+    // The catch-all is optional: the console omits it on many Set voice blocks.
+    expect(
+      new UpdateContactTextToSpeechVoice({ id: "v", voice: "Joanna", next: "n" }).toAction()
+        .Transitions,
+    ).toEqual({ NextAction: "n", Errors: [], Conditions: [] });
   });
 
   it("rejects Voice ID settings outside the page's bounds and writes the rest as strings", () => {
@@ -766,8 +785,12 @@ describe("guardrails", () => {
       IsVoiceAuthenticationEnabled: "TRUE",
       VoiceAuthenticationThreshold: "80",
       References: { CaseId: "$.Attributes.caseId" },
-      TargetContact: "Current",
     });
+    // The target is written only when configured; the service does not
+    // require it, whatever the page marks.
+    expect(
+      new UpdateContactData({ ...base, targetContact: "Current" }).toAction().Parameters,
+    ).toEqual({ TargetContact: "Current" });
   });
 
   it("writes one event hook as a single-entry map and rejects an unknown hook", () => {
@@ -868,18 +891,24 @@ describe("guardrails", () => {
     });
   });
 
-  it("pairs a view's time limit with its branch and writes the version in the token", () => {
+  it("writes a view with its required time limit, the admin guide's error order, and a mirrored next", () => {
     const base = {
       id: "v",
       view: Refs.view("form", "1"),
       actions: [{ action: "Next", target: "n" }],
-      next: "x",
       onNoMatch: "m",
+      onTimeout: "t",
       onError: "e",
     };
-    expect(() => new ShowView({ ...base, timeoutSeconds: 300 })).toThrow(/exactly when/);
-    expect(() => new ShowView({ ...base, onTimeout: "t" })).toThrow(/exactly when/);
-    expect(new ShowView({ ...base, timeoutSeconds: 300, onTimeout: "t" }).toAction()).toEqual({
+    expect(() => new ShowView({ ...base, timeoutSeconds: 0 })).toThrow(/positive integer/);
+    expect(() => new ShowView({ ...base, timeoutSeconds: cast<never>(undefined) })).toThrow(
+      /positive integer/,
+    );
+    const action = new ShowView({ ...base, timeoutSeconds: 300 }).toAction();
+    expect(action.Transitions.Errors!.map((x) => x.ErrorType)).toEqual([
+      ...EXTRA_ERRORS[ActionType.ShowView]!,
+    ]);
+    expect(action).toEqual({
       Identifier: "v",
       Type: "ShowView",
       Parameters: {
@@ -887,10 +916,10 @@ describe("guardrails", () => {
         InvocationTimeLimitSeconds: "300",
       },
       Transitions: {
-        NextAction: "x",
+        NextAction: "e",
         Errors: [
-          { ErrorType: "NoMatchingError", NextAction: "e" },
           { ErrorType: "NoMatchingCondition", NextAction: "m" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
           { ErrorType: "TimeLimitExceeded", NextAction: "t" },
         ],
         Conditions: [{ NextAction: "n", Condition: { Operator: "Equals", Operands: ["Next"] } }],

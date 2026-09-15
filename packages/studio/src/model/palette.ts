@@ -31,7 +31,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateFlowAttributes]: "Set",
   [ActionType.GetMetricData]: "Set",
   [ActionType.TagContact]: "Set",
-  [ActionType.UnTagContact]: "Set",
+  [ActionType.UntagContact]: "Set",
   [ActionType.UpdateContactTextToSpeechVoice]: "Set",
   [ActionType.UpdateContactData]: "Set",
   [ActionType.UpdateContactEventHooks]: "Set",
@@ -100,7 +100,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateFlowAttributes]: "set-flow-attributes",
   [ActionType.GetMetricData]: "get-metrics",
   [ActionType.TagContact]: "tag-contact",
-  [ActionType.UnTagContact]: "untag-contact",
+  [ActionType.UntagContact]: "untag-contact",
   [ActionType.UpdateContactTextToSpeechVoice]: "set-voice",
   [ActionType.UpdateContactData]: "set-contact-data",
   [ActionType.UpdateContactEventHooks]: "set-event-hook",
@@ -162,7 +162,7 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // Schema-valid but empty; the block class wants at least one tag, so
       // the block is generic until the inspector fills one in.
       return { Tags: {} };
-    case ActionType.UnTagContact:
+    case ActionType.UntagContact:
       return { TagKeys: [] };
     case ActionType.UpdateContactTextToSpeechVoice:
       // "This defaults to Joanna if this action is never run."
@@ -170,6 +170,12 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { TextToSpeechVoice: "Joanna" };
     case ActionType.UpdateContactRecordingBehavior:
       return { RecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } };
+    case ActionType.ShowView:
+      // Both keys are required on the wire (the service refuses the block
+      // without a time limit); the view is a JSONPath placeholder until the
+      // inspector's picker names one. The page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
+      return { ViewResource: { Id: "$.Attributes.view" }, InvocationTimeLimitSeconds: "300" };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html

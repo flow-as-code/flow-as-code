@@ -351,21 +351,31 @@ export interface ViewActionBranch {
  * separate ViewResource.Version string; `data` is passed to the view
  * verbatim; `hideResponseOn` lists where the response is hidden (the page
  * shows TRANSCRIPT). `actions` branch on "The result that the user selects
- * when interacting with the View", one Equals each; `onTimeout` goes with
- * `timeoutSeconds` (InvocationTimeLimitSeconds, a decimal string on the
- * wire). Chat only; inbound and customer queue flows.
+ * when interacting with the View", one Equals each. `timeoutSeconds`
+ * (InvocationTimeLimitSeconds, a decimal string on the wire) and its
+ * `onTimeout` branch are required, as are `onNoMatch` and `onError`: the
+ * page marks none of them, but CreateContactFlow refuses the block without
+ * any of the four ("Action is missing required property" and "Action is
+ * missing required error", checked 2026-09-15). The errors are written in
+ * the order of the admin guide's flow-language JSON (NoMatchingCondition,
+ * NoMatchingError, TimeLimitExceeded; the service accepts either order), and
+ * NextAction is a copy of the catch-all's target, as that JSON writes it and
+ * as the block's branch list, which has no success path, implies. Chat only;
+ * inbound and customer queue flows.
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/show-view-block.html
  */
-export interface ShowViewConfig extends Wired {
+export interface ShowViewConfig {
+  id: string;
   view: Ref<"view"> | JsonPath;
   version?: string;
-  timeoutSeconds?: number;
+  timeoutSeconds: number;
   data?: Record<string, unknown>;
   hideResponseOn?: string[];
   actions: ViewActionBranch[];
   onNoMatch: Target;
-  onTimeout?: Target;
+  onTimeout: Target;
+  onError: Target;
 }
 
 export class ShowView extends Block {
@@ -374,14 +384,9 @@ export class ShowView extends Block {
   constructor(private readonly config: ShowViewConfig) {
     super(config.id);
     const t = config.timeoutSeconds;
-    if (t !== undefined && (!Number.isInteger(t) || t < 1)) {
+    if (!Number.isInteger(t) || t < 1) {
       throw new Error(
-        `ShowView "${config.id}" timeoutSeconds must be a positive integer, got ${t}.`,
-      );
-    }
-    if ((t !== undefined) !== (config.onTimeout !== undefined)) {
-      throw new Error(
-        `ShowView "${config.id}" takes onTimeout exactly when it has timeoutSeconds.`,
+        `ShowView "${config.id}" timeoutSeconds must be a positive integer, got ${String(t)}.`,
       );
     }
     for (const h of config.hideResponseOn ?? []) {
@@ -398,7 +403,7 @@ export class ShowView extends Block {
     const resource: Record<string, unknown> = { Id: c.view };
     if (c.version !== undefined) resource.Version = c.version;
     const p: Record<string, unknown> = { ViewResource: resource };
-    if (c.timeoutSeconds !== undefined) p.InvocationTimeLimitSeconds = String(c.timeoutSeconds);
+    p.InvocationTimeLimitSeconds = String(c.timeoutSeconds);
     if (c.data !== undefined) p.ViewData = c.data;
     if (c.hideResponseOn !== undefined) {
       p.SensitiveDataConfiguration = { HideResponseOn: c.hideResponseOn };
@@ -408,14 +413,15 @@ export class ShowView extends Block {
 
   protected transitions(): Transitions {
     const c = this.config;
-    const errors: [string, Target][] = [
-      [NO_MATCHING_ERROR, c.onError],
-      [NO_MATCHING_CONDITION, c.onNoMatch],
-    ];
-    if (c.onTimeout !== undefined) errors.push([TIME_LIMIT_EXCEEDED, c.onTimeout]);
+    // The admin guide's order, catch-all in the middle, with NextAction a
+    // copy of the catch-all's target.
     return wire(
-      c.next,
-      errors,
+      c.onError,
+      [
+        [NO_MATCHING_CONDITION, c.onNoMatch],
+        [NO_MATCHING_ERROR, c.onError],
+        [TIME_LIMIT_EXCEEDED, c.onTimeout],
+      ],
       c.actions.map((a) => ({ target: a.target, operator: "Equals", operands: [a.action] })),
     );
   }
@@ -1229,16 +1235,18 @@ export class UpdateContactRoutingBehavior extends Block {
  * this type of operation, either all tags are set or none are set." Keys and
  * values are strings, "defined statically or dynamically"; a key may not use
  * the `aws:` prefix reserved for system tags, and a contact carries at most
- * six user-defined tags. The page lists no errors; the admin guide's block
- * has an Error branch with no documented type. The builder requires at least
- * one tag, which is the builder's choice. Legal everywhere.
+ * six user-defined tags (CreateContactFlow refuses a seventh: "More than 6
+ * tags in Parameters.Tags"; it accepts an `aws:` key at create time, so that
+ * rule is the page's, kept here). The page lists no errors, but the service
+ * requires the catch-all ("Action is missing required error. Error:
+ * NoMatchingError", checked 2026-09-15), and the admin guide's block has an
+ * Error branch. The builder requires at least one tag, which is the
+ * builder's choice. Legal everywhere.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/contact-tags-block.html
  */
-export interface TagContactConfig {
-  id: string;
+export interface TagContactConfig extends Wired {
   tags: Record<string, string>;
-  next: Target;
 }
 
 export class TagContact extends Block {
@@ -1269,36 +1277,42 @@ export class TagContact extends Block {
   }
 
   protected transitions(): Transitions {
-    return wire(this.config.next, []);
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
   }
 }
 
 /**
  * Removes tags from the contact: "You cannot remove system-defined tags. You
  * can only remove already existing user-defined tags from a contact." Keys
- * "can only be set statically". The page lists NoMatchingError. The builder
- * requires at least one key, which is the builder's choice. Legal everywhere.
+ * "can only be set statically". The page lists NoMatchingError. The action
+ * type is spelled `UntagContact` on the wire: the page's title and body spell
+ * it `UnTagContact`, which CreateContactFlow refuses ("Invalid Action type.
+ * Type: UnTagContact", checked 2026-09-15) while accepting `UntagContact`,
+ * the spelling of the API operation the admin guide names. The builder
+ * requires at least one key (the service refuses an empty list). Legal
+ * everywhere.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/granular-billing.html
  */
-export interface UnTagContactConfig extends Wired {
+export interface UntagContactConfig extends Wired {
   tagKeys: string[];
 }
 
-export class UnTagContact extends Block {
-  readonly type = ActionType.UnTagContact;
+export class UntagContact extends Block {
+  readonly type = ActionType.UntagContact;
 
-  constructor(private readonly config: UnTagContactConfig) {
+  constructor(private readonly config: UntagContactConfig) {
     super(config.id);
     if (config.tagKeys.length === 0) {
-      throw new Error(`UnTagContact "${config.id}" needs at least one tag key.`);
+      throw new Error(`UntagContact "${config.id}" needs at least one tag key.`);
     }
     for (const k of config.tagKeys) {
       if (typeof k !== "string" || k === "") {
-        throw new Error(`UnTagContact "${config.id}" tag keys must be non-empty strings.`);
+        throw new Error(`UntagContact "${config.id}" tag keys must be non-empty strings.`);
       }
       if (k.startsWith(SYSTEM_TAG_PREFIX)) {
         throw new Error(
-          `UnTagContact "${config.id}" cannot remove "${k}": the ${SYSTEM_TAG_PREFIX} prefix marks a system tag.`,
+          `UntagContact "${config.id}" cannot remove "${k}": the ${SYSTEM_TAG_PREFIX} prefix marks a system tag.`,
         );
       }
     }
@@ -1317,17 +1331,23 @@ export class UnTagContact extends Block {
  * Sets the Amazon Polly voice for text-to-speech on the contact: "This
  * defaults to Joanna if this action is never run." `voice` is "the name of an
  * Amazon Polly voice"; `engine` and `style` are optional, each static or a
- * single JSONPath ("May be defined statically or dynamically"). "Results in
- * error if voice or engine are invalid, or if the selected voice does not
- * support the selected engine." Legal everywhere; on chat the admin guide
- * says the block takes the Success branch with no effect.
+ * single JSONPath ("May be defined statically or dynamically"); the engine is
+ * spelled as the console writes it ("Neural"). "Results in error if voice or
+ * engine are invalid, or if the selected voice does not support the selected
+ * engine." The page marks the catch-all "Must always be defined", but the
+ * service accepts the block without it and published console exports often
+ * omit it, so `onError` is optional. Legal everywhere; on chat the admin
+ * guide says the block takes the Success branch with no effect.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-voice.html
  */
-export interface UpdateContactTextToSpeechVoiceConfig extends Wired {
+export interface UpdateContactTextToSpeechVoiceConfig {
+  id: string;
   voice: string;
   engine?: TtsEngine | JsonPath;
   style?: TtsStyle | JsonPath;
+  next: Target;
+  onError?: Target;
 }
 
 export class UpdateContactTextToSpeechVoice extends Block {
@@ -1348,16 +1368,22 @@ export class UpdateContactTextToSpeechVoice extends Block {
   }
 
   protected transitions(): Transitions {
-    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+    return wire(
+      this.config.next,
+      this.config.onError === undefined ? [] : [[NO_MATCHING_ERROR, this.config.onError]],
+    );
   }
 }
 
 /**
  * Sets Connect-defined fields on the contact: "Sets a collection of connect
  * defined attributes on specified contact. With this type of operation,
- * either all attributes are set or none are set." Every field is optional
- * but the target ("Current" or "Related", written as TargetContact and
- * defaulting to Current). `references` is the References map, keys and
+ * either all attributes are set or none are set." Every field is optional,
+ * the target included: the page marks TargetContact "[Required]", but the
+ * service accepts the block without it (checked 2026-09-15) and a published
+ * console export writes the block with WisdomSessionArn alone, so it is
+ * written only when configured ("Current" or "Related"). `references` is the
+ * References map, keys and
  * values static or dynamic. The Voice ID settings are written as the page
  * spells them: the three flags as "TRUE" or "FALSE", the thresholds and the
  * response time as decimal strings within the page's bounds. Legal
@@ -1447,7 +1473,7 @@ export class UpdateContactData extends Block {
     }
     if (c.watchlistId !== undefined) p.WatchlistId = c.watchlistId;
     if (c.wisdomSessionArn !== undefined) p.WisdomSessionArn = c.wisdomSessionArn;
-    p.TargetContact = c.targetContact ?? "Current";
+    if (c.targetContact !== undefined) p.TargetContact = c.targetContact;
     return p;
   }
 
@@ -1460,11 +1486,13 @@ export class UpdateContactData extends Block {
  * Sets one contact event hook: the flow to run at an event such as customer
  * queue, hold, whisper or the agent UI. "Only one entry may be present in
  * this map", so the block takes one `hook` and its `flow`, a flow reference
- * or a single JSONPath (the admin guide's blocks set it dynamically). The
- * console writes `EventHooks: { <hook>: <flow ARN> }` with NoMatchingError,
- * as its Sample inbound flow and Sample queue configurations flow export.
- * Legal in every flow type.
+ * or a single JSONPath (the admin guide's Set hold flow block shows "the
+ * dropdown list of namespaces that you can use to set the hold flow
+ * dynamically"). The console writes `EventHooks: { <hook>: <flow ARN> }` with
+ * NoMatchingError, as its Sample inbound flow and Sample queue configurations
+ * flow export. Legal in every flow type.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-hold-flow.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-customer-queue-flow.html
  */
 export interface UpdateContactEventHooksConfig extends Wired {
@@ -1608,12 +1636,16 @@ export interface VoiceRecording {
  * be defined per configuration": ChatBehavior or VoiceBehavior) and an
  * optional ScreenRecordingBehavior that "Can be defined independently or
  * alongside any channel behavior". The class writes the voice recording form
- * (`voice`), the screen recording form (`screenRecordedParticipants`, "can
- * only include "Agent"", static), or both; the admin guide asks for one
- * recording type per block, so either alone is the console's shape. The
- * voice analytics settings and the whole chat form parse as a GenericBlock,
- * as the older action's AnalyticsBehavior does. Two errors, both "Must
- * always be defined": the catch-all and ChannelMismatch. The page has no
+ * (`voice`) or the screen recording form (`screenRecordedParticipants`, "can
+ * only include "Agent"", static), never both: whatever the page says,
+ * CreateContactFlow refuses a block carrying two of the three objects, or
+ * none ("Invalid Action property value. Path: Actions[0].Parameters", checked
+ * 2026-09-15), which is also what the admin guide's "two separate ... blocks
+ * in sequence" means. The voice analytics settings and the whole chat form
+ * parse as a GenericBlock, as the older action's AnalyticsBehavior does. Two
+ * errors, both "Must always be defined": the catch-all and ChannelMismatch
+ * (the service refuses the block without ChannelMismatch and accepts the two
+ * in either order). The page has no
  * Restrictions section (the admin guide: "supported for all flow types except
  * journey flows") and says nothing about NextAction; the admin guide's block
  * has a Success branch, written here as the block's own path.
@@ -1631,9 +1663,9 @@ export class UpdateContactRecordingAndAnalyticsBehavior extends Block {
 
   constructor(private readonly config: UpdateContactRecordingAndAnalyticsBehaviorConfig) {
     super(config.id);
-    if (config.voice === undefined && config.screenRecordedParticipants === undefined) {
+    if ((config.voice === undefined) === (config.screenRecordedParticipants === undefined)) {
       throw new Error(
-        `UpdateContactRecordingAndAnalyticsBehavior "${config.id}" needs voice recording, screen recording, or both.`,
+        `UpdateContactRecordingAndAnalyticsBehavior "${config.id}" takes exactly one of voice recording and screen recording.`,
       );
     }
   }

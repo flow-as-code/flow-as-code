@@ -328,25 +328,34 @@ export function Inspector() {
   };
 
   const renderField = (field: FieldDesc) => {
-    const value = action.Parameters[field.key];
+    const stored = action.Parameters[field.key];
+    // A nested field edits one key of an object parameter (ShowView's
+    // ViewResource.Id and ViewResource.Version) and leaves its other keys as
+    // they are; every other field is the parameter itself.
+    const nested = field.kind === "text" || field.kind === "ref" ? field.nested : undefined;
+    const holder =
+      stored !== null && typeof stored === "object" && !Array.isArray(stored)
+        ? (stored as Record<string, unknown>)
+        : undefined;
+    const value = nested === undefined ? stored : holder?.[nested];
+    const fieldKey = nested === undefined ? field.key : `${field.key}.${nested}`;
+    const write = (next: unknown, options?: { clears?: readonly string[] }) => {
+      if (nested === undefined) return setParam(doc, selected, field.key, next, options);
+      const object = { ...(holder ?? {}) };
+      if (next === undefined) delete object[nested];
+      else object[nested] = next;
+      return setParam(doc, selected, field.key, object, options);
+    };
     switch (field.kind) {
       case "text":
         return (
           <TextField
-            key={`${selected}:${field.key}`}
+            key={`${selected}:${fieldKey}`}
             label={field.label}
-            testId={`text-${field.key}`}
+            testId={`text-${fieldKey}`}
             value={typeof value === "string" ? value : ""}
             onCommit={(next) =>
-              mutate(() =>
-                setParam(
-                  doc,
-                  selected,
-                  field.key,
-                  field.optional === true && next === "" ? undefined : next,
-                  field,
-                ),
-              )
+              mutate(() => write(field.optional === true && next === "" ? undefined : next, field))
             }
           />
         );
@@ -469,7 +478,7 @@ export function Inspector() {
         );
       case "ref":
         return (
-          <div key={`${selected}:${field.key}`}>
+          <div key={`${selected}:${fieldKey}`}>
             <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
               {field.label}
             </span>
@@ -482,13 +491,7 @@ export function Inspector() {
               // "(not set)" on the queue picker must not erase an authored
               // agent queue, and the block stays expressible either way, so
               // the guard would not see that loss.
-              onChange={(v) =>
-                mutate(() =>
-                  v === undefined
-                    ? setParam(doc, selected, field.key, undefined)
-                    : setParam(doc, selected, field.key, v, field),
-                )
-              }
+              onChange={(v) => mutate(() => (v === undefined ? write(undefined) : write(v, field)))}
             />
           </div>
         );

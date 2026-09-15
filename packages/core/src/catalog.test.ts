@@ -48,6 +48,7 @@ import {
   builderErrors,
   modeledTypes,
   requiredErrors,
+  requiredErrorsFor,
   type ActionCatalog,
   type CatalogElement,
   type CatalogParameter,
@@ -277,6 +278,16 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
     if (entry.recordingEnabler !== undefined && !isCatalogPath(entry.recordingEnabler)) {
       out.push(`${where}: recordingEnabler ${entry.recordingEnabler} is malformed`);
     }
+    // A conditional requirement names a top-level parameter and is not also
+    // unconditional.
+    const parameterKeys = new Set(entry.parameters.map((p) => p.key));
+    for (const e of entry.transitions.errors) {
+      if (e.requiredWhenKey === undefined) continue;
+      if (!parameterKeys.has(e.requiredWhenKey)) {
+        out.push(`${where}: ${e.type} requiredWhenKey ${e.requiredWhenKey} is not a parameter`);
+      }
+      if (e.required) out.push(`${where}: ${e.type} is both required and requiredWhenKey`);
+    }
 
     // Terminal-ness equals TERMINAL_ACTIONS, and a terminal action wires nothing.
     const terminal = TERMINAL_ACTIONS.includes(type);
@@ -407,9 +418,12 @@ describe("the action catalog", () => {
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(requiredErrors("CheckMetricData")).toEqual(["NoMatchingError"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);
-    expect(requiredErrors("TagContact")).toEqual([]);
-    expect(requiredErrors("UnTagContact")).toEqual(["NoMatchingError"]);
-    expect(requiredErrors("UpdateContactTextToSpeechVoice")).toEqual(["NoMatchingError"]);
+    // The page lists none; the service refuses the block without it.
+    expect(requiredErrors("TagContact")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("UntagContact")).toEqual(["NoMatchingError"]);
+    // The page requires it; the service and the console's exports do not.
+    expect(requiredErrors("UpdateContactTextToSpeechVoice")).toEqual([]);
+    expect(builderErrors("UpdateContactTextToSpeechVoice")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("UpdateContactData")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("UpdateContactEventHooks")).toEqual(["NoMatchingError"]);
     // Listed but optional on the page, and absent from the console's hold flows.
@@ -422,12 +436,25 @@ describe("the action catalog", () => {
       "NoMatchingCondition",
     ]);
     expect(requiredErrors("ConnectParticipantWithLexBot")).toEqual(["NoMatchingError"]);
+    // The admin guide's order; the service requires all three.
     expect(builderErrors("ShowView")).toEqual([
-      "NoMatchingError",
       "NoMatchingCondition",
+      "NoMatchingError",
       "TimeLimitExceeded",
     ]);
-    expect(requiredErrors("ShowView")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("ShowView")).toEqual([
+      "NoMatchingCondition",
+      "NoMatchingError",
+      "TimeLimitExceeded",
+    ]);
+    // Required by the chat form's presence, which the builder never writes.
+    expect(requiredErrorsFor("UpdateContactRecordingAndAnalyticsBehavior", {})).toEqual([
+      "NoMatchingError",
+      "ChannelMismatch",
+    ]);
+    expect(
+      requiredErrorsFor("UpdateContactRecordingAndAnalyticsBehavior", { ChatBehavior: {} }),
+    ).toEqual(["NoMatchingError", "ChannelMismatch", "InFlightRedactionConfigurationFailed"]);
     expect(builderErrors("CheckMetricData")).toEqual(["NoMatchingError", "NoMatchingCondition"]);
     expect(builderErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("Wait")).toEqual(["NoMatchingError", "ParticipantNotFound"]);
@@ -558,6 +585,22 @@ describe("catalogProblems is proven able to fail", () => {
         modeledAt(c, "Wait").transitions.errors[1]!.required = true;
       }),
     ).toContainEqual(expect.stringContaining("Wait: required errors"));
+  });
+  it("on a conditional requirement naming no parameter, or doubled with required", () => {
+    expect(
+      mutate((c) => {
+        modeledAt(
+          c,
+          "UpdateContactRecordingAndAnalyticsBehavior",
+        ).transitions.errors[2]!.requiredWhenKey = "Nope";
+      }),
+    ).toContainEqual(expect.stringContaining("requiredWhenKey Nope is not a parameter"));
+    expect(
+      mutate((c) => {
+        modeledAt(c, "UpdateContactRecordingAndAnalyticsBehavior").transitions.errors[2]!.required =
+          true;
+      }),
+    ).toContainEqual(expect.stringContaining("both required and requiredWhenKey"));
   });
   it("on a catalog bound with no constant behind it", () => {
     expect(

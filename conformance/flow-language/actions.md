@@ -68,7 +68,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Check staffing, Check queue status | `CheckMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html) |
 | Get queue metrics | `GetMetricData` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html) |
 | Contact tags | `TagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html) |
-| Contact tags (remove) | `UnTagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html) |
+| Contact tags (remove) | `UntagContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html) |
 | Set voice | `UpdateContactTextToSpeechVoice` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html) |
 | Set contact attributes (Connect-defined fields) | `UpdateContactData` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html) |
 | Set customer queue flow, Set event flow, Set hold flow, Set whisper flow | `UpdateContactEventHooks` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html) |
@@ -138,9 +138,11 @@ individual action pages linked above.
 6. `Compare` and `DistributeByPercentage` fail with `NoMatchingCondition`,
    not `NoMatchingError` (`CONDITION_CATCH_ALL` in actions.ts).
    `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber` and
-   `TagContact` list no catch-all at all (rules 18, 20 and 27); `Loop` and
-   `MessageParticipantIteratively` list one the console sometimes omits
-   (rules 21 and 32, `OPTIONAL_CATCH_ALL` in actions.ts).
+   `UpdateFlowLoggingBehavior` list no catch-all at all (rules 18, 20 and
+   36; `TagContact`'s page lists none either, but the service requires one,
+   rule 27); `Loop`, `MessageParticipantIteratively` and
+   `UpdateContactTextToSpeechVoice` list one the console sometimes omits
+   (rules 21, 32 and 29, `OPTIONAL_CATCH_ALL` in actions.ts).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
    (`Transitions: {}`).
@@ -458,51 +460,80 @@ individual action pages linked above.
     delay, and "Dynamic attributes can only return metrics for one channel".
     https://docs.aws.amazon.com/connect/latest/adminguide/get-queue-metrics.html
     https://docs.aws.amazon.com/connect/latest/adminguide/connect-attrib-list.html
-27. `TagContact` (recorded 2026-09-11) "Sets a collection of tag to the
-    current contact. With this type of operation, either all tags are set or
-    none are set." `Tags` is "an Object that holds the tags to be set" whose
-    entries are `"Key1":"Value1"`; "Both the key and value may be defined
-    statically or dynamically." "A system tag is prefixed with aws:. You
-    cannot change it." Results and errors "None"; the admin guide's block
-    "has two branches: Success and Error" with no documented error type, so an
-    export carrying one stays a GenericBlock. "None. This can be used in any
-    type of flow and any channel." The admin guide adds "You can create up to
-    6 user-defined tags", which the schema and the builder enforce, and that
-    tags are cost-allocation tags read back as `$.Tags`. The page does not
-    say `Tags` is required or non-empty; the builder requires one tag, which
-    is the builder's choice.
+27. `TagContact` (recorded 2026-09-11, checked live 2026-09-15) "Sets a
+    collection of tag to the current contact. With this type of operation,
+    either all tags are set or none are set." `Tags` is "an Object that holds
+    the tags to be set" whose entries are `"Key1":"Value1"`; "Both the key and
+    value may be defined statically or dynamically." "A system tag is prefixed
+    with aws:. You cannot change it." Results and errors "None" on the page,
+    but CreateContactFlow refuses the block without a catch-all ("Action is
+    missing required error. Error: NoMatchingError"), the admin guide's block
+    "has two branches: Success and Error", and a published console export
+    carries `NoMatchingError`, so the catalog records the ordinary required
+    catch-all: a block without it stays a GenericBlock and error-branches
+    reports it. "None. This can be used in any type of flow and any channel."
+    The admin guide adds "You can create up to 6 user-defined tags", which the
+    schema and the builder enforce and the service does too ("More than 6 tags
+    in Parameters.Tags"); the service accepts an `aws:` key at create time, so
+    that refusal is the page's rule rather than the wire's. The granular
+    billing page says tags "only function as cost allocations tags" and are
+    read back "by using the $.Tags JSONPath Reference". The page does not say
+    `Tags` is required or non-empty; the builder requires one tag, which is
+    the builder's choice.
     https://docs.aws.amazon.com/connect/latest/adminguide/contact-tags-block.html
-28. `UnTagContact` (recorded 2026-09-11) "Removes a collection of tags on the
-    current contact. [...] You cannot remove system-defined tags. You can only
-    remove already existing user-defined tags from a contact." `TagKeys` is
-    "an Object that holds the tag-keys for the tags to be removed", a list of
-    keys, and "Key(s) can only be set statically." Results "None"; the error
-    is `NoMatchingError`. "This action is supported across all the Connect
-    Customer media channels. This action can be used in flows of all types."
-    The page does not say `TagKeys` is required or non-empty; the builder
-    requires one key, which is the builder's choice, and refuses the `aws:`
-    prefix the page reserves for system tags.
-29. `UpdateContactTextToSpeechVoice` (recorded 2026-09-11) "Updates the Amazon
-    Polly voice used by text-to-speech for voice contacts [...]. This defaults
-    to Joanna if this action is never run." `TextToSpeechVoice` is "A string
-    holding the name of an Amazon Polly voice. May be defined statically or
-    dynamically."; `TextToSpeechEngine` "The engine associated with the
-    Amazon Polly voice", whose values standard, neural and generative come
-    from the admin guide; `TextToSpeechStyle` "could be None, Coversational,
-    or Newscaster" (the page's spelling; the admin guide and the catalog
-    spell Conversational). All three "May be defined statically or
-    dynamically", so the two enums are `dynamic`. "Results in error if voice
-    or engine are invalid, or if the selected voice does not support the
-    selected engine"; the error is `NoMatchingError`, "Must always be
-    defined". "None. This action is supported in all flow types, and across
-    all channels." The page marks nothing required; the builder requires the
-    voice. The admin guide's language code has no key on this page.
+    https://docs.aws.amazon.com/connect/latest/adminguide/granular-billing.html
+28. `UntagContact` (recorded 2026-09-11, checked live 2026-09-15): the page's
+    title and body spell the type `UnTagContact`, which the service refuses
+    ("Invalid Action type. Type: UnTagContact"); it accepts `UntagContact`,
+    the spelling of the API operation the granular billing page names ("the
+    TagContact and UntagContact APIs"), so that is the type the catalog, the
+    schema and the builder use, and a document spelling it the page's way
+    fails the schema rather than the deploy. "Removes a collection of tags on
+    the current contact. [...] You cannot remove system-defined tags. You can
+    only remove already existing user-defined tags from a contact." `TagKeys`
+    is "an Object that holds the tag-keys for the tags to be removed", a list
+    of keys, and "Key(s) can only be set statically." Results "None"; the
+    error is `NoMatchingError`. "This action is supported across all the
+    Connect Customer media channels. This action can be used in flows of all
+    types." The page does not say `TagKeys` is non-empty, but the service
+    refuses an empty list ("Invalid Action property value"); the builder and
+    the schema also refuse the `aws:` prefix the TagContact page reserves for
+    system tags (rule 27).
+    https://docs.aws.amazon.com/connect/latest/adminguide/granular-billing.html
+29. `UpdateContactTextToSpeechVoice` (recorded 2026-09-11, checked live
+    2026-09-15) "Updates the Amazon Polly voice used by text-to-speech for
+    voice contacts [...]. This defaults to Joanna if this action is never
+    run." `TextToSpeechVoice` is "A string holding the name of an Amazon Polly
+    voice. May be defined statically or dynamically."; `TextToSpeechEngine`
+    "The engine associated with the Amazon Polly voice", whose values the
+    action page never lists: the admin guide's prose names standard, neural
+    and generative in lower case, and every published console export of the
+    block writes the engine capitalised ("Neural", "Generative"), which is
+    the spelling the catalog, the schema and the builder use. The service
+    validates none of it at create time (it accepted "neural", "Neural" and an
+    invented "Turbo" alike), so the enum is the console's vocabulary, not the
+    wire's. `TextToSpeechStyle` "could be None, Coversational, or Newscaster"
+    (the page's spelling; the admin guide and the catalog spell
+    Conversational). All three "May be defined statically or dynamically", so
+    the two enums are `dynamic`. "Results in error if voice or engine are
+    invalid, or if the selected voice does not support the selected engine";
+    the error is `NoMatchingError`, "Must always be defined" on the page, but
+    the service accepts the block with no error branch and published console
+    exports omit it on many Set voice blocks, so the catch-all is optional
+    (`OPTIONAL_CATCH_ALL`): the builder wires it when asked and error-branches
+    does not report it. "None. This action is supported in all flow types, and
+    across all channels." The page marks nothing required; the builder
+    requires the voice. The admin guide's language code has no key on this
+    page.
     https://docs.aws.amazon.com/connect/latest/adminguide/set-voice.html
-30. `UpdateContactData` (recorded 2026-09-11) "Sets a collection of connect
-    defined attributes on specified contact. With this type of operation,
-    either all attributes are set or none are set." Every field is
-    `[Optional]` except `TargetContact`, "[Required] [...] "Current" or
-    "Related" are the only valid values". `Name` "May be set statically or
+30. `UpdateContactData` (recorded 2026-09-11, checked live 2026-09-15) "Sets
+    a collection of connect defined attributes on specified contact. With this
+    type of operation, either all attributes are set or none are set." Every
+    field is `[Optional]` except `TargetContact`, "[Required] [...] "Current"
+    or "Related" are the only valid values" on the page; the service accepts
+    the block without it, and a published console export writes the block with
+    `WisdomSessionArn` alone, so the catalog records it optional and the
+    builder writes it only when configured. `Name` "May be set statically or
     dynamically"; `Description`, `LanguageCode`, `CustomerId`, `WatchlistId`
     and `WisdomSessionArn` are strings; `References` is "an Object that holds
     the references to be set" whose keys and values "may be defined
@@ -519,26 +550,38 @@ individual action pages linked above.
     `integerString` from "It is a string". A `WisdomSessionArn` written as a
     literal ARN fails the `no-literal-arn` rule like any other; a JSONPath is
     the expected form.
-31. `UpdateContactEventHooks` (recorded 2026-09-11) "Sets one or more contact
-    event hooks, which are flows associated with contact events, such as
-    customer whisper or agent hold. The following event hooks are valid:
-    AgentHold, AgentWhisper, CustomerHold, CustomerQueue, CustomerRemaining,
-    CustomerWhisper, DefaultAgentUI, DisconnectAgentUI, PauseContact,
-    ResumeContact." `EventHooks` is "an Object that holds the event hooks to
-    be set. Only one entry may be present in this map." whose entry is "the
-    event hook to be set where the key is the event type and the value is
-    the flow ID or ARN to run when that event occurs. Keys must be defined
-    statically." The value is the first map-valued reference path,
-    `EventHooks.*`, a `flow`; the admin guide's blocks set it dynamically, so
-    a JSONPath is accepted too. Results "None"; the error is
-    `NoMatchingError`. "This is supported in all types of flows." The
-    console's exports of the Sample inbound flow and the Sample queue
-    configurations flow carry one entry each (`CustomerRemaining`,
-    `CustomerQueue`) with a flow ARN, `NoMatchingError` and a `NextAction`,
-    which is the shape the builder writes. The catalog records the map's
-    entry count as `min` 1, `max` 1 and its allowed keys as `keys`.
+31. `UpdateContactEventHooks` (recorded 2026-09-11, checked live 2026-09-15)
+    "Sets one or more contact event hooks, which are flows associated with
+    contact events, such as customer whisper or agent hold." After a
+    cross-reference sentence, "The following event hooks are valid:" and a
+    list of ten names: AgentHold, AgentWhisper, CustomerHold, CustomerQueue,
+    CustomerRemaining, CustomerWhisper, DefaultAgentUI, DisconnectAgentUI,
+    PauseContact, ResumeContact. `EventHooks` is "an Object that holds the
+    event hooks to be set. Only one entry may be present in this map." whose
+    entry is "the event hook to be set where the key is the event type and
+    the value is the flow ID or ARN to run when that event occurs. Keys must
+    be defined statically." The value is the first map-valued reference path,
+    `EventHooks.*`, a `flow`; the admin guide's Set hold flow block shows "the
+    dropdown list of namespaces that you can use to set the hold flow
+    dynamically", so a JSONPath is accepted too. Results "None"; the error is
+    `NoMatchingError`. "This is supported in all types of flows"; the admin
+    guide narrows per block (Set hold flow lists inbound and customer queue
+    flows among its flow types and routes a chat, task or email contact down
+    its Error branch), and the action page governs. The console's exports of
+    the Sample inbound flow and the Sample queue configurations flow carry one
+    entry each (`CustomerRemaining`, `CustomerQueue`) with a flow ARN,
+    `NoMatchingError` and a `NextAction`, which is the shape the builder
+    writes. The catalog records the map's entry count as `min` 1, `max` 1 and
+    its allowed keys as `keys`: the ceiling is the page's, the floor is the
+    block class's (one hook per block), and neither is the service's, which
+    accepts an empty map and a two-entry map at create time; the schema
+    enforces the ceiling only, so the studio's empty default inserts. A saved
+    console export can carry a second parameter, `EventHooksConfiguration: {
+    <hook>: { DisableExecution: "true" | "false" } }`, which the action page
+    does not document and CreateContactFlow refuses ("Action does not support
+    conditions"); an action carrying it stays a GenericBlock.
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-hold-flow.html
     https://docs.aws.amazon.com/connect/latest/adminguide/set-customer-queue-flow.html
-    https://docs.aws.amazon.com/connect/latest/adminguide/set-event-flow.html
 32. `MessageParticipantIteratively` (recorded 2026-09-11) "Loops a sequence of
     prompts while a customer or agent is on hold or in queue. This block can
     be configured with an interruption timeout when in a Queue flow that
@@ -589,31 +632,41 @@ individual action pages linked above.
     mirrors the no-match branch as the same console block's DTMF form does,
     to be confirmed against a console export, since none of the sample flows
     carries a Lex bot.
-34. `ShowView` (recorded 2026-09-11) "Initiates a UI-based workflow that can be
-    surfaced to users of front end applications. This action can be used to
-    create step-by-step guides for agents". `ViewResource` holds the view's
-    `Id` and optional `Version`; the admin guide's example writes the id as an
-    AWS-managed view ARN with its version (`view/form:1`), which the `view`
-    reference carries in its alias slot (`${cdref:view:form@1}`).
-    `InvocationTimeLimitSeconds` is a bare `400` in the page's parameter block
-    and `"2"` in the admin guide's JSON, so it is recorded as an
-    `integerString`; `ViewData` is "An optional map of data that will be
-    passed to the View Resource. Keys and values may be set statically or
-    dynamically" and stays opaque; `SensitiveDataConfiguration.HideResponseOn`
-    is a list whose only example is TRANSCRIPT. Results: "The result that the
-    user selects when interacting with the View. The available conditions
-    will be dependent on the View resource specified", one Equals each.
-    Errors in the page's order: `NoMatchingError`, `NoMatchingCondition` "if
-    no other Condition matches", `TimeLimitExceeded` "if there is no response
-    before the configured InvocationTimeLimitSeconds", which the builder wires
-    exactly when a time limit is set. "This action is only supported on the
-    chat channel." "This action can be used in inbound flows and customer
-    queue flows"; the same page's UI section says inbound only and the admin
-    guide lists inbound alone; the Restrictions section governs. Neither page
-    says whether `NextAction` is required or mirrors a branch; the builder
-    writes it as its own path, to be confirmed against a console export.
+34. `ShowView` (recorded 2026-09-11, checked live 2026-09-15) "Initiates a
+    UI-based workflow that can be surfaced to users of front end applications.
+    This action can be used to create step-by-step guides for agents".
+    `ViewResource` holds the view's `Id` and optional `Version`; the admin
+    guide's example writes the id as an AWS-managed view ARN with its version
+    (`view/form:1`), which the `view` reference carries in its alias slot
+    (`${cdref:view:form@1}`). `InvocationTimeLimitSeconds` is a bare `400` in
+    the page's parameter block and `"2"` in the admin guide's JSON, so it is
+    recorded as an `integerString`; the page marks it optional, but
+    CreateContactFlow refuses the block without it ("Action is missing
+    required property"), so it is required. `ViewData` is "An optional map of
+    data that will be passed to the View Resource. Keys and values may be set
+    statically or dynamically" and stays opaque;
+    `SensitiveDataConfiguration.HideResponseOn` is a list whose only example
+    is TRANSCRIPT. Results: "The result that the user selects when interacting
+    with the View. The available conditions will be dependent on the View
+    resource specified", one Equals each; the service accepts a block with no
+    condition. Errors: the page lists `NoMatchingError`, `NoMatchingCondition`
+    "if no other Condition matches" and `TimeLimitExceeded` "if there is no
+    response before the configured InvocationTimeLimitSeconds" in that order
+    and marks none required; the service refuses the block without any one of
+    the three, and the admin guide's flow-language JSON writes them
+    `NoMatchingCondition`, `NoMatchingError`, `TimeLimitExceeded`, which the
+    builder follows (the service accepts either order; the page's order
+    round-trips as a GenericBlock). That JSON also writes `NextAction` as a
+    copy of the `NoMatchingError` target, and the block's branch list has no
+    success path, so `next` mirrors the catch-all
+    (`mirrors:error:NoMatchingError`), as a DTMF menu's mirrors its no-match
+    branch; the service does not constrain `NextAction`. "This action is only
+    supported on the chat channel." "This action can be used in inbound flows
+    and customer queue flows"; the same page's UI section says inbound only
+    and the admin guide lists inbound alone; the Restrictions section governs.
     https://docs.aws.amazon.com/connect/latest/adminguide/show-view-block.html
-35. `UpdateContactRecordingAndAnalyticsBehavior` (recorded 2026-09-11) "Sets
+35. `UpdateContactRecordingAndAnalyticsBehavior` (recorded 2026-09-11, checked
+    live 2026-09-15) "Sets
     contact recording behavior, including analysis behavior and which
     participants of the contact to record." Its parameter block holds one
     channel object ("Only ONE of the following channel behavior objects can be
@@ -626,19 +679,26 @@ individual action pages linked above.
     statically" and whose `IVRRecordingBehavior` "Can be either "Enabled" or
     "Disabled". Must be set statically", and
     `ScreenRecordingBehavior.ScreenRecordedParticipants`, which "can only
-    include "Agent"" and is static; either alone or both, since the admin
-    guide asks for "two separate Set recording, analytics, and processing
-    behavior blocks in sequence" to combine screen and channel recording.
+    include "Agent"" and is static; one or the other, never both:
+    CreateContactFlow refuses a block carrying two of the three objects, or
+    none ("Invalid Action property value. Path: Actions[0].Parameters"),
+    whatever "alongside any channel behavior" means, and the admin guide asks
+    for "two separate Set recording, analytics, and processing behavior blocks
+    in sequence" to combine screen and channel recording; the catalog records
+    an `exactlyOne` constraint over the three objects.
     `VoiceAnalyticsBehavior` ("Can only be set if RecordedParticipants
     contains both Agent and Customer", a cross-field rule the catalog cannot
     spell) and the whole `ChatBehavior` object stay generic, as the older
     action's `AnalyticsBehavior` does. Errors in the page's order:
     `NoMatchingError` and `ChannelMismatch` ("if the media channel that
     initiated the contact is not the same as the one defined in the action"),
-    both "Must always be defined"; `InFlightRedactionConfigurationFailed`
-    "Must be defined if chat behavior is defined in action", a condition the
-    catalog records as text and error-branches does not enforce, since the
-    builder never writes the chat form (a lint fixture records that gap). The
+    both "Must always be defined" (the service refuses the block without
+    `ChannelMismatch` and accepts the two in either order);
+    `InFlightRedactionConfigurationFailed` "Must be defined if chat behavior
+    is defined in action", which the service enforces ("Action is missing
+    required error") and the catalog records as `requiredWhenKey:
+    ChatBehavior`, so error-branches reports it missing on a chat-form block
+    although the builder never writes that form. The
     page has no Restrictions section, so the catalog records the action as
     unrestricted; the admin guide says "This block is supported for all flow
     types except journey flows" and only recommends a whisper flow for the
@@ -712,22 +772,22 @@ UpdateFlowAttributes     { FlowAttributes: { [k]: { Value } } }   // the console
 CheckMetricData          { MetricType, QueueId? | AgentId? }
 GetMetricData            { QueueId? | AgentId?, QueueChannel?: "Voice" | "Chat" }   // channel static or a single JSONPath
 TagContact               { Tags: { [k]: v } }        // up to six; no aws: keys
-UnTagContact             { TagKeys: string[] }        // static keys; no aws: keys
-UpdateContactTextToSpeechVoice { TextToSpeechVoice, TextToSpeechEngine?: "standard" | "neural" | "generative",
+UntagContact             { TagKeys: string[] }        // static keys; no aws: keys; the page spells the type UnTagContact
+UpdateContactTextToSpeechVoice { TextToSpeechVoice, TextToSpeechEngine?: "Standard" | "Neural" | "Generative",
                            TextToSpeechStyle?: "None" | "Conversational" | "Newscaster" }   // each static or a JSONPath
 UpdateContactData        { Name?, Description?, LanguageCode?, CustomerId?, References?: { [k]: v },
                            IsVoiceIdStreamingEnabled?: "TRUE" | "FALSE", IsVoiceAuthenticationEnabled?: "TRUE" | "FALSE",
                            IsFraudDetectionEnabled?: "TRUE" | "FALSE", VoiceAuthenticationThreshold?,   // "0" to "100"
                            VoiceAuthenticationResponseTime?,   // "5" to "10"
                            FraudDetectionThreshold?,           // "0" to "100"
-                           WatchlistId?, WisdomSessionArn?, TargetContact: "Current" | "Related" }
+                           WatchlistId?, WisdomSessionArn?, TargetContact?: "Current" | "Related" }
 UpdateContactEventHooks  { EventHooks: { [hook]: flow } }   // exactly one entry; hook is one of the ten names
 MessageParticipantIteratively { Messages: ({ Text } | { SSML } | { PromptId } | { Media: { Uri, SourceType: "S3", MediaType: "Audio" } })[],
                            InterruptFrequencySeconds? }   // "30"; no NextAction; the loop holds the participant
 ConnectParticipantWithLexBot { PromptId? | Text? | SSML?, Media?, LexV2Bot: { AliasArn } | LexBot: { Name, Region, Alias },
                            LexSessionAttributes?: { [k]: v }, LexInitializationData?: { InitialMessage },
                            LexTimeoutSeconds?: { Text } }   // Text is "300"; the builder models the V2 form
-ShowView                 { ViewResource: { Id, Version? }, InvocationTimeLimitSeconds?, ViewData?,
+ShowView                 { ViewResource: { Id, Version? }, InvocationTimeLimitSeconds, ViewData?,
                            SensitiveDataConfiguration?: { HideResponseOn: string[] } }   // "300"; ViewData opaque
 UpdateContactAttributes  { Attributes: { [k]: v }, TargetContact: "Current" | "Related" }
 InvokeFlowModule         { FlowModuleId }
@@ -740,7 +800,7 @@ UpdateContactRecordingBehavior {
                        IVRRecordingBehavior?: "Enabled" | "Disabled" },
   AnalyticsBehavior?: { ... }   // large; see the doc page before modeling it
 }
-UpdateContactRecordingAndAnalyticsBehavior {                       // at least one of the two objects
+UpdateContactRecordingAndAnalyticsBehavior {                       // exactly one of the two objects (or the chat form)
   VoiceBehavior?: { VoiceRecordingBehavior: { RecordedParticipants: ("Agent"|"Customer")[],
                                               IVRRecordingBehavior?: "Enabled" | "Disabled" } },
   ScreenRecordingBehavior?: { ScreenRecordedParticipants: ("Agent")[] }
@@ -775,7 +835,9 @@ another branch), `conditions` (`none`, `fixed` with `conditionOperands`,
 `dtmf`, `enum`, `numeric`, or `custom`), and `errors` in the builder's order,
 each marked `required` (the error-branches rule reports it missing) and
 `builder` (the builder's modeled form wires it; the studio offers exactly those
-when a drag looks for a branch to create). A type whose page lists no errors
+when a drag looks for a branch to create), and optionally `requiredWhenKey`,
+a top-level parameter whose presence makes the branch required, which the
+rule reports on an action that carries the key. A type whose page lists no errors
 has an empty list, and the studio renders no error handle for it. `waits`
 marks an action that holds the participant until something outside the flow
 moves them on, so a flow may end in it with nothing wired; terminal-blocks

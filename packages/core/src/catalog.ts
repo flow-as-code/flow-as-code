@@ -91,6 +91,14 @@ export interface CatalogError {
   builder: boolean;
   /** Free text from the action page, when the error exists only in some forms. */
   when?: string;
+  /**
+   * A top-level Parameters key whose presence makes the branch required
+   * (UpdateContactRecordingAndAnalyticsBehavior's
+   * InFlightRedactionConfigurationFailed with ChatBehavior); error-branches
+   * reports it missing on such an action. `required` stays false: the
+   * branch is not required on every form.
+   */
+  requiredWhenKey?: string;
 }
 
 /** `required`, `none`, `mirrors:error:<type>`, or `mirrors:condition:<operand>`. */
@@ -192,6 +200,21 @@ export function modeledTypes(): string[] {
 export function requiredErrors(type: string): string[] {
   return (modeledEntry(type)?.transitions.errors ?? [])
     .filter((e) => e.required)
+    .map((e) => e.type);
+}
+
+/**
+ * The error branches a document must wire on this action: the always
+ * required ones and those required by a parameter the action carries
+ * (`requiredWhenKey`), in the catalog's order.
+ */
+export function requiredErrorsFor(type: string, parameters: Record<string, unknown>): string[] {
+  return (modeledEntry(type)?.transitions.errors ?? [])
+    .filter(
+      (e) =>
+        e.required ||
+        (e.requiredWhenKey !== undefined && parameters[e.requiredWhenKey] !== undefined),
+    )
     .map((e) => e.type);
 }
 

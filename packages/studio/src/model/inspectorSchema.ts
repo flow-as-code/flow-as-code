@@ -36,6 +36,8 @@ export type FieldDesc =
   | {
       kind: "text";
       key: string;
+      /** When set, the field edits this key inside the object parameter `key` holds. */
+      nested?: string;
       label: string;
       multiline?: boolean;
       clears?: readonly string[];
@@ -66,6 +68,8 @@ export type FieldDesc =
   | {
       kind: "ref";
       key: string;
+      /** When set, the field edits this key inside the object parameter `key` holds. */
+      nested?: string;
       label: string;
       refType: RefType;
       optional?: boolean;
@@ -153,19 +157,26 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         { kind: "json", key: "LexTimeoutSeconds", label: "Timeout ({ Text: seconds })" },
       ];
     case ActionType.ShowView:
-      // ViewResource is { Id: "${cdref:view:name@version}" or a JSONPath,
-      // Version? }. The view's actions are the condition editor, one Equals
-      // branch each; the time limit and its TimeLimitExceeded branch go
-      // together.
+      // ViewResource.Id is the view reference (a token with the version in
+      // its alias slot, or a JSONPath) and ViewResource.Version the separate
+      // version string; each edits one key of the ViewResource object. The
+      // view's actions are the condition editor, one Equals branch each; the
+      // time limit and its TimeLimitExceeded branch are required.
       return [
-        { kind: "json", key: "ViewResource", label: "View ({ Id, Version })" },
+        { kind: "ref", key: "ViewResource", nested: "Id", label: "View", refType: "view" },
+        {
+          kind: "text",
+          key: "ViewResource",
+          nested: "Version",
+          label: "View version",
+          optional: true,
+        },
         {
           kind: "number",
           key: "InvocationTimeLimitSeconds",
           label: "Time limit (seconds)",
           min: 1,
           asString: true,
-          optional: true,
         },
         { kind: "json", key: "ViewData", label: "View data" },
         {
@@ -374,7 +385,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       return [{ kind: "json", key: "FlowAttributes", label: "Flow attributes" }];
     case ActionType.TagContact:
       return [{ kind: "json", key: "Tags", label: "Tags (up to six, no aws: keys)" }];
-    case ActionType.UnTagContact:
+    case ActionType.UntagContact:
       return [{ kind: "json", key: "TagKeys", label: "Tag keys to remove" }];
     case ActionType.UpdateContactData:
       return [
@@ -383,6 +394,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           key: "TargetContact",
           label: "Target contact",
           options: ["Current", "Related"],
+          optional: true,
         },
         { kind: "text", key: "Name", label: "Name (text or JSONPath)", optional: true },
         { kind: "text", key: "Description", label: "Description", optional: true },

@@ -127,7 +127,7 @@ describe("addBlock", () => {
       "CheckMetricData",
       "GetMetricData",
       "TagContact",
-      "UnTagContact",
+      "UntagContact",
       "UpdateContactTextToSpeechVoice",
       "UpdateContactData",
       "UpdateContactEventHooks",

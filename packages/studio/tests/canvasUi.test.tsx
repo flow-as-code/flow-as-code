@@ -15,6 +15,8 @@
 // And refusals are shown. The demotion invariant refuses real gestures, and a
 // canvas that ignores them silently is indistinguishable from a broken one.
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { FlowDoc } from "@flow-as-code/core";
 import { act, useEffect, type ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -230,6 +232,65 @@ describe("an unmodeled block on the canvas", () => {
     await click(present('[data-testid="node-target"]'));
     await click(testId("delete-block"));
     expect(present('[data-testid="node-target"]')).not.toBeNull();
+  });
+});
+
+describe("a view's reference and its version edit one key of ViewResource each", () => {
+  function participantDoc(): FlowDoc {
+    // The studio project runs from its own directory or the repo root.
+    const relative = ["conformance", "roundtrip", "participant", "doc.flowdoc.json"];
+    const candidates = [
+      join(process.cwd(), ...relative),
+      join(process.cwd(), "..", "..", ...relative),
+    ];
+    const file = candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+    return JSON.parse(readFileSync(file, "utf8")) as FlowDoc;
+  }
+  /** The ShowView's ViewResource, straight from the document. */
+  function ViewProbe() {
+    const { state } = useStudio();
+    const a = state.doc?.content.Actions.find((x) => x.Identifier === "show-form");
+    return <span data-testid="view-probe">{JSON.stringify(a?.Parameters.ViewResource)}</span>;
+  }
+
+  it("keeps the other key when either is edited, and reaches the picker's version prompt", async () => {
+    await renderDoc(
+      participantDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+        <ViewProbe />
+      </>,
+    );
+    await click(present('[data-testid="node-show-form"]'));
+    const version = testId<HTMLInputElement>("text-ViewResource.Version");
+    expect(version.value).toBe("1");
+    await typeAndBlur(version, "2");
+    expect(testId("view-probe").textContent).toBe(
+      JSON.stringify({ Id: "${cdref:view:form@1}", Version: "2" }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+
+    // "new reference…" on the view picker asks for a name and a version and
+    // writes the token into ViewResource.Id, leaving Version alone. Before
+    // the field existed, no inspector surface rendered a view picker, so the
+    // version prompt was unreachable.
+    const prompts: string[] = [];
+    const answers = ["wizard", "3"];
+    window.prompt = (message?: string) => {
+      prompts.push(message ?? "");
+      return answers.shift() ?? null;
+    };
+    const picker = [...document.querySelectorAll('[data-testid="inspector"] select')].find((s) =>
+      [...(s as HTMLSelectElement).options].some((o) => o.value === "__new__"),
+    ) as HTMLSelectElement;
+    await selectOption(picker, "__new__");
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain("View version");
+    expect(testId("view-probe").textContent).toBe(
+      JSON.stringify({ Id: "${cdref:view:wizard@3}", Version: "2" }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
   });
 });
 

@@ -441,6 +441,12 @@ describe("FlowDoc schema rejections: contact data", () => {
       }),
     ],
     [
+      "a text-to-speech engine in the admin guide's lower case, which the console never writes",
+      mutate("set-voice", (a) => {
+        a.Parameters.TextToSpeechEngine = "neural";
+      }),
+    ],
+    [
       "an empty voice name",
       mutate("set-voice", (a) => {
         a.Parameters.TextToSpeechVoice = "";
@@ -578,6 +584,12 @@ describe("FlowDoc schema rejections: participant", () => {
         a.Parameters.InvocationTimeLimitSeconds = 300;
       }),
     ],
+    [
+      "a view without a time limit, which the service refuses",
+      mutate("show-form", (a) => {
+        delete a.Parameters.InvocationTimeLimitSeconds;
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
@@ -604,19 +616,19 @@ describe("FlowDoc schema rejections: recording and analytics", () => {
   it.each([
     [
       "a recorded participant other than Agent or Customer",
-      mutate("record-both", (a) => {
+      mutate("record-voice-ivr", (a) => {
         voice(a).RecordedParticipants = ["Supervisor"];
       }),
     ],
     [
       "a participant recorded twice",
-      mutate("record-both", (a) => {
+      mutate("record-voice-ivr", (a) => {
         voice(a).RecordedParticipants = ["Agent", "Agent"];
       }),
     ],
     [
       "an IVR recording value other than Enabled or Disabled",
-      mutate("record-both", (a) => {
+      mutate("record-voice-ivr", (a) => {
         voice(a).IVRRecordingBehavior = "On";
       }),
     ],
@@ -628,8 +640,20 @@ describe("FlowDoc schema rejections: recording and analytics", () => {
     ],
     [
       "a chat and a voice behavior on one block",
-      mutate("record-both", (a) => {
+      mutate("record-voice-ivr", (a) => {
         a.Parameters.ChatBehavior = { ChatAnalyticsBehavior: { Enabled: "True" } };
+      }),
+    ],
+    [
+      "a voice and a screen behavior on one block, which the service refuses",
+      mutate("record-voice-ivr", (a) => {
+        a.Parameters.ScreenRecordingBehavior = { ScreenRecordedParticipants: ["Agent"] };
+      }),
+    ],
+    [
+      "no behavior at all, which the service refuses",
+      mutate("record-screen", (a) => {
+        a.Parameters = {};
       }),
     ],
   ])("rejects %s", (_label, doc) => {
@@ -847,7 +871,10 @@ describe("FlowDoc migration", () => {
     doc.content.Actions.push({
       Identifier: "show-acw",
       Type: "ShowView",
-      Parameters: { ViewResource: { Id: "${cdref:view:after-contact-work@1}" } },
+      Parameters: {
+        ViewResource: { Id: "${cdref:view:after-contact-work@1}" },
+        InvocationTimeLimitSeconds: "300",
+      },
       Transitions: {},
     });
     doc.refs.push({

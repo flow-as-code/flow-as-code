@@ -1,0 +1,67 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "record",
+      "messageIncludes": "InFlightRedactionConfigurationFailed"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.2",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "record",
+      "Actions": [
+        {
+          "Identifier": "record",
+          "Type": "UpdateContactRecordingAndAnalyticsBehavior",
+          "Parameters": {
+            "ChatBehavior": {
+              "ChatAnalyticsBehavior": {
+                "Enabled": "True",
+                "AnalyticsLanguage": "en-US",
+                "AnalyticsModes": [
+                  "ContactLens"
+                ]
+              }
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "ChannelMismatch",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "record": {
+        "x": 20,
+        "y": 20
+      },
+      "bye": {
+        "x": 280,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

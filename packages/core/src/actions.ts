@@ -40,7 +40,7 @@ export const ActionType = {
   CheckMetricData: "CheckMetricData",
   GetMetricData: "GetMetricData",
   TagContact: "TagContact",
-  UnTagContact: "UnTagContact",
+  UntagContact: "UntagContact",
   UpdateContactTextToSpeechVoice: "UpdateContactTextToSpeechVoice",
   UpdateContactData: "UpdateContactData",
   UpdateContactEventHooks: "UpdateContactEventHooks",
@@ -137,7 +137,11 @@ export const CALLBACK_NUMBER_NOT_DIALABLE = "CallbackNumberNotDialable";
 /** Wait's second error, raised when no bot participant is on the contact. */
 export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
 
-/** ShowView's error when the view is not answered within InvocationTimeLimitSeconds. */
+/**
+ * ShowView's error when the view is not answered within
+ * InvocationTimeLimitSeconds. Required, as the time limit is: CreateContactFlow
+ * refuses a ShowView without either (checked 2026-09-15).
+ */
 export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
 
 /**
@@ -161,14 +165,15 @@ export const IN_FLIGHT_REDACTION_CONFIGURATION_FAILED = "InFlightRedactionConfig
  *
  * UpdateContactRoutingBehavior: results "None", errors "None".
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html
- * TagContact: errors "None"; the admin guide's block has an Error branch with
- * no documented error type.
+ * TagContact is not here although its page says errors "None": the service
+ * refuses the block without NoMatchingError ("Action is missing required
+ * error. Error: NoMatchingError", CreateContactFlow, 2026-09-15), so it has
+ * the ordinary required catch-all.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
  */
 export const WITHOUT_CATCH_ALL: readonly string[] = [
   ActionType.UpdateContactRoutingBehavior,
   ActionType.UpdateContactCallbackNumber,
-  ActionType.TagContact,
   // Errors "None."; results "None. No conditions are supported."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
   ActionType.UpdateFlowLoggingBehavior,
@@ -190,10 +195,16 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
  * repositories carry NoMatchingError on some and nothing on others.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/loop.html
+ * UpdateContactTextToSpeechVoice: the page says NoMatchingError "Must always
+ * be defined", but CreateContactFlow accepts the block with no error branch
+ * (checked 2026-09-15) and console exports published in public repositories
+ * carry none on many Set voice blocks.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
  */
 export const OPTIONAL_CATCH_ALL: readonly string[] = [
   ActionType.MessageParticipantIteratively,
   ActionType.Loop,
+  ActionType.UpdateContactTextToSpeechVoice,
 ];
 
 /**
@@ -236,12 +247,14 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
     NO_MATCHING_ERROR,
     NO_MATCHING_CONDITION,
   ],
-  // The page's order, catch-all first: "NoMatchingCondition - if no other
-  // Condition matches", "TimeLimitExceeded - if there is no response before
-  // the configured InvocationTimeLimitSeconds", so the builder wires the last
-  // only when a time limit is set.
+  // The order the admin guide's flow-language JSON writes, the catch-all in
+  // the middle: "NoMatchingCondition - if no other Condition matches",
+  // "TimeLimitExceeded - if there is no response before the configured
+  // InvocationTimeLimitSeconds". The page lists the catch-all first; the
+  // service accepts either order and requires all three (checked 2026-09-15).
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
-  [ActionType.ShowView]: [NO_MATCHING_ERROR, NO_MATCHING_CONDITION, TIME_LIMIT_EXCEEDED],
+  // https://docs.aws.amazon.com/connect/latest/adminguide/show-view-block.html
+  [ActionType.ShowView]: [NO_MATCHING_CONDITION, NO_MATCHING_ERROR, TIME_LIMIT_EXCEEDED],
   // The page's order, catch-all first, both "Must always be defined"; the
   // chat form's InFlightRedactionConfigurationFailed is not written because
   // the chat form is not modeled.
@@ -260,6 +273,9 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
   // "ChannelMismatch - if the media channel that initiated the contact is not
   // the same as the one defined in the action. ... Must always be defined."
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: [CHANNEL_MISMATCH],
+  // The page marks neither, but CreateContactFlow refuses the block without
+  // either ("Action is missing required error", checked 2026-09-15).
+  [ActionType.ShowView]: [NO_MATCHING_CONDITION, TIME_LIMIT_EXCEEDED],
 };
 
 // The Restrictions section of an action page names flow types in the console's
@@ -454,7 +470,7 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html
  * TagContact: "None. This can be used in any type of flow and any channel."
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html
- * UnTagContact: "This action can be used in flows of all types."
+ * UntagContact: "This action can be used in flows of all types."
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html
  * UpdateContactTextToSpeechVoice: "None. This action is supported in all flow
  * types, and across all channels."
@@ -474,7 +490,7 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.UpdateFlowAttributes,
   ActionType.GetMetricData,
   ActionType.TagContact,
-  ActionType.UnTagContact,
+  ActionType.UntagContact,
   ActionType.UpdateContactTextToSpeechVoice,
   ActionType.UpdateContactData,
   ActionType.UpdateContactEventHooks,
@@ -613,12 +629,17 @@ export const SYSTEM_TAG_PREFIX = "aws:";
  * UpdateContactTextToSpeechVoice engines and styles. The action page names
  * the styles ("None, Coversational, or Newscaster", its own spelling; the
  * admin guide spells Conversational) and only describes the engine; the
- * admin guide lists standard, neural and generative. Each "May be defined
- * statically or dynamically".
+ * admin guide's prose names standard, neural and generative in lower case,
+ * and the console writes the engine capitalised ("Neural", "Generative") in
+ * every published export of the block, which is the spelling recorded here.
+ * The service validates none of it at CreateContactFlow (it accepts "neural",
+ * "Neural" and an invented "Turbo" alike, checked 2026-09-15), so the list is
+ * the console's vocabulary, not the wire's. Each "May be defined statically
+ * or dynamically".
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-voice.html
  */
-export const TTS_ENGINES = ["standard", "neural", "generative"] as const;
+export const TTS_ENGINES = ["Standard", "Neural", "Generative"] as const;
 export type TtsEngine = (typeof TTS_ENGINES)[number];
 export const TTS_STYLES = ["None", "Conversational", "Newscaster"] as const;
 export type TtsStyle = (typeof TTS_STYLES)[number];
@@ -639,10 +660,11 @@ export const TARGET_CONTACTS = ["Current", "Related"] as const;
 export type TargetContact = (typeof TARGET_CONTACTS)[number];
 
 /**
- * UpdateContactEventHooks: "The following event hooks are valid: AgentHold,
- * AgentWhisper, CustomerHold, CustomerQueue, CustomerRemaining,
- * CustomerWhisper, DefaultAgentUI, DisconnectAgentUI, PauseContact,
- * ResumeContact." "Only one entry may be present in this map."
+ * UpdateContactEventHooks: "The following event hooks are valid:" and then
+ * the page's list of ten names, AgentHold to ResumeContact, in this order.
+ * "Only one entry may be present in this map." (the block class writes one;
+ * CreateContactFlow itself accepts two, and an empty map, checked
+ * 2026-09-15).
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html
  */
 export const EVENT_HOOKS = [

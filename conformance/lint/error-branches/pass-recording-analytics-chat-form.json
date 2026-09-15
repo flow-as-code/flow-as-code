@@ -33,6 +33,10 @@
               {
                 "ErrorType": "ChannelMismatch",
                 "NextAction": "bye"
+              },
+              {
+                "ErrorType": "InFlightRedactionConfigurationFailed",
+                "NextAction": "bye"
               }
             ],
             "Conditions": []

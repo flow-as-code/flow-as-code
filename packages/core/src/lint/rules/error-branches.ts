@@ -2,7 +2,7 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-import { modeledEntry, requiredErrors } from "../../catalog.js";
+import { modeledEntry, requiredErrorsFor } from "../../catalog.js";
 import { isTerminal } from "../graph.js";
 import type { Rule } from "../types.js";
 
@@ -20,7 +20,7 @@ import type { Rule } from "../types.js";
 export const errorBranches: Rule = {
   id: "error-branches",
   description:
-    "Every non-terminal modeled action must wire the error branches its page requires, the catch-all for most.",
+    "Every non-terminal modeled action must wire the error branches its page requires, the catch-all for most, and any branch a parameter it carries makes required.",
   check({ doc, report }) {
     for (const action of doc.content.Actions) {
       if (isTerminal(action)) continue;
@@ -28,7 +28,7 @@ export const errorBranches: Rule = {
       if (entry === undefined || entry.terminal) continue;
 
       const wired = new Set((action.Transitions.Errors ?? []).map((e) => e.ErrorType));
-      for (const expected of requiredErrors(action.Type)) {
+      for (const expected of requiredErrorsFor(action.Type, action.Parameters)) {
         if (wired.has(expected)) continue;
         report({
           severity: "error",

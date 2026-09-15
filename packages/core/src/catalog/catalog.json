@@ -22,7 +22,7 @@
         "TagContact",
         "TransferContactToAgent",
         "TransferContactToQueue",
-        "UnTagContact",
+        "UntagContact",
         "UpdateCase",
         "UpdateContactAttributes",
         "UpdateContactCallbackNumber",
@@ -285,7 +285,13 @@
       "transitions": {
         "next": "required",
         "conditions": "none",
-        "errors": []
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
       }
     },
     "TransferContactToAgent": {
@@ -338,11 +344,11 @@
         ]
       }
     },
-    "UnTagContact": {
+    "UntagContact": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html",
       "modeled": true,
-      "block": "un_tag_contact",
+      "block": "untag_contact",
       "terminal": false,
       "flowTypes": "unrestricted",
       "parameters": [
@@ -559,7 +565,7 @@
           "key": "TargetContact",
           "attr": "target_contact",
           "kind": "enum",
-          "required": true,
+          "required": false,
           "values": [
             "Current",
             "Related"
@@ -718,10 +724,11 @@
       ],
       "constraints": [
         {
-          "rule": "atMostOne",
+          "rule": "exactlyOne",
           "keys": [
             "ChatBehavior",
-            "VoiceBehavior"
+            "VoiceBehavior",
+            "ScreenRecordingBehavior"
           ]
         }
       ],
@@ -745,7 +752,8 @@
             "type": "InFlightRedactionConfigurationFailed",
             "required": false,
             "builder": false,
-            "when": "ChatBehavior is defined, a form the builder does not write"
+            "requiredWhenKey": "ChatBehavior",
+            "when": "ChatBehavior is defined (the service refuses the chat form without it); the builder does not write that form"
           }
         ]
       }
@@ -954,9 +962,9 @@
           "kind": "enum",
           "required": false,
           "values": [
-            "standard",
-            "neural",
-            "generative"
+            "Standard",
+            "Neural",
+            "Generative"
           ],
           "dynamic": true
         },
@@ -980,7 +988,7 @@
         "errors": [
           {
             "type": "NoMatchingError",
-            "required": true,
+            "required": false,
             "builder": true
           }
         ]
@@ -1728,7 +1736,7 @@
           "key": "InvocationTimeLimitSeconds",
           "attr": "invocation_time_limit_seconds",
           "kind": "integerString",
-          "required": false,
+          "required": true,
           "min": 1
         },
         {
@@ -1762,24 +1770,23 @@
         }
       ],
       "transitions": {
-        "next": "required",
+        "next": "mirrors:error:NoMatchingError",
         "conditions": "enum",
         "errors": [
+          {
+            "type": "NoMatchingCondition",
+            "required": true,
+            "builder": true
+          },
           {
             "type": "NoMatchingError",
             "required": true,
             "builder": true
           },
           {
-            "type": "NoMatchingCondition",
-            "required": false,
-            "builder": true
-          },
-          {
             "type": "TimeLimitExceeded",
-            "required": false,
-            "builder": true,
-            "when": "InvocationTimeLimitSeconds is set"
+            "required": true,
+            "builder": true
           }
         ]
       }

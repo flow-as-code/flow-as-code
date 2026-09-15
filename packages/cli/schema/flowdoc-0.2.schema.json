@@ -808,7 +808,7 @@
           "if": {
             "properties": {
               "Type": {
-                "const": "UnTagContact"
+                "const": "UntagContact"
               }
             },
             "required": [
@@ -854,9 +854,9 @@
                     "oneOf": [
                       {
                         "enum": [
-                          "standard",
-                          "neural",
-                          "generative"
+                          "Standard",
+                          "Neural",
+                          "Generative"
                         ]
                       },
                       {
@@ -1220,7 +1220,11 @@
                       }
                     }
                   }
-                }
+                },
+                "required": [
+                  "ViewResource",
+                  "InvocationTimeLimitSeconds"
+                ]
               }
             }
           }
@@ -1456,12 +1460,23 @@
                     }
                   }
                 },
-                "not": {
-                  "required": [
-                    "ChatBehavior",
-                    "VoiceBehavior"
-                  ]
-                }
+                "oneOf": [
+                  {
+                    "required": [
+                      "ChatBehavior"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "VoiceBehavior"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "ScreenRecordingBehavior"
+                    ]
+                  }
+                ]
               }
             }
           }

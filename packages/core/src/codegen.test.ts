@@ -1282,7 +1282,7 @@ describe("UpdateFlowLoggingBehavior inverts the demo's logging block", () => {
   });
 });
 
-describe("UpdateContactRecordingAndAnalyticsBehavior inverts its voice and screen recording forms", () => {
+describe("UpdateContactRecordingAndAnalyticsBehavior inverts its voice or its screen recording form", () => {
   const action = (parameters: Record<string, unknown>): FlowAction => ({
     Identifier: "record",
     Type: "UpdateContactRecordingAndAnalyticsBehavior",
@@ -1318,14 +1318,28 @@ describe("UpdateContactRecordingAndAnalyticsBehavior inverts its voice and scree
     expect(out).not.toContain("new UpdateContactRecordingAndAnalyticsBehavior(");
   };
 
-  it("emits voice, IVR and screen recording with the two errors in the page's order", () => {
-    const out = codegen(docWith([both(), bye]));
+  it("emits voice and IVR recording with the two errors in the page's order, and refuses both forms on one block", () => {
+    const out = codegen(
+      docWith([
+        action({
+          VoiceBehavior: {
+            VoiceRecordingBehavior: {
+              RecordedParticipants: ["Agent", "Customer"],
+              IVRRecordingBehavior: "Enabled",
+            },
+          },
+        }),
+        bye,
+      ]),
+    );
     expect(out).toContain("new UpdateContactRecordingAndAnalyticsBehavior({");
     expect(out).toContain('recordedParticipants: ["Agent", "Customer"]');
     expect(out).toContain('ivrRecordingBehavior: "Enabled"');
-    expect(out).toContain('screenRecordedParticipants: ["Agent"]');
     expect(out).toContain('onChannelMismatch: "bye"');
     expect(out).toContain('onError: "bye"');
+    // The service refuses two objects on one block, so the class never
+    // writes them and the shape stays generic.
+    generic(both());
   });
 
   it("emits either recording form alone", () => {
@@ -1517,7 +1531,11 @@ describe("TagContact inverts a string map of up to six user-defined tags", () =>
     Identifier: "tag",
     Type: "TagContact",
     Parameters: { Tags: tags },
-    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
   });
   const bye: FlowAction = {
     Identifier: "bye",
@@ -1538,21 +1556,22 @@ describe("TagContact inverts a string map of up to six user-defined tags", () =>
     expect(out).toContain('tier: "$.Attributes.tier"');
   });
 
-  it("falls back on no tags, seven tags, a system-tag key, a non-string value, or an error branch", () => {
+  it("falls back on no tags, seven tags, a system-tag key, a non-string value, or a missing catch-all", () => {
     generic(tag({}));
     generic(tag(Object.fromEntries("abcdefg".split("").map((k) => [k, k]))));
     generic(tag({ "aws:connect:instanceId": "x" }));
     generic(tag({ count: 1 }));
-    const withError = tag({ team: "cx" });
-    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
-    generic(withError);
+    // The page lists no error; the service refuses the block without one.
+    const unwired = tag({ team: "cx" });
+    unwired.Transitions.Errors = [];
+    generic(unwired);
   });
 });
 
-describe("UnTagContact inverts a list of user-defined tag keys", () => {
+describe("UntagContact inverts a list of user-defined tag keys", () => {
   const untag = (keys: unknown): FlowAction => ({
     Identifier: "untag",
-    Type: "UnTagContact",
+    Type: "UntagContact",
     Parameters: { TagKeys: keys },
     Transitions: {
       NextAction: "bye",
@@ -1568,13 +1587,13 @@ describe("UnTagContact inverts a list of user-defined tag keys", () => {
   };
   const generic = (a: FlowAction) => {
     const out = codegen(docWith([a, bye]));
-    expect(out).toContain('type: "UnTagContact"');
-    expect(out).not.toContain("new UnTagContact(");
+    expect(out).toContain('type: "UntagContact"');
+    expect(out).not.toContain("new UntagContact(");
   };
 
   it("emits the keys as an array", () => {
     const out = codegen(docWith([untag(["tier", "team"]), bye]));
-    expect(out).toContain("new UnTagContact({");
+    expect(out).toContain("new UntagContact({");
     expect(out).toContain('tagKeys: ["tier", "team"]');
   });
 
@@ -1621,10 +1640,16 @@ describe("UpdateContactTextToSpeechVoice inverts the voice with its optional eng
     expect(typed({ TextToSpeechVoice: "Joanna" })).toContain('voice: "Joanna"');
     const full = typed({
       TextToSpeechVoice: "Matthew",
-      TextToSpeechEngine: "neural",
+      TextToSpeechEngine: "Neural",
       TextToSpeechStyle: "Conversational",
     });
-    expect(full).toContain('engine: "neural"');
+    expect(full).toContain('engine: "Neural"');
+    // The catch-all is optional: the console omits it on many Set voice blocks.
+    const unwired = voice({ TextToSpeechVoice: "Joanna" });
+    unwired.Transitions.Errors = [];
+    const bare = codegen(docWith([unwired, bye]));
+    expect(bare).toContain("new UpdateContactTextToSpeechVoice({");
+    expect(bare).not.toContain("onError");
     expect(full).toContain('style: "Conversational"');
     const dynamic = typed({
       TextToSpeechVoice: "$.Attributes.voice",
@@ -1637,6 +1662,8 @@ describe("UpdateContactTextToSpeechVoice inverts the voice with its optional eng
   it("falls back on an empty voice, an engine or style the pages do not list, or an extra key", () => {
     generic({ TextToSpeechVoice: "" });
     generic({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "premium" });
+    // The admin guide's lower-case prose is not the console's spelling.
+    generic({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "neural" });
     generic({ TextToSpeechVoice: "Joanna", TextToSpeechStyle: "Coversational" });
     generic({ TextToSpeechVoice: "Joanna", LanguageCode: "en-US" });
   });
@@ -1646,7 +1673,7 @@ describe("UpdateContactData inverts every optional field in the page's spelling"
   const data = (parameters: Record<string, unknown>): FlowAction => ({
     Identifier: "data",
     Type: "UpdateContactData",
-    Parameters: { TargetContact: "Current", ...parameters },
+    Parameters: parameters,
     Transitions: {
       NextAction: "bye",
       Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
@@ -1671,9 +1698,13 @@ describe("UpdateContactData inverts every optional field in the page's spelling"
     expect(out).not.toContain("new UpdateContactData(");
   };
 
-  it("keeps a Current target implicit and emits the rest as typed fields", () => {
+  it("emits the target only when present, and the rest as typed fields", () => {
     const bare = typed({});
     expect(bare).not.toContain("targetContact");
+    // The page marks the target required; the service does not, so a
+    // block without it is typed, and one with "Current" says so.
+    const current = codegen(docWith([data({ TargetContact: "Current" }), bye]));
+    expect(current).toContain('targetContact: "Current"');
     const full = typed({
       Name: "$.Attributes.name",
       Description: "Priority caller",
@@ -1700,10 +1731,8 @@ describe("UpdateContactData inverts every optional field in the page's spelling"
     expect(full).toContain('wisdomSessionArn: "$.Wisdom.SessionArn"');
   });
 
-  it("falls back on a missing target, a lowercase flag, a threshold out of range or as a number, or a non-string reference", () => {
-    const noTarget = data({});
-    noTarget.Parameters = {};
-    generic(noTarget);
+  it("falls back on an unlisted target, a lowercase flag, a threshold out of range or as a number, or a non-string reference", () => {
+    generic(data({ TargetContact: "Flow" }));
     generic(data({ IsFraudDetectionEnabled: "true" }));
     generic(data({ VoiceAuthenticationThreshold: "101" }));
     generic(data({ VoiceAuthenticationResponseTime: "4" }));
@@ -1941,20 +1970,26 @@ describe("the unknown-actions fixture holds only types the builder does not mode
   });
 });
 
-describe("ShowView inverts the view, its data, and its paired time limit", () => {
+describe("ShowView inverts the view, its data, and its required time limit", () => {
+  // The admin guide's shape: three errors in its order, the time limit
+  // present, and NextAction a copy of the catch-all's target.
   const view = (
     parameters: Record<string, unknown>,
-    extra: { timeout?: boolean; actions?: string[] } = {},
+    extra: { actions?: string[]; next?: string } = {},
   ): FlowAction => ({
     Identifier: "guide",
     Type: "ShowView",
-    Parameters: { ViewResource: { Id: "${cdref:view:form@1}" }, ...parameters },
+    Parameters: {
+      ViewResource: { Id: "${cdref:view:form@1}" },
+      InvocationTimeLimitSeconds: "300",
+      ...parameters,
+    },
     Transitions: {
-      NextAction: "bye",
+      NextAction: extra.next ?? "bye",
       Errors: [
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
         { ErrorType: "NoMatchingError", NextAction: "bye" },
-        { ErrorType: "NoMatchingCondition", NextAction: "bye" },
-        ...(extra.timeout === true ? [{ ErrorType: "TimeLimitExceeded", NextAction: "bye" }] : []),
+        { ErrorType: "TimeLimitExceeded", NextAction: "again" },
       ],
       Conditions: (extra.actions ?? []).map((v) => ({
         NextAction: "bye",
@@ -1962,6 +1997,16 @@ describe("ShowView inverts the view, its data, and its paired time limit", () =>
       })),
     },
   });
+  const again: FlowAction = {
+    Identifier: "again",
+    Type: "MessageParticipant",
+    Parameters: { Text: "Again." },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  };
   const bye: FlowAction = {
     Identifier: "bye",
     Type: "DisconnectParticipant",
@@ -1969,50 +2014,68 @@ describe("ShowView inverts the view, its data, and its paired time limit", () =>
     Transitions: {},
   };
   const typed = (a: FlowAction) => {
-    const out = codegen(docWith([a, bye]));
+    const out = codegen(docWith([a, again, bye]));
     expect(out).toContain("new ShowView({");
     expect(out).not.toContain('type: "ShowView"');
     return out;
   };
   const generic = (a: FlowAction) => {
-    const out = codegen(docWith([a, bye]));
+    const out = codegen(docWith([a, again, bye]));
     expect(out).toContain('type: "ShowView"');
     expect(out).not.toContain("new ShowView(");
   };
 
-  it("emits a bare view, and every field with the timeout pair", () => {
+  it("emits a bare view, and every field, with the three branches and no next of its own", () => {
     const bare = typed(view({}));
     expect(bare).toContain('view: Refs.view("form", "1")');
     expect(bare).toContain("actions: []");
-    expect(bare).not.toContain("onTimeout");
+    expect(bare).toContain("timeoutSeconds: 300");
+    expect(bare).toContain('onNoMatch: "again"');
+    expect(bare).toContain('onTimeout: "again"');
+    expect(bare).toContain('onError: "bye"');
+    const block = bare.slice(
+      bare.indexOf("new ShowView({"),
+      bare.indexOf("new MessageParticipant("),
+    );
+    expect(block).not.toContain("next:");
     const full = typed(
       view(
         {
           ViewResource: { Id: "$.Attributes.view", Version: "2" },
-          InvocationTimeLimitSeconds: "300",
+          InvocationTimeLimitSeconds: "5",
           ViewData: { Heading: "$.Customer.LastName", Sections: [{ Title: "Address" }] },
           SensitiveDataConfiguration: { HideResponseOn: ["TRANSCRIPT"] },
         },
-        { timeout: true, actions: ["Next", "Back"] },
+        { actions: ["Next", "Back"] },
       ),
     );
     expect(full).toContain('view: jsonPath("$.Attributes.view")');
     expect(full).toContain('version: "2"');
-    expect(full).toContain("timeoutSeconds: 300");
+    expect(full).toContain("timeoutSeconds: 5");
     expect(full).toContain('Heading: "$.Customer.LastName"');
     expect(full).toContain('hideResponseOn: ["TRANSCRIPT"]');
     expect(full).toContain('{ action: "Back", target: "bye" }');
-    expect(full).toContain('onTimeout: "bye"');
   });
 
-  it("falls back on a literal ARN, an unpaired time limit, a limit as a number, a swapped error, or a bad hide list", () => {
+  it("falls back on a literal ARN, a missing time limit, a limit as a number, a missing or reordered error, an unmirrored next, or a bad hide list", () => {
     generic(view({ ViewResource: { Id: "arn:aws:connect:us-west-2:aws:view/form:1" } }));
-    generic(view({ InvocationTimeLimitSeconds: "300" }));
-    generic(view({}, { timeout: true }));
-    generic(view({ InvocationTimeLimitSeconds: 300 }, { timeout: true }));
-    const swapped = view({});
-    swapped.Transitions.Errors = [swapped.Transitions.Errors![1]!, swapped.Transitions.Errors![0]!];
-    generic(swapped);
+    const noLimit = view({});
+    delete noLimit.Parameters.InvocationTimeLimitSeconds;
+    generic(noLimit);
+    generic(view({ InvocationTimeLimitSeconds: 300 }));
+    const twoErrors = view({});
+    twoErrors.Transitions.Errors = twoErrors.Transitions.Errors!.slice(0, 2);
+    generic(twoErrors);
+    // The page's order is accepted by the service but is not the console's,
+    // so the class does not write it and the block stays generic.
+    const pageOrder = view({});
+    pageOrder.Transitions.Errors = [
+      pageOrder.Transitions.Errors![1]!,
+      pageOrder.Transitions.Errors![0]!,
+      pageOrder.Transitions.Errors![2]!,
+    ];
+    generic(pageOrder);
+    generic(view({}, { next: "again" }));
     generic(view({ SensitiveDataConfiguration: { HideResponseOn: [""] } }));
   });
 });

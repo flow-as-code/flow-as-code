@@ -15,7 +15,7 @@ describe("snakeCaseKey", () => {
     ["IVRRecordingBehavior", "ivr_recording_behavior"],
     ["LexV2Bot", "lex_v2_bot"],
     ["DTMFConfiguration", "dtmf_configuration"],
-    ["UnTagContact", "un_tag_contact"],
+    ["UntagContact", "untag_contact"],
     ["InvocationTimeLimitSeconds", "invocation_time_limit_seconds"],
     ["TextToSpeechVoice", "text_to_speech_voice"],
     ["MessageParticipant", "message_participant"],

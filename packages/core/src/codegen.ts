@@ -83,7 +83,7 @@ import {
   ShowView,
   TagContact,
   TransferContactToAgent,
-  UnTagContact,
+  UntagContact,
   TransferContactToQueue,
   TransferToFlow,
   UpdateContactAttributes,
@@ -668,17 +668,17 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
 
   [ActionType.ShowView]: (a, ctx) => {
     const t = a.Transitions;
-    if (t.NextAction === undefined) return undefined;
     const errors = t.Errors ?? [];
+    // The admin guide's order, and NextAction a copy of the catch-all's target.
     if (
-      errors.length < 2 ||
-      errors.length > 3 ||
-      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
-      errors[1]!.ErrorType !== NO_MATCHING_CONDITION ||
-      (errors.length === 3 && errors[2]!.ErrorType !== TIME_LIMIT_EXCEEDED)
+      errors.length !== 3 ||
+      errors[0]!.ErrorType !== NO_MATCHING_CONDITION ||
+      errors[1]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[2]!.ErrorType !== TIME_LIMIT_EXCEEDED
     ) {
       return undefined;
     }
+    if (t.NextAction !== errors[1]!.NextAction) return undefined;
     const conditions = t.Conditions ?? [];
     if (!conditions.every(isCondition)) return undefined;
     for (const c of conditions) {
@@ -689,8 +689,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     if (
       !paramKeysAre(
         p,
-        ["ViewResource"],
-        ["InvocationTimeLimitSeconds", "ViewData", "SensitiveDataConfiguration"],
+        ["ViewResource", "InvocationTimeLimitSeconds"],
+        ["ViewData", "SensitiveDataConfiguration"],
       )
     ) {
       return undefined;
@@ -716,14 +716,11 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       config.version = resource.Version;
     }
     const seconds = p.InvocationTimeLimitSeconds;
-    if ((seconds !== undefined) !== (errors.length === 3)) return undefined;
-    if (seconds !== undefined) {
-      if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
-      const n = Number(seconds);
-      if (!Number.isSafeInteger(n)) return undefined;
-      entries.push(["timeoutSeconds", n]);
-      config.timeoutSeconds = n;
-    }
+    if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+    const n = Number(seconds);
+    if (!Number.isSafeInteger(n)) return undefined;
+    entries.push(["timeoutSeconds", n]);
+    config.timeoutSeconds = n;
     if (p.ViewData !== undefined) {
       const data = p.ViewData;
       if (data === null || typeof data !== "object" || Array.isArray(data)) return undefined;
@@ -761,11 +758,10 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           ),
         ),
       ],
-      ["next", t.NextAction],
-      ["onNoMatch", errors[1]!.NextAction],
-      ["onError", errors[0]!.NextAction],
+      ["onNoMatch", errors[0]!.NextAction],
+      ["onTimeout", errors[2]!.NextAction],
+      ["onError", errors[1]!.NextAction],
     );
-    if (errors.length === 3) entries.push(["onTimeout", errors[2]!.NextAction]);
     return {
       cls: "ShowView",
       entries,
@@ -773,10 +769,9 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         cast<never>({
           ...config,
           actions,
-          next: t.NextAction,
-          onNoMatch: errors[1]!.NextAction,
-          onError: errors[0]!.NextAction,
-          ...(errors.length === 3 ? { onTimeout: errors[2]!.NextAction } : {}),
+          onNoMatch: errors[0]!.NextAction,
+          onTimeout: errors[2]!.NextAction,
+          onError: errors[1]!.NextAction,
         }),
       ),
     };
@@ -1563,9 +1558,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
 
   [ActionType.TagContact]: (a) => {
-    const t = a.Transitions;
-    if (t.NextAction === undefined) return undefined;
-    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
     if (!paramKeysAre(a.Parameters, ["Tags"])) return undefined;
     const tags = a.Parameters.Tags;
     if (!isStringMap(tags)) return undefined;
@@ -1577,13 +1571,14 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       entries: [
         ["id", a.Identifier],
         ["tags", toV(tags)],
-        ["next", t.NextAction],
+        ["next", w.next],
+        ["onError", w.onError],
       ],
-      block: new TagContact({ id: a.Identifier, tags, next: t.NextAction }),
+      block: new TagContact({ id: a.Identifier, tags, next: w.next, onError: w.onError }),
     };
   },
 
-  [ActionType.UnTagContact]: (a) => {
+  [ActionType.UntagContact]: (a) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined) return undefined;
     if (!paramKeysAre(a.Parameters, ["TagKeys"])) return undefined;
@@ -1593,14 +1588,14 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       return undefined;
     }
     return {
-      cls: "UnTagContact",
+      cls: "UntagContact",
       entries: [
         ["id", a.Identifier],
         ["tagKeys", new ArrV([...cast<string[]>(keys)])],
         ["next", w.next],
         ["onError", w.onError],
       ],
-      block: new UnTagContact({
+      block: new UntagContact({
         id: a.Identifier,
         tagKeys: cast<string[]>(keys),
         next: w.next,
@@ -1610,7 +1605,15 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
 
   [ActionType.UpdateContactTextToSpeechVoice]: (a, ctx) => {
-    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    // The catch-all is optional: the page requires it, the service and the
+    // console's exports do not.
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length > 1 || (errors.length === 1 && errors[0]!.ErrorType !== NO_MATCHING_ERROR)) {
+      return undefined;
+    }
+    const w = { next: t.NextAction, onError: errors[0]?.NextAction };
     if (w === undefined) return undefined;
     const p = a.Parameters;
     if (!paramKeysAre(p, ["TextToSpeechVoice"], ["TextToSpeechEngine", "TextToSpeechStyle"])) {
@@ -1640,7 +1643,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       }
       config[prop] = value;
     }
-    entries.push(["next", w.next], ["onError", w.onError]);
+    entries.push(["next", w.next]);
+    if (w.onError !== undefined) entries.push(["onError", w.onError]);
     return {
       cls: "UpdateContactTextToSpeechVoice",
       entries,
@@ -1693,14 +1697,17 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       ...flags.map(([k]) => k),
       ...numbers.map(([k]) => k),
     ];
-    if (!paramKeysAre(p, ["TargetContact"], optional)) return undefined;
+    if (!paramKeysAre(p, [], [...optional, "TargetContact"])) return undefined;
     const target = p.TargetContact;
-    if (typeof target !== "string" || !(TARGET_CONTACTS as readonly string[]).includes(target)) {
+    if (
+      target !== undefined &&
+      (typeof target !== "string" || !(TARGET_CONTACTS as readonly string[]).includes(target))
+    ) {
       return undefined;
     }
     const entries: [string, V][] = [["id", a.Identifier]];
     const config: Record<string, unknown> = { id: a.Identifier };
-    if (target === "Related") {
+    if (target !== undefined) {
       entries.push(["targetContact", target]);
       config.targetContact = target;
     }
@@ -1855,8 +1862,9 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     ) {
       return undefined;
     }
-    // The voice recording form, the screen recording form, or both; the
-    // chat form and the voice analytics settings stay generic.
+    // The voice recording form or the screen recording form, never both (the
+    // service refuses two objects on one block); the chat form and the voice
+    // analytics settings stay generic.
     if (!paramKeysAre(a.Parameters, [], ["VoiceBehavior", "ScreenRecordingBehavior"])) {
       return undefined;
     }
@@ -1893,7 +1901,7 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       entries.push(["screenRecordedParticipants", new ArrV([...screen])]);
       config.screenRecordedParticipants = screen;
     }
-    if (vb === undefined && sb === undefined) return undefined;
+    if ((vb === undefined) === (sb === undefined)) return undefined;
     entries.push(
       ["next", t.NextAction],
       ["onError", errors[0]!.NextAction],

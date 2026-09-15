@@ -149,15 +149,15 @@
           }
         },
         "Transitions": {
-          "NextAction": "hold-quietly",
+          "NextAction": "end",
           "Errors": [
-            {
-              "ErrorType": "NoMatchingError",
-              "NextAction": "end"
-            },
             {
               "ErrorType": "NoMatchingCondition",
               "NextAction": "hold-quietly"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
             },
             {
               "ErrorType": "TimeLimitExceeded",
@@ -190,20 +190,25 @@
         "Identifier": "show-any",
         "Type": "ShowView",
         "Parameters": {
+          "InvocationTimeLimitSeconds": "300",
           "ViewResource": {
             "Id": "$.Attributes.view"
           }
         },
         "Transitions": {
-          "NextAction": "hold-quietly",
+          "NextAction": "end",
           "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-quietly"
+            },
             {
               "ErrorType": "NoMatchingError",
               "NextAction": "end"
             },
             {
-              "ErrorType": "NoMatchingCondition",
-              "NextAction": "hold-quietly"
+              "ErrorType": "TimeLimitExceeded",
+              "NextAction": "end"
             }
           ],
           "Conditions": []

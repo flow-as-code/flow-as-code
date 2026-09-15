@@ -19,13 +19,18 @@
         },
         "Transitions": {
           "NextAction": "untag",
-          "Errors": [],
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
           "Conditions": []
         }
       },
       {
         "Identifier": "untag",
-        "Type": "UnTagContact",
+        "Type": "UntagContact",
         "Parameters": {
           "TagKeys": [
             "tier"
@@ -46,7 +51,7 @@
         "Identifier": "set-voice",
         "Type": "UpdateContactTextToSpeechVoice",
         "Parameters": {
-          "TextToSpeechEngine": "neural",
+          "TextToSpeechEngine": "Neural",
           "TextToSpeechStyle": "Conversational",
           "TextToSpeechVoice": "Matthew"
         },
@@ -115,7 +120,7 @@
         "Identifier": "set-data-minimal",
         "Type": "UpdateContactData",
         "Parameters": {
-          "TargetContact": "Current"
+          "WisdomSessionArn": "$.Wisdom.SessionArn"
         },
         "Transitions": {
           "NextAction": "set-queue-flow",
