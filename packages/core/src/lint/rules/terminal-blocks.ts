@@ -12,18 +12,14 @@ import type { FlowAction } from "../../flowdoc.js";
 /**
  * An action a flow may end in: a terminal type with its empty Transitions, or
  * an action that holds the participant (the catalog's `waits`, a loop of hold
- * prompts) with nothing wired, which is how the console's hold and queue
- * flows end.
+ * prompts) with no NextAction, which is how the console's hold and queue
+ * flows end. Its error and interrupt branches do not change that: the
+ * participant returns to the loop between them, and a hold flow, where no
+ * terminal type is legal, may wire the catch-all the admin guide's block has.
  */
 function endsFlow(a: FlowAction): boolean {
   if (isTerminal(a)) return TERMINAL_ACTIONS.includes(a.Type);
-  const t = a.Transitions;
-  return (
-    holdsParticipant(a.Type) &&
-    t.NextAction === undefined &&
-    (t.Errors ?? []).length === 0 &&
-    (t.Conditions ?? []).length === 0
-  );
+  return holdsParticipant(a.Type) && a.Transitions.NextAction === undefined;
 }
 
 /**

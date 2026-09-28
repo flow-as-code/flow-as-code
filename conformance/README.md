@@ -86,7 +86,7 @@ Actions, `Errors` and `Conditions` arrays present (possibly empty) on every
 non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 `layout` covering every action. A provider generates code from `doc.flowdoc.json`,
 executes it, synthesizes the result, and must get the same document back
-(ignoring `meta`). The eleven cases cover the demo flow (`appointment-line`), a
+(ignoring `meta`). The twelve cases cover the demo flow (`appointment-line`), a
 flow of entirely unmodeled action types with tokens inside parameters
 (`unknown-actions`), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
@@ -107,19 +107,20 @@ callback contact in its full form, with a queue, a creation flow and a caller
 ID, and in its minimal one), a flow of the flow-control actions
 (`flow-control`: a Loop whose continue path is a back edge, a Wait with both
 events and its conditional ParticipantNotFound branch, a percentage split in
-the console's threshold form, a flow attribute set as an opaque object, a
+the console's threshold form, a flow attribute set in the console's `{ Value }`
+form with its catch-all, a
 staffing check and a queue-depth check in the order of the console's default
 queue transfer export, and a
-queue metric load with a static channel and one with a dynamic channel), and
-a flow of the contact-data actions (`contact-data`: a tag set with a dynamic
+queue metric load with a static channel and one with a dynamic channel); a
+flow of the contact-data actions (`contact-data`: a tag set with a dynamic
 value, a tag removal, a voice change with a static and a dynamic engine, a
 contact data update with every Voice ID field and a minimal one, and an event
-hook set to a flow token and one set by JSONPath), and a customer queue flow of
+hook set to a flow token and one set by JSONPath); a customer queue flow of
 the participant actions (`participant`: a loop of prompts in every message
 kind with an interrupt, one that holds the contact with nothing wired, and a
 Lex V2 bot with intents, session attributes and a timeout, plus a bare one,
 and a view shown with data, a hidden transcript and a time limit, plus a bare
-one), and a flow of the recording block (`recording-analytics`: voice
+one); and a flow of the recording block (`recording-analytics`: voice
 recording of both participants with IVR recording, a voice-only form, a
 screen-only form (the service takes one form per block), and the chat
 analytics form the builder leaves generic, with its third error).

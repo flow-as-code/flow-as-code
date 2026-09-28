@@ -10,7 +10,7 @@
 // GenericBlock.
 
 import type { FlowAction } from "@flow-as-code/core";
-import { ActionType, type ModeledActionType } from "@flow-as-code/core";
+import { ActionType, type ModeledActionType, holdsParticipant } from "@flow-as-code/core";
 
 export type PaletteCategory = "Interact" | "Set" | "Branch" | "Integrate" | "Terminate";
 
@@ -129,10 +129,14 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
     case ActionType.MessageParticipantIteratively:
       return { Messages: [{ Text: "Please hold." }] };
     case ActionType.ConnectParticipantWithLexBot:
-      // The bot is omitted rather than blank: the inspector's JSON field
-      // takes { AliasArn: <token or JSONPath> }, and the block is generic
-      // until it has one.
-      return { Text: "How can I help you today?" };
+      // The bot is required (the page: "Provide either LexBot or LexV2Bot
+      // object"; the schema holds exactly one), so the default carries a
+      // JSONPath placeholder the inspector's picker replaces.
+      // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html
+      return {
+        Text: "How can I help you today?",
+        LexV2Bot: { AliasArn: "$.Attributes.botAlias" },
+      };
     case ActionType.Wait:
       // A minute; the page states no console default. Events are listed by
       // the drags that add their branches (mutations.ts, withWaitEvent).
@@ -150,8 +154,6 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       return { LoopCount: "1" };
     case ActionType.UpdateContactAttributes:
       return { Attributes: {}, TargetContact: "Current" };
-    case ActionType.UpdateContactData:
-      return { TargetContact: "Current" };
     case ActionType.UpdateContactEventHooks:
       // Schema-valid but empty; the block class wants exactly one hook, so
       // the block is generic until the inspector names one.
@@ -163,7 +165,9 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // the block is generic until the inspector fills one in.
       return { Tags: {} };
     case ActionType.UntagContact:
-      return { TagKeys: [] };
+      // The service refuses an empty key list, so the default names a
+      // placeholder key for the inspector to change.
+      return { TagKeys: ["tag-key"] };
     case ActionType.UpdateContactTextToSpeechVoice:
       // "This defaults to Joanna if this action is never run."
       // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
@@ -228,6 +232,9 @@ export function defaultAction(type: ModeledActionType, identifier: string): Flow
     Identifier: identifier,
     Type: type,
     Parameters: defaultParameters(type),
-    Transitions: {},
+    // A type that holds the participant is finished with nothing wired, the
+    // way the console writes its hold and queue flows, and its class writes
+    // the empty lists; an empty object would be read as a terminal action.
+    Transitions: holdsParticipant(type) ? { Errors: [], Conditions: [] } : {},
   };
 }

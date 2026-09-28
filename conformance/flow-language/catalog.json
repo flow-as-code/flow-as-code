@@ -359,7 +359,8 @@
           "required": true,
           "of": {
             "kind": "string"
-          }
+          },
+          "min": 1
         }
       ],
       "refs": [],
@@ -1185,8 +1186,7 @@
           {
             "type": "InputTimeLimitExceeded",
             "required": false,
-            "builder": true,
-            "when": "LexTimeoutSeconds is set"
+            "builder": true
           },
           {
             "type": "NoMatchingError",
@@ -1436,7 +1436,8 @@
       "announces": [
         "PromptId",
         "Text",
-        "SSML"
+        "SSML",
+        "Media.Uri"
       ],
       "transitions": {
         "next": "mirrors:error:NoMatchingCondition",
@@ -1559,7 +1560,8 @@
       "announces": [
         "PromptId",
         "Text",
-        "SSML"
+        "SSML",
+        "Media.Uri"
       ],
       "transitions": {
         "next": "required",
@@ -1681,7 +1683,8 @@
       "announces": [
         "Messages[].Text",
         "Messages[].PromptId",
-        "Messages[].SSML"
+        "Messages[].SSML",
+        "Messages[].Media.Uri"
       ],
       "transitions": {
         "next": "none",

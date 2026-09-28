@@ -43,7 +43,9 @@ import {
   builderErrors,
   ActionType,
   MAX_ACTIONS_PER_FLOW,
+  MESSAGES_INTERRUPTED,
   PARTICIPANT_NOT_FOUND,
+  WAIT_COMPLETED,
   WAIT_EVENTS,
   canonicalize,
   collectRefs,
@@ -51,6 +53,8 @@ import {
 import {
   acceptsConditions,
   acceptsNextAction,
+  admitsCondition,
+  admitsError,
   defaultConditionFor,
   isConditionOperator,
   isDtmfMenu,
@@ -633,7 +637,69 @@ function withoutWaitEvent(action: FlowAction, event: WaitEvent): FlowAction {
   return { ...action, Parameters: parameters, Transitions: t };
 }
 
-/** The action without its condition at `index`, and without the Wait event that branch waited for. */
+/**
+ * A Wait's conditions in its block class's order: WaitCompleted first, then
+ * the events in WAIT_EVENTS order, which is also the order withWaitEvent
+ * writes into Events; the inverter holds both. Any other type keeps the
+ * order it has.
+ */
+function inConditionOrder(
+  type: string,
+  conditions: readonly ConditionTransition[],
+): ConditionTransition[] {
+  if (type !== ActionType.Wait) return [...conditions];
+  const order: readonly string[] = [WAIT_COMPLETED, ...WAIT_EVENTS];
+  const rank = (c: ConditionTransition) => {
+    const i =
+      c.Condition.Operands.length === 1 ? order.indexOf(String(c.Condition.Operands[0])) : -1;
+    return i === -1 ? order.length : i;
+  };
+  return [...conditions].sort((x, y) => rank(x) - rank(y));
+}
+
+/**
+ * A loop of prompts' interrupt is two things on the wire and one on the
+ * canvas: InterruptFrequencySeconds and the MessagesInterrupted branch, which
+ * the block class takes only together. A branch added without seconds gets
+ * the console's "30" (its Sample interruptible queue flow writes that), for
+ * the inspector's number field to change; removing the branch removes the
+ * seconds.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/loop-prompts.html
+ */
+function isInterrupt(action: FlowAction, condition: Condition): boolean {
+  return (
+    action.Type === ActionType.MessageParticipantIteratively &&
+    condition.Operands.length === 1 &&
+    String(condition.Operands[0]) === MESSAGES_INTERRUPTED
+  );
+}
+
+/**
+ * The action with `condition` added as a branch to `target`, and every
+ * parameter the block class pairs with that branch: a Wait event's listing
+ * (and ParticipantNotFound for the bot event), a loop's interrupt seconds.
+ * Both a fresh drag and a branch moved from another block land through here.
+ */
+function withBranch(a: FlowAction, condition: Condition, target: string): FlowAction {
+  const branched: FlowAction = {
+    ...a,
+    Transitions: {
+      ...a.Transitions,
+      Conditions: inConditionOrder(a.Type, [
+        ...(a.Transitions.Conditions ?? []),
+        { NextAction: target, Condition: condition },
+      ]),
+    },
+  };
+  const event = waitEventOf(a, condition);
+  if (event !== undefined) return withWaitEvent(branched, event, target);
+  if (isInterrupt(a, condition) && a.Parameters.InterruptFrequencySeconds === undefined) {
+    return { ...branched, Parameters: { ...branched.Parameters, InterruptFrequencySeconds: "30" } };
+  }
+  return branched;
+}
+
+/** The action without its condition at `index`, and without what the class pairs with it. */
 function dropCondition(a: FlowAction, index: number): FlowAction {
   const conditions = a.Transitions.Conditions ?? [];
   const leaving = conditions[index];
@@ -641,28 +707,22 @@ function dropCondition(a: FlowAction, index: number): FlowAction {
     ...a,
     Transitions: { ...a.Transitions, Conditions: conditions.filter((_, i) => i !== index) },
   };
-  const event = leaving === undefined ? undefined : waitEventOf(a, leaving.Condition);
-  return event === undefined ? next : withoutWaitEvent(next, event);
+  if (leaving === undefined) return next;
+  const event = waitEventOf(a, leaving.Condition);
+  if (event !== undefined) return withoutWaitEvent(next, event);
+  if (isInterrupt(a, leaving.Condition)) {
+    const parameters = { ...next.Parameters };
+    delete parameters.InterruptFrequencySeconds;
+    return { ...next, Parameters: parameters };
+  }
+  return next;
 }
 
 function appendCondition(doc: FlowDoc, action: FlowAction, target: string): FlowDoc | undefined {
   const condition = defaultConditionFor(action);
   if (condition === undefined) return undefined;
-  const event = waitEventOf(action, condition);
   return normalize(
-    withAction(doc, action.Identifier, (a) => {
-      const branched = {
-        ...a,
-        Transitions: {
-          ...a.Transitions,
-          Conditions: [
-            ...(a.Transitions.Conditions ?? []),
-            { NextAction: target, Condition: condition },
-          ],
-        },
-      };
-      return mirrorNext(event === undefined ? branched : withWaitEvent(branched, event, target));
-    }),
+    withAction(doc, action.Identifier, (a) => mirrorNext(withBranch(a, condition, target))),
   );
 }
 
@@ -929,6 +989,17 @@ export const rewireEdge = guard(
     // check above. The guard cannot stand in for these checks: the
     // stored-input form and an unfinished menu are generic already, so there
     // is nothing for it to see demoted.
+    // An error or a branch lands only where a fresh drag could have authored
+    // it: an error the landing block's class wires and it lacks, a condition
+    // its kind admits and it does not already hold. Otherwise the landing
+    // block, generic until finished, would take a branch no later gesture
+    // can make typed (a NoMatchingError on a percentage split, a key branch
+    // on a Wait), and the guard, seeing no demotion, would let it through.
+    if (parsed.kind === "error" && !admitsError(source, parsed.errorType)) return undefined;
+    if (parsed.kind === "condition") {
+      const entry = (oldSource.Transitions.Conditions ?? [])[parsed.conditionIndex];
+      if (entry === undefined || !admitsCondition(source, entry.Condition)) return undefined;
+    }
     const rule = mirrorRule(source.Type);
     if (parsed.kind === "error" && rule?.kind === "error" && rule.errorType === parsed.errorType) {
       if (source.Type === ActionType.GetParticipantInput && !isDtmfMenu(source)) return undefined;
@@ -938,15 +1009,21 @@ export const rewireEdge = guard(
     }
 
     const removed = removeEdge(doc, parsed);
+    // The landing side does what a fresh drag does: errors in the class's
+    // order, a branch with what the class pairs with it.
     const moved = withAction(removed, newSource, (a) => {
-      const t = { ...a.Transitions };
-      if (parsed.kind === "next") t.NextAction = newTarget;
-      if (parsed.kind === "error")
-        t.Errors = [...(t.Errors ?? []), { ErrorType: parsed.errorType, NextAction: newTarget }];
       if (parsed.kind === "condition") {
         const entry = (oldSource.Transitions.Conditions ?? [])[parsed.conditionIndex];
         if (entry === undefined) return a;
-        t.Conditions = [...(t.Conditions ?? []), { ...entry, NextAction: newTarget }];
+        return mirrorNext(withBranch(a, entry.Condition, newTarget));
+      }
+      const t = { ...a.Transitions };
+      if (parsed.kind === "next") t.NextAction = newTarget;
+      if (parsed.kind === "error") {
+        t.Errors = inBuilderOrder(a.Type, [
+          ...(t.Errors ?? []),
+          { ErrorType: parsed.errorType, NextAction: newTarget },
+        ]);
       }
       return mirrorNext({ ...a, Transitions: t });
     });

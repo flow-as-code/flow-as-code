@@ -129,9 +129,10 @@ export interface CatalogTransitions {
   errors: readonly CatalogError[];
   /**
    * The action holds the participant until something outside the flow moves
-   * them on (an agent answers, an interrupt fires), so a flow may end in it
-   * with nothing wired: the console's hold flows do. terminal-blocks treats
-   * such an action as an end.
+   * them on (an agent answers, an interrupt fires), so a flow may end in it:
+   * the console's hold flows do. terminal-blocks treats such an action with
+   * no NextAction as an end, whatever its error and interrupt branches wire.
+   * A waiting type has `next: none`, which catalog.test.ts holds.
    */
   waits?: boolean;
 }

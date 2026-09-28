@@ -1,0 +1,85 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "case",
+  "connectType": "CUSTOMER_QUEUE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "loop",
+    "Actions": [
+      {
+        "Identifier": "loop",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "InterruptFrequencySeconds": "30",
+          "Messages": [
+            {
+              "Media": {
+                "MediaType": "Audio",
+                "SourceType": "S3",
+                "Uri": "s3://prompts/consent.wav"
+              }
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": [
+            {
+              "NextAction": "record",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "MessagesInterrupted"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "record",
+        "Type": "UpdateContactRecordingBehavior",
+        "Parameters": {
+          "RecordingBehavior": {
+            "RecordedParticipants": [
+              "Agent",
+              "Customer"
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "end",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "end",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "loop": {
+      "x": 20,
+      "y": 20
+    },
+    "record": {
+      "x": 280,
+      "y": 20
+    },
+    "end": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": []
+}

@@ -1584,9 +1584,14 @@ export class UpdateContactRecordingBehavior extends Block {
  * `FlowLoggingBehavior`: "One of [Enabled,Disabled]. *Dynamic values are not
  * supported*". Errors "None.", results "None. No conditions are supported.",
  * "This action is available in every type of flow." The page says nothing
- * about NextAction; the console's export of the demo flow writes it with
- * empty Errors and Conditions, which is exactly what a GenericBlock with a
- * next target writes, so modeling the action changed no document's bytes.
+ * about NextAction and no recorded console export carries the type (the
+ * demo-instance export fixture holds the builder's own output, tasks/A06).
+ * The class writes NextAction with empty Errors and Conditions, the shape the
+ * console writes for its other error-less blocks in the sample exports and
+ * byte for byte what a GenericBlock with a next target writes, so modeling
+ * the action changed no document's bytes; the service accepted the block
+ * with no errors (tasks/B01, live checks). To be confirmed against a console
+ * export.
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-logging-behavior.html
  */

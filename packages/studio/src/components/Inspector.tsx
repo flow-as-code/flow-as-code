@@ -501,7 +501,9 @@ export function Inspector() {
             key={`${selected}:${field.key}`}
             label={field.label}
             value={value}
-            onCommit={(parsed) => mutate(() => setParam(doc, selected, field.key, parsed))}
+            onCommit={(parsed) =>
+              mutate(() => setParam(doc, selected, field.key, parsed, { clears: field.clears }))
+            }
           />
         );
     }

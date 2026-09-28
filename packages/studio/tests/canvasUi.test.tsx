@@ -294,6 +294,77 @@ describe("a view's reference and its version edit one key of ViewResource each",
   });
 });
 
+describe("a Lex bot's alias is picked as one key of LexV2Bot", () => {
+  it("creates a lex reference through the picker and keeps the block typed", async () => {
+    const relative = ["conformance", "roundtrip", "participant", "doc.flowdoc.json"];
+    const candidates = [
+      join(process.cwd(), ...relative),
+      join(process.cwd(), "..", "..", ...relative),
+    ];
+    const file = candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+    const doc = JSON.parse(readFileSync(file, "utf8")) as FlowDoc;
+    function BotProbe() {
+      const { state } = useStudio();
+      const a = state.doc?.content.Actions.find((x) => x.Identifier === "ask-intent");
+      return <span data-testid="bot-probe">{JSON.stringify(a?.Parameters.LexV2Bot)}</span>;
+    }
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <BotProbe />
+      </>,
+    );
+    await click(present('[data-testid="node-ask-intent"]'));
+    window.prompt = () => "support-bot";
+    const picker = [...document.querySelectorAll('[data-testid="inspector"] select')].find((s) =>
+      [...(s as HTMLSelectElement).options].some((o) => o.textContent === "sales-bot"),
+    ) as HTMLSelectElement;
+    expect(picker).toBeDefined();
+    await selectOption(picker, "__new__");
+    expect(testId("bot-probe").textContent).toBe(
+      JSON.stringify({ AliasArn: "${cdref:lex:support-bot}" }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+});
+
+describe("the recording block's two JSON fields replace each other", () => {
+  it("setting screen recording clears voice recording and keeps the block typed", async () => {
+    const relative = ["conformance", "roundtrip", "recording-analytics", "doc.flowdoc.json"];
+    const candidates = [
+      join(process.cwd(), ...relative),
+      join(process.cwd(), "..", "..", ...relative),
+    ];
+    const file = candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+    const doc = JSON.parse(readFileSync(file, "utf8")) as FlowDoc;
+    function RecordProbe() {
+      const { state } = useStudio();
+      const a = state.doc?.content.Actions.find((x) => x.Identifier === "record-voice");
+      return <span data-testid="record-probe">{JSON.stringify(a?.Parameters)}</span>;
+    }
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <RecordProbe />
+      </>,
+    );
+    await click(present('[data-testid="node-record-voice"]'));
+    const label = [...document.querySelectorAll('[data-testid="inspector"] label')].find((l) =>
+      (l.textContent ?? "").startsWith("Screen recording"),
+    )!;
+    const area = label.querySelector("textarea")!;
+    await typeAndBlur(area, JSON.stringify({ ScreenRecordedParticipants: ["Agent"] }));
+    expect(testId("record-probe").textContent).toBe(
+      JSON.stringify({ ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] } }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+});
+
 describe("the dynamic form of a number or select is shown as text", () => {
   /** The demo document with a typed Loop whose count is a JSONPath, and a GetMetricData whose channel is one. */
   function withDynamicBlocks(): FlowDoc {

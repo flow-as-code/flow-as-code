@@ -19,10 +19,15 @@ import {
   CALLBACK_DELAY_MIN,
   CONDITION_CATCH_ALL,
   EXTRA_ERRORS,
+  EVENT_HOOKS,
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
+  INTERDIGIT_TIMEOUT_MAX,
+  INTERDIGIT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
   LAMBDA_TIMEOUT_MIN,
+  LEX_TIMEOUT_MAX,
+  LEX_TIMEOUT_MIN,
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
   OPTIONAL_CATCH_ALL,
@@ -96,10 +101,20 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   },
   GetParticipantInput: {
     InputTimeLimitSeconds: { min: INPUT_TIMEOUT_MIN, max: INPUT_TIMEOUT_MAX },
+    "DTMFConfiguration.InterdigitTimeLimitSeconds": {
+      min: INTERDIGIT_TIMEOUT_MIN,
+      max: INTERDIGIT_TIMEOUT_MAX,
+    },
   },
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
   Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
   TagContact: { Tags: { max: TAG_LIMIT } },
+  // The service refuses an empty key list (live check, tasks/B01).
+  UntagContact: { TagKeys: { min: 1 } },
+  // A nested field, keyed by its dotted path.
+  ConnectParticipantWithLexBot: {
+    "LexTimeoutSeconds.Text": { min: LEX_TIMEOUT_MIN, max: LEX_TIMEOUT_MAX },
+  },
   UpdateContactEventHooks: { EventHooks: { min: 1, max: 1 } },
   MessageParticipantIteratively: { Messages: { min: 1 }, InterruptFrequencySeconds: { min: 1 } },
   ShowView: { InvocationTimeLimitSeconds: { min: 1 } },
@@ -112,6 +127,17 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
     FraudDetectionThreshold: { min: VOICE_ID_THRESHOLD_MIN, max: VOICE_ID_THRESHOLD_MAX },
   },
 };
+
+/** Every parameter and object field, with its dotted path from the Parameters root. */
+function boundedParameters(
+  params: readonly CatalogParameter[],
+  prefix = "",
+): [string, CatalogParameter][] {
+  return params.flatMap((p): [string, CatalogParameter][] => [
+    [`${prefix}${p.key}`, p],
+    ...(p.kind === "object" ? boundedParameters(p.fields ?? [], `${prefix}${p.key}.`) : []),
+  ]);
+}
 
 const KINDS = new Set([
   "string",
@@ -235,24 +261,32 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
 
     for (const p of entry.parameters)
       out.push(...parameterProblems(`${where}.${p.key}`, p, catalog.refTypes));
-    for (const p of entry.parameters) {
-      const b = BOUNDS[type]?.[p.key];
+    // Bounds on parameters and on the fields of object parameters, keyed by
+    // dotted path, so a nested bound (the Lex timer) is held like a top-level
+    // one.
+    const bounded = boundedParameters(entry.parameters);
+    for (const [key, p] of bounded) {
+      const b = BOUNDS[type]?.[key];
       if (b === undefined) {
         if (p.min !== undefined || p.max !== undefined) {
-          out.push(`${where}.${p.key}: bounds in the catalog with no constant in actions.ts`);
+          out.push(`${where}.${key}: bounds in the catalog with no constant in actions.ts`);
         }
         continue;
       }
       if (p.min !== b.min || p.max !== b.max) {
         out.push(
-          `${where}.${p.key}: bounds ${String(p.min)}..${String(p.max)} differ from the constants ${String(b.min)}..${String(b.max)}`,
+          `${where}.${key}: bounds ${String(p.min)}..${String(p.max)} differ from the constants ${String(b.min)}..${String(b.max)}`,
         );
       }
     }
     for (const [key] of Object.entries(BOUNDS[type] ?? {})) {
-      if (!entry.parameters.some((p) => p.key === key)) {
+      if (!bounded.some(([k]) => k === key)) {
         out.push(`${where}: BOUNDS names ${key}, which the catalog does not list`);
       }
+    }
+    // An action that holds the participant has no NextAction of its own.
+    if (entry.transitions.waits === true && entry.transitions.next !== "none") {
+      out.push(`${where}: waits, but next is ${entry.transitions.next}`);
     }
     const keys = new Set(entry.parameters.map((p) => p.key));
     for (const c of entry.constraints ?? []) {
@@ -357,6 +391,38 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
   }
   return out;
 }
+
+describe("the event hook names", () => {
+  // Three hand copies of the page's list: EVENT_HOOKS, the catalog entry's
+  // `keys`, and the schema clause's propertyNames enum.
+  const schema = JSON.parse(
+    readFileSync(
+      new URL("../../../conformance/schema/flowdoc-0.2.schema.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    $defs: {
+      action: { allOf: { if: { properties: { Type: { const: string } } }; then: unknown }[] };
+    };
+  };
+  it("agree across actions.ts, the catalog and the schema", () => {
+    const entry = actionCatalog.actions.UpdateContactEventHooks as {
+      parameters: { key: string; keys?: string[] }[];
+    };
+    const keys = entry.parameters.find((p) => p.key === "EventHooks")!.keys;
+    expect(keys).toEqual([...EVENT_HOOKS]);
+    const clause = schema.$defs.action.allOf.find(
+      (x) => x.if.properties.Type.const === "UpdateContactEventHooks",
+    )!.then as {
+      properties: {
+        Parameters: { properties: { EventHooks: { propertyNames: { enum: string[] } } } };
+      };
+    };
+    expect(clause.properties.Parameters.properties.EventHooks.propertyNames.enum).toEqual([
+      ...EVENT_HOOKS,
+    ]);
+  });
+});
 
 describe("the action catalog", () => {
   it("agrees with every table in actions.ts", () => {
@@ -601,6 +667,23 @@ describe("catalogProblems is proven able to fail", () => {
           true;
       }),
     ).toContainEqual(expect.stringContaining("both required and requiredWhenKey"));
+  });
+  it("on a nested bound that drifts from its constant", () => {
+    expect(
+      mutate((c) => {
+        const timer = modeledAt(c, "ConnectParticipantWithLexBot").parameters.find(
+          (p) => p.key === "LexTimeoutSeconds",
+        )!;
+        (timer.fields![0] as { min?: number }).min = 1;
+      }),
+    ).toContainEqual(expect.stringContaining("LexTimeoutSeconds.Text: bounds 1..604800"));
+  });
+  it("on waits given to a type with a next action of its own", () => {
+    expect(
+      mutate((c) => {
+        (modeledAt(c, "MessageParticipant").transitions as { waits?: boolean }).waits = true;
+      }),
+    ).toContainEqual(expect.stringContaining("MessageParticipant: waits, but next is required"));
   });
   it("on a catalog bound with no constant behind it", () => {
     expect(

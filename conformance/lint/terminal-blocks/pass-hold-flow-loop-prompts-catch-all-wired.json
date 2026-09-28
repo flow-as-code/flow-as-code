@@ -1,0 +1,63 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "case",
+  "connectType": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "hold-loop",
+    "Actions": [
+      {
+        "Identifier": "hold-loop",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "SSML": "<speak>Please hold. <break time=\"10s\"/></speak>"
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "remember"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "remember",
+        "Type": "UpdateContactAttributes",
+        "Parameters": {
+          "Attributes": {
+            "holdError": "true"
+          },
+          "TargetContact": "Current"
+        },
+        "Transitions": {
+          "NextAction": "hold-loop",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hold-loop"
+            }
+          ],
+          "Conditions": []
+        }
+      }
+    ]
+  },
+  "layout": {
+    "hold-loop": {
+      "x": 20,
+      "y": 20
+    },
+    "remember": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": []
+}

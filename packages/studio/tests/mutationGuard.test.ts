@@ -156,18 +156,24 @@ describe("R3 removing a Compare's last branch", () => {
 });
 
 describe("R4 an error edge moved onto a block whose type cannot hold it", () => {
-  it("refuses a NoMatchingError dropped on a Compare, which would demote both", () => {
-    const refusal = refusalFrom(() =>
-      rewireEdge(demoWithCompare(), "welcome:error:0:NoMatchingError", "compare", "apologize"),
-    );
-    expect(refusal?.blockIds).toEqual(["compare", "welcome"]);
+  // The move is answered before the guard is asked: the landing block's class
+  // does not wire the error, so the gesture has nothing to mean (rewireEdge's
+  // vocabulary check), and neither block changes. The guard used to be the
+  // one to refuse these, which it could only do when the landing block was
+  // typed already.
+  it("refuses a NoMatchingError dropped on a Compare", () => {
+    const doc = demoWithCompare();
+    const before = JSON.stringify(doc);
+    expect(
+      rewireEdge(doc, "welcome:error:0:NoMatchingError", "compare", "apologize"),
+    ).toBeUndefined();
+    expect(JSON.stringify(doc)).toBe(before);
   });
 
   it("refuses a QueueAtCapacity dropped on a MessageParticipant", () => {
-    const refusal = refusalFrom(() =>
+    expect(
       rewireEdge(demoDoc(), "transfer:error:0:QueueAtCapacity", "announce-busy", "apologize"),
-    );
-    expect(refusal?.blockIds).toEqual(["announce-busy", "transfer"]);
+    ).toBeUndefined();
   });
 });
 

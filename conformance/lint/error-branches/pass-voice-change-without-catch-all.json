@@ -1,44 +1,41 @@
 {
-  "expect": [],
-  "doc": {
-    "flowdoc": "0.2",
-    "kind": "flow",
-    "name": "case",
-    "connectType": "CONTACT_FLOW",
-    "content": {
-      "Version": "2019-10-30",
-      "StartAction": "set-voice",
-      "Actions": [
-        {
-          "Identifier": "set-voice",
-          "Type": "UpdateContactTextToSpeechVoice",
-          "Parameters": {
-            "TextToSpeechVoice": "Matthew"
-          },
-          "Transitions": {
-            "NextAction": "bye",
-            "Errors": [],
-            "Conditions": []
-          }
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "case",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "set-voice",
+    "Actions": [
+      {
+        "Identifier": "set-voice",
+        "Type": "UpdateContactTextToSpeechVoice",
+        "Parameters": {
+          "TextToSpeechVoice": "Matthew"
         },
-        {
-          "Identifier": "bye",
-          "Type": "DisconnectParticipant",
-          "Parameters": {},
-          "Transitions": {}
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [],
+          "Conditions": []
         }
-      ]
-    },
-    "layout": {
-      "set-voice": {
-        "x": 20,
-        "y": 20
       },
-      "bye": {
-        "x": 280,
-        "y": 20
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
       }
+    ]
+  },
+  "layout": {
+    "set-voice": {
+      "x": 20,
+      "y": 20
     },
-    "refs": []
-  }
+    "bye": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": []
 }

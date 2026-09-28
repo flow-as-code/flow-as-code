@@ -150,8 +150,10 @@ export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
  * in the action. For screen recording, any channel other than voice, chat or
  * tasks would result in this branch being taken. Must always be defined."
  * The third, InFlightRedactionConfigurationFailed, "Must be defined if chat
- * behavior is defined in action"; the builder writes the voice form only, so
- * it never wires it and the catalog records the condition as text.
+ * behavior is defined in action", which the service enforces; the builder
+ * writes the voice or the screen form and never the chat form, so it never
+ * wires it, and the catalog's requiredWhenKey makes error-branches report it
+ * on a chat-form block.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
  */
 export const CHANNEL_MISMATCH = "ChannelMismatch";
@@ -180,9 +182,12 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
 ];
 
 /**
- * Non-terminal modeled actions whose page lists the catch-all without
- * requiring it and whose console form may omit it: the builder wires it when
- * asked and error-branches does not report its absence.
+ * Non-terminal modeled actions whose catch-all the console may omit: the
+ * builder wires it when asked and error-branches does not report its
+ * absence. The evidence differs by type: the page lists it without requiring
+ * it (MessageParticipantIteratively), the page lists none while the console
+ * sometimes writes one (Loop), or the page requires it while the service and
+ * the console's exports do not (UpdateContactTextToSpeechVoice).
  *
  * MessageParticipantIteratively: "NoMatchingError - if no other Error
  * matches", and the console's default hold and queue flows carry no error
@@ -286,7 +291,7 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
 //   inbound flow, contact flow -> INBOUND
 //   transfer flow              -> TRANSFER
 //   whisper flow               -> WHISPER (agent, customer, outbound)
-//   hold flow                  -> agent and customer hold; no action allows one
+//   hold flow                  -> HOLD (agent and customer hold)
 //   customer queue flow        -> CUSTOMER_QUEUE
 //   flow module                -> IN_MODULE
 const INBOUND = ["CONTACT_FLOW"] as const;
@@ -649,7 +654,10 @@ export type TtsStyle = (typeof TTS_STYLES)[number];
  * flags take "TRUE" and "FALSE" ("the only valid values"), the two thresholds
  * "must be between 0 and 100", and the response time "must be between 5 and
  * 10". TargetContact is "Current" or "Related", "the only valid values".
+ * AWS ended support for Voice ID on May 20, 2026; the fields are modeled as
+ * the action page still documents them (actions.md rule 30).
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-voice-id.html
  */
 export const CONTACT_DATA_FLAGS = ["TRUE", "FALSE"] as const;
 export const VOICE_ID_THRESHOLD_MIN = 0;
@@ -695,6 +703,16 @@ export const MESSAGES_INTERRUPTED = "MessagesInterrupted";
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
  */
+/**
+ * GetParticipantInput.DTMFConfiguration.InterdigitTimeLimitSeconds "must be
+ * a valid integer between 1 and 20". The builder does not model the stored-
+ * input form this belongs to; the bound is the catalog's, held here so the
+ * catalog test reaches it.
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
+ */
+export const INTERDIGIT_TIMEOUT_MIN = 1;
+export const INTERDIGIT_TIMEOUT_MAX = 20;
+
 export const LEX_TIMEOUT_MIN = 60;
 export const LEX_TIMEOUT_MAX = 604_800;
 

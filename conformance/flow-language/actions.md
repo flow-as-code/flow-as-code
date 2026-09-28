@@ -140,9 +140,12 @@ individual action pages linked above.
    `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber` and
    `UpdateFlowLoggingBehavior` list no catch-all at all (rules 18, 20 and
    36; `TagContact`'s page lists none either, but the service requires one,
-   rule 27); `Loop`, `MessageParticipantIteratively` and
-   `UpdateContactTextToSpeechVoice` list one the console sometimes omits
-   (rules 21, 32 and 29, `OPTIONAL_CATCH_ALL` in actions.ts).
+   rule 27). The catch-all is optional (`OPTIONAL_CATCH_ALL` in actions.ts)
+   on three types for three reasons: `MessageParticipantIteratively`'s page
+   lists it without requiring it and the console omits it (rule 32),
+   `Loop`'s page lists none while the console sometimes writes one (rule
+   21), and `UpdateContactTextToSpeechVoice`'s page requires it while the
+   service and the console's exports do not (rule 29).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
    (`Transitions: {}`).
@@ -322,7 +325,10 @@ individual action pages linked above.
     the builder wires it when asked and error-branches does not report it.
     The page says nothing about `NextAction`; every published export writes
     it as a copy of the `DoneLooping` target, and the builder mirrors it the
-    same way. "This is supported in every type of flow." The admin guide
+    same way. The service (checked live 2026-09-15) accepts the block with
+    `NoMatchingError` and accepts `LoopCount` as a JSON number as well as a
+    string; the catalog keeps the string, which is what the console writes.
+    "This is supported in every type of flow." The admin guide
     adds: "If you enter 0
     for the loop count, the Complete branch is followed the first time this
     block runs", and describes an array-looping mode whose flow-language keys
@@ -351,7 +357,9 @@ individual action pages linked above.
     currently is "BotParticipantDisconnected"", which the builder wires
     exactly when that event is waited for. "This is supported in every type
     of flow, but is supported only by the chat channel." The page does not
-    say whether the timeout is required; the builder requires it. It
+    say whether the timeout is required; the service refuses the block
+    without `TimeLimitSeconds` and refuses the page's `TimeoutSeconds` by
+    name (checked live 2026-09-15), and the builder requires it. It
     says nothing about `NextAction`; the console's export of the Sample
     disconnect flow writes it as a copy of the `NoMatchingError` target, and
     the builder mirrors it onto the catch-all the same way. The admin guide's
@@ -383,7 +391,9 @@ individual action pages linked above.
     threshold as 1 plus the percentages so far (3%, 6%, 8% are `"4"`, `"10"`,
     `"18"`), omits `Parameters` entirely, and mirrors `NextAction` onto the
     `NoMatchingCondition` target; the builder writes the same shape from
-    percentages and reads it back. "This action is available in inbound
+    percentages and reads it back. The service also accepts number operands
+    (checked live 2026-09-15); the schema keeps the console's strings. "This
+    action is available in inbound
     flows, transfer flows, and customer queue flows. It is not available to
     hold flows or to whisper flows." The admin guide's flow-type list adds
     the outbound whisper flow; the action page governs.
@@ -403,8 +413,10 @@ individual action pages linked above.
     "has two branches: Success and Error"). The catalog records
     `FlowAttributes` as a map of `{ Value }` objects and the catch-all as
     required, and the builder writes that shape from a flat string map, as it
-    does for `UpdateContactAttributes`; the export governs. "This action is
-    supported on all channels and in all flow types." The admin guide adds
+    does for `UpdateContactAttributes`; the export governs, and the service
+    agrees: it refuses flat string values and accepts the `{ Value }` form
+    (checked live 2026-09-15). "This action is supported on all channels and
+    in all flow types." The admin guide adds
     that flow
     attributes "aren't passed to modules", "don't appear in the contact
     record" and may not contain `$` or `.` in a key.
@@ -487,8 +499,10 @@ individual action pages linked above.
     ("Invalid Action type. Type: UnTagContact"); it accepts `UntagContact`,
     the spelling of the API operation the granular billing page names ("the
     TagContact and UntagContact APIs"), so that is the type the catalog, the
-    schema and the builder use, and a document spelling it the page's way
-    fails the schema rather than the deploy. "Removes a collection of tags on
+    schema and the builder use. The schema and lint accept any type string,
+    so a document spelling it the page's way is not refused here: it
+    round-trips unchanged as a GenericBlock and CreateContactFlow refuses it
+    at deploy time with the error above. "Removes a collection of tags on
     the current contact. [...] You cannot remove system-defined tags. You can
     only remove already existing user-defined tags from a contact." `TagKeys`
     is "an Object that holds the tag-keys for the tags to be removed", a list
@@ -496,8 +510,10 @@ individual action pages linked above.
     error is `NoMatchingError`. "This action is supported across all the
     Connect Customer media channels. This action can be used in flows of all
     types." The page does not say `TagKeys` is non-empty, but the service
-    refuses an empty list ("Invalid Action property value"); the builder and
-    the schema also refuse the `aws:` prefix the TagContact page reserves for
+    refuses an empty list ("Invalid Action property value. Path:
+    Actions[0].Parameters.TagKeys"), so the catalog records `min` 1, the
+    schema `minItems` 1, and the builder refuses it; the builder and the
+    schema also refuse the `aws:` prefix the TagContact page reserves for
     system tags (rule 27).
     https://docs.aws.amazon.com/connect/latest/adminguide/granular-billing.html
 29. `UpdateContactTextToSpeechVoice` (recorded 2026-09-11, checked live
@@ -543,7 +559,16 @@ individual action pages linked above.
     values"; `VoiceAuthenticationThreshold` and `FraudDetectionThreshold`
     "must be between 0 and 100"; `VoiceAuthenticationResponseTime` "must be
     between 5 and 10". `WatchlistId` also says "Value must be between 0 and
-    100", which reads as copied from the threshold lines and is not enforced.
+    100", which reads as copied from the threshold lines and is not enforced;
+    the Set Voice ID block's admin guide page gives the real format, "For Set
+    manually, the watch list ID must be 22 alphanumeric characters", checked
+    at publish, which the fixture's value follows and neither the schema nor
+    the builder enforces (a JSONPath is the dynamic form). AWS ended support
+    for Voice ID on May 20, 2026 ("After May 20, 2026, you will no longer be
+    able to access Voice ID on the Amazon Connect Customer console"); the six
+    Voice ID fields are modeled as the action page still documents them, and
+    a flow that sets them should not expect them to take effect.
+    https://docs.aws.amazon.com/connect/latest/adminguide/set-voice-id.html
     Results "None. No conditions are supported"; the error is
     `NoMatchingError`. "This action is supported on all channels and in all
     flow types." The page has no JSON example; the thresholds are recorded as
@@ -595,19 +620,26 @@ individual action pages linked above.
     the "Equals" operator is supported. The only supported operand is
     MessagesInterrupted." The error is `NoMatchingError`, listed without
     "must always be defined". "This action is supported in Customer Queue,
-    Customer Hold, and Agent Hold flows." "PromptId" is supported only for
-    the Voice channel"; on chat "it immediately takes the error branch. If no
-    error branch is available, the flow stop running and the contact is
-    routed to next available agent." The console's exports of its default
+    Customer Hold, and Agent Hold flows." The page adds that `PromptId` "is
+    supported only for the Voice channel, all other channels support only the
+    "Text" option", and that on chat "it immediately takes the error branch.
+    If no error branch is available, the flow stop running and the contact
+    is routed to next available agent." The console's exports of its default
     hold and queue flows carry `Messages` alone with `Errors` and
     `Conditions` empty and no `NextAction`; its Sample interruptible queue
     flow adds `"InterruptFrequencySeconds": "30"` and the `MessagesInterrupted`
     condition, still with no `NextAction` and no error. So `next` is `none`,
     the catch-all is optional (`OPTIONAL_CATCH_ALL` in actions.ts, so
     error-branches does not report it), the seconds are an `integerString`
-    paired with the branch, and the catalog marks the action `waits`: a flow
-    may end in it with nothing wired, as the console's hold flows do, and
-    terminal-blocks treats it as an end.
+    paired with the branch (a studio drag that adds the branch writes the
+    console's `"30"`, and removing it removes the seconds), and the catalog
+    marks the action `waits`: a flow may end in it, as the console's hold
+    flows do, and terminal-blocks treats it as an end whenever it has no
+    `NextAction`, whatever its catch-all and interrupt branches wire, since a
+    hold flow allows no terminal type and the admin guide's configured block
+    has an Error branch. An S3 audio message is something the participant
+    hears, so `Messages[].Media.Uri` is among the paths recording consent
+    reads, as `Media.Uri` is on `MessageParticipant` and `GetParticipantInput`.
     https://docs.aws.amazon.com/connect/latest/adminguide/loop-prompts.html
 33. `ConnectParticipantWithLexBot` (recorded 2026-09-11) "Connects the
     participant with the specified Amazon Lex bot. When the interaction is
@@ -618,9 +650,13 @@ individual action pages linked above.
     `Text` and `SSML` are each optional and at most one ("May not be
     specified if PromptId or SSML is also specified" and the like);
     `LexSessionAttributes` is a string map; `LexInitializationData` carries
-    `InitialMessage`; `LexTimeoutSeconds.Text` is "the length of Lex timer in
-    second", written as a string, bounded by the console's Chat timeout
-    ("Minimum: 1 minute Maximum: 7 days"). Results: "If the Amazon Lex
+    `InitialMessage`. `LexTimeoutSeconds` is "A mapping that defines the length
+    of Lex timer in second"; its `Text` is "An optional string that defines
+    the Lex timer length for chat", although the page's Action syntax spells
+    it `"Text": "number"`; the catalog follows the prose and the console's
+    other integer spellings and records a decimal string, bounded by the
+    console's Chat timeout ("Minimum: 1 minute Maximum: 7 days"), which the
+    schema's pattern holds (60 to 604800). Results: "If the Amazon Lex
     interaction succeeds, the result is the Intent of the bot. Conditions
     are supported, but only the Equals operator is supported". Errors, in
     the page's Action syntax order: `InputTimeLimitExceeded` "if there is no
@@ -628,10 +664,20 @@ individual action pages linked above.
     `NoMatchingCondition` "If no specified condition evaluated to True".
     "This action is available only in contact flows, transfer flows, and
     customer queue flows. It is not available in whisper flows or hold
-    flows." The builder models the V2 form without `Media`; `NextAction`
-    mirrors the no-match branch as the same console block's DTMF form does,
-    to be confirmed against a console export, since none of the sample flows
-    carries a Lex bot.
+    flows." The page's "Provide either LexBot or LexV2Bot object" is an
+    `exactlyOne` in the catalog and a `oneOf` in the schema, so an action
+    with no bot is refused. The builder models the V2 form without `Media`;
+    `NextAction` mirrors the no-match branch as the same console block's DTMF
+    form does (the sample exports put a DTMF menu's `NextAction` on its
+    `NoMatchingCondition` target). The only published console JSON of this
+    action, the Get customer input page's Flow Language representation when
+    Amazon Lex is used, is the sentiment-override form: it carries no
+    conditions, `NoMatchingCondition` points at the sentiment `Compare`, and
+    `NextAction` copies the `InputTimeLimitExceeded` and `NoMatchingError`
+    target, so that form round-trips as a GenericBlock and does not settle
+    the plain one; no sample flow carries a Lex bot, so the plain form's
+    mirror is to be confirmed against an export.
+    https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
 34. `ShowView` (recorded 2026-09-11, checked live 2026-09-15) "Initiates a
     UI-based workflow that can be surfaced to users of front end applications.
     This action can be used to create step-by-step guides for agents".
@@ -640,9 +686,12 @@ individual action pages linked above.
     (`view/form:1`), which the `view` reference carries in its alias slot
     (`${cdref:view:form@1}`). `InvocationTimeLimitSeconds` is a bare `400` in
     the page's parameter block and `"2"` in the admin guide's JSON, so it is
-    recorded as an `integerString`; the page marks it optional, but
-    CreateContactFlow refuses the block without it ("Action is missing
-    required property"), so it is required. `ViewData` is "An optional map of
+    recorded as an `integerString`; the page marks none of its fields
+    required or optional, and CreateContactFlow refuses the block without it
+    ("Action is missing required property"), so it is required. Neither page
+    states a bound; the catalog's floor of 1 is the builder's (a zero or
+    negative time limit is meaningless) and the live checks did not probe
+    it. `ViewData` is "An optional map of
     data that will be passed to the View Resource. Keys and values may be set
     statically or dynamically" and stays opaque;
     `SensitiveDataConfiguration.HideResponseOn` is a list whose only example
@@ -670,8 +719,8 @@ individual action pages linked above.
     contact recording behavior, including analysis behavior and which
     participants of the contact to record." Its parameter block holds one
     channel object ("Only ONE of the following channel behavior objects can be
-    defined per configuration": `ChatBehavior` or `VoiceBehavior`, an
-    `atMostOne` constraint) and an optional `ScreenRecordingBehavior` that "Can
+    defined per configuration": `ChatBehavior` or `VoiceBehavior`) and an
+    optional `ScreenRecordingBehavior` that "Can
     be defined independently or alongside any channel behavior". The builder
     models the two recording forms: `VoiceBehavior.VoiceRecordingBehavior`,
     whose `RecordedParticipants` is "a list of participants to record, chosen
@@ -717,12 +766,18 @@ individual action pages linked above.
     `FlowLoggingBehavior`: "One of [Enabled,Disabled]. *Dynamic values are not
     supported*". Errors "None." (so it joins `WITHOUT_CATCH_ALL`), results
     "None. No conditions are supported.", and "This action is available in
-    every type of flow." The page says nothing about `NextAction`; the
-    console's export of the demo flow (the `enable-logging` block, exported
-    from a live instance for `conformance/export/demo-instance`) writes it
-    with empty `Errors` and `Conditions`, which is byte for byte what a
-    `GenericBlock` with a next target writes, so the builder's class changed
-    no fixture. It was the demo's passthrough exemplar until this entry;
+    every type of flow." The page says nothing about `NextAction`, and no
+    recorded console export carries the type: the `enable-logging` block in
+    `conformance/export/demo-instance` is the builder's own materialized demo
+    (tasks/A06), so it shows only that the service stores what was written.
+    The class writes `NextAction` with empty `Errors` and `Conditions`, the
+    shape the console writes for its other error-less blocks in the recorded
+    sample flows (`UpdateContactRoutingBehavior`,
+    `UpdateContactRecordingBehavior`, `MessageParticipant`) and byte for byte
+    what the demo's `GenericBlock` already wrote, so the builder's class
+    changed no fixture; the service accepted the block with no errors
+    (checked live 2026-09-15), and the `NextAction` spelling is to be
+    confirmed against a console export. It was the demo's passthrough exemplar until this entry;
     passthrough now lives in the `unknown-actions` fixture, which holds only
     types the builder does not model and is held to that by test.
     https://docs.aws.amazon.com/connect/latest/adminguide/set-logging-behavior.html
@@ -837,7 +892,8 @@ each marked `required` (the error-branches rule reports it missing) and
 `builder` (the builder's modeled form wires it; the studio offers exactly those
 when a drag looks for a branch to create), and optionally `requiredWhenKey`,
 a top-level parameter whose presence makes the branch required, which the
-rule reports on an action that carries the key. A type whose page lists no errors
+rule reports on an action that carries the key, and `when`, the page's
+words for when an error exists at all, which nothing reads. A type whose page lists no errors
 has an empty list, and the studio renders no error handle for it. `waits`
 marks an action that holds the participant until something outside the flow
 moves them on, so a flow may end in it with nothing wired; terminal-blocks
@@ -849,10 +905,17 @@ queue) and any may be absent, and `neverBoth` when two independent settings
 merely conflict (a priority or a time adjustment). A second implementation
 treats the last two the same way; the distinction records what the page said.
 
+A `list` parameter's `of` is its element shape and a `map`'s `of` its value
+shape when that is not a string. `textBodies` names the paths whose string
+is billed prompt text (prompt-length-3000), `announces` the paths whose
+non-blank value means the participant hears something, and
+`recordingEnabler` the list whose non-empty value turns recording on
+(recording-consent-before-record reads both).
+
 A parameter marked `dynamic` also accepts a single JSONPath identifier where
 its page says "fully static or fully dynamic"; the kind describes the static
-form, and the schema accepts either. On a `list` or `map`, `min` and `max`
-bound the entry count, and a `map` may carry `keys`, the keys its page
+form, and the schema accepts either. On an `integer` or `integerString`, `min` and `max` bound the value; on a
+`list` or `map` they bound the entry count, and a `map` may carry `keys`, the keys its page
 allows.
 
 Attribute names are the mechanical `snake_case` of the Flow language key

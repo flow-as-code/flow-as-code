@@ -435,6 +435,12 @@ describe("FlowDoc schema rejections: contact data", () => {
       }),
     ],
     [
+      "an empty key list, which the service refuses",
+      mutate("untag", (a) => {
+        a.Parameters.TagKeys = [];
+      }),
+    ],
+    [
       "a text-to-speech engine the pages do not list",
       mutate("set-voice", (a) => {
         a.Parameters.TextToSpeechEngine = "premium";
@@ -567,6 +573,24 @@ describe("FlowDoc schema rejections: participant", () => {
       }),
     ],
     [
+      "a Lex timeout below the console's one minute",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexTimeoutSeconds = { Text: "59" };
+      }),
+    ],
+    [
+      "a Lex timeout above the console's seven days",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexTimeoutSeconds = { Text: "604801" };
+      }),
+    ],
+    [
+      "a Lex action with no bot at all",
+      mutate("ask-intent", (a) => {
+        delete a.Parameters.LexV2Bot;
+      }),
+    ],
+    [
       "a view resource with no id",
       mutate("show-form", (a) => {
         a.Parameters.ViewResource = { Version: "1" };
@@ -648,6 +672,18 @@ describe("FlowDoc schema rejections: recording and analytics", () => {
       "a voice and a screen behavior on one block, which the service refuses",
       mutate("record-voice-ivr", (a) => {
         a.Parameters.ScreenRecordingBehavior = { ScreenRecordedParticipants: ["Agent"] };
+      }),
+    ],
+    [
+      "a voice behavior with no recording object",
+      mutate("record-voice-ivr", (a) => {
+        a.Parameters.VoiceBehavior = {};
+      }),
+    ],
+    [
+      "a screen behavior with no participant list",
+      mutate("record-screen", (a) => {
+        a.Parameters.ScreenRecordingBehavior = {};
       }),
     ],
     [

@@ -19,6 +19,7 @@
 import type { Condition, ConditionOperator, DtmfDigit, FlowAction } from "@flow-as-code/core";
 import {
   ActionType,
+  PARTICIPANT_NOT_FOUND,
   TERMINAL_ACTIONS,
   builderErrors,
   conditionsKind,
@@ -267,4 +268,44 @@ export function defaultConditionFor(action: FlowAction): Condition | undefined {
   const operator: ConditionOperator =
     kind === "numeric" ? "NumberLessThan" : DEFAULT_CONDITION_OPERATOR;
   return { Operator: operator, Operands: [...DEFAULT_CONDITION_OPERANDS] };
+}
+
+/**
+ * Whether an error edge moved from another block can land on this one: a
+ * branch this block's class wires and does not have yet. A Wait's
+ * ParticipantNotFound lands only beside its BotParticipantDisconnected
+ * branch. An unmodeled block keeps whatever it is given, as with any drag.
+ */
+export function admitsError(action: FlowAction, errorType: string): boolean {
+  if (isTerminalType(action.Type)) return false;
+  if (!isModeled(action.Type)) return true;
+  if (action.Type === ActionType.GetParticipantInput && !isDtmfMenu(action)) return false;
+  if (!builderErrors(action.Type).includes(errorType)) return false;
+  if ((action.Transitions.Errors ?? []).some((e) => e.ErrorType === errorType)) return false;
+  if (action.Type === ActionType.Wait && errorType === PARTICIPANT_NOT_FOUND) {
+    return usedKeys(action).has("BotParticipantDisconnected");
+  }
+  return true;
+}
+
+/**
+ * Whether a condition edge moved from another block can land on this one as
+ * a branch its class reads: a key a menu does not answer yet, an operand a
+ * fixed or listed kind names and this block has not wired, any Equals on a
+ * single string for a kind whose operands the page leaves open (a Lex
+ * intent, a view action), anything for a numeric or free-form kind.
+ */
+export function admitsCondition(action: FlowAction, condition: Condition): boolean {
+  if (isTerminalType(action.Type)) return false;
+  if (!isModeled(action.Type)) return true;
+  if (action.Type === ActionType.GetParticipantInput && !isDtmfMenu(action)) return false;
+  const kind = conditionsKind(action.Type);
+  if (kind === undefined || kind === "none") return false;
+  if (kind === "numeric" || kind === "custom") return true;
+  if (condition.Operator !== "Equals" || condition.Operands.length !== 1) return false;
+  const operand = String(condition.Operands[0]);
+  if (usedKeys(action).has(operand)) return false;
+  if (kind === "dtmf") return (DTMF_KEY_ORDER as readonly string[]).includes(operand);
+  const listed = listedOperands(action.Type);
+  return listed.length === 0 || listed.includes(operand);
 }

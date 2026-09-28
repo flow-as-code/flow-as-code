@@ -75,7 +75,13 @@ export type FieldDesc =
       optional?: boolean;
       clears?: readonly string[];
     }
-  | { kind: "json"; key: string; label: string };
+  | {
+      kind: "json";
+      key: string;
+      label: string;
+      /** Keys deleted when this one is set, for alternative forms. */
+      clears?: readonly string[];
+    };
 
 /**
  * Message body is a oneOf (Text, SSML, PromptId); the inspector renders a mode
@@ -143,11 +149,18 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       return [{ kind: "text", key: "ComparisonValue", label: "Comparison value (JSONPath)" }];
     case ActionType.ConnectParticipantWithLexBot:
       // Body rendered as for MessageParticipant, optional here. Intents are
-      // the condition editor, one Equals branch each. The bot is the V2 alias
-      // as { "AliasArn": "${cdref:lex:name}" } or a JSONPath; the V1 LexBot
-      // form is edited as a GenericBlock.
+      // the condition editor, one Equals branch each. The bot is the V2
+      // alias, LexV2Bot.AliasArn, a lex reference or a JSONPath edited as one
+      // key of the LexV2Bot object, as ShowView's view is; the V1 LexBot form
+      // is edited as a GenericBlock.
       return [
-        { kind: "json", key: "LexV2Bot", label: "Lex V2 bot ({ AliasArn })" },
+        {
+          kind: "ref",
+          key: "LexV2Bot",
+          nested: "AliasArn",
+          label: "Lex V2 bot alias",
+          refType: "lex",
+        },
         { kind: "json", key: "LexSessionAttributes", label: "Session attributes" },
         {
           kind: "json",
@@ -189,7 +202,9 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       // Messages is a list of one-key objects (Text, SSML, PromptId, or Media
       // with Uri, SourceType S3 and MediaType Audio). The interrupt frequency
       // and the MessagesInterrupted branch go together: a drag from the
-      // primary handle adds the branch once the seconds are set.
+      // primary handle adds the branch and, when none is set, the console's
+      // 30 seconds for this field to change; removing the branch removes the
+      // seconds (mutations.ts, withBranch and dropCondition).
       return [
         { kind: "json", key: "Messages", label: "Messages (Text, SSML, PromptId or Media)" },
         {
@@ -370,15 +385,22 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     case ActionType.UpdateContactRecordingAndAnalyticsBehavior:
-      // The voice recording form and the optional screen recording form;
-      // the chat form and the voice analytics settings are edited as a
+      // The voice recording form or the screen recording form, one per
+      // block as the service requires: setting either clears the other. The
+      // chat form and the voice analytics settings are edited as a
       // GenericBlock.
       return [
-        { kind: "json", key: "VoiceBehavior", label: "Voice recording (VoiceRecordingBehavior)" },
+        {
+          kind: "json",
+          key: "VoiceBehavior",
+          label: "Voice recording (VoiceRecordingBehavior)",
+          clears: ["ScreenRecordingBehavior"],
+        },
         {
           kind: "json",
           key: "ScreenRecordingBehavior",
-          label: "Screen recording (ScreenRecordedParticipants, optional)",
+          label: "Screen recording (ScreenRecordedParticipants), instead of voice",
+          clears: ["VoiceBehavior"],
         },
       ];
     case ActionType.UpdateFlowAttributes:
@@ -464,7 +486,8 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       // or JSONPath.
       return [{ kind: "json", key: "EventHooks", label: "Event hook (one entry: hook to flow)" }];
     case ActionType.UpdateContactTextToSpeechVoice:
-      // The JSONPath forms of the engine and style are edited as a GenericBlock.
+      // The JSONPath forms of the engine and style are shown as text fields
+      // (Inspector.tsx, isJsonPathValue).
       return [
         { kind: "text", key: "TextToSpeechVoice", label: "Voice (Polly name or JSONPath)" },
         {
