@@ -15,6 +15,7 @@
 // synth` on generated source and `tsc` on the cdk scaffold both need that.
 
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
@@ -29,6 +30,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { canonicalize, type FlowDoc } from "@flow-as-code/core";
+import { emitFlowascode, fromFlowDoc } from "@flow-as-code/hcl";
 import { emitTf } from "@flow-as-code/tf";
 
 const REPO = fileURLToPath(new URL("../../../", import.meta.url));
@@ -96,6 +98,8 @@ function cli(...args: string[]): Run {
 }
 
 const readDoc = (path: string): FlowDoc => JSON.parse(readFileSync(path, "utf8")) as FlowDoc;
+const read = (...parts: string[]): string => readFileSync(join(...parts), "utf8");
+const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
 
 beforeAll(() => {
   if (!existsSync(CLI)) {
@@ -468,6 +472,135 @@ describe("emit --target tf", () => {
     const run = cli("emit", dir, "--target", "tf", "--address-map", map);
     expect(run.status).toBe(1);
     expect(run.stderr).toContain(map);
+  });
+});
+
+describe("emit --target flowascode", () => {
+  it("writes exactly what @flow-as-code/hcl's emitFlowascode returns, and no companion", () => {
+    const { dir } = demoWorkspace();
+    const addressMapPath = join(EMIT_TF_CASE, "address-map.json");
+    const run = cli("emit", dir, "--target", "flowascode", "--address-map", addressMapPath);
+    expect(run.status).toBe(0);
+
+    const addressMap = JSON.parse(readFileSync(addressMapPath, "utf8")) as Record<string, string>;
+    const expected = emitFlowascode([readDoc(DEMO)], { addressMap }).files;
+    expect(Object.keys(expected).sort()).toEqual([
+      "flows.tf",
+      "variables.tf",
+      "versions.tf.example",
+    ]);
+    for (const [relative, content] of Object.entries(expected)) {
+      expect(readFileSync(join(dir, relative), "utf8")).toBe(content);
+    }
+    expect(run.stdout.trim().split("\n").sort()).toEqual(
+      Object.keys(expected)
+        .map((relative) => join(dir, relative))
+        .sort(),
+    );
+    expect(existsSync(join(dir, "appointment-line.flow.tf"))).toBe(false);
+  });
+
+  it("refuses a literal ARN in the address map", () => {
+    const { dir } = demoWorkspace();
+    const map = join(dir, "arn.json");
+    writeFileSync(
+      map,
+      JSON.stringify({
+        "queue:appointments": "arn:aws:connect:us-west-2:111122223333:instance/i/queue/q",
+      }),
+    );
+    const run = cli("emit", dir, "--target", "flowascode", "--address-map", map);
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain("literal ARN");
+  });
+});
+
+describe("codegen --to tf, synth, convert", () => {
+  it("codegen --to tf writes the golden companion, and synth reads it back", () => {
+    const { dir, doc } = demoWorkspace();
+    const run = cli("codegen", doc, "--to", "tf");
+    expect(run.status).toBe(0);
+    const tf = join(dir, "appointment-line.flow.tf");
+    expect(run.stdout.trim()).toBe(tf);
+    expect(readFileSync(tf, "utf8")).toBe(fromFlowDoc(readDoc(DEMO)));
+
+    const out = join(dir, "resynth");
+    const synth = cli("synth", tf, "--out", out);
+    expect(synth.stderr).toBe("");
+    expect(synth.status).toBe(0);
+    const round = readDoc(join(out, "appointment-line.flowdoc.json"));
+    expect(round.meta?.sourceKind).toBe("tf");
+    expect(round.meta?.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
+    delete round.meta;
+    const original = readDoc(DEMO);
+    delete original.meta;
+    expect(canonicalize(round)).toEqual(canonicalize(original));
+  });
+
+  it("codegen keeps a .flow.tf's bindings and @keep comments", () => {
+    const { dir, doc } = demoWorkspace();
+    const tf = join(dir, "appointment-line.flow.tf");
+    cli("codegen", doc, "--to", "tf");
+    const edited = readFileSync(tf, "utf8")
+      .replace(
+        '"queue:appointments" = null',
+        '"queue:appointments" = aws_connect_queue.appointments.arn',
+      )
+      .replace("\n  action {\n", "\n  # @keep reviewed\n  action {\n");
+    writeFileSync(tf, edited);
+    expect(cli("codegen", doc, "--to", "tf").status).toBe(0);
+    const again = readFileSync(tf, "utf8");
+    expect(again).toContain('"queue:appointments"        = aws_connect_queue.appointments.arn');
+    expect(again).toContain("  # @keep reviewed\n  action {");
+  });
+
+  it("synth names the file, line and code of a refused .flow.tf", () => {
+    const { dir } = demoWorkspace();
+    const tf = join(dir, "bad.flow.tf");
+    writeFileSync(tf, read(REPO, "conformance", "hcl", "refuse", "refuse-var", "input.flow.tf"));
+    const run = cli("synth", tf);
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain(`${tf}:29:18: REF_EXPRESSION_REFUSED`);
+  });
+
+  it("convert --to tf carries @keep comments, restamps the document and removes the .flow.ts", () => {
+    const { dir, doc } = demoWorkspace();
+    const ts = join(dir, "appointment-line.flow.ts");
+    cli("codegen", doc);
+    writeFileSync(
+      ts,
+      readFileSync(ts, "utf8").replace(
+        "export function appointmentLine()",
+        "// @keep owned by the CX team\nexport function appointmentLine()",
+      ),
+    );
+    const run = cli("convert", doc, "--to", "tf");
+    expect(run.status).toBe(0);
+    const tf = join(dir, "appointment-line.flow.tf");
+    expect(run.stdout.trim().split("\n")).toEqual([tf, doc, `removed ${ts}`]);
+    expect(run.stderr).toContain("note: 3 of 3 references are written null");
+    expect(existsSync(ts)).toBe(false);
+    const text = readFileSync(tf, "utf8");
+    expect(text).toContain('# @keep owned by the CX team\nresource "flowascode_contact_flow"');
+    const stamped = readDoc(doc);
+    expect(stamped.meta?.sourceKind).toBe("tf");
+    expect(stamped.meta?.sourceHash).toBe(`sha256:${sha256(text)}`);
+
+    const back = cli("convert", doc, "--to", "ts", "--keep-old");
+    expect(back.status).toBe(0);
+    expect(existsSync(tf)).toBe(true);
+    expect(readFileSync(ts, "utf8")).toContain(
+      "// @keep owned by the CX team\nexport function appointmentLine()",
+    );
+    expect(readDoc(doc).meta?.sourceKind).toBe("ts");
+  });
+
+  it("convert refuses to replace a companion that exists", () => {
+    const { dir, doc } = demoWorkspace();
+    cli("codegen", doc, "--to", "tf");
+    const run = cli("convert", doc, "--to", "tf");
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain(join(dir, "appointment-line.flow.tf"));
   });
 });
 

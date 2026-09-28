@@ -91,8 +91,14 @@ companion re-syncs the canvas, and comments marked `@keep` survive either way.
 What a `.flow.tf` carries beyond the document (its `refs` bindings,
 `instance_id`, `tags`, `state` and `lint` settings) is kept across
 regeneration. `flow-cli convert --to ts|tf` switches a document's companion
-and says what it drops. To be completed by B03 (the CLI commands) and B05 (the
-studio).
+and says what it drops.
+
+The commands that write or read a companion take either kind:
+`flow-cli codegen <doc> --to tf` writes `<name>.flow.tf` (without `--to`, the
+kind the document's `meta.sourceKind` names), `flow-cli synth <name>.flow.tf`
+reads one back in process, and `flow-cli export --author tf` writes one per
+exported document. `packages/cli/README.md` has the details. To be completed
+by B03 (the watcher and `flow-cli init --author tf`) and B05 (the studio).
 
 ## Versions and compatibility
 

@@ -52,6 +52,7 @@ import { fileURLToPath } from "node:url";
 import type { SourceKind, FlowDoc } from "@flow-as-code/core";
 import { PACKAGE_NAMES, SLUG_PATTERN, serialize } from "@flow-as-code/core";
 
+import { kindOfPath, readTfCompanion } from "./companion.js";
 import { cliVersion } from "./version.js";
 
 /**
@@ -424,6 +425,21 @@ export function serializeWithMeta(
 }
 
 /**
+ * A `.flow.tf` companion read to its FlowDoc, in this process: HCL is parsed,
+ * never run, so there is no sandbox to enter. Warnings (a refs key no action
+ * uses, a resource address rewritten to its key) go to stderr.
+ */
+export async function synthTfToFile(absPath: string, dir: string): Promise<string> {
+  const text = await readFile(absPath, "utf8");
+  const { doc, warnings } = readTfCompanion(text, absPath);
+  for (const warning of warnings) console.error(`warning: ${warning}`);
+  await mkdir(dir, { recursive: true });
+  const docPath = join(dir, `${doc.name}.flowdoc.json`);
+  await writeFile(docPath, serializeWithMeta(doc, `sha256:${sha256Hex(text)}`, "tf"), "utf8");
+  return docPath;
+}
+
+/**
  * The `flow-cli synth` command body: synth every flow the file exports and
  * write <flow.name>.flowdoc.json into outDir (default: the source file's
  * directory). Returns the written paths in write order.
@@ -431,6 +447,7 @@ export function serializeWithMeta(
 export async function synthToFiles(sourcePath: string, outDir?: string): Promise<string[]> {
   const absPath = resolve(sourcePath);
   const dir = outDir === undefined ? dirname(absPath) : resolve(outDir);
+  if (kindOfPath(absPath) === "tf") return [await synthTfToFile(absPath, dir)];
   const { flows, sourceHash } = await synthFile(absPath);
   await mkdir(dir, { recursive: true });
   const written: string[] = [];

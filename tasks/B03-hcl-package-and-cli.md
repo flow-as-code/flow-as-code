@@ -39,3 +39,11 @@ Acceptance: `print(parse(text))` is byte-exact and `format(parse(text))` equals 
 - `conformance/hcl/emit/` has one case per `emit-tf` case (a test holds the two lists equal), each with `validate/stubs.tf` copied from its `emit-tf` twin and `validate: "skip"` until B03e. The test reads every flow and module resource in each `flows.tf` back to its document.
 - Neutered and watched red, then restored: in-set module resolution, the literal-ARN check, the duplicate-address check, and the alias resources.
 - `docs/03-tf-emitter.md`, `packages/tf/README.md` and the `emit.ts` header no longer call the reverse direction deferred; they point at this package for the shape that is read back. docs/06 describes `--target flowascode`.
+
+## Notes (2026-09-28, B03c, commands)
+
+- `packages/cli/src/companion.ts` is the one place a companion of either kind is generated or read: `generateCompanion` (core's `codegen` or hcl's `fromFlowDoc`), `readTfCompanion` (hcl's `toFlowDoc`, its `HclError` turned into a `CliError` that keeps the file, line, column and code), and `keptFromTs`. The CLI now depends on `@flow-as-code/hcl`.
+- `codegen --to ts|tf` defaults to the document's `meta.sourceKind`; `synth <name>.flow.tf` parses in process and stamps `sourceKind: "tf"`; `export --author tf`; `emit --target flowascode` writes exactly `emitFlowascode`'s bytes; `convert --to ts|tf [--address-map] [--keep-old]` refuses to replace an existing companion, carries `@keep` lines across (`//` and `#` rewritten), restamps `meta.sourceHash` and `meta.sourceKind`, deletes the old companion unless `--keep-old`, and prints what does not carry as `note:` lines.
+- To carry comments from a `.flow.tf` into TypeScript, core's `codegen` takes `options.keep` in place of the comments `previous` holds, and exports `extractKeepComments` for the other direction; hcl's `fromFlowDoc` takes `keep` likewise.
+- Neutered and watched red, then restored: core's `options.keep`, and the `//` to `#` rewrite.
+- The watcher, the bridge's pairing, protocol 2 and `init --author tf` are the next commit.

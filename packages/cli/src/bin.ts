@@ -11,6 +11,7 @@ import { PACKAGE_NAMES } from "@flow-as-code/core";
 import { Command } from "commander";
 
 import { runCodegen } from "./codegen.js";
+import { runConvert } from "./convert.js";
 import { EXIT_DIFF_ERROR, runDiff } from "./diff.js";
 import { runEmit } from "./emit.js";
 import { runExport } from "./export.js";
@@ -64,14 +65,17 @@ program
 program
   .command("codegen")
   .description(
-    "Generate idiomatic TypeScript builder source from a FlowDoc. Writes " +
-      "<doc name>.flow.ts next to the input unless --out says otherwise, and re-reads " +
-      "an existing output file first so comments marked @keep survive regeneration.",
+    "Generate a FlowDoc's companion source: idiomatic TypeScript builder code " +
+      "(<doc name>.flow.ts) or a flowascode Terraform resource (<doc name>.flow.tf). " +
+      "Writes beside the input unless --out says otherwise, and re-reads an existing " +
+      "output file first so comments marked @keep, and a .flow.tf's refs bindings, " +
+      "instance_id, tags and lint settings, survive regeneration.",
   )
   .argument("<file>", "path to a .flowdoc.json file")
-  .option("--out <file>", "output file (default: <doc name>.flow.ts beside the input)")
+  .option("--to <kind>", "ts or tf (default: the document's meta.sourceKind, else ts)")
+  .option("--out <file>", "output file (default: <doc name>.flow.<kind> beside the input)")
   .action(
-    action((file: string, opts: { out?: string }) => {
+    action((file: string, opts: { out?: string; to?: string }) => {
       console.log(runCodegen(file, opts));
     }),
   );
@@ -79,11 +83,13 @@ program
 program
   .command("synth")
   .description(
-    "Execute a TypeScript builder file in a sandboxed child process and write one " +
-      "<flow.name>.flowdoc.json per exported flow. A flow is any exported Flow instance " +
-      "or the result of any exported zero-argument function returning one.",
+    "Turn a companion source into FlowDoc JSON. A .flow.ts builder file runs in a " +
+      "sandboxed child process and writes one <flow.name>.flowdoc.json per exported flow " +
+      "(any exported Flow instance, or the result of any exported zero-argument function " +
+      "returning one). A .flow.tf is parsed in process, never executed, and writes the " +
+      "one document its resource holds.",
   )
-  .argument("<file>", "path to a .flow.ts builder file")
+  .argument("<file>", "path to a .flow.ts builder file or a .flow.tf resource")
   .option("--out <dir>", "output directory (default: the source file's directory)")
   .action(
     action(async (file: string, opts: { out?: string }) => {
@@ -114,16 +120,42 @@ program
   .command("emit")
   .description(
     "Emit infrastructure as code for a set of FlowDocs. --target tf writes the " +
-      `Terraform/OpenTofu files from ${PACKAGE_NAMES.tf}; --target cdk writes a flow-stack.ts ` +
-      `scaffold that constructs a ${PACKAGE_NAMES.cdk} FlowSet over the directory.`,
+      `Terraform/OpenTofu files from ${PACKAGE_NAMES.tf} for hashicorp/aws; --target ` +
+      `flowascode writes flowascode provider resources from ${PACKAGE_NAMES.hcl}; ` +
+      "--target cdk writes a flow-stack.ts scaffold that constructs a " +
+      `${PACKAGE_NAMES.cdk} FlowSet over the directory.`,
   )
   .argument("<dir-or-file>", "directory of *.flowdoc.json files, or one FlowDoc file")
-  .requiredOption("--target <target>", "cdk or tf")
-  .option("--address-map <refs.tfmap.json>", "tf only: reference to terraform address expressions")
+  .requiredOption("--target <target>", "cdk, flowascode or tf")
+  .option(
+    "--address-map <refs.tfmap.json>",
+    "tf and flowascode: reference to terraform address expressions",
+  )
   .option("--out <dir>", "output directory (default: the input directory)")
   .action(
     action((input: string, opts: { target: string; addressMap?: string; out?: string }) => {
       for (const path of runEmit(input, opts)) console.log(path);
+    }),
+  );
+
+program
+  .command("convert")
+  .description(
+    "Switch a FlowDoc's companion between <name>.flow.ts and <name>.flow.tf. Writes the " +
+      "new companion from the document, carrying comments marked @keep, restamps the " +
+      "document's meta.sourceKind and meta.sourceHash, deletes the old companion unless " +
+      "--keep-old, and prints what the new companion does not carry.",
+  )
+  .argument("<file>", "path to a .flowdoc.json file")
+  .requiredOption("--to <kind>", "ts or tf")
+  .option("--address-map <refs.tfmap.json>", "--to tf only: reference to terraform addresses")
+  .option("--keep-old", "keep the replaced companion")
+  .action(
+    action((file: string, opts: { to: string; addressMap?: string; keepOld?: boolean }) => {
+      const { written, removed, dropped } = runConvert(file, opts);
+      for (const path of written) console.log(path);
+      if (removed !== undefined) console.log(`removed ${removed}`);
+      for (const note of dropped) console.error(`note: ${note}`);
     }),
   );
 
@@ -150,18 +182,28 @@ program
   .command("export")
   .description(
     "Read every flow and module in a live Amazon Connect instance and write " +
-      "<name>.flowdoc.json plus <name>.flow.ts for each. References come out as tokens, " +
+      "<name>.flowdoc.json plus its companion (<name>.flow.ts, or <name>.flow.tf with " +
+      "--author tf) for each. References come out as tokens, " +
       "never ARNs. Exits 1 when any flow could not be exported; --on-error collect (the " +
       "default) still writes the rest and reports every failure at once.",
   )
   .requiredOption("--instance <arn>", "ARN of the Connect instance to read")
   .option("--out <dir>", "output directory (default: the working directory)")
-  .option("--no-codegen", "write FlowDocs only, no TypeScript")
+  .option("--author <kind>", "companion to write: ts or tf", "ts")
+  .option("--no-codegen", "write FlowDocs only, no companion")
   .option("--on-error <mode>", "abort on the first failed flow, or collect them all", "collect")
   .action(
-    action(async (opts: { instance: string; out?: string; codegen: boolean; onError: string }) => {
-      await runExport(opts);
-    }),
+    action(
+      async (opts: {
+        instance: string;
+        out?: string;
+        author?: string;
+        codegen: boolean;
+        onError: string;
+      }) => {
+        await runExport(opts);
+      },
+    ),
   );
 
 program

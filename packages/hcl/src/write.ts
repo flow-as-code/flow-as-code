@@ -24,6 +24,7 @@ import { FLOW_RESOURCE, MODULE_RESOURCE, banner } from "./contract.js";
 import { format } from "./format.js";
 import { quote } from "./quote.js";
 import { readCarry, type Carry } from "./carry.js";
+import type { KeptComments } from "./read.js";
 
 export interface FromFlowDocOptions {
   /** The companion on disk, whose carried values and @keep comments survive (rule 24). */
@@ -36,6 +37,11 @@ export interface FromFlowDocOptions {
   lintDisable?: readonly string[];
   /** The document's file name, for the banner; default `<name>.flowdoc.json`. */
   fileName?: string;
+  /**
+   * Kept comment lines to write when there is no `previous`: what
+   * `flow-cli convert` carries over from a `.flow.ts`, rewritten as `# @keep`.
+   */
+  keep?: KeptComments;
 }
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_-]*$/;
@@ -44,6 +50,10 @@ const key = (k: string): string => (IDENT.test(k) ? k : quote(k));
 /** The companion text for `doc`. */
 export function fromFlowDoc(doc: FlowDoc, options: FromFlowDocOptions = {}): string {
   const carry: Carry = options.previous === undefined ? emptyCarry() : readCarry(options.previous);
+  if (options.keep !== undefined && options.previous === undefined) {
+    carry.keepResource = [...options.keep.resource];
+    carry.keepActions = new Map(Object.entries(options.keep.actions));
+  }
   const out = banner(options.fileName ?? `${doc.name}.flowdoc.json`).split("\n");
   out.push(...carry.keepResource);
   out.push(...resourceLines(doc, { ...options, carry }));

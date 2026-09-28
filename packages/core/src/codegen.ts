@@ -123,6 +123,12 @@ export interface CodegenOptions {
    * re-attach there. Everything else regenerates.
    */
   previous?: string;
+  /**
+   * Kept comment lines to attach, in place of those `previous` holds: what
+   * `flow-cli convert` carries over from a `.flow.tf`, whose `# @keep` lines
+   * arrive here rewritten as `// @keep`.
+   */
+  keep?: KeepComments;
 }
 
 const DEFAULT_MODULE_SPECIFIER = PACKAGE_NAMES.core;
@@ -2105,7 +2111,8 @@ function invertAction(a: FlowAction, ctx: Ctx): Inversion {
 // @keep comments
 // ---------------------------------------------------------------------------
 
-interface KeepComments {
+/** Comment lines marked `@keep`, above the export function and above each block by id. */
+export interface KeepComments {
   beforeExport: string[];
   beforeBlock: Map<string, string[]>;
 }
@@ -2113,7 +2120,8 @@ interface KeepComments {
 const NEW_BLOCK = /^new [A-Za-z_$][A-Za-z0-9_$]*\(\{/;
 const BLOCK_ID = /\bid: (["'])((?:[^"'\\]|\\.)*)\1/;
 
-function extractKeepComments(previous: string): KeepComments {
+/** The `@keep` comment lines of a generated source, keyed as codegen re-attaches them. */
+export function extractKeepComments(previous: string): KeepComments {
   const out: KeepComments = { beforeExport: [], beforeBlock: new Map() };
   const lines = previous.split("\n");
   let pending: string[] = [];
@@ -2284,9 +2292,10 @@ export function codegen(doc: FlowDoc, options: CodegenOptions = {}): string {
   }
   const spec = options.moduleSpecifier ?? DEFAULT_MODULE_SPECIFIER;
   const keep =
-    options.previous === undefined
+    options.keep ??
+    (options.previous === undefined
       ? { beforeExport: [], beforeBlock: new Map<string, string[]>() }
-      : extractKeepComments(options.previous);
+      : extractKeepComments(options.previous));
 
   const ctx: Ctx = { refs: false, jsonPath: false };
   const inversions = doc.content.Actions.map((a) => invertAction(a, ctx));

@@ -14,6 +14,9 @@
     },
     {
       "path": "../tf"
+    },
+    {
+      "path": "../hcl"
     }
   ],
   "exclude": ["**/*.test.ts", "**/*.test.tsx"]

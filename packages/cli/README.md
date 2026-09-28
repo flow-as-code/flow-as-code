@@ -18,11 +18,12 @@ Site and docs: <https://flow-as-code.dev/>. This package on npm:
 flow-cli init [dir]                                     scaffold a directory to open
 flow-cli lint <dir-or-file> [--format text|json]        rule set over the whole document set
 flow-cli render <dir-or-file> --resources map.json      standalone materialization
-flow-cli codegen <doc.flowdoc.json> [--out <file.ts>]   FlowDoc -> typed builder TS
-flow-cli synth <file.flow.ts> [--out <dir>]             TS -> FlowDoc (sandboxed child process)
-flow-cli emit <dir> --target cdk|tf [--address-map refs.tfmap.json]
+flow-cli codegen <doc.flowdoc.json> [--to ts|tf] [--out <file>]  FlowDoc -> companion (.flow.ts or .flow.tf)
+flow-cli synth <file.flow.ts|file.flow.tf> [--out <dir>] companion -> FlowDoc (TS in a sandboxed child)
+flow-cli convert <doc.flowdoc.json> --to ts|tf [--address-map <file>] [--keep-old]
+flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json]
 flow-cli diff <dir> --instance <arn>                     local FlowDocs vs the live instance
-flow-cli export --instance <arn> [--out <dir>] [--no-codegen] [--on-error abort|collect]
+flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]
 flow-cli simulate <scenarios> --instance <arn> [--resource-map <file>] [--format junit|json] [--out <file>]
 flow-cli studio [dir] [--port <port>]                    local visual editor, live sync both ways
 ```
@@ -32,18 +33,19 @@ flow-cli studio [dir] [--port <port>]                    local visual editor, li
 Every command above is wired, so `--help` is the complete surface; a test in
 `src/cli.test.ts` holds `--help` and the usage block above to the same list.
 
-| Command    | Status    | Notes                                                                            |
-| ---------- | --------- | -------------------------------------------------------------------------------- |
-| `init`     | available | One demo FlowDoc plus its `.flow.ts`; refuses to overwrite                       |
-| `lint`     | available | Whole set in one pass, so cross-document rules resolve module references         |
-| `codegen`  | available | `@keep` comments in an existing output file survive regeneration                 |
-| `synth`    | available | Sandboxed child process; see below                                               |
-| `render`   | available | Strict resource map; every unmapped token is listed at once                      |
-| `emit`     | available | `--target tf` writes `@flow-as-code/tf` output, `--target cdk` writes a scaffold |
-| `export`   | available | Live instance to FlowDoc pairs; collects failures by default                     |
-| `simulate` | available | Scenario suite through the TestCase API, JUnit or JSON report                    |
-| `diff`     | available | Local documents against the live instance; exit 2 when it cannot tell            |
-| `studio`   | available | Local bridge on 127.0.0.1 serving the studio, with live sync both ways           |
+| Command    | Status    | Notes                                                                         |
+| ---------- | --------- | ----------------------------------------------------------------------------- |
+| `init`     | available | One demo FlowDoc plus its `.flow.ts`; refuses to overwrite                    |
+| `lint`     | available | Whole set in one pass, so cross-document rules resolve module references      |
+| `codegen`  | available | `.flow.ts` or `.flow.tf`; `@keep` comments in an existing output file survive |
+| `synth`    | available | A `.flow.ts` in a sandboxed child process (see below); a `.flow.tf` parsed    |
+| `convert`  | available | Switches a document's companion; says what the new one does not carry         |
+| `render`   | available | Strict resource map; every unmapped token is listed at once                   |
+| `emit`     | available | `tf` and `flowascode` write Terraform, `cdk` writes a scaffold                |
+| `export`   | available | Live instance to FlowDoc pairs; collects failures by default                  |
+| `simulate` | available | Scenario suite through the TestCase API, JUnit or JSON report                 |
+| `diff`     | available | Local documents against the live instance; exit 2 when it cannot tell         |
+| `studio`   | available | Local bridge on 127.0.0.1 serving the studio, with live sync both ways        |
 
 Exit codes: 0 on success, 1 for a failure (a missing path, malformed JSON, a
 schema-invalid document, an unmapped token, an unknown flag value, a lint
@@ -210,6 +212,16 @@ through as `options.addressMap` and takes the same three key forms
 emitter's loud `TODO_MISSING_ADDRESS_*` placeholders, which fail
 `terraform validate` rather than deploying a broken flow.
 
+`--target flowascode` writes the set for the `flow-as-code/flowascode`
+provider, exactly the bytes `@flow-as-code/hcl`'s `emitFlowascode` returns:
+`flows.tf` with one resource per document and its actions as blocks,
+`variables.tf`, and `versions.tf.example`. It takes the same address map; a
+reference it resolves nowhere is bound to `null` under a `# TODO` comment,
+which the provider refuses at plan time naming the key. It never writes a
+`<name>.flow.tf`, so an emit into a directory `flow-cli studio` serves cannot
+create a companion. docs/06-terraform-provider.md says when to pick
+`flowascode` over `tf`.
+
 `--target cdk` is not a code generator, because `@flow-as-code/cdk` is a
 library: `FlowSet` reads the FlowDoc directory itself at synth time. What the
 command writes is `flow-stack.ts`, a compiling scaffold that constructs a
@@ -230,7 +242,35 @@ resolves that expression against its own file (`new URL(..., import.meta.url)`),
 so `cdk synth` works from the project root, where `cdk.json` normally lives, and
 not only from the directory the scaffold was written to.
 
+## codegen and convert
+
+`flow-cli codegen <doc> [--to ts|tf]` writes the document's companion:
+`<name>.flow.ts` (builder TypeScript) or `<name>.flow.tf` (a
+`flowascode_contact_flow` resource, `@flow-as-code/hcl`'s `fromFlowDoc`).
+Without `--to` it writes the kind the document's `meta.sourceKind` names, and
+`ts` when it names none. An existing output file is read first: its `@keep`
+comments survive, and a `.flow.tf` also keeps its `refs` bindings,
+`instance_id`, `tags`, `state`, `lint`, `provider`, `lifecycle` and
+`depends_on`.
+
+`flow-cli convert <doc> --to ts|tf` switches which companion a document has.
+It writes the new one from the document, carrying `@keep` comments across (as
+`# @keep` in HCL and `// @keep` in TypeScript), restamps the document's
+`meta.sourceKind` and `meta.sourceHash`, and deletes the old companion unless
+`--keep-old`. It refuses when the new companion already exists. What does not
+carry is printed as a `note:` on stderr: converting to `tf` binds only what
+`--address-map` gives (the rest is `null` under a TODO comment) and writes
+`instance_id = var.connect_instance_id` with no tags or lint settings;
+converting to `ts` drops the `.flow.tf`'s bindings, `instance_id`, tags, state
+and lint settings, which TypeScript has no place for.
+
 ## synth
+
+`flow-cli synth <file.flow.tf>` reads a `.flow.tf` in process, parsing and
+never executing it, and writes the one document its resource holds with
+`meta.sourceKind` `tf`. A refs key no action uses, and a resource address in a
+reference field that is read as its key, are warnings on stderr. Everything
+below is about `.flow.ts`.
 
 `flow-cli synth <file.flow.ts> [--out <dir>]` evaluates a TypeScript builder
 file and writes one `<flow.name>.flowdoc.json` per flow it exports, into
@@ -309,10 +349,12 @@ and the run still reports the rest).
 
 ## export
 
-`flow-cli export --instance <arn> [--out <dir>] [--no-codegen] [--on-error abort|collect]`
+`flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]`
 reads every flow and module in the instance and writes `<name>.flowdoc.json`
-plus `<name>.flow.ts` for each into `--out`, which defaults to the working
-directory and is created if needed. `--no-codegen` writes the documents only.
+plus its companion for each into `--out`, which defaults to the working
+directory and is created if needed. The companion is `<name>.flow.ts`, or
+`<name>.flow.tf` with `--author tf`, whose `refs` values are `null` until
+bound. `--no-codegen` writes the documents only.
 References come out as tokens, never ARNs, and the name is the slug the
 exporter derives from the console name (`Appointment Line` becomes
 `appointment-line`). A flow and a module that slug to the same name would
@@ -321,8 +363,9 @@ overwriting the first.
 
 Each pair is written the way `synth` and the studio write it: the document
 carries `meta.sourceHash` of the generated source, so the watch engine sees an
-exported pair as in sync, and an existing `<name>.flow.ts` is read first so
-its `@keep` comments survive, as with `codegen`. A flow that has never been
+exported pair as in sync, and an existing companion is read first so its
+`@keep` comments (and a `.flow.tf`'s carried values) survive, as with
+`codegen`. A flow that has never been
 published is read through the documented `$SAVED` alias and marked as such in
 the summary.
 
