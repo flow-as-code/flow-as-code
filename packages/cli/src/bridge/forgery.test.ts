@@ -77,6 +77,30 @@ describe("the bridge refuses forged requests", () => {
     expect((await post(headers)).status).toBe(403);
   });
 
+  it("blocks a document created without the token, or cross-site with it", async () => {
+    const doc = JSON.parse(
+      await readFile(
+        new URL("../../template/appointment-line.flowdoc.json", import.meta.url),
+        "utf8",
+      ),
+    ) as unknown;
+    const body = JSON.stringify({ doc, sourceKind: "tf" });
+    const create = (headers: Record<string, string>) =>
+      fetch(`${origin}/bridge/docs`, { method: "POST", headers, body });
+    expect((await create({ "content-type": "application/json" })).status).toBe(403);
+    expect(
+      (
+        await create({
+          "content-type": "application/json",
+          [TOKEN_HEADER]: server.token,
+          "sec-fetch-site": "cross-site",
+        })
+      ).status,
+    ).toBe(403);
+    await expect(readFile(join(dir, "appointment-line.flow.tf"), "utf8")).rejects.toThrow();
+    await expect(readFile(join(dir, "appointment-line.flowdoc.json"), "utf8")).rejects.toThrow();
+  });
+
   it("wrote nothing to the served directory through any of that", async () => {
     await expect(readFile(join(dir, "pwned.txt"), "utf8")).rejects.toThrow();
   });
