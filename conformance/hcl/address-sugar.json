@@ -1,0 +1,23 @@
+{
+  "description": "Resource and data source address shapes the TypeScript parser rewrites to a reference key on the next regeneration (conformance/hcl/README.md, rule 21). The provider refuses every one of them with REF_EXPRESSION_REFUSED. An address of a type absent here is refused by the parser too (REF_SUGAR_UNSUPPORTED_TYPE); module aliases, lex bots and views are key-form only. The reference name is the inverse of slugIdentifier: a leading underscore is stripped only before a digit, underscores become hyphens, and the result must match the slug pattern.",
+  "sugar": [
+    { "address": "aws_connect_queue.<label>.arn", "type": "queue" },
+    { "address": "aws_connect_hours_of_operation.<label>.arn", "type": "hours" },
+    { "address": "aws_lambda_function.<label>.arn", "type": "lambda" },
+    { "address": "data.aws_lambda_function.<label>.arn", "type": "lambda" },
+    { "address": "aws_connect_prompt.<label>.arn", "type": "prompt" },
+    { "address": "data.aws_connect_prompt.<label>.arn", "type": "prompt" },
+    { "address": "aws_connect_contact_flow.<label>.arn", "type": "flow" },
+    { "address": "flowascode_contact_flow.<label>.arn", "type": "flow" },
+    { "address": "aws_connect_contact_flow_module.<label>.arn", "type": "module" },
+    { "address": "flowascode_contact_flow_module.<label>.arn", "type": "module" }
+  ],
+  "refused": [
+    "var.<name>",
+    "local.<name>",
+    "module.<name>.<output>",
+    "data.<other type>.<label>.<attribute>",
+    "<function>(...)",
+    "any address whose label is not a slug identifier"
+  ]
+}

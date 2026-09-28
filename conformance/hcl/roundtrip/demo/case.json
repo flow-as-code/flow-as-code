@@ -1,0 +1,5 @@
+{
+  "description": "The canonical demo flow with an address bound to every reference.",
+  "doc": "../../../demo/appointment-line.flowdoc.json",
+  "validate": "skip"
+}

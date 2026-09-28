@@ -1,0 +1,5 @@
+{
+  "description": "Hand-placed layout, so every action carries a position block; an explicit start that is not the first action; a modeled type that falls back to generic; SSML, a prompt reference and a JSONPath queue.",
+  "doc": "../../../roundtrip/edge-cases/doc.flowdoc.json",
+  "validate": "skip"
+}

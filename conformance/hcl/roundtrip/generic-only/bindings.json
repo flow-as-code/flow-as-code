@@ -1,0 +1,4 @@
+{
+  "flow:task-flow": "flowascode_contact_flow.task_flow.arn",
+  "queue:support": "aws_connect_queue.support.arn"
+}

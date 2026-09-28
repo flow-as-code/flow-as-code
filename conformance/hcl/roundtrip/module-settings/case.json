@@ -1,0 +1,5 @@
+{
+  "description": "A module whose Settings object is not empty, written as jsonencode; the contract claims no vocabulary for it.",
+  "doc": "module-settings.flowdoc.json",
+  "validate": "skip"
+}

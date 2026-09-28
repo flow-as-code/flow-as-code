@@ -34,6 +34,14 @@ export/<case>/flows/<id>.saved.json      content of a flow that has never been p
 export/<case>/expected/<name>.flowdoc.json  exported FlowDoc golden
 export/<case>/expected/<name>.flow.ts    codegen golden for that FlowDoc
 export/<case>/expected-error.json        {unknownArns, interpolatedArns} for a case that must fail
+hcl/README.md                            the HCL contract: a FlowDoc as a flowascode resource and back
+hcl/address-sugar.json                   resource addresses the TypeScript parser rewrites to a reference key
+hcl/roundtrip/<case>/case.json           description, the document (relative path), options, validate expectation
+hcl/roundtrip/<case>/bindings.json       reference key -> terraform address; a key absent here is unbound
+hcl/roundtrip/<case>/expected.flow.tf    the resource, byte-exact, a `tofu fmt` fixed point
+hcl/regenerate/<case>/doc.flowdoc.json   a document whose companion is rewritten (TypeScript only)
+hcl/regenerate/<case>/previous.flow.tf   the companion before the rewrite
+hcl/regenerate/<case>/expected.flow.tf   the companion after: carried values, kept comments, normalized sugar
 schema/scenario-0.1.schema.json          machine-readable simulate scenario definition
 simulate/<case>/scenario.json            authored simulate scenario
 simulate/<case>/expected.testcase.json   compiled CreateTestCase input, tokens still in place
@@ -124,6 +132,12 @@ one); and a flow of the recording block (`recording-analytics`: voice
 recording of both participants with IVR recording, a voice-only form, a
 screen-only form (the service takes one form per block), and the chat
 analytics form the builder leaves generic, with its third error).
+
+An HCL case is a companion file and the document it stands for.
+`conformance/hcl/README.md` is the contract both the TypeScript writer and
+the Go provider implement; every `roundtrip` golden is a `tofu fmt` fixed
+point, checked by a gated test, and an ungated test holds each case's
+document, bindings and block names to the rest of `conformance/`.
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against

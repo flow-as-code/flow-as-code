@@ -1,0 +1,3 @@
+{
+  "queue:front-desk": "aws_connect_queue.front_desk.arn"
+}

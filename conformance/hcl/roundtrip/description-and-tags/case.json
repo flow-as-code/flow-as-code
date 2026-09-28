@@ -1,0 +1,11 @@
+{
+  "description": "A description from the document and tags from the options, with the contact-data actions: maps, lists, dynamic values and a flow reference inside a map.",
+  "doc": "../../../roundtrip/contact-data/doc.flowdoc.json",
+  "options": {
+    "tags": {
+      "team": "cx",
+      "owner": "support"
+    }
+  },
+  "validate": "skip"
+}

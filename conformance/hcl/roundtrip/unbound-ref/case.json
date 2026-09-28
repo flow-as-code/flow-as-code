@@ -1,0 +1,5 @@
+{
+  "description": "The demo flow with one reference left unbound: its refs entry is null under a TODO comment, and the comment ends the alignment run.",
+  "doc": "../../../demo/appointment-line.flowdoc.json",
+  "validate": "skip"
+}
