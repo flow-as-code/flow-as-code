@@ -103,8 +103,9 @@ exported document. `flow-cli init --author tf` scaffolds a document with a
 regenerates the file keeping what it carries, and a name with both companions
 is refused until one goes. In the studio the toolbar badges the open
 document's companion, New flow picks the companion for a new document, and a
-`.flow.tf`'s `lint` block reaches the lint panel. `packages/cli/README.md` has
-the details. To be completed by B05b (the studio's flowascode export).
+`.flow.tf`'s `lint` block reaches the lint panel, and "Export as…" offers
+"Terraform (flowascode provider)", the same bytes as `emit --target
+flowascode`. `packages/cli/README.md` has the details.
 
 ## Versions and compatibility
 

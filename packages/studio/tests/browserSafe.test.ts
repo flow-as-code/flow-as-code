@@ -72,6 +72,19 @@ describe("the studio's source stays browser-safe", () => {
     expect(emitters.length).toBeGreaterThan(0);
   });
 
+  it("imports @flow-as-code/hcl only by its root, which is browser-safe throughout", () => {
+    const offenders = sources(SRC).filter((file) =>
+      imports(readFileSync(file, "utf8")).some((s) => s.startsWith("@flow-as-code/hcl/")),
+    );
+    expect(offenders).toEqual([]);
+    // Guards against the rule passing vacuously.
+    expect(
+      sources(SRC).some((file) =>
+        imports(readFileSync(file, "utf8")).includes("@flow-as-code/hcl"),
+      ),
+    ).toBe(true);
+  });
+
   it("imports nothing from @flow-as-code/cli, which would be a dependency cycle", () => {
     const offenders = files.filter((file) =>
       imports(readFileSync(file, "utf8")).some((s) => s.startsWith("@flow-as-code/cli")),

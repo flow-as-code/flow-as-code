@@ -4,15 +4,18 @@
  */
 // The export dialog: pick a target, fill in the map it needs, export.
 //
-// The three targets are not symmetric, because what a user has to supply
+// The four targets are not symmetric, because what a user has to supply
 // differs (docs/02-studio-design.md, "Export targets"):
 //
-//   cdk  nothing. The scaffold lists the binder methods the set needs and
-//        leaves a TODO on each; the user writes the bindings in their editor.
-//   tf   a terraform address per reference the set does not resolve itself.
-//        That is the address-map editor below, and it refuses a literal ARN
-//        inline exactly as the ref pickers do.
-//   raw  a resolved value per reference. This is the one place an ARN belongs.
+//   cdk         nothing. The scaffold lists the binder methods the set needs
+//               and leaves a TODO on each; the user writes the bindings in
+//               their editor.
+//   tf,         a terraform address per reference the set does not resolve
+//   flowascode  itself. That is the address-map editor below, shared by the
+//               two, and it refuses a literal ARN inline exactly as the ref
+//               pickers do.
+//   raw         a resolved value per reference. This is the one place an ARN
+//               belongs.
 //
 // The buttons here are the visible half of the rule, never the rule itself:
 // `runExport` builds the bundle through the save gate, so a document that
@@ -21,6 +24,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FlowDoc } from "@flow-as-code/core";
 import { PACKAGE_NAMES } from "@flow-as-code/core";
+import { EmitFlowascodeError } from "@flow-as-code/hcl";
 import { EmitTfError } from "@flow-as-code/tf/emit";
 import { referencedNames } from "@flow-as-code/cdk/scaffold";
 import { runExport, sinkFor, type ExportDelivery } from "../export/deliver.js";
@@ -46,6 +50,14 @@ const TARGETS: { id: ExportTarget; label: string; blurb: string }[] = [
       "Give every reference a terraform address, never a literal ARN.",
   },
   {
+    id: "flowascode",
+    label: "Terraform (flowascode provider)",
+    blurb:
+      "One flowascode_contact_flow resource per document with its actions as blocks, from " +
+      `${PACKAGE_NAMES.hcl}. Same bytes as \`flow-cli emit --target flowascode\`; the same ` +
+      "address map, never a literal ARN.",
+  },
+  {
     id: "cdk",
     label: "CDK",
     blurb:
@@ -66,7 +78,9 @@ function describeError(err: unknown): string {
   if (err instanceof ExportMapError) {
     return `${String(err.missingTokens.length)} reference(s) have no resource map entry: ${err.missingTokens.join(", ")}`;
   }
-  if (err instanceof EmitTfError) return err.problems.join("; ");
+  if (err instanceof EmitTfError || err instanceof EmitFlowascodeError) {
+    return err.problems.join("; ");
+  }
   return err instanceof Error ? err.message : String(err);
 }
 
@@ -133,6 +147,8 @@ function RefRow({
 export function ExportDialog({ onClose }: { onClose: () => void }) {
   const { state } = useStudio();
   const [target, setTarget] = useState<ExportTarget>("tf");
+  // The two Terraform targets share the address map and its editor.
+  const terraform = target === "tf" || target === "flowascode";
   const [subdir, setSubdir] = useState("");
   const [docs, setDocs] = useState<FlowDoc[] | null>(null);
   const [addresses, setAddresses] = useState<Record<string, string>>({});
@@ -189,15 +205,15 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // is carried out of here instead and blocks the export like any other
   // unusable map, and the dialog says what the emitter said.
   const addressScan = useMemo<{ missing: string[]; error: string | null }>(() => {
-    if (docs === null || target !== "tf" || Object.keys(addressErrors).length > 0) {
+    if (docs === null || !terraform || Object.keys(addressErrors).length > 0) {
       return { missing: [], error: null };
     }
     try {
-      return { missing: unmappedTokens(docs, addressMap), error: null };
+      return { missing: unmappedTokens(docs, addressMap, target), error: null };
     } catch (err) {
       return { missing: [], error: describeError(err) };
     }
-  }, [docs, target, addressMap, addressErrors]);
+  }, [docs, target, terraform, addressMap, addressErrors]);
   const missingAddresses = addressScan.missing;
 
   const missingResources = refs.filter((r) => resourceMap[r.token] === undefined);
@@ -217,12 +233,11 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // the map the current target does not use is not a reason to refuse: ORing
   // the two blocked a valid CDK or Terraform export because of a row the user
   // had touched under a different radio button.
-  const blockedByFields =
-    target === "tf"
-      ? Object.keys(addressErrors).length > 0 || addressScan.error !== null
-      : target === "raw"
-        ? Object.keys(resourceErrors).length > 0
-        : false;
+  const blockedByFields = terraform
+    ? Object.keys(addressErrors).length > 0 || addressScan.error !== null
+    : target === "raw"
+      ? Object.keys(resourceErrors).length > 0
+      : false;
 
   const onExport = async () => {
     if (docs === null) return;
@@ -231,8 +246,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     setDelivery(null);
     try {
       const input: ExportInput =
-        target === "tf"
-          ? { target: "tf", docs, subdir, addressMap }
+        target === "tf" || target === "flowascode"
+          ? { target, docs, subdir, addressMap }
           : target === "raw"
             ? { target: "raw", docs, subdir, resourceMap }
             : { target: "cdk", docs, subdir };
@@ -328,7 +343,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {target === "tf" && (
+            {terraform && (
               <>
                 <table className="w-full table-auto">
                   <tbody>
@@ -340,7 +355,11 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                         value={addresses[r.key] ?? ""}
                         error={addressErrors[r.key] ?? null}
                         missing={missingAddresses.includes(r.token)}
-                        missingNote="No address yet: this becomes a TODO placeholder that fails validate."
+                        missingNote={
+                          target === "tf"
+                            ? "No address yet: this becomes a TODO placeholder that fails validate."
+                            : "No address yet: this becomes null under a TODO comment, which the provider refuses at plan time."
+                        }
                         testIdPrefix="export-address"
                         placeholder={addressPlaceholder(r)}
                         onChange={(value) => {

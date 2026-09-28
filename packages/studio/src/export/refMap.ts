@@ -22,6 +22,7 @@
 
 import type { FlowDoc, RefEntry, RefType } from "@flow-as-code/core";
 import { collectRefs, refKey } from "@flow-as-code/core";
+import { emitFlowascode } from "@flow-as-code/hcl";
 import { emitTf } from "@flow-as-code/tf/emit";
 import { LITERAL_ARN } from "../model/refValues.js";
 
@@ -130,7 +131,12 @@ export function exportRefs(docs: readonly FlowDoc[]): ExportRef[] {
 const MISSING_MARKER = /TODO: no terraform address for (\S+?)\.$/gm;
 
 /**
- * Tokens the emitter still has no address for, asked of the emitter.
+ * Tokens the emitter still has no address for, asked of the emitter the
+ * target uses. Both write the same TODO line, @flow-as-code/tf in flow_refs.tf
+ * and @flow-as-code/hcl above a null refs value in flows.tf, and they resolve
+ * different references from the set itself (hcl also resolves a module invoked
+ * without an alias), so the question goes to the one that will write the
+ * export. A token used by two documents is one missing address.
  *
  * This computes bytes and throws them away: nothing leaves the studio, so it
  * deliberately does not run the save gate. Emitting the export itself does
@@ -139,9 +145,13 @@ const MISSING_MARKER = /TODO: no terraform address for (\S+?)\.$/gm;
 export function unmappedTokens(
   docs: readonly FlowDoc[],
   addressMap: Record<string, string>,
+  target: "tf" | "flowascode" = "tf",
 ): string[] {
-  const refs = emitTf(docs, { addressMap }).files["flow_refs.tf"] ?? "";
-  return [...refs.matchAll(MISSING_MARKER)].map((m) => m[1] ?? "").sort(byString);
+  const text =
+    target === "flowascode"
+      ? (emitFlowascode(docs, { addressMap }).files["flows.tf"] ?? "")
+      : (emitTf(docs, { addressMap }).files["flow_refs.tf"] ?? "");
+  return [...new Set([...text.matchAll(MISSING_MARKER)].map((m) => m[1] ?? ""))].sort(byString);
 }
 
 export type MapValueCheck = { ok: true; value: string } | { ok: false; error: string };

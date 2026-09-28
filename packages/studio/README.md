@@ -41,15 +41,16 @@ loaded.
 
 ## Export targets
 
-"Export as…" in the toolbar covers the three targets in docs/02-studio-design.md, over the whole document set rather than the open document alone (that is what the IaC targets mean: one terraform configuration, one binder). The open document is taken from the canvas, so unsaved edits are included; the rest are read from the store.
+"Export as…" in the toolbar covers the four targets in docs/02-studio-design.md, over the whole document set rather than the open document alone (that is what the IaC targets mean: one terraform configuration, one binder). The open document is taken from the canvas, so unsaved edits are included; the rest are read from the store.
 
-| Target        | What it writes                                                                | What you supply                   |
-| ------------- | ----------------------------------------------------------------------------- | --------------------------------- |
-| **Terraform** | `@flow-as-code/tf`'s file map: `flows.tf`, `flow_refs.tf`, `flows/*.tftpl`, … | a terraform address per reference |
-| **CDK**       | `flow-stack.ts`, a `FlowSet` stack with a TODO `TokenBinder`                  | nothing                           |
-| **Raw JSON**  | `<name>.json` per document, materialized Flow language                        | a resolved value per reference    |
+| Target                              | What it writes                                                                | What you supply                   |
+| ----------------------------------- | ----------------------------------------------------------------------------- | --------------------------------- |
+| **Terraform**                       | `@flow-as-code/tf`'s file map: `flows.tf`, `flow_refs.tf`, `flows/*.tftpl`, … | a terraform address per reference |
+| **Terraform (flowascode provider)** | `@flow-as-code/hcl`'s `flows.tf`, `variables.tf`, `versions.tf.example`       | the same address map              |
+| **CDK**                             | `flow-stack.ts`, a `FlowSet` stack with a TODO `TokenBinder`                  | nothing                           |
+| **Raw JSON**                        | `<name>.json` per document, materialized Flow language                        | a resolved value per reference    |
 
-Parity with the CLI is the feature, not a side effect. The studio does not reimplement an emitter: the CDK scaffold is `@flow-as-code/cdk/scaffold`, the same generator behind `flow-cli emit --target cdk`; Terraform is `emitTf` from `@flow-as-code/tf/emit`; raw is `@flow-as-code/core`'s `materializeWithMap` plus `serializeContent`, with `flow-cli render`'s file names. `tests/exportParity.test.ts` runs the BUILT CLI as a subprocess and compares bytes, because "they call the same function" is what a parity test must not assume, and `tests/exportTofu.test.ts` runs the studio's own Terraform output through `tofu validate` on `@flow-as-code/tf`'s harness (gated on `RUN_TOFU_VALIDATE=1`, as `@flow-as-code/tf`'s are).
+Parity with the CLI is the feature, not a side effect. The studio does not reimplement an emitter: the CDK scaffold is `@flow-as-code/cdk/scaffold`, the same generator behind `flow-cli emit --target cdk`; Terraform is `emitTf` from `@flow-as-code/tf/emit`; the flowascode target is `emitFlowascode` from `@flow-as-code/hcl`; raw is `@flow-as-code/core`'s `materializeWithMap` plus `serializeContent`, with `flow-cli render`'s file names. `tests/exportParity.test.ts` runs the BUILT CLI as a subprocess and compares bytes, because "they call the same function" is what a parity test must not assume, and `tests/exportTofu.test.ts` runs the studio's own Terraform output through `tofu validate` on `@flow-as-code/tf`'s harness (gated on `RUN_TOFU_VALIDATE=1`, as `@flow-as-code/tf`'s are), and holds the flowascode output to `tofu fmt -check` until the provider is on a registry for `validate` to resolve (task B03e).
 
 The address-map editor lists every reference in the set and refuses a literal ARN inline, the same rule the ref pickers apply to parameters: a terraform address is an expression that resolves to an ARN at apply time, never the ARN itself. What is still unmapped is asked of the emitter rather than recomputed, by reading back the `# TODO: no terraform address for …` lines it writes, so a reference the set resolves itself (a module it also emits) is correctly not asked for. The resource map for raw export is the opposite case and accepts ARNs, because that output is deployable Flow language; an incomplete map refuses the export and names every missing token, not the first.
 
@@ -57,7 +58,7 @@ Exports run the save gate. `src/export/targets.ts` calls `assertSaveable` on eve
 
 Delivery is one code path with two ends (`src/export/deliver.ts`). Served by `flow-cli studio`, the file map is POSTed to `/bridge/export` and the CLI writes it, because the bridge is the only thing that touches disk; without a bridge the browser downloads each file, folding the directory into the name (a browser cannot create one) while the dialog lists where each belongs. The bundle is built once, before either sink sees it, so the two cannot drift.
 
-The studio bundles `@flow-as-code/cdk` and `@flow-as-code/tf` for those targets, but only their browser-safe entry points: `@flow-as-code/tf/emit` is the pure emitter, while the package index also carries `writeTf`, which imports `node:fs`. `tests/browserSafe.test.ts` fails on a node builtin anywhere in `src/`, because the tests run in node and would not otherwise notice.
+The studio bundles `@flow-as-code/cdk`, `@flow-as-code/tf` and `@flow-as-code/hcl` for those targets, but only their browser-safe entry points: `@flow-as-code/tf/emit` is the pure emitter, while the package index also carries `writeTf`, which imports `node:fs`; `@flow-as-code/hcl` is browser-safe throughout, so its root is the one specifier the studio may import. `tests/browserSafe.test.ts` fails on a node builtin anywhere in `src/`, because the tests run in node and would not otherwise notice.
 
 ## Read-only stores and the hosted demo
 
