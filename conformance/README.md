@@ -148,6 +148,43 @@ The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against
 `demo/appointment-line.flowdoc.json`.
 
+## What a second implementation must pass
+
+The Go provider vendors this directory at a pinned commit. Each family below
+is one of two kinds, and `tests/conformanceIndex.test.ts` holds this list to
+the directories that exist, so a new family cannot land without being
+classified here.
+
+Both implementations:
+
+- `schema`: the FlowDoc schemas; the mutation cases in
+  `packages/core/src/conformance.test.ts` are the rejections to reproduce.
+- `flow-language`: `catalog.json` is the source a second implementation
+  generates its schema and lint tables from; `actions.md` is its prose.
+- `lint`: every rule's pass and fail fixtures, findings matched by rule,
+  block and message fragment.
+- `materialize`: deployable content from a document and a reference map.
+- `layout`: the auto-layout positions, byte-exact.
+- `export`: the `expected/*.flowdoc.json` half (the `.flow.ts` goldens are
+  TypeScript only).
+- `roundtrip`: at the FlowDoc level, every document in synth normal form.
+- `hcl`: `roundtrip`, `parse` and `refuse` (its `regenerate` cases and
+  `address-sugar.json` are TypeScript only).
+- `demo`: the canonical document, which the other families borrow.
+
+TypeScript only:
+
+- `emit-tf`: the `@flow-as-code/tf` emitter's goldens.
+- `simulate`: scenario compilation and reporting.
+- `migrate`: 0.1 documents and the bytes `migrateFlowDoc` turns them into.
+
+The round-trip rule for HCL, stated in full in `hcl/README.md` rule 26: for
+every `hcl/roundtrip` case, reading the golden produces the case's document
+(modulo `meta`) and its bindings, writing the document with those bindings
+produces the golden byte for byte, and the golden is a `terraform fmt` fixed
+point. Whether an action was written as a typed sub-block or as `generic` is
+not part of the invariant.
+
 Fixtures are data, not source: they are excluded from ESLint and Prettier so
 that goldens stay byte-stable. The assertions that guard this directory live in
 `packages/core/src/conformance.test.ts`.
