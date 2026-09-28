@@ -20,8 +20,13 @@ export class HclError extends Error {
   readonly file: string;
   readonly position: Position | undefined;
   readonly detail: string;
+  /** Where in the resource, as the contract's refuse cases spell it: `action[<id>].<block>.<attr>`. */
+  readonly path: string | undefined;
 
-  constructor(detail: string, options: { file?: string; position?: Position; code?: string } = {}) {
+  constructor(
+    detail: string,
+    options: { file?: string; position?: Position; code?: string; path?: string } = {},
+  ) {
     const file = options.file ?? "<input>";
     const where =
       options.position === undefined
@@ -33,5 +38,6 @@ export class HclError extends Error {
     this.file = file;
     this.position = options.position;
     this.detail = detail;
+    this.path = options.path;
   }
 }

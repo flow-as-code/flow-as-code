@@ -1,4 +1,5 @@
 {
   "code": "REF_SUGAR_UNSUPPORTED_TYPE",
-  "path": "action[ask].invoke_flow_module.flow_module_id"
+  "path": "action[ask].invoke_flow_module.flow_module_id",
+  "messageIncludes": "\"module:question@prod\""
 }

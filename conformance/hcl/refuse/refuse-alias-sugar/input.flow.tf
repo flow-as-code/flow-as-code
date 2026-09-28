@@ -25,7 +25,7 @@ resource "flowascode_contact_flow_module" "survey_module" {
     id   = "ask"
     next = "wrap-up"
     invoke_flow_module {
-      flow_module_id = flowascode_contact_flow_module.question.arn
+      flow_module_id = flowascode_contact_flow_module_alias.question_prod.arn
     }
     error {
       type = "NoMatchingError"

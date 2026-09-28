@@ -208,6 +208,8 @@ resource "flowascode_contact_flow" "appointment_line" {
     - `object`: an object literal with the catalog's attr names, one line per
       field.
     - `json`: `jsonencode({...})`.
+    - An empty object, map or list is written inline: `{}`, `[]`,
+      `jsonencode({})`.
 12. Inside `jsonencode` keys keep their Flow language spelling, in byte order;
     a key that is a valid HCL identifier is unquoted and any other is quoted;
     scalars and lists of scalars are inline, and an object or a list holding
@@ -218,8 +220,10 @@ resource "flowascode_contact_flow" "appointment_line" {
     `next`. An empty block is written `name {}` on one line.
 14. A terminal action (`Transitions` is `{}`) has `id` and its sub-block and
     nothing else.
-15. `position` holds integer `x` and `y`. A reader refuses a fractional
-    position (`POSITION_NOT_INTEGER`).
+15. `position` holds integer `x` and `y`. A writer rounds a fractional
+    position to the nearest integer (an exported flow carries the console's
+    fractional coordinates) and compares the rounded position with the
+    layout's. A reader refuses a fractional position (`POSITION_NOT_INTEGER`).
 
 ### Strings
 
@@ -235,8 +239,10 @@ resource "flowascode_contact_flow" "appointment_line" {
 ### Transitions
 
 18. The document a reader produces is in synth normal form: `Errors` and
-    `Conditions` present (possibly empty) on every non-terminal action, `{}`
-    on a terminal one, keys sorted, declaration order kept. A reader takes
+    `Conditions` present (possibly empty) on every action with anything
+    wired, and on every action of a type the catalog models and does not
+    mark `terminal`; `{}` on an action with nothing wired whose type is
+    terminal or unmodeled; keys sorted, declaration order kept. A reader takes
     positions from `position` blocks and fills the rest from the layout
     algorithm.
 
@@ -272,8 +278,11 @@ resource "flowascode_contact_flow" "appointment_line" {
     parser's sugar (`address-sugar.json`): a resource address of a listed
     type (`aws_connect_queue.x.arn` and the others) is rewritten to the key
     (`queue:x`) plus a `refs` entry on the next regeneration, and the rewrite
-    is recorded in the sidecar's `normalized` list. An address of an unlisted
-    type is refused with `REF_SUGAR_UNSUPPORTED_TYPE`. The provider does not
+    is recorded in the sidecar's `normalized` list. An address of the same
+    shape (`<type>.<label>.arn`, `data.<type>.<label>.arn`) whose type is not
+    listed, a module alias's among them, is refused with
+    `REF_SUGAR_UNSUPPORTED_TYPE`, naming the `refs` key that binds the address
+    when there is one. The provider does not
     rewrite: it refuses the expression and says what to write.
 22. A `refs` key no action references is a warning, not an error; the next
     regeneration drops it.
@@ -301,7 +310,11 @@ resource "flowascode_contact_flow" "appointment_line" {
     document (modulo `meta`) and the case's bindings; writing the document
     with the bindings and options produces `expected.flow.tf` byte for byte;
     and `expected.flow.tf` is a `terraform fmt` fixed point. `parse` cases add
-    the non-fmt inputs a hand-written file may take.
+    the non-fmt inputs a hand-written file may take. For any other document
+    the invariant holds of its view: synth normal form (derived `refs`, a
+    module's `Settings`, every action laid out) with positions rounded and
+    without `content.Metadata`, which no view authors; codegen drops it from a
+    `.flow.ts` the same way.
 
 ## Module versions, aliases and views
 

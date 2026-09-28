@@ -14,3 +14,14 @@ export { format, formatFile } from "./format.js";
 export { evaluateLiteral, type LiteralValue } from "./literal.js";
 export { hasLoneSurrogate, quote, unquoteLiteral } from "./quote.js";
 export { bracketChange, endsLine, type Token, type TokenType } from "./tokens.js";
+export * from "./contract.js";
+export { fromFlowDoc, type FromFlowDocOptions } from "./write.js";
+export {
+  toFlowDoc,
+  type KeptComments,
+  type Normalization,
+  type ReadResult,
+  type Sidecar,
+  type ToFlowDocOptions,
+} from "./read.js";
+export { readCarry, type Carry } from "./carry.js";
