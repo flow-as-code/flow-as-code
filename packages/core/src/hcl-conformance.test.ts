@@ -163,7 +163,8 @@ const CODES = [
 describe("conformance/hcl/README.md", () => {
   const readme = read(new URL("README.md", HCL));
   it("lists exactly the error codes the refuse cases may name", () => {
-    const listed = readme.slice(readme.indexOf("## Error codes"));
+    const section = readme.slice(readme.indexOf("## Error codes"));
+    const listed = section.slice(0, section.indexOf("The provider puts"));
     expect([...listed.matchAll(/`([A-Z_]+)`/g)].map((m) => m[1])).toEqual(CODES);
   });
 });

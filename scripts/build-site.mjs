@@ -214,6 +214,14 @@ const PAGES = [
       "Calling the emitter, the .tf and .tftpl files it writes, how references become template variables, how escaping works, and what an incomplete address map does to the output.",
   },
   {
+    source: "packages/hcl/README.md",
+    slug: "docs/package-hcl",
+    group: "Package references",
+    title: "@flow-as-code/hcl, HCL as a third view",
+    description:
+      "The lossless HCL parser, the formatter that writes exactly what terraform fmt writes, literal evaluation and string quoting, and the flowascode companion format the studio and the CLI read and write.",
+  },
+  {
     source: "packages/studio/README.md",
     slug: "docs/package-studio",
     group: "Package references",
@@ -316,6 +324,10 @@ const PACKAGE_ROLES = [
   ["@flow-as-code/studio", "the visual editor over FlowDoc, served locally by flow-cli studio"],
   ["@flow-as-code/cdk", "CDK token binding (TokenBinder) and the FlowSet construct"],
   ["@flow-as-code/tf", "the Terraform and OpenTofu emitter: FlowDoc to .tf and .tftpl files"],
+  [
+    "@flow-as-code/hcl",
+    "HCL as a third view over FlowDoc: a lossless parser, a terraform fmt-exact formatter, and the .flow.tf companion",
+  ],
 ];
 
 function parseArgs(argv) {
@@ -673,7 +685,7 @@ The problem it solves: an Amazon Connect flow is a JSON document full of literal
 
 Where that claim is held to what the tools do: \`examples/promote-across-environments/\` (published below) is one FlowDoc reaching a dev and a prod environment on both deploy paths, and \`tests/promoteAcrossEnvironments.test.ts\` asserts that the two emitted Terraform trees differ in exactly one file, \`flow_refs.tf\`, and that the CDK path takes no map at all. The Terraform path does take an \`--address-map\`, which is a different object from the ARN table above: its values are Terraform addresses of resources the reader's own configuration manages, and the emitter refuses any value matching \`arn:aws\` outright.
 
-Status: the repository is public and Apache-2.0. The five packages are published to npm under the @flow-as-code scope, versioned together and released as a set, so install them at matching versions. The studio demo below is live and runs entirely in the browser, with no install and no account.
+Status: the repository is public and Apache-2.0. The packages are published to npm under the @flow-as-code scope (@flow-as-code/hcl from its first release), versioned together and released as a set, so install them at matching versions. The studio demo below is live and runs entirely in the browser, with no install and no account.
 
 ## Start here
 
@@ -685,7 +697,7 @@ Status: the repository is public and Apache-2.0. The five packages are published
 
 ## Packages
 
-Five packages, versioned together and released as a set.
+Six packages, versioned together and released as a set.
 
 ${PACKAGE_ROLES.map(([name, role]) => `- ${name}: ${role}.`).join("\n")}
 

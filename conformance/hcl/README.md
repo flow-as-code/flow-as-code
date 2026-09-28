@@ -339,4 +339,8 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
 `COUNT_OR_FOR_EACH`, `MODULE_WITH_TYPE`, `FLOW_WITH_SETTINGS`,
 `UNKNOWN_LINT_RULE`. The provider puts the code in every diagnostic summary;
 the TypeScript parser puts it on the error it throws. A `refuse` case names
-the code and may name the path and a fragment of the message.
+the code and may name the path and a fragment of the message. One case is
+refused before the provider sees it: HCL's own parser cannot encode a lone
+surrogate escape (`\ud800`) in UTF-8 and reports an invalid escape sequence,
+so for the provider `refuse/lone-surrogate` passes on Terraform's parse error;
+the TypeScript reader raises `LONE_SURROGATE`.

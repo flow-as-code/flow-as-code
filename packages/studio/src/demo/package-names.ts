@@ -24,5 +24,6 @@ export const PACKAGE_NAMES = {
   cdk: `${PACKAGE_SCOPE}/cdk`,
   cli: `${PACKAGE_SCOPE}/cli`,
   tf: `${PACKAGE_SCOPE}/tf`,
+  hcl: `${PACKAGE_SCOPE}/hcl`,
   studio: `${PACKAGE_SCOPE}/studio`,
 } as const;

@@ -2,10 +2,10 @@
 # emitter writes no variables.tf and the instance address has to resolve here.
 
 resource "aws_connect_instance" "main" {
-  identity_management_type  = "CONNECT_MANAGED"
-  inbound_calls_enabled     = true
-  instance_alias            = "flow-as-code-fixture"
-  outbound_calls_enabled    = false
+  identity_management_type = "CONNECT_MANAGED"
+  inbound_calls_enabled    = true
+  instance_alias           = "flow-as-code-fixture"
+  outbound_calls_enabled   = false
 }
 
 resource "aws_connect_hours_of_operation" "main_line" {

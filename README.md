@@ -54,7 +54,7 @@ npm i -D @flow-as-code/cli
 
 Name the others in your own manifest when you import from them (the core
 builder in your `.flow.ts` files, `FlowSet` from `@flow-as-code/cdk` in your
-CDK app). That installs nothing further: the five version together and are
+CDK app). That installs nothing further: the six version together and are
 released as a set, so the versions the CLI pulls in already match.
 
 To work on the tools themselves, or to run

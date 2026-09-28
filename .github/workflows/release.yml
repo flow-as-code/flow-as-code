@@ -2,12 +2,14 @@ name: Release
 
 # The filename is load-bearing and must stay `release.yml`.
 #
-# Each of the five packages has a Trusted Publisher configured on npmjs.com
+# Each published package has a Trusted Publisher configured on npmjs.com
 # naming this repository and the workflow filename `release.yml`. npm validates
 # the OIDC token's workflow claim against that string: "first verify that the
 # workflow filename matches exactly what you configured on npmjs.com, including
 # the .yml extension. All fields are case-sensitive and must be exact."
-# Renaming this file breaks every publish until all five configurations are
+# (@flow-as-code/hcl gets its configuration after its first, hand-made
+# publish: trusted publishing cannot create a package; tasks/B03-hcl-package-and-cli.md.)
+# Renaming this file breaks every publish until all the configurations are
 # recreated, and "existing trusted publisher connections cannot be changed".
 # https://docs.npmjs.com/trusted-publishers/
 #
@@ -145,7 +147,7 @@ jobs:
           case "$ref" in
             */.github/workflows/release.yml@*) ;;
             *)
-              echo "::error::This workflow is not .github/workflows/release.yml. All five Trusted Publisher configurations name that filename, and they cannot be edited, only deleted and recreated." >&2
+              echo "::error::This workflow is not .github/workflows/release.yml. Every Trusted Publisher configuration names that filename, and they cannot be edited, only deleted and recreated." >&2
               exit 1
               ;;
           esac
@@ -347,8 +349,8 @@ jobs:
       # stderr in a buffer nothing prints. `tag()` therefore returns false, and
       # `tagPublish` ignores the return value (@changesets/cli 2.31.1:
       # `await git.tag(tag, cwd)`). So `changeset publish` would log "New tag:"
-      # for all five packages, create none of them, print no error and exit 0.
-      # The registry would be five versions ahead of the repository and this job
+      # for every package, create none of them, print no error and exit 0.
+      # The registry would be versions ahead of the repository and this job
       # would be green. Reproduced against the installed 2.31.1 in a repository
       # with no identity: tag() returned false, no tag existed afterwards, and
       # node exited 0.
@@ -373,7 +375,7 @@ jobs:
           probe='release-workflow-tagging-probe'
           git tag -d "$probe" >/dev/null 2>&1 || true
           if ! git tag -a "$probe" -m "$probe"; then
-            echo "::error::Cannot create an annotated tag. 'changeset publish' would publish all five packages and then silently fail to tag them. Fix the committer identity in this step." >&2
+            echo "::error::Cannot create an annotated tag. 'changeset publish' would publish every package and then silently fail to tag them. Fix the committer identity in this step." >&2
             exit 1
           fi
           git tag -d "$probe" >/dev/null
@@ -388,14 +390,14 @@ jobs:
           # to be pushed even when the publish fails part-way, and the job then
           # fails with the publish's own status.
 
-          # No --access flag. All five manifests carry
+          # No --access flag. Every manifest carries
           # publishConfig.access: "public", which @changesets/cli 2.31.1 prefers
           # over its own config (`access: publishConfig?.access || access` in
           # publishPackages), and .changeset/config.json sets "access": "public"
           # as the fallback, so `--access public` is passed either way without
           # this workflow naming it. npm's own default would also be harmless
           # here: "'public' for new packages, existing packages it will not
-          # change the current level", and all five are already public at 0.1.0.
+          # change the current level", and every published one is already public.
           # https://docs.npmjs.com/cli/v11/commands/npm-publish
           #
           # No --provenance flag either. Under trusted publishing "npm
@@ -410,7 +412,7 @@ jobs:
           # them through a concurrency-limited queue rather than in dependency
           # order (@changesets/cli 2.31.1, NPM_PUBLISH_CONCURRENCY_LIMIT = 10),
           # so for a moment a dependent can be on the registry ahead of its
-          # dependency. With five linked packages that window is seconds, and
+          # dependency. With six fixed packages that window is seconds, and
           # re-dispatch is the fix if one of them fails.
           before="$(git tag --list | sort)"
           set +e

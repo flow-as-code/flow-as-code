@@ -6,7 +6,7 @@
 npm i @flow-as-code/core
 ```
 
-Apache-2.0, Node 22.12 or newer. The five packages version together and are
+Apache-2.0, Node 22.12 or newer. The six packages version together and are
 released as a set, so keep them at matching versions.
 
 Site and docs: <https://flow-as-code.dev/>. This package on npm:
