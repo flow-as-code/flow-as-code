@@ -10,7 +10,11 @@ import type { Finding, Rule } from "./types.js";
 export interface LintOptions {
   /** Defaults to every built-in rule. */
   rules?: readonly Rule[];
-  /** Rule ids to skip. */
+  /**
+   * Rule ids to skip. A hard rule (one that blocks a studio save) cannot be
+   * skipped, and naming one throws: the same refusal a `.flow.tf`'s `lint`
+   * block and the provider make (conformance/hcl/README.md, rule 19).
+   */
   disable?: readonly string[];
 }
 
@@ -31,6 +35,13 @@ export function lint(input: FlowDoc | readonly FlowDoc[], options: LintOptions =
   // which named neither lint nor the document.
   for (const doc of docs) assertFlowDoc(doc, "lint");
   const disabled = new Set(options.disable ?? []);
+  const hard = (options.rules ?? allRules).filter((r) => r.hard === true && disabled.has(r.id));
+  if (hard.length > 0) {
+    throw new Error(
+      `lint cannot disable a hard rule: ${hard.map((r) => r.id).join(", ")}. ` +
+        "Hard rules block a save and are never skipped.",
+    );
+  }
   const rules = (options.rules ?? allRules).filter((r) => !disabled.has(r.id));
 
   const findings: Finding[] = [];

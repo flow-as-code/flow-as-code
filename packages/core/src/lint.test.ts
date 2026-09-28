@@ -132,9 +132,23 @@ describe("engine", () => {
   });
 
   it("honours disabled rules", () => {
+    const orphan = JSON.parse(
+      readFileSync(
+        new URL("../../../conformance/lint/reachable-blocks/fail-orphan.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { doc: FlowDoc };
+    const docs = [orphan.doc];
+    expect(lint(docs).some((f) => f.rule === "reachable-blocks")).toBe(true);
     expect(
-      lint(dirty(), { disable: ["no-literal-arn"] }).filter((f) => f.rule === "no-literal-arn"),
+      lint(docs, { disable: ["reachable-blocks"] }).filter((f) => f.rule === "reachable-blocks"),
     ).toEqual([]);
+  });
+
+  it("refuses to disable a hard rule", () => {
+    expect(() => lint(dirty(), { disable: ["no-literal-arn", "no-unresolved-token"] })).toThrow(
+      "lint cannot disable a hard rule: no-literal-arn, no-unresolved-token.",
+    );
   });
 
   it("flags a hard rule as blocking a studio save", () => {
