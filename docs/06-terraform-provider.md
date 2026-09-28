@@ -30,6 +30,16 @@ resources. Pick `tf` when the flows are generated artifacts nobody edits as
 HCL; pick `flowascode` when the flows are authored in HCL, reviewed as HCL, or
 need plan-time lint.
 
+`--target flowascode` writes `flows.tf`, `variables.tf` and
+`versions.tf.example` for a set of documents, never a per-document
+`<name>.flow.tf`, so an emit into a directory the studio serves cannot create
+a companion. Each document is one resource; its `refs` map binds each key to
+the address the address map gives, to a resource the set emits itself (a flow,
+a module, or a module invoked by alias through the version and alias resources
+the emitter writes beside it), or to `null` under a `# TODO` comment, which
+the provider refuses at plan time naming the key. The goldens are
+`conformance/hcl/emit/`, one case per `emit-tf` case.
+
 ## The resource shape
 
 ```hcl

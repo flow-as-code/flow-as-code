@@ -1,6 +1,6 @@
 # @flow-as-code/tf: Terraform/OpenTofu emitter
 
-One-way in v1: FlowDoc in, HCL out. Reverse (HCL to FlowDoc) is deferred; it requires HCL evaluation and is a later provider-era feature.
+One-way: FlowDoc in, HCL out. This emitter's output is rendered content inside `aws_connect_contact_flow` resources and is not read back. The provider-native shape, which is read back, is `@flow-as-code/hcl`'s: a `.flow.tf` companion per document, and `emit --target flowascode` for a set (docs/06-terraform-provider.md).
 
 `examples/promote-across-environments/` is this emitter run twice over one document with two address maps, which is what the per-environment story looks like end to end.
 

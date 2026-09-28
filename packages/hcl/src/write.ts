@@ -10,6 +10,7 @@
 
 import {
   autoLayout,
+  collectRefs,
   modeledEntry,
   parseToken,
   refKey,
@@ -43,19 +44,32 @@ const key = (k: string): string => (IDENT.test(k) ? k : quote(k));
 /** The companion text for `doc`. */
 export function fromFlowDoc(doc: FlowDoc, options: FromFlowDocOptions = {}): string {
   const carry: Carry = options.previous === undefined ? emptyCarry() : readCarry(options.previous);
+  const out = banner(options.fileName ?? `${doc.name}.flowdoc.json`).split("\n");
+  out.push(...carry.keepResource);
+  out.push(...resourceLines(doc, { ...options, carry }));
+  return format(`${out.join("\n")}\n`);
+}
+
+export interface ResourceOptions {
+  carry?: Carry;
+  bindings?: Record<string, string | null>;
+  instanceId?: string;
+  tags?: Record<string, string>;
+  lintDisable?: readonly string[];
+}
+
+/**
+ * The resource block for `doc`, one line per element, indented but not
+ * aligned: callers join the lines and run format() over the whole file.
+ */
+export function resourceLines(doc: FlowDoc, options: ResourceOptions = {}): string[] {
+  const carry = options.carry ?? emptyCarry();
   const bindings = { ...carry.bindings, ...(options.bindings ?? {}) };
   const out: string[] = [];
   const line = (depth: number, text: string) => out.push(`${"  ".repeat(depth)}${text}`);
 
   const isModule = doc.kind === "module";
   const resource = isModule ? MODULE_RESOURCE : FLOW_RESOURCE;
-  out.push(
-    ...banner(options.fileName ?? `${doc.name}.flowdoc.json`)
-      .trimEnd()
-      .split("\n"),
-    "",
-  );
-  out.push(...carry.keepResource);
   line(0, `resource "${resource}" ${quote(slugIdentifier(doc.name))} {`);
 
   if (carry.provider !== undefined) line(1, `provider = ${carry.provider}`);
@@ -72,7 +86,9 @@ export function fromFlowDoc(doc: FlowDoc, options: FromFlowDocOptions = {}): str
   }
 
   // refs (rule 6): one entry per document reference, keys in byte order.
-  const keys = (doc.refs ?? []).map((r) => refKey(r)).sort(byteOrder);
+  const keys = collectRefs(doc.content)
+    .map((r) => refKey(r))
+    .sort(byteOrder);
   if (keys.length > 0) {
     out.push("");
     line(1, "refs = {");
@@ -127,7 +143,7 @@ export function fromFlowDoc(doc: FlowDoc, options: FromFlowDocOptions = {}): str
     line(1, extra);
   }
   line(0, "}");
-  return format(`${out.join("\n")}\n`);
+  return out;
 }
 
 function emptyCarry(): Carry {

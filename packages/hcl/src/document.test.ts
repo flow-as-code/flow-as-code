@@ -10,8 +10,9 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { autoLayout, collectRefs, serialize, type FlowDoc } from "@flow-as-code/core";
+import type { FlowDoc } from "@flow-as-code/core";
 import { describe, expect, it } from "vitest";
+import { bytes, viewed } from "./__fixtures__/view.js";
 import { ERROR_CODES } from "./contract.js";
 import { HclError } from "./errors.js";
 import { format } from "./format.js";
@@ -30,12 +31,6 @@ const cases = (family: string): string[] =>
 interface RoundtripCase {
   doc: string;
   options?: { instanceId?: string; tags?: Record<string, string>; lintDisable?: string[] };
-}
-
-/** A document without meta, in canonical bytes: what the invariant compares. */
-function bytes(doc: FlowDoc): string {
-  const { meta: _meta, ...rest } = doc;
-  return serialize(rest as FlowDoc);
 }
 
 describe("conformance/hcl/roundtrip", () => {
@@ -168,25 +163,6 @@ describe("the round-trip rule over every committed document", () => {
     expect(fromFlowDoc(doc, { previous: tf })).toBe(tf);
   });
 });
-
-/**
- * What any view of a document holds (conformance/hcl/README.md rule 26): the
- * synth normal form, which derives refs, gives a module its Settings and
- * lays out every action, less content.Metadata, which no view authors, with
- * positions rounded to the integers the canvas and the provider use.
- */
-function viewed(doc: FlowDoc): FlowDoc {
-  const { Metadata: _metadata, ...content } = doc.content;
-  if (doc.kind === "module") content.Settings ??= {};
-  const auto = autoLayout(content.Actions, content.StartAction);
-  const layout = Object.fromEntries(
-    content.Actions.map((a) => {
-      const p = doc.layout?.[a.Identifier] ?? auto[a.Identifier]!;
-      return [a.Identifier, { x: Math.round(p.x), y: Math.round(p.y) }];
-    }),
-  );
-  return { ...doc, content, layout, refs: collectRefs(content) };
-}
 
 describe("the writer's rounding", () => {
   it("writes a fractional position as the nearest integer", () => {

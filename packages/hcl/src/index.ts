@@ -17,6 +17,12 @@ export { bracketChange, endsLine, type Token, type TokenType } from "./tokens.js
 export * from "./contract.js";
 export { fromFlowDoc, type FromFlowDocOptions } from "./write.js";
 export {
+  EmitFlowascodeError,
+  emitFlowascode,
+  type EmitFlowascodeOptions,
+  type EmitFlowascodeResult,
+} from "./emit.js";
+export {
   toFlowDoc,
   type KeptComments,
   type Normalization,

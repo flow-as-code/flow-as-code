@@ -21,6 +21,9 @@ export const HCL_VERSION_FLOOR = "1.8.0";
 
 export const FLOW_RESOURCE = "flowascode_contact_flow";
 export const MODULE_RESOURCE = "flowascode_contact_flow_module";
+/** Rule 27: a module's snapshot and the alias a flow invokes it through. */
+export const MODULE_VERSION_RESOURCE = "flowascode_contact_flow_module_version";
+export const MODULE_ALIAS_RESOURCE = "flowascode_contact_flow_module_alias";
 
 /** The banner's two lines (rule 2); the first names the document file. */
 export function banner(fileName: string): string {

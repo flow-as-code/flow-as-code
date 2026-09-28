@@ -22,8 +22,9 @@ Two layers ship. The syntax layer is a lossless lexer and parser for the HCL
 native syntax, a formatter that writes exactly what `terraform fmt` and
 `tofu fmt` write, literal evaluation, and HCL string quoting. The document
 layer on top of it writes a FlowDoc as its companion (`fromFlowDoc`), reads a
-companion back (`toFlowDoc`), and regenerates a companion without losing what
-the user wrote beside the document.
+companion back (`toFlowDoc`), regenerates a companion without losing what
+the user wrote beside the document, and emits a set of documents as one
+configuration (`emitFlowascode`).
 
 ## Documents
 
@@ -64,6 +65,27 @@ is a warning, dropped on the next regeneration.
 The view holds what a canvas or a `.flow.ts` holds and no more:
 `content.Metadata`, which an exported flow may carry, is not written, and a
 fractional console position is written rounded.
+
+## Emitting a set
+
+```ts
+import { emitFlowascode } from "@flow-as-code/hcl";
+
+const { files } = emitFlowascode(docs, {
+  addressMap: { "queue:appointments": "aws_connect_queue.appointments.arn" },
+});
+// flows.tf, variables.tf, versions.tf.example
+```
+
+`emitFlowascode` is `flow-cli emit --target flowascode`: one resource per
+document in `flows.tf`, written as `fromFlowDoc` writes a companion, with each
+`refs` map bound from the address map (keyed as `@flow-as-code/tf`'s is) or
+to what the set emits itself, and a version and alias resource for every
+module a flow in the set invokes by alias. What nothing binds is `null` under
+a `# TODO` comment, which the provider refuses at plan time. It refuses a
+literal ARN in the address map, a name that is not a slug, and two documents
+with one address, listing every problem on `EmitFlowascodeError.problems`.
+It never writes a `<name>.flow.tf`.
 
 ## Parse, print, format
 

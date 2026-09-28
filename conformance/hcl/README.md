@@ -32,9 +32,16 @@ hcl/parse/<case>/expected.sidecar.json {refs, lint, tags, instanceId, normalized
 hcl/refuse/<case>/case.json            what the case shows
 hcl/refuse/<case>/input.flow.tf        a resource both implementations refuse
 hcl/refuse/<case>/expected-error.json  {code, path?, messageIncludes?}; the code is the cross-language field
+hcl/emit/<case>/case.json              the documents (paths relative to the case), options, validate expectation
+hcl/emit/<case>/address-map.json       reference -> terraform address, keyed as emit-tf's maps are
+hcl/emit/<case>/expected/              flows.tf, variables.tf, versions.tf.example, byte-exact
+hcl/emit/<case>/validate/stubs.tf      the resources the address map points at
 ```
 
-Both implementations pass `roundtrip`, `parse` and `refuse`. `regenerate` and
+Both implementations pass `roundtrip`, `parse` and `refuse`, and `emit` in
+the sense of rule 26: each flow or module resource in an `emit` case's
+`flows.tf` reads to its document. The bytes of `emit` are the TypeScript
+emitter's. `regenerate` and
 `address-sugar.json` describe what the TypeScript side does to a file it is
 rewriting, which the provider never does; the three `parse` cases named
 `sugar-*` are the TypeScript parser's, and the provider refuses those inputs
@@ -341,6 +348,22 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
     The version resource is keyed to the module's `content_hash` and replaced
     when it changes; the alias repoints in place. `version`, `alias_id` and
     `arn` are computed. A view binds to `data.flowascode_view.<label>.arn`.
+
+## Emitting a set
+
+28. `emit --target flowascode` writes `flows.tf` (a header comment, then one
+    resource per document sorted by name then kind, each written by rules 3
+    to 18 with no banner), `variables.tf` declaring `connect_instance_id`
+    unless an instance expression is given, and `versions.tf.example`
+    requiring Terraform `>= 1.8.0` and `flow-as-code/flowascode` `>= 0.1`.
+    A document's `refs` bind a flow or module the set emits to its resource's
+    `arn`, a module invoked by alias to the alias resource's `arn`, anything
+    else to the address map's expression, and the rest to `null` under the
+    TODO comment. After each module invoked by alias come one version
+    resource and one alias resource per alias, by rule 27, without
+    descriptions. A literal ARN, a multi-line value or a comment marker in the
+    address map, a name that is not a slug, and two documents emitting one
+    address are refused, every problem listed.
 
 ## Error codes
 
