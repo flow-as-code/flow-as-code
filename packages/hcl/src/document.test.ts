@@ -300,6 +300,29 @@ describe("writer edge cases the review found", () => {
     expect(tf).toContain('queue_time_adjustment_seconds = "-0"');
   });
 
+  it("writes an integer parameter holding a JSONPath through generic, and refuses one typed", () => {
+    const doc = flowWith("InvokeLambdaFunction", {
+      LambdaFunctionARN: "${cdref:lambda:lookup}",
+      InvocationTimeLimitSeconds: "$.Attributes.timeout",
+      InvocationType: "SYNCHRONOUS",
+    });
+    const tf = roundTrips(doc);
+    expect(tf).toContain('type = "InvokeLambdaFunction"');
+    const typed = fromFlowDoc(
+      flowWith("InvokeLambdaFunction", {
+        LambdaFunctionARN: "${cdref:lambda:lookup}",
+        InvocationTimeLimitSeconds: 8,
+        InvocationType: "SYNCHRONOUS",
+      }),
+    );
+    expect(typed).toContain("invocation_time_limit_seconds = 8");
+    const wrong = typed.replace(
+      "invocation_time_limit_seconds = 8",
+      'invocation_time_limit_seconds = "$.Attributes.timeout"',
+    );
+    expect(() => toFlowDoc(wrong)).toThrow(/NON_LITERAL_VALUE: .*must be a number/);
+  });
+
   it("writes a reference field holding neither a token of its type nor a JSONPath through generic", () => {
     const tf = roundTrips(flowWith("UpdateContactTargetQueue", { QueueId: "front-desk" }));
     expect(tf).toContain('type = "UpdateContactTargetQueue"');

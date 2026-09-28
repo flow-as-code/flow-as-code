@@ -208,7 +208,9 @@ resource "flowascode_contact_flow" "appointment_line" {
     - `string`, `enum`, `jsonPath`, `stringOrJsonPath`: a quoted string.
     - `ref`: the reference key, quoted (`"queue:front-desk"`); a JSONPath is
       written as itself.
-    - `integer`: a number. `integerString`: a number when the value is a
+    - `integer`: a number; an `integer` parameter holding anything else (a
+      JSONPath) makes the action generic, since the provider's attribute is
+      a number. `integerString`: a number when the value is a
       decimal integer a JavaScript number holds exactly (so not `-0`, and
       nothing past 2^53), the string itself otherwise.
     - `map`: an object literal with keys in byte order, values by the map's

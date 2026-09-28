@@ -273,7 +273,9 @@ function acceptsValue(v: unknown, e: CatalogElement): boolean {
         )
       );
     case "integer":
-      return typeof v === "number" || (typeof v === "string" && v.startsWith("$."));
+      // A number attribute in the provider (its framework has no dynamic
+      // attribute inside a block list), so a JSONPath here is written generic.
+      return typeof v === "number";
     case "json":
       // jsonencode({...}) holds an object; any other JSON value makes the
       // action generic, whose parameters jsonencode writes it faithfully.
@@ -298,7 +300,7 @@ function value(depth: number, name: string, v: unknown, e: CatalogElement): stri
     case "integerString":
       return [`${pad}${name} = ${asHclNumber(v as string) ? (v as string) : quote(v as string)}`];
     case "integer":
-      return [`${pad}${name} = ${typeof v === "number" ? String(v) : quote(v as string)}`];
+      return [`${pad}${name} = ${String(v)}`];
     case "json":
       return jsonencode(depth, name, v);
     case "list": {

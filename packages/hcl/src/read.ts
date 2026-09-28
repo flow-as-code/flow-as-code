@@ -677,6 +677,13 @@ class Reader {
         return this.ref(expr, e.ref!, path);
       case "json":
         return this.jsonencode(expr, path);
+      case "integer": {
+        const v = this.literal(expr, path);
+        if (typeof v !== "number") {
+          this.fail("NON_LITERAL_VALUE", expr, path, `${path} must be a number.`);
+        }
+        return v;
+      }
       case "integerString": {
         const v = this.literal(expr, path);
         return typeof v === "number" ? String(v) : v;
