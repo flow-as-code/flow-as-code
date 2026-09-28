@@ -92,7 +92,7 @@ function withBrowserLikeFetch<T>(body: unknown, run: () => Promise<T>): Promise<
 
 describe("BridgeStore", () => {
   it("uses the global fetch without it as the receiver, as a browser requires", async () => {
-    await withBrowserLikeFetch({ docs: [{ name: NAME }] }, async () => {
+    await withBrowserLikeFetch({ docs: [{ name: NAME, sourceKind: "ts" }] }, async () => {
       const s = new BridgeStore(INFO, { base: "", retryMs: 1, idleMs: 1 });
       await expect(s.list()).resolves.toEqual([{ name: NAME }]);
     });
@@ -105,7 +105,7 @@ describe("BridgeStore", () => {
     const text = serialize(demoDoc());
     const { store: s, calls } = store(({ url }) =>
       url.endsWith("/bridge/docs")
-        ? { body: { docs: [{ name: NAME }] } }
+        ? { body: { docs: [{ name: NAME, sourceKind: "ts" }] } }
         : { body: { name: NAME, doc: JSON.parse(text) as FlowDoc, text } },
     );
     expect(await s.list()).toEqual([{ name: NAME }]);

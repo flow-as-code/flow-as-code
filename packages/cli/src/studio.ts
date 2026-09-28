@@ -80,7 +80,10 @@ export function eventLine(event: BridgeEvent, dir: string): string {
   const where = (path: string): string => relative(dir, path) || path;
   switch (event.kind) {
     case "synced":
-      return `synced   ${event.name}`;
+      return [
+        `synced   ${event.name}`,
+        ...(event.warnings ?? []).map((w) => `warning  ${event.name}: ${w}`),
+      ].join("\n");
     case "conflict":
       return `conflict ${event.name}: ${event.reason}`;
     case "error":
@@ -106,7 +109,7 @@ export async function runStudio(dir: string | undefined, options: StudioOptions 
       dir: target,
       assetsDir,
       port,
-      // A directory of FlowDocs with no builder files beside them cannot start
+      // A directory of FlowDocs with no companions beside them cannot start
       // the loop this command exists for, because there is nothing to edit.
       ensurePairs: true,
       onEvent: (event) => console.log(eventLine(event, target)),
@@ -115,8 +118,8 @@ export async function runStudio(dir: string | undefined, options: StudioOptions 
     throw new CliError(error instanceof Error ? error.message : String(error));
   }
 
-  for (const { tsPath, name } of server.prepared.generated) {
-    console.log(`wrote    ${basename(tsPath)} from ${name}.flowdoc.json`);
+  for (const { sourcePath, name } of server.prepared.generated) {
+    console.log(`wrote    ${basename(sourcePath)} from ${name}.flowdoc.json`);
   }
   for (const { name, message } of server.prepared.problems) {
     console.log(`skipped  ${name}.flowdoc.json: ${message}`);

@@ -97,8 +97,13 @@ The commands that write or read a companion take either kind:
 `flow-cli codegen <doc> --to tf` writes `<name>.flow.tf` (without `--to`, the
 kind the document's `meta.sourceKind` names), `flow-cli synth <name>.flow.tf`
 reads one back in process, and `flow-cli export --author tf` writes one per
-exported document. `packages/cli/README.md` has the details. To be completed
-by B03 (the watcher and `flow-cli init --author tf`) and B05 (the studio).
+exported document. `flow-cli init --author tf` scaffolds a document with a
+`.flow.tf`, and `flow-cli studio` watches `.flow.tf` companions as it watches
+`.flow.ts` ones: an edit re-syncs the canvas within a second, a canvas save
+regenerates the file keeping what it carries, and a name with both companions
+is refused until one goes. `packages/cli/README.md` has the details. To be
+completed by B05 (the studio's companion badge, New flow dialog and
+flowascode export).
 
 ## Versions and compatibility
 

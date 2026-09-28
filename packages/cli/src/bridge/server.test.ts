@@ -21,13 +21,20 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { codegen, serialize, type FlowAction, type FlowDoc } from "@flow-as-code/core";
+import { fromFlowDoc, toFlowDoc } from "@flow-as-code/hcl";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { BridgeStore, BridgeConflictError } from "../../../studio/src/store/bridgeStore.js";
 import { sha256Hex, synthFile } from "../synth.js";
 import { assetPathFor, hostHeaderAllowed, injectBoot, startStudioServer } from "./server.js";
 import { writeExport } from "./exportFiles.js";
-import type { BridgeConflict, BridgeEvent, BridgeInfo } from "./protocol.js";
+import type {
+  BridgeConflict,
+  BridgeDocPayload,
+  BridgeEvent,
+  BridgeInfo,
+  BridgeWriteResult,
+} from "./protocol.js";
 import { BRIDGE_PROTOCOL, EXPORT_MAX_BYTES, EXPORT_MAX_FILES, TOKEN_HEADER } from "./protocol.js";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -974,4 +981,130 @@ describe("studio bridge: conflicts", () => {
     // And writes are frozen until the user chooses.
     await expect(store.write(NAME, onDisk)).rejects.toBeInstanceOf(BridgeConflictError);
   }, 90_000);
+});
+
+describe("studio bridge: .flow.tf companions (protocol 2)", () => {
+  const post = (started: Started, body: unknown): Promise<Response> =>
+    asStudio(started, "/bridge/docs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  it("creates a document with a .flow.tf, lists its kind, and never creates over one", async () => {
+    const dir = await tempDir();
+    const started = await start(dir);
+    const doc = await demoDoc();
+
+    const created = await post(started, { doc, sourceKind: "tf" });
+    expect(created.status).toBe(201);
+    const result = (await created.json()) as BridgeWriteResult;
+    const tfPath = join(dir, `${NAME}.flow.tf`);
+    expect(result.sourceKind).toBe("tf");
+    expect(result.sourcePath).toBe(tfPath);
+    expect(result.sourceText).toBe(fromFlowDoc({ ...doc, meta: undefined }));
+    expect(await readFile(tfPath, "utf8")).toBe(result.sourceText);
+    expect(existsSync(join(dir, `${NAME}.flow.ts`))).toBe(false);
+    const stamped = JSON.parse(
+      await readFile(join(dir, `${NAME}.flowdoc.json`), "utf8"),
+    ) as FlowDoc;
+    expect(stamped.meta?.sourceKind).toBe("tf");
+    expect(stamped.meta?.sourceHash).toBe(`sha256:${sha256Hex(result.sourceText)}`);
+
+    const listed = await asStudio(started, "/bridge/docs");
+    expect(await listed.json()).toEqual({ docs: [{ name: NAME, sourceKind: "tf" }] });
+
+    const edited = structuredClone(doc);
+    edited.description = "Created twice";
+    for (const sourceKind of ["tf", "ts"]) {
+      const again = await post(started, { doc: edited, sourceKind });
+      expect(again.status, sourceKind).toBe(409);
+    }
+    expect(await readFile(tfPath, "utf8")).toBe(result.sourceText);
+    expect(existsSync(join(dir, `${NAME}.flow.ts`))).toBe(false);
+
+    const bad = await post(started, { doc, sourceKind: "hcl" });
+    expect(bad.status).toBe(400);
+  });
+
+  it("saves a .flow.tf pair from the canvas, keeping its bindings and lint settings", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, `${NAME}.flow.tf`);
+    const golden = await readFile(
+      join(repoRoot, "conformance/hcl/roundtrip/demo/expected.flow.tf"),
+      "utf8",
+    );
+    const withLint = golden.replace(
+      "\n  action {\n",
+      '\n  lint {\n    disable = ["prompt-length-3000"]\n  }\n\n  action {\n',
+    );
+    await writeFile(tfPath, withLint, "utf8");
+    const started = await start(dir);
+    // No document yet: a synced read of the companion writes one.
+    const { doc } = toFlowDoc(withLint);
+    await writeFile(join(dir, `${NAME}.flowdoc.json`), serialize(doc), "utf8");
+
+    const read = (await (
+      await asStudio(started, `/bridge/docs/${NAME}`)
+    ).json()) as BridgeDocPayload;
+    expect(read.sourceKind).toBe("tf");
+    expect(read.lintDisable).toEqual(["prompt-length-3000"]);
+
+    const edited: FlowDoc = structuredClone(read.doc);
+    const first = edited.content.Actions.find((a) => a.Parameters.Text !== undefined)!;
+    first.Parameters.Text = "Saved from the canvas.";
+    const put = await asStudio(started, `/bridge/docs/${NAME}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ doc: edited }),
+    });
+    expect(put.status).toBe(200);
+    const written = (await put.json()) as BridgeWriteResult;
+    expect(written.sourcePath).toBe(tfPath);
+    expect(written.lintDisable).toEqual(["prompt-length-3000"]);
+    const text = await readFile(tfPath, "utf8");
+    expect(text).toContain("Saved from the canvas.");
+    expect(text).toContain('disable = ["prompt-length-3000"]');
+    expect(text).toContain("= aws_connect_queue.appointments.arn");
+    expect(existsSync(join(dir, `${NAME}.flow.ts`))).toBe(false);
+  });
+
+  it("refuses a name with both companions", async () => {
+    const dir = await demoDir();
+    await writeFile(join(dir, `${NAME}.flow.ts`), codegen(await demoDoc()), "utf8");
+    await writeFile(join(dir, `${NAME}.flow.tf`), fromFlowDoc(await demoDoc()), "utf8");
+    const started = await start(dir);
+    const response = await asStudio(started, `/bridge/docs/${NAME}`);
+    expect(response.status).toBe(409);
+    expect(((await response.json()) as { error: string }).error).toContain(
+      `Both ${NAME}.flow.ts and ${NAME}.flow.tf exist`,
+    );
+  });
+
+  it("names the .flow.tf in a conflict over it", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, `${NAME}.flow.tf`);
+    const doc = await demoDoc();
+    const started = await start(dir);
+    const created = (await (
+      await post(started, { doc, sourceKind: "tf" })
+    ).json()) as BridgeWriteResult;
+    // The .flow.tf moves on disk; the canvas still holds the document it had.
+    await writeFile(
+      tfPath,
+      created.sourceText.replace("Thanks for calling.", "Edited in HCL."),
+      "utf8",
+    );
+    const put = await asStudio(started, `/bridge/docs/${NAME}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ doc: created.doc }),
+    });
+    expect(put.status).toBe(409);
+    const { conflict, error } = (await put.json()) as { conflict: BridgeConflict; error: string };
+    expect(error).toContain(`${NAME}.flow.tf`);
+    expect(conflict.sourceKind).toBe("tf");
+    expect(conflict.sourcePath).toBe(tfPath);
+    expect(JSON.stringify(conflict.codeSide)).toContain("Edited in HCL.");
+  });
 });

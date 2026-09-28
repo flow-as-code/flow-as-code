@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import type { FlowDoc } from "@flow-as-code/core";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { sha256Hex } from "./synth.js";
 import { createWatcher, type FlowWatcher, type WatcherEvents } from "./watch.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -78,7 +79,12 @@ describe("createWatcher", () => {
 
     const watcher = watching(dir);
     const initial = await nextEvent(watcher, "synced");
-    expect(initial).toEqual({ tsPath, docPath, name: "appointment-line" });
+    expect(initial).toEqual({
+      sourcePath: tsPath,
+      sourceKind: "ts",
+      docPath,
+      name: "appointment-line",
+    });
     const initialDoc = JSON.parse(await readFile(docPath, "utf8")) as FlowDoc;
     expect(initialDoc.name).toBe("appointment-line");
 
@@ -229,7 +235,12 @@ describe("createWatcher", () => {
 
     const recovered = nextEvent(watcher, "synced");
     await writeFile(tsPath, source, "utf8");
-    expect(await recovered).toEqual({ tsPath, docPath, name: "appointment-line" });
+    expect(await recovered).toEqual({
+      sourcePath: tsPath,
+      sourceKind: "ts",
+      docPath,
+      name: "appointment-line",
+    });
 
     // Nothing was rewritten: the doc on disk is the one those bytes produced,
     // which is exactly why the pair counts as in sync again.
@@ -256,5 +267,98 @@ describe("createWatcher", () => {
     await writeFile(tsPath, source, "utf8");
     await new Promise((r) => setTimeout(r, 1000));
     expect(events).toEqual([]);
+  }, 30_000);
+});
+
+describe("createWatcher with a .flow.tf companion", () => {
+  const golden = (): Promise<string> =>
+    readFile(join(repoRoot, "conformance/hcl/roundtrip/demo/expected.flow.tf"), "utf8");
+
+  it("reads a .flow.tf with no doc on startup, then re-syncs an edit in under 1s", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, "appointment-line.flow.tf");
+    const docPath = join(dir, "appointment-line.flowdoc.json");
+    const source = await golden();
+    await writeFile(tfPath, source, "utf8");
+
+    const watcher = watching(dir);
+    const initial = await nextEvent(watcher, "synced");
+    expect(initial).toEqual({
+      sourcePath: tfPath,
+      sourceKind: "tf",
+      docPath,
+      name: "appointment-line",
+    });
+    const initialDoc = JSON.parse(await readFile(docPath, "utf8")) as FlowDoc;
+    expect(initialDoc.meta?.sourceKind).toBe("tf");
+    expect(initialDoc.meta?.sourceHash).toBe(`sha256:${sha256Hex(source)}`);
+
+    const edited = source.replace("Thanks for calling.", "Thanks for calling back.");
+    expect(edited).not.toBe(source);
+    const syncedAgain = nextEvent(watcher, "synced");
+    const started = performance.now();
+    await writeFile(tfPath, edited, "utf8");
+    await syncedAgain;
+    const elapsed = performance.now() - started;
+    const budget = process.env.CI === undefined ? 1000 : 4000;
+    console.warn(
+      `watch resync latency (.flow.tf): ${elapsed.toFixed(0)}ms (budget ${String(budget)}ms)`,
+    );
+    expect(elapsed).toBeLessThan(budget);
+    const updated = JSON.parse(await readFile(docPath, "utf8")) as FlowDoc;
+    expect(JSON.stringify(updated.content)).toContain("Thanks for calling back.");
+  }, 30_000);
+
+  it("reports a refused .flow.tf as an error with the contract's code, and writes nothing", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, "appointment-line.flow.tf");
+    const docPath = join(dir, "appointment-line.flowdoc.json");
+    const source = await golden();
+    await writeFile(tfPath, source, "utf8");
+    const watcher = watching(dir);
+    await nextEvent(watcher, "synced");
+    const before = await readFile(docPath, "utf8");
+
+    const error = nextEvent(watcher, "error");
+    await writeFile(
+      tfPath,
+      source.replace('queue_id = "queue:appointments"', "queue_id = var.appointments"),
+      "utf8",
+    );
+    const payload = await error;
+    expect(payload.path).toBe(tfPath);
+    expect(payload.message).toContain("REF_EXPRESSION_REFUSED");
+    expect(await readFile(docPath, "utf8")).toBe(before);
+  }, 30_000);
+
+  it("carries what reading noticed on synced", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, "appointment-line.flow.tf");
+    const source = (await golden()).replace(
+      "  refs = {\n",
+      '  refs = {\n    "queue:unused"                = aws_connect_queue.unused.arn\n',
+    );
+    await writeFile(tfPath, source, "utf8");
+    const watcher = watching(dir);
+    const synced = await nextEvent(watcher, "synced");
+    expect(synced.warnings).toEqual([
+      'refs["queue:unused"] is referenced by no action; the next regeneration drops it.',
+    ]);
+  }, 30_000);
+
+  it("refuses to sync a name that has both companions", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, "appointment-line.flow.tf");
+    const tsPath = join(dir, "appointment-line.flow.ts");
+    await writeFile(tfPath, await golden(), "utf8");
+    const watcher = watching(dir);
+    await nextEvent(watcher, "synced");
+
+    const error = nextEvent(watcher, "error");
+    await writeFile(tsPath, await demoBuilderSource(), "utf8");
+    const payload = await error;
+    expect(payload.message).toContain(
+      "both appointment-line.flow.ts and appointment-line.flow.tf exist",
+    );
   }, 30_000);
 });

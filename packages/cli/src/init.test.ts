@@ -15,6 +15,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { serialize, type FlowDoc } from "@flow-as-code/core";
+import { toFlowDoc } from "@flow-as-code/hcl";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { CliError } from "./errors.js";
@@ -71,6 +72,33 @@ describe("flow-cli init", () => {
       type?: string;
     };
     expect(pkg.type).toBe("module");
+  });
+
+  it("--author tf writes the document and its .flow.tf, in sync, and no package.json", async () => {
+    const dir = join(await plainDir(), "flows");
+    const { written } = await runInit(dir, { author: "tf" });
+    const tfPath = join(dir, `${TEMPLATE_DOC_NAME}.flow.tf`);
+    expect(written).toEqual([tfPath, join(dir, `${TEMPLATE_DOC_NAME}.flowdoc.json`)]);
+    expect(existsSync(join(dir, "package.json"))).toBe(false);
+    expect(existsSync(join(dir, `${TEMPLATE_DOC_NAME}.flow.ts`))).toBe(false);
+
+    const doc = JSON.parse(
+      await readFile(join(dir, `${TEMPLATE_DOC_NAME}.flowdoc.json`), "utf8"),
+    ) as FlowDoc;
+    const source = await readFile(tfPath, "utf8");
+    expect(doc.meta?.sourceKind).toBe("tf");
+    expect(doc.meta?.sourceHash).toBe(`sha256:${sha256Hex(source)}`);
+    expect(serialize({ ...toFlowDoc(source).doc, meta: undefined })).toBe(
+      serialize({ ...doc, meta: undefined }),
+    );
+  });
+
+  it("--author refuses an unknown kind, and a directory holding the other companion", async () => {
+    const dir = await plainDir();
+    await expect(runInit(dir, { author: "hcl" })).rejects.toThrow('Unknown --author "hcl"');
+    await writeFile(join(dir, `${TEMPLATE_DOC_NAME}.flow.ts`), "// mine\n", "utf8");
+    await expect(runInit(dir, { author: "tf" })).rejects.toThrow(CliError);
+    expect(existsSync(join(dir, `${TEMPLATE_DOC_NAME}.flow.tf`))).toBe(false);
   });
 
   it("stamps the document with the hash of the builder file beside it", async () => {

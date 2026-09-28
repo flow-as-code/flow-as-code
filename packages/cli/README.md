@@ -15,7 +15,7 @@ Site and docs: <https://flow-as-code.dev/>. This package on npm:
      `flow-cli --help` prints, so keep it first and keep it untagged. -->
 
 ```
-flow-cli init [dir]                                     scaffold a directory to open
+flow-cli init [dir] [--author ts|tf]                     scaffold a directory to open
 flow-cli lint <dir-or-file> [--format text|json]        rule set over the whole document set
 flow-cli render <dir-or-file> --resources map.json      standalone materialization
 flow-cli codegen <doc.flowdoc.json> [--to ts|tf] [--out <file>]  FlowDoc -> companion (.flow.ts or .flow.tf)
@@ -130,9 +130,15 @@ sync rather than as a conflict on the first edit. The `package.json` declares
 because `synth` evaluates a builder file as ESM whatever the project declares
 and there is nothing to fix.
 
+`--author tf` writes `appointment-line.flow.tf`, the document as a
+`flowascode_contact_flow` resource, in place of the builder file, and no
+`package.json`: HCL is parsed, not run. Its `refs` values start as `null`
+under TODO comments; bind them to your Terraform addresses.
+
 A directory that already holds other files is fine. A directory that already
-holds one of the two files this writes is not: nothing is written at all and the
-command exits 1 naming every collision, since half a pair is worse than none.
+holds one of the files this writes, or the other companion, is not: nothing is
+written at all and the command exits 1 naming every collision, since half a
+pair is worse than none.
 
 ## Input and output conventions
 
@@ -432,33 +438,42 @@ of the suite did not pass.
 
 `@flow-as-code/cli/watch` exports `createWatcher(dir)`, the engine
 behind studio sync (A11). It watches one directory (non-recursive) and pairs
-`<name>.flow.ts` with `<name>.flowdoc.json` by base name. On a ts change it
-re-synths in the same sandboxed child and rewrites the doc, guarded by
+each `<name>.flowdoc.json` with its companion, `<name>.flow.ts` or
+`<name>.flow.tf`, by base name. On a companion change it re-reads the
+companion (a `.flow.ts` in the same sandboxed child `synth` uses, a `.flow.tf`
+parsed in process) and rewrites the doc, stamping `meta.sourceKind`, guarded by
 `meta.sourceHash` (docs/01-flowdoc-spec.md, invariant 3): if the doc on disk
 was edited externally since the watcher last wrote or observed it, and that
-edit does not carry the previous ts content's hash, the pair is dirty on both
-sides. The watcher then emits `conflict` and writes nothing. A pair that is
-already diverged when the watcher starts also gets a `conflict` rather than
-an overwrite.
+edit does not carry the previous companion content's hash, the pair is dirty
+on both sides. The watcher then emits `conflict` and writes nothing. A pair
+that is already diverged when the watcher starts also gets a `conflict` rather
+than an overwrite. A name with both a `.flow.ts` and a `.flow.tf` is
+ambiguous: every change to either is an `error` naming both, and nothing is
+synced until one goes.
 
 The re-synth uses the same resolution rules `synth` documents above, so a
 watched directory needs no `node_modules` of its own for the builder files in
 it to resolve `@flow-as-code/core`.
 
-Events: `synced {tsPath, docPath, name}`, `conflict {tsPath, docPath, name,
-reason}`, `error {path, message}`, plus a `ready` convenience event after the
-initial scan settles. A ts file whose flow names do not include the file's
-base name syncs only when it exports exactly one flow; otherwise the watcher
+Events: `synced {sourcePath, sourceKind, docPath, name, warnings?}`,
+`conflict {sourcePath, sourceKind, docPath, name, reason}`, `error {path,
+message}`, plus a `ready` convenience event after the initial scan settles.
+`warnings` are what reading a `.flow.tf` noticed without refusing it: a `refs`
+key no action uses, a resource address in a reference field read as its key.
+A `.flow.tf` the reader refuses is an `error` carrying the contract's code and
+the file, line and column. A ts file whose flow names do not include the
+file's base name syncs only when it exports exactly one flow, and a `.flow.tf`
+only when its resource's `name` is the file's base name; otherwise the watcher
 emits `error` for that pair.
 
-A change that leaves the builder file byte-identical to the last synced content
+A change that leaves the companion byte-identical to the last synced content
 is normally silent (it is how the watcher recognizes its own writes), with one
 exception: when the preceding change ended in `error`, the same no-op emits
 `synced`. Undoing a broken edit is the ordinary way to fix one, and consumers
 latch the error, so without that event the studio's out-of-sync badge outlived
 the state it reported and cleared only on some later, unrelated edit.
 
-`noteWrite(name, {tsContent, docContent})` records a pair another part of the
+`noteWrite(name, {sourceContent, docContent})` records a pair another part of the
 same process just wrote as the clean baseline, so the studio bridge's own
 writes are not read back as external edits. Pass the exact bytes written, and
 call it after both files are on disk.
@@ -466,12 +481,14 @@ call it after both files are on disk.
 ## studio
 
 `flow-cli studio [dir] [--port <port>]` serves the visual editor over a
-directory of FlowDocs and builder files, with live sync in both directions. It
+directory of FlowDocs and their companions (`.flow.ts` builder files or
+`.flow.tf` resources), with live sync in both directions. It
 prints the URL to open; `dir` defaults to the working directory and the port
 defaults to a free one.
 
-A document with no `<name>.flow.ts` beside it gets one written before the
-server starts, and the command prints a line per file:
+A document with no companion beside it gets one written before the server
+starts (the kind its `meta.sourceKind` names, else `<name>.flow.ts`), and the
+command prints a line per file:
 
 ```
 wrote    appointment-line.flow.ts from appointment-line.flowdoc.json
@@ -525,15 +542,16 @@ What it serves: the built studio assets from the installed
 If the studio package is present but has not been built, the command says so
 and names the build command.
 
-The API is these six routes and nothing else; anything else under `/bridge`
+The API is these seven routes and nothing else; anything else under `/bridge`
 answers 404 with the method and path it was given
 (`src/bridge/server.ts`):
 
 | Route                         | Method | What it does                                         |
 | ----------------------------- | ------ | ---------------------------------------------------- |
 | `/bridge/info`                | GET    | Served directory, version, and the session token     |
-| `/bridge/docs`                | GET    | Names of the documents in the served directory       |
-| `/bridge/docs/<name>`         | GET    | One pair: the FlowDoc and its `<name>.flow.ts`       |
+| `/bridge/docs`                | GET    | The documents in the directory and each companion    |
+| `/bridge/docs`                | POST   | Create a document and its companion; 409 if taken    |
+| `/bridge/docs/<name>`         | GET    | One pair: the FlowDoc and which companion it has     |
 | `/bridge/docs/<name>`         | PUT    | Save that pair; 409 when the pair diverged           |
 | `/bridge/docs/<name>/resolve` | POST   | Settle a refused save by choosing a side             |
 | `/bridge/export`              | POST   | Write an emitted file map under the served directory |
@@ -553,11 +571,21 @@ the protocol's path rule and then again by resolving them and requiring the
 result to be inside that directory. Nothing is paired and no event is
 published: emitted terraform and CDK files are output, not documents.
 
-Saving from the canvas writes both halves of the pair: the FlowDoc, and
-`<name>.flow.ts` regenerated with `codegen`, passing the existing file so
-`@keep` comments survive. The document is stamped with `meta.sourceHash` of
-the source just written, which is what keeps the watcher from reading the
-save as a divergence.
+Saving from the canvas writes both halves of the pair: the FlowDoc, and its
+companion regenerated (`<name>.flow.ts` with `codegen`, `<name>.flow.tf` with
+`@flow-as-code/hcl`), passing the existing file so `@keep` comments survive,
+and for a `.flow.tf` its `refs` bindings, `instance_id`, tags and lint
+settings too. The document is stamped with `meta.sourceHash` of the source
+just written and `meta.sourceKind`, which is what keeps the watcher from
+reading the save as a divergence. A save never writes a second companion: the
+kind is the one on disk, else the document's `meta.sourceKind`, else `ts`.
+
+`POST /bridge/docs` takes `{doc, sourceKind}` and writes the document and the
+companion it names, answering 201 with the write result, or 409 without
+writing anything when the document or either companion already exists. The
+bridge protocol is version 2: payloads carry `sourceKind`, a `.flow.tf`'s
+`lint.disable` list as `lintDisable`, and a write result names its companion
+as `sourcePath` and `sourceText`.
 
 Conflicts are never merged. A save whose builder file has changed since the
 document was generated from it is refused with 409 and both sides are offered

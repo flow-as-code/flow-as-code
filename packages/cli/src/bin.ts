@@ -38,15 +38,17 @@ program
 program
   .command("init")
   .description(
-    "Scaffold a directory to open: one demo FlowDoc, the .flow.ts paired with it, and " +
-      'a package.json declaring "type": "module" when no project above the directory has ' +
+    "Scaffold a directory to open: one demo FlowDoc and its companion (the .flow.ts " +
+      "builder file, or the .flow.tf resource with --author tf), plus, for a .flow.ts, a " +
+      'package.json declaring "type": "module" when no project above the directory has ' +
       "declared one. Nothing is overwritten; a directory that already holds other files is " +
       "fine. Follow it with `flow-cli studio` on the same directory.",
   )
   .argument("[dir]", "directory to scaffold (default: the working directory)")
+  .option("--author <kind>", "companion to scaffold: ts (builder TypeScript) or tf (HCL)", "ts")
   .action(
-    action(async (dir: string | undefined) => {
-      const { written } = await runInit(dir);
+    action(async (dir: string | undefined, opts: { author?: string }) => {
+      const { written } = await runInit(dir, opts);
       for (const path of written) console.log(path);
     }),
   );

@@ -55,7 +55,7 @@ function bridgeStore(requests: Request[]): BridgeStore {
     const body: unknown = init?.body === undefined ? undefined : JSON.parse(init.body);
     if (method !== "GET") requests.push({ url, body });
     const reply = url.endsWith("/bridge/docs")
-      ? { docs: [{ name: NAME }] }
+      ? { docs: [{ name: NAME, sourceKind: "ts" }] }
       : method === "GET"
         ? { name: NAME, doc: demoDoc(), text: serialize(demoDoc()) }
         : {

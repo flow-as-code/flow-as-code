@@ -32,7 +32,7 @@ import type { FlowDoc } from "@flow-as-code/core";
 import { SLUG_PATTERN } from "@flow-as-code/core";
 
 /** Bumped when a change to this file is not backwards compatible. */
-export const BRIDGE_PROTOCOL = 1;
+export const BRIDGE_PROTOCOL = 2;
 
 /** Every bridge route lives under this prefix; everything else is an asset. */
 export const BRIDGE_PREFIX = "/bridge";
@@ -59,6 +59,18 @@ export const TOKEN_HEADER = "x-flow-studio-token";
 /** The file suffixes the bridge pairs, matching the A04 watch engine. */
 export const DOC_SUFFIX = ".flowdoc.json";
 export const TS_SUFFIX = ".flow.ts";
+export const TF_SUFFIX = ".flow.tf";
+
+/**
+ * Which companion a document has: builder TypeScript (`<name>.flow.ts`) or a
+ * flowascode Terraform resource (`<name>.flow.tf`). One per document, the
+ * same values as a FlowDoc's meta.sourceKind.
+ */
+export type SourceKind = "ts" | "tf";
+
+export function sourceSuffix(kind: SourceKind): string {
+  return kind === "tf" ? TF_SUFFIX : TS_SUFFIX;
+}
 
 /** What the bridge says about itself. Injected, and served at /bridge/info. */
 export interface BridgeInfo {
@@ -73,6 +85,8 @@ export interface BridgeInfo {
 
 export interface BridgeDocRef {
   name: string;
+  /** The companion on disk; the document's meta.sourceKind when it has none yet. */
+  sourceKind: SourceKind;
 }
 
 export interface BridgeDocList {
@@ -84,6 +98,12 @@ export interface BridgeDocPayload {
   name: string;
   doc: FlowDoc;
   text: string;
+  sourceKind: SourceKind;
+  /**
+   * Lint rule ids a `.flow.tf` companion disables in its `lint` block, for the
+   * studio to pass as LintOptions.disable. Absent for a `.flow.ts`.
+   */
+  lintDisable?: string[];
 }
 
 /** PUT /bridge/docs/<name> */
@@ -102,9 +122,20 @@ export interface BridgeWriteRequest {
 /** What a successful write wrote, both halves of the pair. */
 export interface BridgeWriteResult extends BridgeDocPayload {
   docPath: string;
-  tsPath: string;
-  /** The regenerated builder source. */
-  tsText: string;
+  /** The companion, `<name>.flow.ts` or `<name>.flow.tf` by sourceKind. */
+  sourcePath: string;
+  /** The regenerated companion source. */
+  sourceText: string;
+}
+
+/**
+ * POST /bridge/docs: a new document and the companion it is created with.
+ * Answered 201 with a BridgeWriteResult, or 409 when the document or either
+ * companion already exists: creating never overwrites.
+ */
+export interface BridgeCreateRequest {
+  doc: FlowDoc;
+  sourceKind: SourceKind;
 }
 
 /** Which side of a conflict the user chose: the FlowDoc or the builder code. */
@@ -138,10 +169,12 @@ export interface BridgeConflict {
   origin: "disk" | "canvas";
   /** Absolute paths, when the side that raised the conflict knows them. */
   docPath?: string;
-  tsPath?: string;
+  sourcePath?: string;
+  /** Which companion the code side is, so the studio can name it. */
+  sourceKind?: SourceKind;
   /** The canvas side: the FlowDoc on disk, or the one the studio holds. */
   docSide: FlowDoc | null;
-  /** The FlowDoc the builder file synths to right now. */
+  /** The FlowDoc the companion reads to right now. */
   codeSide: FlowDoc | null;
   docError?: string;
   codeError?: string;
@@ -153,7 +186,12 @@ export interface BridgeConflict {
  * without a second request, and "conflict" carries both sides.
  */
 export type BridgeEvent =
-  | ({ seq: number; kind: "synced" } & BridgeDocPayload)
+  | ({
+      seq: number;
+      kind: "synced";
+      /** What reading a .flow.tf noticed without refusing it, one sentence each. */
+      warnings?: string[];
+    } & BridgeDocPayload)
   | ({ seq: number; kind: "conflict" } & BridgeConflict)
   | { seq: number; kind: "error"; name?: string; path: string; message: string };
 
@@ -170,8 +208,8 @@ export interface BridgeErrorBody {
   conflict?: BridgeConflict;
 }
 
-/** The export targets, the same three `flow-cli emit` and `render` produce. */
-export const EXPORT_TARGETS = ["cdk", "raw", "tf"] as const;
+/** The export targets, the same four `flow-cli emit` and `render` produce. */
+export const EXPORT_TARGETS = ["cdk", "flowascode", "raw", "tf"] as const;
 export type ExportTarget = (typeof EXPORT_TARGETS)[number];
 
 /**
