@@ -1,3 +1,5 @@
 {
-  "description": "A module alias is key-form only: an alias resource's address is not in address-sugar.json, so the parser refuses it rather than guess the key."
+  "description": "A module alias is key-form only: an alias resource's address is not in address-sugar.json, so the parser refuses it rather than guess the key.",
+  "providerCode": "REF_EXPRESSION_REFUSED",
+  "providerWhy": "The provider sees the address's value, unknown until the alias exists, and cannot tell a listed address from an unlisted one; it refuses every expression in a reference field alike."
 }
