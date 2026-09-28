@@ -1,0 +1,4 @@
+{
+  "code": "POSITION_NOT_INTEGER",
+  "path": "action[welcome].position.x"
+}

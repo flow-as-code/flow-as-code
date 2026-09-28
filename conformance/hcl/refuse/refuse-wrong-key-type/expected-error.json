@@ -1,0 +1,4 @@
+{
+  "code": "REF_KEY_MALFORMED",
+  "path": "action[set-queue].update_contact_target_queue.queue_id"
+}

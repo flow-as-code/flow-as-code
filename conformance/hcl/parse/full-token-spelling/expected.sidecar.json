@@ -1,0 +1,15 @@
+{
+  "refs": {
+    "queue:appointments": "aws_connect_queue.appointments.arn"
+  },
+  "lint": [],
+  "tags": {},
+  "instanceId": "var.connect_instance_id",
+  "normalized": [
+    {
+      "attribute": "action[set-queue].update_contact_target_queue.queue_id",
+      "from": "${cdref:queue:appointments}",
+      "to": "queue:appointments"
+    }
+  ]
+}

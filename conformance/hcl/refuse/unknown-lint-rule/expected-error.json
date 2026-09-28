@@ -1,0 +1,5 @@
+{
+  "code": "UNKNOWN_LINT_RULE",
+  "path": "lint.disable[0]",
+  "messageIncludes": "no-literal-arn"
+}

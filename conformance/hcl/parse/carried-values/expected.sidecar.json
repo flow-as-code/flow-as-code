@@ -1,0 +1,13 @@
+{
+  "refs": {
+    "queue:appointments": "aws_connect_queue.appointments.arn"
+  },
+  "lint": [
+    "prompt-length-3000"
+  ],
+  "tags": {
+    "team": "cx"
+  },
+  "instanceId": "aws_connect_instance.main.id",
+  "normalized": []
+}

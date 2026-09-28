@@ -1,0 +1,3 @@
+{
+  "description": "A reference attribute holding the full token, escaped as HCL requires, reads to the same document; the reader records the normalization to the key."
+}

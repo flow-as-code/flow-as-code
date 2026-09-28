@@ -1,0 +1,9 @@
+{
+  "refs": {
+    "module:question@prod": "flowascode_contact_flow_module_alias.question_prod.arn"
+  },
+  "lint": [],
+  "tags": {},
+  "instanceId": "var.connect_instance_id",
+  "normalized": []
+}

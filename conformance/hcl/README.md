@@ -25,16 +25,23 @@ hcl/regenerate/<case>/case.json        what the case shows (TypeScript only)
 hcl/regenerate/<case>/doc.flowdoc.json the document being written
 hcl/regenerate/<case>/previous.flow.tf the companion on disk before regeneration
 hcl/regenerate/<case>/expected.flow.tf the companion after: carried values, kept comments, normalized sugar
+hcl/parse/<case>/case.json             what the case shows
 hcl/parse/<case>/input.flow.tf         a hand-written resource, fmt or not
 hcl/parse/<case>/expected.flowdoc.json the document it reads to
 hcl/parse/<case>/expected.sidecar.json {refs, lint, tags, instanceId, normalized, keep?}: what the file carried beside the document
+hcl/refuse/<case>/case.json            what the case shows
 hcl/refuse/<case>/input.flow.tf        a resource both implementations refuse
 hcl/refuse/<case>/expected-error.json  {code, path?, messageIncludes?}; the code is the cross-language field
 ```
 
 Both implementations pass `roundtrip`, `parse` and `refuse`. `regenerate` and
 `address-sugar.json` describe what the TypeScript side does to a file it is
-rewriting, which the provider never does. `options` in a `case.json` may carry
+rewriting, which the provider never does; the three `parse` cases named
+`sugar-*` are the TypeScript parser's, and the provider refuses those inputs
+with `REF_EXPRESSION_REFUSED`. A sidecar's `normalized` entries name the
+attribute by path (`action[<id>].<block>.<attr>`), the value read (`from`),
+the key written (`to`) and, for sugar, the address bound (`binding`); `keep`
+lists the kept comment lines, for the resource and by action id. `options` in a `case.json` may carry
 `instanceId` (the expression written for `instance_id`), `tags` and
 `lintDisable`: the values a companion carries that the document does not. A
 case marked `validate: "skip"` has no provider to resolve yet; the mark flips

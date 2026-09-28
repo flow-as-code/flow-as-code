@@ -42,6 +42,11 @@ hcl/roundtrip/<case>/expected.flow.tf    the resource, byte-exact, a `tofu fmt` 
 hcl/regenerate/<case>/doc.flowdoc.json   a document whose companion is rewritten (TypeScript only)
 hcl/regenerate/<case>/previous.flow.tf   the companion before the rewrite
 hcl/regenerate/<case>/expected.flow.tf   the companion after: carried values, kept comments, normalized sugar
+hcl/parse/<case>/input.flow.tf           a hand-written resource, fmt or not
+hcl/parse/<case>/expected.flowdoc.json   the document it reads to
+hcl/parse/<case>/expected.sidecar.json   what the file carried beside the document: refs, lint, tags, instance id, normalizations
+hcl/refuse/<case>/input.flow.tf          a resource both implementations refuse
+hcl/refuse/<case>/expected-error.json    {code, path?, messageIncludes?}; the code is the cross-language field
 schema/scenario-0.1.schema.json          machine-readable simulate scenario definition
 simulate/<case>/scenario.json            authored simulate scenario
 simulate/<case>/expected.testcase.json   compiled CreateTestCase input, tokens still in place

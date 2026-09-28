@@ -167,3 +167,38 @@ describe("conformance/hcl/README.md", () => {
     expect([...listed.matchAll(/`([A-Z_]+)`/g)].map((m) => m[1])).toEqual(CODES);
   });
 });
+
+describe("conformance/hcl/parse and refuse", () => {
+  for (const name of dirs(new URL("parse/", HCL))) {
+    const dir = new URL(`parse/${name}/`, HCL);
+    it(`parse/${name}: an input, a normal-form document and a sidecar`, () => {
+      normalDoc(new URL("expected.flowdoc.json", dir));
+      const sidecar = JSON.parse(read(new URL("expected.sidecar.json", dir))) as object;
+      for (const key of ["refs", "lint", "tags", "instanceId", "normalized"]) {
+        expect(sidecar).toHaveProperty(key);
+      }
+      expect(read(new URL("input.flow.tf", dir))).not.toContain("arn:aws:");
+    });
+  }
+  it("has a refuse case for every error code", () => {
+    const named = new Set(
+      dirs(new URL("refuse/", HCL)).map(
+        (name) =>
+          (JSON.parse(read(new URL(`refuse/${name}/expected-error.json`, HCL))) as { code: string })
+            .code,
+      ),
+    );
+    expect(CODES.filter((c) => !named.has(c))).toEqual([]);
+  });
+  it("has parse cases", () => {
+    expect(dirs(new URL("parse/", HCL)).length).toBeGreaterThanOrEqual(12);
+  });
+  for (const name of dirs(new URL("refuse/", HCL))) {
+    const dir = new URL(`refuse/${name}/`, HCL);
+    it(`refuse/${name}: names a contract code`, () => {
+      const err = JSON.parse(read(new URL("expected-error.json", dir))) as { code: string };
+      expect(CODES).toContain(err.code);
+      expect(existsSync(new URL("input.flow.tf", dir))).toBe(true);
+    });
+  }
+});
