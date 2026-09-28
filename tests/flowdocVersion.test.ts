@@ -9,10 +9,12 @@
 // hand is a straggler found late.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { FLOWDOC_VERSION } from "@flow-as-code/core";
 
+const ROOT_DIR = join(import.meta.dirname, "..");
 const OLDER = /"?flowdoc"?\s*:\s*"0\.1"/;
 
 /** Files that hold an older version literal on purpose, each with its reason. */
@@ -52,5 +54,29 @@ describe("FlowDoc version sweep", () => {
     expect(OLDER.test('{\n  "flowdoc": "0.1",')).toBe(true);
     expect(OLDER.test('    flowdoc: "0.1",')).toBe(true);
     expect(OLDER.test('"flowdoc": "0.2"')).toBe(false);
+  });
+});
+
+// docs/06's compatibility table names the FlowDoc version the provider reads
+// and the schema file that defines it. A format bump that forgets the page
+// would tell a provider user the wrong version.
+describe("the provider page's compatibility table", () => {
+  const page = readFileSync(join(ROOT_DIR, "docs", "06-terraform-provider.md"), "utf8");
+  const table = page.slice(page.indexOf("## Versions and compatibility"));
+  const rows = [...table.matchAll(/^\|(?!\s*-)(?!\s*Provider)(.*)\|$/gm)].map((m) =>
+    m[1]!.split("|").map((c) => c.trim()),
+  );
+
+  it("has a row, whose FlowDoc column is the current version", () => {
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.map((r) => r[1])).toContain(FLOWDOC_VERSION);
+  });
+
+  it("names schema files that exist under conformance/schema", () => {
+    for (const row of rows) {
+      expect(existsSync(join(ROOT_DIR, "conformance", "schema", row[2]!)), row[2]).toBe(true);
+    }
+    const current = rows.find((r) => r[1] === FLOWDOC_VERSION)!;
+    expect(current[2]).toBe(`flowdoc-${FLOWDOC_VERSION}.schema.json`);
   });
 });

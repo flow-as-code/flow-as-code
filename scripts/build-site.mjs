@@ -166,6 +166,14 @@ const PAGES = [
       "How the browser demo is built, what the demo build swaps out, how it is deployed, and the static and runtime checks that prove it makes no network request after its own assets load.",
   },
   {
+    source: "docs/06-terraform-provider.md",
+    slug: "docs/terraform-provider",
+    group: "Format and design",
+    title: "Terraform provider and the HCL view",
+    description:
+      "The flow-as-code/flowascode provider and the .flow.tf companion: what the resources take, how a companion pairs with a document, which versions work together, and when to pick it over the emitter.",
+  },
+  {
     source: "examples/promote-across-environments/README.md",
     slug: "docs/promote-across-environments",
     group: "Worked example",
@@ -268,6 +276,22 @@ const PAGES = [
     title: "ADR-0005: An owned auto-layout replaces dagre",
     description:
       "Why the positions synth assigns to unplaced actions are computed by a small algorithm specified under conformance/ rather than by a layout library: a Terraform companion omits a position exactly when it equals auto-layout, so a second implementation has to reach the same integers.",
+  },
+  {
+    source: "docs/adr/0006-provider-shape.md",
+    slug: "docs/adr-provider-shape",
+    group: "Decisions",
+    title: "ADR-0006: A Terraform provider of managed resources that take action blocks",
+    description:
+      "Why the provider owns the flow's lifecycle through the Connect API rather than feeding hashicorp/aws, why a flow is written as repeated action blocks against the framework's advice, and how its schema is generated from the shared action catalog.",
+  },
+  {
+    source: "docs/adr/0007-hcl-third-view.md",
+    slug: "docs/adr-hcl-third-view",
+    group: "Decisions",
+    title: "ADR-0007: HCL is a third view over FlowDoc, paired by file",
+    description:
+      "Why a .flow.tf is a companion with the same standing as a .flow.ts rather than a rendering target, what a regeneration carries from the previous file, and what does not round-trip.",
   },
 ];
 

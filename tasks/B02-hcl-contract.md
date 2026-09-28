@@ -32,3 +32,10 @@ Acceptance: `conformance/hcl/README.md` states the resource shape, attribute and
 ## Notes (2026-09-28, B02c)
 
 - `conformance/README.md` gained "What a second implementation must pass": every family classified as both-language (`schema`, `flow-language`, `lint`, `materialize`, `layout`, `export` in its FlowDoc half, `roundtrip`, `hcl` minus its regenerate cases and sugar, `demo`) or TypeScript only (`emit-tf`, `simulate`, `migrate`), and the HCL round-trip rule restated from `hcl/README.md` rule 26. `tests/conformanceIndex.test.ts` holds the list to the directories that hold files, each classified once; an unlisted family turns it red (checked with a probe directory). An empty `conformance/synth/` left in one working tree holds nothing git tracks and is not a family.
+
+## Notes (2026-09-28, B02d)
+
+- `docs/06-terraform-provider.md` is the reader's map with its later sections marked "to be completed" by the task that fills them (B03, B04i to B04k, B05); ADR-0006 records the provider's shape, quoting the plugin framework's "Use nested attribute types instead of block types for new schema implementations" as the advice the action blocks go against, and ADR-0007 records HCL as a paired view. All three are site pages, and CLAUDE.md's reading list names docs/06.
+- `tests/flowdocVersion.test.ts` holds docs/06's compatibility table to `FLOWDOC_VERSION` and to a schema file present under `conformance/schema/`; a stale version and a missing schema file each turned it red.
+- No changeset: the pages ship with the site, not in a package.
+- With this B02 is complete: the contract is frozen as `conformance/hcl/` (twelve round-trip, seven regenerate, twelve parse and twenty-four refuse cases), and B03 (the `@flow-as-code/hcl` package and the CLI) builds against it.

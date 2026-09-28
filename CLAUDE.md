@@ -8,7 +8,8 @@ You are building the open-source flow tooling described in README.md. The privat
 2. docs/01-flowdoc-spec.md (the interchange format; everything pivots on it)
 3. docs/02-studio-design.md
 4. docs/03-tf-emitter.md
-5. tasks/README.md, then work tasks in order
+5. docs/06-terraform-provider.md (Phase B: the provider and HCL as a third view; the contract is conformance/hcl/README.md)
+6. tasks/README.md, then work tasks in order
 
 ## Where things stand (2026-09-10)
 
