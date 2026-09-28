@@ -406,7 +406,7 @@ describe("the event hook names", () => {
     };
   };
   it("agree across actions.ts, the catalog and the schema", () => {
-    const entry = actionCatalog.actions.UpdateContactEventHooks as {
+    const entry = actionCatalog.actions.UpdateContactEventHooks as unknown as {
       parameters: { key: string; keys?: string[] }[];
     };
     const keys = entry.parameters.find((p) => p.key === "EventHooks")!.keys;

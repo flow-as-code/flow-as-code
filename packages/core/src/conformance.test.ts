@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { ActionType } from "./actions.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
-import { migrateFlowDoc, serialize } from "./index.js";
+import { migrateFlowDoc, serialize, type FlowDoc } from "./index.js";
 
 // The conformance directory is the cross-language contract (conformance/README.md).
 // These assertions are what a future Go provider must also satisfy.
@@ -25,7 +25,7 @@ interface Action {
   Transitions: {
     NextAction?: string;
     Errors?: { ErrorType: string; NextAction: string }[];
-    Conditions?: { NextAction: string }[];
+    Conditions?: { NextAction: string; Condition: { Operator: string; Operands: unknown[] } }[];
   };
 }
 

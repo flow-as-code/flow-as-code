@@ -958,7 +958,7 @@ describe("Wait inverts the timeout, its events, and the conditional ParticipantN
         { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["WaitCompleted"] } },
         ...events.map((e) => ({
           NextAction: "hold",
-          Condition: { Operator: "Equals", Operands: [e] },
+          Condition: { Operator: "Equals" as const, Operands: [e] },
         })),
       ],
     },
