@@ -193,7 +193,10 @@ resource "flowascode_contact_flow" "appointment_line" {
     `conformance/flow-language/catalog.json` and the catalog's shape accepts
     the action's `Parameters`: every key is a catalog parameter, every
     required parameter is present, nested objects and lists of objects match
-    their fields, and each value has its kind's JSON type. Whether the builder
+    their fields, and each value has its kind's JSON type: a `json` kind
+    holds an object, and a `ref` kind holds a token of its type or a
+    JSONPath (a reader accepts nothing else there, so anything else is
+    written generic). Whether the builder
     would also accept the action does not matter (the recording-analytics
     case's chat form is typed here and generic in codegen). Otherwise the
     action is a `generic` block: `type`, then `parameters = jsonencode({...})`,
@@ -205,7 +208,8 @@ resource "flowascode_contact_flow" "appointment_line" {
     - `ref`: the reference key, quoted (`"queue:front-desk"`); a JSONPath is
       written as itself.
     - `integer`: a number. `integerString`: a number when the value is a
-      decimal string, the string itself when it is a JSONPath.
+      decimal integer a JavaScript number holds exactly (so not `-0`, and
+      nothing past 2^53), the string itself otherwise.
     - `map`: an object literal with keys in byte order, values by the map's
       `of` shape (strings when it has none); an object-valued `of` is a nested
       object literal with attr names.
@@ -218,7 +222,9 @@ resource "flowascode_contact_flow" "appointment_line" {
     - An empty object, map or list is written inline: `{}`, `[]`,
       `jsonencode({})`.
 12. Inside `jsonencode` keys keep their Flow language spelling, in byte order;
-    a key that is a valid HCL identifier is unquoted and any other is quoted;
+    a key that is a valid HCL identifier is unquoted and any other is quoted,
+    as are `for`, `if`, `in`, `null`, `true` and `false` wherever an object
+    key is written (a leading bare `for` opens a for expression);
     scalars and lists of scalars are inline, and an object or a list holding
     an object is multi-line. A `${cdref:...}` token inside a string stays a
     token, escaped as `$${cdref:...}`.
@@ -238,6 +244,10 @@ resource "flowascode_contact_flow" "appointment_line" {
     any other control character (below U+0020, and U+007F) as `\uXXXX`; `${`
     as `$${` and `%{` as `%%{`; everything else raw, non-ASCII included. A
     lone surrogate is refused (`LONE_SURROGATE`).
+    Byte order, wherever this contract sorts keys, is the order of their UTF-8
+    bytes, which is code point order; comparing UTF-16 code units (what
+    JavaScript's `<` does) differs for a character above U+FFFF against one in
+    U+E000 to U+FFFF.
 17. Alignment follows `terraform fmt`: within a run of consecutive
     single-line attributes the `=` signs align; a blank line, a comment or a
     multi-line value ends the run. Every golden here is an fmt fixed point,
@@ -266,9 +276,13 @@ resource "flowascode_contact_flow" "appointment_line" {
     (`DUPLICATE_ACTION_ID`), an `id` the Flow language forbids
     (`INVALID_IDENTIFIER`), a `start` naming no action (`START_UNKNOWN`), a
     fractional position (`POSITION_NOT_INTEGER`), an expression where a
-    literal is required (`NON_LITERAL_VALUE`), a lone surrogate
-    (`LONE_SURROGATE`), and a `lint.disable` entry that is not a rule id or
-    names a hard rule (`UNKNOWN_LINT_RULE`).
+    literal is required or a literal of the wrong shape for its kind, such
+    as a string where an object belongs (`NON_LITERAL_VALUE`), a lone
+    surrogate (`LONE_SURROGATE`), a `lint.disable` entry that is not a rule
+    id or names a hard rule (`UNKNOWN_LINT_RULE`), and an attribute, object
+    key, or `lint` or `lifecycle` block given twice (`DUPLICATE_ATTRIBUTE`).
+    A parameter set to `null` is unset, as Terraform reads it, and a value in
+    parentheses reads as the value inside.
 20. The settable attributes are `instance_id`, `name`, `type`, `description`,
     `state` (`ACTIVE` or `ARCHIVED`), `start`, `refs`, `tags`, `settings`,
     `external_invocation_enabled` (modules), the `lint` block, and the
@@ -289,7 +303,11 @@ resource "flowascode_contact_flow" "appointment_line" {
     shape (`<type>.<label>.arn`, `data.<type>.<label>.arn`) whose type is not
     listed, a module alias's among them, is refused with
     `REF_SUGAR_UNSUPPORTED_TYPE`, naming the `refs` key that binds the address
-    when there is one. The provider does not
+    when there is one. One key binds one address: an address whose key `refs`
+    already binds to another expression, or two addresses reading to one key
+    (`aws_lambda_function.x.arn` and `data.aws_lambda_function.x.arn`), are
+    refused with `REF_EXPRESSION_REFUSED`. A key `refs` writes `null` takes
+    the address an action writes, wherever in the file `refs` sits. The provider does not
     rewrite: it refuses the expression and says what to write.
 22. A `refs` key no action references is a warning, not an error; the next
     regeneration drops it.
@@ -373,10 +391,12 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
 `INVALID_IDENTIFIER`, `POSITION_NOT_INTEGER`, `START_UNKNOWN`,
 `NON_LITERAL_VALUE`, `LONE_SURROGATE`, `LABEL_MISMATCH`, `SECOND_RESOURCE`,
 `COUNT_OR_FOR_EACH`, `MODULE_WITH_TYPE`, `FLOW_WITH_SETTINGS`,
-`UNKNOWN_LINT_RULE`. The provider puts the code in every diagnostic summary;
+`UNKNOWN_LINT_RULE`, `DUPLICATE_ATTRIBUTE`. The provider puts the code in every diagnostic summary;
 the TypeScript parser puts it on the error it throws. A `refuse` case names
 the code and may name the path and a fragment of the message. One case is
 refused before the provider sees it: HCL's own parser cannot encode a lone
 surrogate escape (`\ud800`) in UTF-8 and reports an invalid escape sequence,
 so for the provider `refuse/lone-surrogate` passes on Terraform's parse error;
-the TypeScript reader raises `LONE_SURROGATE`.
+the TypeScript reader raises `LONE_SURROGATE`. `refuse/duplicate-attribute` is
+the same: HCL refuses a redefined attribute ("Attribute redefined") before the
+provider sees a value.

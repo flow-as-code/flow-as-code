@@ -138,6 +138,9 @@ class Watcher implements FlowWatcher {
     });
     this.fsWatcher.on("add", (path) => this.route(path));
     this.fsWatcher.on("change", (path) => this.route(path));
+    // Removing one of two companions ends an ambiguity; the one that remains
+    // is then the document's source and is read as if it had just changed.
+    this.fsWatcher.on("unlink", (path) => this.routeRemoval(path));
     this.fsWatcher.on("error", (err) => {
       this.emit("error", {
         path: this.dir,
@@ -207,6 +210,18 @@ class Watcher implements FlowWatcher {
     else if (file.endsWith(DOC_SUFFIX)) name = file.slice(0, -DOC_SUFFIX.length);
     if (name === undefined || name === "") return;
     this.enqueue(name, kind);
+  }
+
+  private routeRemoval(path: string): void {
+    const file = basename(path);
+    const kind = kindOfPath(file);
+    if (kind === undefined) return;
+    const name = file.slice(0, -suffixOf(kind).length);
+    if (name === "") return;
+    const other: SourceKind = kind === "ts" ? "tf" : "ts";
+    void exists(join(this.dir, name + suffixOf(other))).then((survives) => {
+      if (survives && !this.closed) this.enqueue(name, other);
+    });
   }
 
   private enqueue(name: string, kind: SourceKind | undefined): void {
@@ -366,6 +381,17 @@ class Watcher implements FlowWatcher {
             "this watcher has not seen the pair in sync; run `flow-cli synth` explicitly or " +
             "remove the stale side",
         });
+        return;
+      }
+
+      if (docSourceHash === `sha256:${sourceHash}`) {
+        // The document already describes exactly this companion content: a
+        // tool that wrote both (flow-cli convert or codegen) got here first.
+        // Nothing to write, but the document may be new to consumers.
+        entry.lastDocHash = docHash;
+        entry.lastSourceHash = sourceHash;
+        entry.errored = false;
+        this.emit("synced", { sourcePath, sourceKind: kind, docPath, name });
         return;
       }
 

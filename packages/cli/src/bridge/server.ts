@@ -736,7 +736,11 @@ class Router {
   /** The FlowDoc wins: regenerate the builder source from it. */
   private async adoptDoc(name: string): Promise<BridgeDocPayload> {
     const current = await readPair(this.bridge.dir, name);
-    const written = await writePair(this.bridge.dir, name, current.doc, this.watcher);
+    // The user answered the conflict dialog: the document wins over the
+    // companion that moved, which is what force is for.
+    const written = await writePair(this.bridge.dir, name, current.doc, this.watcher, {
+      force: true,
+    });
     return payloadOf(written);
   }
 

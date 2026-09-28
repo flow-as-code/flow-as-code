@@ -81,8 +81,19 @@ function writeExported(
   if (author !== undefined) {
     const sourceFile = `${doc.name}${suffixOf(author)}`;
     const sourcePath = join(outDir, sourceFile);
+    const otherFile = `${doc.name}${suffixOf(author === "ts" ? "tf" : "ts")}`;
+    if (existsSync(join(outDir, otherFile))) {
+      throw new CliError(
+        `${otherFile} already exists in ${outDir}; --author ${author} would give the document ` +
+          `two companions. Run \`flow-cli convert\` on it, or export into another directory.`,
+      );
+    }
     const previous = existsSync(sourcePath) ? readFileSync(sourcePath, "utf8") : undefined;
-    const source = generateCompanion(doc, author, previous === undefined ? {} : { previous });
+    const source = generateCompanion(
+      doc,
+      author,
+      previous === undefined ? {} : { previous, previousPath: sourcePath },
+    );
     writeFileSync(sourcePath, source, "utf8");
     files.push(sourceFile);
     text = serialize({
@@ -159,7 +170,16 @@ export async function runExport(
       continue;
     }
     claimed.set(flow.doc.name, flow);
-    written.push(writeExported(flow, outDir, author));
+    // A document that cannot be written (another companion in the way, an
+    // existing companion that does not parse) is a failure like any other:
+    // under collect the rest are still written and every failure is listed.
+    try {
+      written.push(writeExported(flow, outDir, author));
+    } catch (error) {
+      if (!(error instanceof CliError)) throw error;
+      if (onError === "abort") throw error;
+      failures.push({ arn: flow.arn, name: flow.sourceName, reason: error.message });
+    }
   }
 
   for (const warning of result.warnings) console.error(`warning: ${warning}`);

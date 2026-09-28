@@ -114,8 +114,22 @@ function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
     if (seen.has(address)) problems.push(`two documents both emit ${address}`);
     seen.add(address);
   }
+  // An alias resource is labelled <module>_<alias> with hyphens as
+  // underscores, so module a-b at alias c and module a at alias b-c would
+  // both be a_b_c.
+  const labels = new Map<string, string>();
+  const sorted = [...docs].sort((a, b) => byString(a.name, b.name) || byString(a.kind, b.kind));
+  for (const [module, aliases] of aliasesByModule(sorted)) {
+    for (const alias of aliases) {
+      const label = `${MODULE_ALIAS_RESOURCE}.${ident(module)}_${ident(alias)}`;
+      const prior = labels.get(label);
+      if (prior !== undefined) {
+        problems.push(`module:${prior} and module:${module}@${alias} both emit ${label}`);
+      } else labels.set(label, `${module}@${alias}`);
+    }
+  }
   if (problems.length > 0) throw new EmitFlowascodeError(problems);
-  return [...docs].sort((a, b) => byString(a.name, b.name) || byString(a.kind, b.kind));
+  return sorted;
 }
 
 /** Aliases each emitted module is invoked through, from the references to it. */

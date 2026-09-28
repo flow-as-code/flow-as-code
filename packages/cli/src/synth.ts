@@ -430,12 +430,20 @@ export function serializeWithMeta(
  * uses, a resource address rewritten to its key) go to stderr.
  */
 export async function synthTfToFile(absPath: string, dir: string): Promise<string> {
-  const text = await readFile(absPath, "utf8");
+  // Hashed as bytes, as the watcher hashes them; decoded strictly, so a file
+  // that is not UTF-8 is refused rather than read as replacement characters.
+  const bytes = await readFile(absPath);
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new SynthError(`${absPath} is not UTF-8 text.`);
+  }
   const { doc, warnings } = readTfCompanion(text, absPath);
   for (const warning of warnings) console.error(`warning: ${warning}`);
   await mkdir(dir, { recursive: true });
   const docPath = join(dir, `${doc.name}.flowdoc.json`);
-  await writeFile(docPath, serializeWithMeta(doc, `sha256:${sha256Hex(text)}`, "tf"), "utf8");
+  await writeFile(docPath, serializeWithMeta(doc, `sha256:${sha256Hex(bytes)}`, "tf"), "utf8");
   return docPath;
 }
 

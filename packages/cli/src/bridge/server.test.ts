@@ -1107,4 +1107,34 @@ describe("studio bridge: .flow.tf companions (protocol 2)", () => {
     expect(conflict.sourcePath).toBe(tfPath);
     expect(JSON.stringify(conflict.codeSide)).toContain("Edited in HCL.");
   });
+
+  it("keeps the document side of a disk conflict over a .flow.tf, and names a mismatched resource", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, `${NAME}.flow.tf`);
+    const doc = await demoDoc();
+    // A pair that disagrees on disk: the document names a companion hash the
+    // .flow.tf beside it does not have, and the .flow.tf holds another flow.
+    await writeFile(
+      join(dir, `${NAME}.flowdoc.json`),
+      serialize({ ...doc, meta: { sourceKind: "tf", sourceHash: `sha256:${"0".repeat(64)}` } }),
+      "utf8",
+    );
+    await writeFile(tfPath, fromFlowDoc({ ...doc, name: "other-line" }), "utf8");
+    const started = await start(dir, { watch: true });
+    const { done, stop } = waitForEvent(started.store, (e) => e.kind === "conflict");
+    const event = (await done) as BridgeEvent & { kind: "conflict" };
+    stop();
+    expect(event.origin).toBe("disk");
+    expect(event.sourceKind).toBe("tf");
+    expect(event.codeSide).toBeNull();
+    expect(event.codeError).toContain(`${NAME}.flow.tf holds "other-line"`);
+
+    const resolved = await asStudio(started, `/bridge/docs/${NAME}/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ side: "doc" }),
+    });
+    expect(resolved.status).toBe(200);
+    expect(await readFile(tfPath, "utf8")).toBe(fromFlowDoc(doc));
+  }, 60_000);
 });

@@ -37,6 +37,8 @@ export interface ConvertOptions {
   to: string;
   addressMap?: string;
   keepOld?: boolean;
+  /** Replace an old companion even when it holds edits the document does not. */
+  force?: boolean;
 }
 
 export interface ConvertResult {
@@ -65,7 +67,23 @@ export function runConvert(file: string, options: ConvertOptions): ConvertResult
     throw new CliError("--address-map applies to --to tf only; a .flow.ts holds no bindings.");
   }
 
-  const previous = existsSync(fromPath) ? readFileSync(fromPath, "utf8") : undefined;
+  const previousBytes = existsSync(fromPath) ? readFileSync(fromPath) : undefined;
+  const previous = previousBytes?.toString("utf8");
+  // The document is the source of truth only while it agrees with the old
+  // companion. A companion edited since the document was synced holds work
+  // the document does not, and converting would delete it.
+  const provenance = doc.meta?.sourceHash;
+  if (
+    previousBytes !== undefined &&
+    options.force !== true &&
+    typeof provenance === "string" &&
+    provenance !== `sha256:${sha256Hex(previousBytes)}`
+  ) {
+    throw new CliError(
+      `${fromPath} has edits ${doc.name}.flowdoc.json does not hold (its meta.sourceHash ` +
+        `differs). Run \`flow-cli synth ${fromPath}\` first, or pass --force to discard them.`,
+    );
+  }
   const dropped: string[] = [];
   let text: string;
   if (to === "tf") {

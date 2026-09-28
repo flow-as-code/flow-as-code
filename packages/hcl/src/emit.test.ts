@@ -124,6 +124,55 @@ describe("emitFlowascode", () => {
     ]);
   });
 
+  it("refuses two module aliases that label one alias resource", () => {
+    const module = (name: string): FlowDoc => ({
+      flowdoc: "0.2",
+      kind: "module",
+      name,
+      connectType: "MODULE",
+      content: {
+        Version: "2019-10-30",
+        StartAction: "end",
+        Settings: {},
+        Actions: [
+          { Identifier: "end", Type: "EndFlowModuleExecution", Parameters: {}, Transitions: {} },
+        ],
+      },
+    });
+    const invoker: FlowDoc = {
+      ...demo,
+      name: "invoker",
+      content: {
+        Version: "2019-10-30",
+        StartAction: "one",
+        Actions: [
+          {
+            Identifier: "one",
+            Type: "InvokeFlowModule",
+            Parameters: { FlowModuleId: "${cdref:module:a-b@c}" },
+            Transitions: { NextAction: "two", Errors: [], Conditions: [] },
+          },
+          {
+            Identifier: "two",
+            Type: "InvokeFlowModule",
+            Parameters: { FlowModuleId: "${cdref:module:a@b-c}" },
+            Transitions: { NextAction: "end", Errors: [], Conditions: [] },
+          },
+          { Identifier: "end", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+        ],
+      },
+    };
+    let error: unknown;
+    try {
+      emitFlowascode([invoker, module("a-b"), module("a")]);
+    } catch (e) {
+      error = e;
+    }
+    expect((error as EmitFlowascodeError).problems).toEqual([
+      "module:a@b-c and module:a-b@c both emit flowascode_contact_flow_module_alias.a_b_c",
+    ]);
+  });
+
   it("asks for the provider at the constraint the contract names", () => {
     expect(emitFlowascode([demo]).files["versions.tf.example"]).toContain(
       `version = "${FLOWASCODE_PROVIDER_CONSTRAINT}"`,

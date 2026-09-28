@@ -172,6 +172,26 @@ describe("export", () => {
     }
   });
 
+  it("--author tf never adds a second companion, and collects that as a failure", async () => {
+    const out = tempDir();
+    writeFileSync(join(out, "draft-line.flow.ts"), "// mine\n");
+    writeFileSync(join(out, "appointment-line.flow.tf"), "resource {\n");
+    const error = await expectCliError(
+      runExport(
+        { instance: INSTANCE, out, author: "tf" },
+        fixtureClients({ exportCase: "demo-instance" }),
+      ),
+    );
+    expect(error.message).toBe("2 flow(s) could not be exported");
+    expect(stderr.some((l) => l.includes("draft-line.flow.ts already exists"))).toBe(true);
+    // The unparseable previous file is named, not "<previous>".
+    expect(stderr.some((l) => l.includes(join(out, "appointment-line.flow.tf")))).toBe(true);
+    expect(existsSync(join(out, "draft-line.flow.tf"))).toBe(false);
+    expect(readFileSync(join(out, "draft-line.flow.ts"), "utf8")).toBe("// mine\n");
+    // The third document is still written.
+    expect(existsSync(join(out, "recording-consent.flow.tf"))).toBe(true);
+  });
+
   it("rejects an unknown --author before connecting", async () => {
     const error = await expectCliError(
       runExport(

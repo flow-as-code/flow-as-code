@@ -226,15 +226,17 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         state.doc !== null &&
         serialize(state.doc) !== serialize(action.doc)
       ) {
+        const kind = action.sourceKind ?? state.sourceKind ?? undefined;
         return {
           ...state,
           conflict: {
             name: action.name,
             reason:
-              `${action.name}${sourceSuffix(action.sourceKind ?? state.sourceKind ?? "ts")} ` +
+              `${action.name}${sourceSuffix(kind ?? "ts")} ` +
               "changed on disk while this canvas had unsaved edits, so the two no longer " +
               "describe the same flow",
             origin: "canvas",
+            ...(kind === undefined ? {} : { sourceKind: kind }),
             docSide: state.doc,
             codeSide: action.doc,
           },

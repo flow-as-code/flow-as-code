@@ -20,7 +20,7 @@ import {
   type FlowAction,
   type FlowDoc,
 } from "@flow-as-code/core";
-import { FLOW_RESOURCE, MODULE_RESOURCE, banner } from "./contract.js";
+import { FLOW_RESOURCE, MODULE_RESOURCE, banner, isRefFieldValue } from "./contract.js";
 import { format } from "./format.js";
 import { quote } from "./quote.js";
 import { readCarry, type Carry } from "./carry.js";
@@ -29,6 +29,8 @@ import type { KeptComments } from "./read.js";
 export interface FromFlowDocOptions {
   /** The companion on disk, whose carried values and @keep comments survive (rule 24). */
   previous?: string;
+  /** Where `previous` was read from, for the position in a syntax error. */
+  previousFileName?: string;
   /** Reference key -> terraform address expression. Overrides what `previous` carried. */
   bindings?: Record<string, string | null>;
   /** The expression for `instance_id` on a first write; default `var.connect_instance_id`. */
@@ -45,11 +47,20 @@ export interface FromFlowDocOptions {
 }
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_-]*$/;
-const key = (k: string): string => (IDENT.test(k) ? k : quote(k));
+/**
+ * Keys HCL reads as something other than a name at the start of an object
+ * constructor (`{ for ...` opens a for expression) or as a literal. Quoted
+ * always, so no key's meaning depends on its position (rule 12).
+ */
+const KEYWORDS = new Set(["for", "if", "in", "null", "true", "false"]);
+const key = (k: string): string => (IDENT.test(k) && !KEYWORDS.has(k) ? k : quote(k));
 
 /** The companion text for `doc`. */
 export function fromFlowDoc(doc: FlowDoc, options: FromFlowDocOptions = {}): string {
-  const carry: Carry = options.previous === undefined ? emptyCarry() : readCarry(options.previous);
+  const carry: Carry =
+    options.previous === undefined
+      ? emptyCarry()
+      : readCarry(options.previous, options.previousFileName);
   if (options.keep !== undefined && options.previous === undefined) {
     carry.keepResource = [...options.keep.resource];
     carry.keepActions = new Map(Object.entries(options.keep.actions));
@@ -160,8 +171,19 @@ function emptyCarry(): Carry {
   return { bindings: {}, keepResource: [], keepActions: new Map() };
 }
 
-function byteOrder(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+/**
+ * UTF-8 byte order, which is code point order. JavaScript's < compares UTF-16
+ * code units and differs from it for a character above U+FFFF against one in
+ * U+E000..U+FFFF; the contract says byte order (rules 6, 8, 11, 12).
+ */
+export function byteOrder(a: string, b: string): number {
+  const x = [...a];
+  const y = [...b];
+  for (let i = 0; i < x.length && i < y.length; i++) {
+    const d = x[i]!.codePointAt(0)! - y[i]!.codePointAt(0)!;
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return x.length - y.length < 0 ? -1 : x.length === y.length ? 0 : 1;
 }
 
 /** One action block (rules 9 to 15). */
@@ -253,7 +275,11 @@ function acceptsValue(v: unknown, e: CatalogElement): boolean {
     case "integer":
       return typeof v === "number" || (typeof v === "string" && v.startsWith("$."));
     case "json":
-      return true;
+      // jsonencode({...}) holds an object; any other JSON value makes the
+      // action generic, whose parameters jsonencode writes it faithfully.
+      return isObject(v);
+    case "ref":
+      return typeof v === "string" && isRefFieldValue(v, e.ref!);
     default:
       return typeof v === "string";
   }
@@ -270,9 +296,7 @@ function value(depth: number, name: string, v: unknown, e: CatalogElement): stri
     case "ref":
       return [`${pad}${name} = ${quote(refValue(v as string))}`];
     case "integerString":
-      return [
-        `${pad}${name} = ${/^-?(0|[1-9][0-9]*)$/.test(v as string) ? (v as string) : quote(v as string)}`,
-      ];
+      return [`${pad}${name} = ${asHclNumber(v as string) ? (v as string) : quote(v as string)}`];
     case "integer":
       return [`${pad}${name} = ${typeof v === "number" ? String(v) : quote(v as string)}`];
     case "json":
@@ -330,15 +354,21 @@ function refValue(v: string): string {
   return entry === undefined ? v : refKey(entry);
 }
 
-/** `name = jsonencode({...})` (rules 11 and 12). */
+/**
+ * Whether an integerString is written as an HCL number (rule 11): a decimal
+ * integer a reader's number gives back exactly. "-0" and anything past 2^53
+ * stay strings.
+ */
+function asHclNumber(v: string): boolean {
+  const n = Number(v);
+  return /^-?(0|[1-9][0-9]*)$/.test(v) && Number.isSafeInteger(n) && String(n) === v;
+}
+
+/** `name = jsonencode(...)` (rules 11 and 12), of any JSON value. */
 function jsonencode(depth: number, name: string, v: unknown): string[] {
-  const pad = "  ".repeat(depth);
-  if (isObject(v) && Object.keys(v).length === 0) return [`${pad}${name} = jsonencode({})`];
-  return [
-    `${pad}${name} = jsonencode({`,
-    ...jsonBody(depth + 1, v as Record<string, unknown>),
-    `${pad}})`,
-  ];
+  const lines = jsonEntry(depth, `${name} = jsonencode(`, v);
+  lines[lines.length - 1] += ")";
+  return lines;
 }
 
 function jsonBody(depth: number, o: Record<string, unknown>): string[] {

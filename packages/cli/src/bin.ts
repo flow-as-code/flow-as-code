@@ -152,13 +152,19 @@ program
   .requiredOption("--to <kind>", "ts or tf")
   .option("--address-map <refs.tfmap.json>", "--to tf only: reference to terraform addresses")
   .option("--keep-old", "keep the replaced companion")
+  .option("--force", "convert even when the old companion holds edits the document does not")
   .action(
-    action((file: string, opts: { to: string; addressMap?: string; keepOld?: boolean }) => {
-      const { written, removed, dropped } = runConvert(file, opts);
-      for (const path of written) console.log(path);
-      if (removed !== undefined) console.log(`removed ${removed}`);
-      for (const note of dropped) console.error(`note: ${note}`);
-    }),
+    action(
+      (
+        file: string,
+        opts: { to: string; addressMap?: string; keepOld?: boolean; force?: boolean },
+      ) => {
+        const { written, removed, dropped } = runConvert(file, opts);
+        for (const path of written) console.log(path);
+        if (removed !== undefined) console.log(`removed ${removed}`);
+        for (const note of dropped) console.error(`note: ${note}`);
+      },
+    ),
   );
 
 program

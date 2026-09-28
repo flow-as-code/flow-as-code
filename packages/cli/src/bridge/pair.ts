@@ -359,11 +359,20 @@ export async function synthPair(dir: string, name: string): Promise<FlowDoc> {
   }
   if (kind === "tf") {
     const text = await readFile(paths.tfPath, "utf8");
+    let doc: FlowDoc;
     try {
-      return readTfCompanion(text, paths.tfPath).doc;
+      doc = readTfCompanion(text, paths.tfPath).doc;
     } catch (err) {
       throw new BridgeError(422, messageOf(err));
     }
+    if (doc.name !== name) {
+      throw new BridgeError(
+        422,
+        `${name}${TF_SUFFIX} holds "${doc.name}"; the bridge pairs ${name}${TF_SUFFIX} with ` +
+          `${name}${DOC_SUFFIX} by name`,
+      );
+    }
+    return doc;
   }
   const { flows } = await synthFile(paths.tsPath);
   const doc = pickDoc(flows, name);

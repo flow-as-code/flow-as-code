@@ -554,6 +554,26 @@ describe("codegen --to tf, synth, convert", () => {
     expect(again).toContain("  # @keep reviewed\n  action {");
   });
 
+  it("synth stamps the hash of a .flow.tf's bytes, which is what the watcher compares", () => {
+    const { dir } = demoWorkspace();
+    const tf = join(dir, "appointment-line.flow.tf");
+    // A byte order mark decodes away, so hashing the decoded text would stamp
+    // a hash the watcher never sees.
+    const bytes = Buffer.concat([
+      Buffer.from([0xef, 0xbb, 0xbf]),
+      Buffer.from(fromFlowDoc(readDoc(DEMO))),
+    ]);
+    writeFileSync(tf, bytes);
+    expect(cli("synth", tf).status).toBe(0);
+    const doc = readDoc(join(dir, "appointment-line.flowdoc.json"));
+    expect(doc.meta?.sourceHash).toBe(`sha256:${createHash("sha256").update(bytes).digest("hex")}`);
+
+    writeFileSync(tf, Buffer.from([0x72, 0x65, 0xff, 0x0a]));
+    const bad = cli("synth", tf);
+    expect(bad.status).toBe(1);
+    expect(bad.stderr).toContain("is not UTF-8 text");
+  });
+
   it("synth names the file, line and code of a refused .flow.tf", () => {
     const { dir } = demoWorkspace();
     const tf = join(dir, "bad.flow.tf");
@@ -574,6 +594,13 @@ describe("codegen --to tf, synth, convert", () => {
         "// @keep owned by the CX team\nexport function appointmentLine()",
       ),
     );
+    // The hand edit is not in the document yet, so convert refuses to delete
+    // it; synth brings the document up to date with the file.
+    const refused = cli("convert", doc, "--to", "tf");
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toContain("has edits appointment-line.flowdoc.json does not hold");
+    expect(existsSync(ts)).toBe(true);
+    expect(cli("synth", ts).status).toBe(0);
     const run = cli("convert", doc, "--to", "tf");
     expect(run.status).toBe(0);
     const tf = join(dir, "appointment-line.flow.tf");
@@ -593,6 +620,18 @@ describe("codegen --to tf, synth, convert", () => {
       "// @keep owned by the CX team\nexport function appointmentLine()",
     );
     expect(readDoc(doc).meta?.sourceKind).toBe("ts");
+  });
+
+  it("codegen restamps the document it pairs with, and will not add a second companion", () => {
+    const { dir, doc } = demoWorkspace();
+    expect(cli("codegen", doc, "--to", "tf").status).toBe(0);
+    const tf = readFileSync(join(dir, "appointment-line.flow.tf"), "utf8");
+    expect(readDoc(doc).meta?.sourceHash).toBe(`sha256:${sha256(tf)}`);
+    expect(readDoc(doc).meta?.sourceKind).toBe("tf");
+    const second = cli("codegen", doc, "--to", "ts");
+    expect(second.status).toBe(1);
+    expect(second.stderr).toContain("a document has one companion");
+    expect(existsSync(join(dir, "appointment-line.flow.ts"))).toBe(false);
   });
 
   it("convert refuses to replace a companion that exists", () => {

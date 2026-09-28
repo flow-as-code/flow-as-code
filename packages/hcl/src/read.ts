@@ -32,6 +32,7 @@ import type { Attribute, Block, Expr, HclFile } from "./ast.js";
 import {
   ADDRESS_SUGAR,
   FLOW_RESOURCE,
+  banner,
   MODULE_RESOURCE,
   REF_KEY,
   RESOURCE_ATTRIBUTES,
@@ -188,6 +189,7 @@ class Reader {
           `${item.name} is not an attribute of ${type}.`,
         );
       }
+      if (attrs.has(item.name)) this.duplicate(item, item.name, attrs.get(item.name)!);
       attrs.set(item.name, item);
     }
     if (isModule && attrs.has("type")) {
@@ -249,8 +251,14 @@ class Reader {
     const actions: FlowAction[] = [];
     const positions: Record<string, Point> = {};
     const seen = new Set<string>();
+    const single = new Map<string, Block>();
     for (const item of body.items) {
       if (item.kind !== "block") continue;
+      if (item.type === "lint" || item.type === "lifecycle") {
+        const first = single.get(item.type);
+        if (first !== undefined) this.duplicate(item, item.type, first);
+        single.set(item.type, item);
+      }
       if (item.type === "lint") lint = this.readLint(item);
       else if (item.type === "action") {
         const { action, position } = this.readAction(item, seen);
@@ -292,7 +300,8 @@ class Reader {
       refs.map((r) => `${r.type}:${r.name}${r.alias === undefined ? "" : `@${r.alias}`}`),
     );
     const bound: Record<string, string | null> = { ...this.refs };
-    for (const [k, v] of this.sugar) if (!Object.hasOwn(bound, k)) bound[k] = v;
+    for (const [k, v] of this.sugar)
+      if (!Object.hasOwn(bound, k) || bound[k] === null) bound[k] = v;
     const warnings: string[] = [];
     for (const k of Object.keys(this.refs)) {
       if (!keys.has(k))
@@ -334,6 +343,7 @@ class Reader {
           ? item.key.root
           : this.string(item.key, "refs");
       const path = `refs[${key}]`;
+      if (Object.hasOwn(this.refs, key)) this.duplicate(item.key, path, attr);
       if (!REF_KEY.test(key)) {
         this.fail(
           "REF_KEY_MALFORMED",
@@ -432,8 +442,11 @@ class Reader {
     const attrs = new Map<string, Attribute>();
     const blocks: Block[] = [];
     for (const item of block.body.items) {
-      if (item.kind === "attribute") attrs.set(item.name, item);
-      else blocks.push(item);
+      if (item.kind === "attribute") {
+        if (attrs.has(item.name))
+          this.duplicate(item, `action.${item.name}`, attrs.get(item.name)!);
+        attrs.set(item.name, item);
+      } else blocks.push(item);
     }
     const idAttr = attrs.get("id");
     if (idAttr === undefined)
@@ -639,12 +652,18 @@ class Reader {
   ): { type: string; parameters: Record<string, unknown> } {
     const params = byAttr(entry.parameters);
     const out: Record<string, unknown> = {};
+    const given = new Map<string, Attribute>();
     for (const item of b.body.items) {
       const n = item.kind === "attribute" ? item.name : item.type;
       const p = params.get(n);
       if (item.kind !== "attribute" || p === undefined) {
         this.fail("UNKNOWN_ATTRIBUTE", item, `${path}.${n}`, `${n} is not a parameter of ${type}.`);
       }
+      if (given.has(n)) this.duplicate(item, `${path}.${n}`, given.get(n)!);
+      given.set(n, item);
+      // Terraform reads an attribute set to null as unset, so the provider's
+      // document has no such key; neither does this one.
+      if (isNull(item.expr)) continue;
       out[p.key] = this.value(item.expr, p, `${path}.${n}`);
     }
     return { type, parameters: out };
@@ -652,6 +671,7 @@ class Reader {
 
   /** One value by its catalog shape (rule 11, read backwards). */
   value(expr: Expr, e: CatalogElement, path: string): unknown {
+    while (expr.kind === "paren") expr = expr.inner;
     switch (e.kind) {
       case "ref":
         return this.ref(expr, e.ref!, path);
@@ -662,11 +682,15 @@ class Reader {
         return typeof v === "number" ? String(v) : v;
       }
       case "object": {
-        if (expr.kind !== "object") return this.literal(expr, path);
+        if (expr.kind !== "object") return this.shapeRefused(expr, path, "an object");
         const fields = byAttr(e.fields ?? []);
         const out: Record<string, unknown> = {};
+        const keys = new Map<string, Expr>();
         for (const item of expr.items) {
           const k = this.objectKey(item, path);
+          if (keys.has(k)) this.duplicate(item.key, `${path}.${k}`, keys.get(k)!);
+          keys.set(k, item.key);
+          if (isNull(item.value)) continue;
           const f = fields.get(k);
           if (f === undefined) {
             this.fail(
@@ -681,20 +705,44 @@ class Reader {
         return out;
       }
       case "list":
-        if (expr.kind !== "tuple" || e.of === undefined) return this.literal(expr, path);
+        if (expr.kind !== "tuple") return this.shapeRefused(expr, path, "a list");
+        if (e.of === undefined) return this.literal(expr, path);
         return expr.items.map((x, k) => this.value(x, e.of!, `${path}[${k}]`));
       case "map": {
-        if (expr.kind !== "object" || e.of === undefined) return this.literal(expr, path);
+        if (expr.kind !== "object") return this.shapeRefused(expr, path, "a map");
         const out: Record<string, unknown> = {};
+        const keys = new Map<string, Expr>();
         for (const item of expr.items) {
           const k = this.objectKey(item, path);
-          out[k] = this.value(item.value, e.of, `${path}.${k}`);
+          if (keys.has(k)) this.duplicate(item.key, `${path}.${k}`, keys.get(k)!);
+          keys.set(k, item.key);
+          if (isNull(item.value)) continue;
+          out[k] =
+            e.of === undefined
+              ? this.literal(item.value, `${path}.${k}`)
+              : this.value(item.value, e.of, `${path}.${k}`);
         }
         return out;
       }
       default:
         return this.literal(expr, path);
     }
+  }
+
+  /** A value of the wrong shape for its catalog kind: an expression, or a literal of another type. */
+  shapeRefused(expr: Expr, path: string, shape: string): never {
+    return this.fail("NON_LITERAL_VALUE", expr, path, `${path} must be ${shape} literal.`);
+  }
+
+  /** A second definition of something HCL allows once (Terraform refuses it too). */
+  duplicate(node: { first: number }, path: string, first: { first: number }): never {
+    const at = this.file.tokens[first.first]!.start;
+    return this.fail(
+      "DUPLICATE_ATTRIBUTE",
+      node,
+      path,
+      `${path} is already defined at line ${String(at.line)}, column ${String(at.column)}.`,
+    );
   }
 
   objectKey(item: { key: Expr; bareKey: boolean }, path: string): string {
@@ -705,6 +753,7 @@ class Reader {
 
   /** A reference attribute (rules 20 and 21): a key, a JSONPath, the full token, or sugar. */
   ref(expr: Expr, type: RefType, path: string): string {
+    while (expr.kind === "paren") expr = expr.inner;
     const example = `"${type}:<name>"`;
     if (expr.kind === "template" && expr.parts.every((p) => p.kind === "text")) {
       const s = this.string(expr, path);
@@ -762,8 +811,28 @@ class Reader {
             `${path} takes a ${type} reference; ${text} is a ${sugar.type}.`,
           );
         }
+        // One key, one address. Two addresses that read to the same key, or a
+        // refs entry binding the key elsewhere, would leave one action pointing
+        // somewhere its author did not write.
+        const bound = Object.hasOwn(this.refs, key) ? this.refs[key] : null;
+        const earlier = this.sugar.get(key);
+        const other =
+          bound !== null && bound !== text
+            ? bound
+            : earlier !== undefined && earlier !== text
+              ? earlier
+              : undefined;
+        if (other !== undefined) {
+          this.fail(
+            "REF_EXPRESSION_REFUSED",
+            expr,
+            path,
+            `${path}: ${text} reads as "${key}", which is already bound to ${other}; ` +
+              `give the two resources distinct reference keys in refs and write the keys.`,
+          );
+        }
         this.normalized.push({ attribute: path, from: text, to: key, binding: text });
-        if (!Object.hasOwn(this.refs, key) || this.refs[key] === null) this.sugar.set(key, text);
+        if (bound === null) this.sugar.set(key, text);
         return `\${cdref:${key}}`;
       }
     }
@@ -838,7 +907,18 @@ function keepAbove(file: HclFile, first: number): string[] {
       k -= 1;
     } else break;
   }
-  return lines.filter((l) => l.includes("@keep"));
+  // The banner's second line mentions @keep; it is the banner, not a kept comment.
+  return lines.filter((l) => l.includes("@keep") && !BANNER_LINES.some((b) => l.startsWith(b)));
+}
+
+const [BANNER_FIRST = "", BANNER_SECOND = ""] = banner("").split("\n");
+/** The banner's first line up to the file name, and its second line whole. */
+const BANNER_LINES = [BANNER_FIRST.slice(0, -1), BANNER_SECOND];
+
+/** An attribute set to the literal null, which Terraform treats as unset. */
+function isNull(expr: Expr): boolean {
+  while (expr.kind === "paren") expr = expr.inner;
+  return expr.kind === "literal" && expr.value === null;
 }
 
 /** Whether token k is the first on its line. */

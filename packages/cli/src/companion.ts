@@ -39,6 +39,8 @@ export function parseKind(value: string, flag: string): SourceKind {
 export interface GenerateOptions {
   /** The companion on disk, whose @keep comments (and for tf, carried values) survive. */
   previous?: string;
+  /** Where `previous` was read from, named in an error reading it. */
+  previousPath?: string;
   /** tf only: reference key -> terraform address, for keys `previous` does not bind. */
   bindings?: Record<string, string | null>;
   /** Kept comments from the other kind, used when there is no `previous`. */
@@ -52,12 +54,18 @@ export function generateCompanion(
   options: GenerateOptions = {},
 ): string {
   if (kind === "tf") {
-    return fromFlowDoc(doc, {
-      ...(options.previous === undefined ? {} : { previous: options.previous }),
-      ...(options.bindings === undefined ? {} : { bindings: options.bindings }),
-      ...(options.keep === undefined ? {} : { keep: options.keep }),
-      fileName: `${doc.name}.flowdoc.json`,
-    });
+    try {
+      return fromFlowDoc(doc, {
+        ...(options.previous === undefined ? {} : { previous: options.previous }),
+        ...(options.previousPath === undefined ? {} : { previousFileName: options.previousPath }),
+        ...(options.bindings === undefined ? {} : { bindings: options.bindings }),
+        ...(options.keep === undefined ? {} : { keep: options.keep }),
+        fileName: `${doc.name}.flowdoc.json`,
+      });
+    } catch (error) {
+      if (error instanceof HclError) throw new CliError(error.message, 1, { cause: error });
+      throw error;
+    }
   }
   const keep =
     options.previous === undefined && options.keep !== undefined

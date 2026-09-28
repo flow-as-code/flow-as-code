@@ -361,4 +361,51 @@ describe("createWatcher with a .flow.tf companion", () => {
       "both appointment-line.flow.ts and appointment-line.flow.tf exist",
     );
   }, 30_000);
+
+  it("takes a document restamped for the companion beside it as in sync, not as a conflict", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, "appointment-line.flow.tf");
+    const docPath = join(dir, "appointment-line.flowdoc.json");
+    const source = await golden();
+    await writeFile(tfPath, source, "utf8");
+    const watcher = watching(dir);
+    await nextEvent(watcher, "synced");
+
+    // What flow-cli codegen or convert does: rewrite the companion and stamp
+    // the document with its hash, both from outside the watcher.
+    const edited = source.replace("Thanks for calling.", "Thanks for calling again.");
+    const doc = JSON.parse(await readFile(docPath, "utf8")) as FlowDoc;
+    doc.meta = { ...doc.meta, sourceHash: `sha256:${sha256Hex(edited)}` };
+    await writeFile(docPath, JSON.stringify(doc, null, 2) + "\n", "utf8");
+    let conflicted = false;
+    watcher.on("conflict", () => {
+      conflicted = true;
+    });
+    const synced = nextEvent(watcher, "synced");
+    await writeFile(tfPath, edited, "utf8");
+    await synced;
+    expect(conflicted).toBe(false);
+  }, 30_000);
+
+  it("syncs the survivor when one of two companions is removed", async () => {
+    const dir = await tempDir();
+    const tfPath = join(dir, "appointment-line.flow.tf");
+    const tsPath = join(dir, "appointment-line.flow.ts");
+    const docPath = join(dir, "appointment-line.flowdoc.json");
+    await writeFile(tfPath, await golden(), "utf8");
+    const watcher = watching(dir);
+    await nextEvent(watcher, "synced");
+    const error = nextEvent(watcher, "error");
+    await writeFile(tsPath, await demoBuilderSource(), "utf8");
+    await error;
+
+    const edited = (await golden()).replace("Thanks for calling.", "Survivor text.");
+    await writeFile(tfPath, edited, "utf8");
+    await nextEvent(watcher, "error"); // still ambiguous
+    const synced = nextEvent(watcher, "synced");
+    await rm(tsPath);
+    const payload = await synced;
+    expect(payload.sourceKind).toBe("tf");
+    expect(await readFile(docPath, "utf8")).toContain("Survivor text.");
+  }, 30_000);
 });

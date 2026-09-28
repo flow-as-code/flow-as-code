@@ -206,5 +206,7 @@ describe("companions (B05a)", () => {
       sourceKind: "tf",
     });
     expect(next.conflict?.reason).toContain("appointment-line.flow.tf changed on disk");
+    // The dialog labels the code side from this, so it must agree with the reason.
+    expect(next.conflict?.sourceKind).toBe("tf");
   });
 });

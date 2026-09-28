@@ -17,7 +17,7 @@ import { ERROR_CODES } from "./contract.js";
 import { HclError } from "./errors.js";
 import { format } from "./format.js";
 import { toFlowDoc } from "./read.js";
-import { fromFlowDoc } from "./write.js";
+import { byteOrder, fromFlowDoc } from "./write.js";
 
 const HCL = join(import.meta.dirname, "..", "..", "..", "conformance", "hcl");
 const read = (...p: string[]): string => readFileSync(join(...p), "utf8");
@@ -231,5 +231,107 @@ ${action}
       'refs["queue:gone"] is referenced by no action; the next regeneration drops it.',
     ]);
     expect(sidecar.refs["queue:gone"]).toBe("aws_connect_queue.gone.arn");
+  });
+});
+
+describe("writer edge cases the review found", () => {
+  /** A one-action flow ending in a disconnect, for one action under test. */
+  const flowWith = (type: string, parameters: Record<string, unknown>): FlowDoc =>
+    ({
+      flowdoc: "0.2",
+      kind: "flow",
+      name: "edge",
+      connectType: "CONTACT_FLOW",
+      content: {
+        Version: "2019-10-30",
+        StartAction: "act",
+        Actions: [
+          {
+            Identifier: "act",
+            Type: type,
+            Parameters: parameters,
+            Transitions: {
+              NextAction: "end",
+              Errors: [{ ErrorType: "NoMatchingError", NextAction: "end" }],
+              Conditions: [],
+            },
+          },
+          { Identifier: "end", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+        ],
+      },
+    }) as FlowDoc;
+  const roundTrips = (doc: FlowDoc): string => {
+    const tf = fromFlowDoc(doc);
+    expect(format(tf)).toBe(tf);
+    expect(bytes(toFlowDoc(tf).doc)).toBe(bytes(viewed(doc)));
+    return tf;
+  };
+
+  it("writes a json-kind value that is not an object through generic, faithfully", () => {
+    const tf = roundTrips(
+      flowWith("ShowView", {
+        ViewResource: { Id: "${cdref:view:form@1}" },
+        InvocationTimeLimitSeconds: "30",
+        ViewData: "not an object",
+      }),
+    );
+    expect(tf).toContain("generic {");
+  });
+
+  it("quotes a key HCL would read as a keyword", () => {
+    const tf = roundTrips(
+      flowWith("UpdateContactAttributes", {
+        Attributes: { for: "x", in: "y", plain: "z" },
+        TargetContact: "Current",
+      }),
+    );
+    expect(tf).toContain('"for" = "x"');
+    expect(tf).toContain('"in"  = "y"');
+  });
+
+  it("keeps an integerString a number cannot hold exactly as a string", () => {
+    const tf = roundTrips(
+      flowWith("UpdateContactRoutingBehavior", {
+        QueuePriority: "9007199254740993",
+        QueueTimeAdjustmentSeconds: "-0",
+      }),
+    );
+    expect(tf).toContain('queue_priority                = "9007199254740993"');
+    expect(tf).toContain('queue_time_adjustment_seconds = "-0"');
+  });
+
+  it("writes a reference field holding neither a token of its type nor a JSONPath through generic", () => {
+    const tf = roundTrips(flowWith("UpdateContactTargetQueue", { QueueId: "front-desk" }));
+    expect(tf).toContain('type = "UpdateContactTargetQueue"');
+    roundTrips(flowWith("UpdateContactTargetQueue", { QueueId: "${cdref:lambda:front-desk}" }));
+  });
+
+  it("orders keys by code point, which is UTF-8 byte order", () => {
+    expect(["｡", "\u{1F600}", "a"].sort(byteOrder)).toEqual(["a", "｡", "\u{1F600}"]);
+    const tf = roundTrips(
+      flowWith("UpdateContactAttributes", {
+        Attributes: { "\u{1F600}": "astral", "｡": "bmp" },
+        TargetContact: "Current",
+      }),
+    );
+    expect(tf.indexOf("｡")).toBeLessThan(tf.indexOf("\u{1F600}"));
+  });
+});
+
+describe("reader shapes the review found", () => {
+  const golden = read(HCL, "roundtrip", "recording-analytics", "expected.flow.tf");
+
+  it("reads a parenthesized object as the object", () => {
+    const wrapped = golden.replace(/(voice_behavior\s*=\s*)\{([\s\S]*?\n {6}\})/, "$1({$2)");
+    expect(wrapped).not.toBe(golden);
+    expect(bytes(toFlowDoc(wrapped).doc)).toBe(bytes(toFlowDoc(golden).doc));
+  });
+
+  it("refuses an object parameter written as a literal of another type", () => {
+    const wrong = golden.replace(/(voice_behavior\s*=\s*)\{[\s\S]*?\n {6}\}/, '$1"S3"');
+    expect(wrong).not.toBe(golden);
+    expect(() => toFlowDoc(wrong)).toThrow(
+      /NON_LITERAL_VALUE: .*voice_behavior must be an object literal/,
+    );
   });
 });

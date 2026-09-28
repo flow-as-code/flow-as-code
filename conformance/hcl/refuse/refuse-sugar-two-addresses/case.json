@@ -1,0 +1,3 @@
+{
+  "description": "Two addresses that read to the same key (a resource and a data source for one Lambda). One key cannot bind both, so the second is refused."
+}

@@ -40,6 +40,7 @@ export function evaluateLiteral(expr: Expr, file: HclFile): LiteralValue {
       return expr.items.map((item) => evaluateLiteral(item, file));
     case "object": {
       const out: { [key: string]: LiteralValue } = {};
+      const seen = new Set<string>();
       for (const item of expr.items) {
         const key =
           item.bareKey && item.key.kind === "traversal"
@@ -52,6 +53,14 @@ export function evaluateLiteral(expr: Expr, file: HclFile): LiteralValue {
             code: "NON_LITERAL_VALUE",
           });
         }
+        if (seen.has(key)) {
+          throw new HclError(`The object key "${key}" is defined twice.`, {
+            file: file.file,
+            position: file.tokens[item.key.first]!.start,
+            code: "DUPLICATE_ATTRIBUTE",
+          });
+        }
+        seen.add(key);
         out[key] = evaluateLiteral(item.value, file);
       }
       return out;

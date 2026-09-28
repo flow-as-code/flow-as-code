@@ -9,7 +9,9 @@
 import {
   PACKAGE_NAMES,
   actionCatalog,
+  parseToken,
   type CatalogParameter,
+  type RefType,
   type ModeledAction,
 } from "@flow-as-code/core";
 
@@ -55,6 +57,7 @@ export const ERROR_CODES = [
   "MODULE_WITH_TYPE",
   "FLOW_WITH_SETTINGS",
   "UNKNOWN_LINT_RULE",
+  "DUPLICATE_ATTRIBUTE",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -95,6 +98,18 @@ export const ADDRESS_SUGAR: readonly { prefix: string; type: string }[] = [
 /** A reference key: `queue:front-desk`, `module:survey@prod`, `view:form@1`. */
 export const REF_KEY =
   /^(queue|hours|lambda|lex|prompt|flow|module|view):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?$/;
+
+/**
+ * What a document may hold in a reference field for a typed sub-block to
+ * write it (rule 10): a JSONPath, or a token of the field's type. The reader
+ * accepts exactly these (as a key, the token, or a JSONPath), so anything else
+ * goes to a generic block rather than into a file the reader would refuse.
+ */
+export function isRefFieldValue(value: string, type: RefType): boolean {
+  if (value.startsWith("$.")) return true;
+  const entry = parseToken(value);
+  return entry !== undefined && entry.type === type;
+}
 
 /** The modeled catalog entries, by their HCL block name. */
 export function entryByBlock(): Map<string, { type: string; entry: ModeledAction }> {

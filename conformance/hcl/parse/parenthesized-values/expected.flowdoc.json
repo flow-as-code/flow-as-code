@@ -1,0 +1,73 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "minimal",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "welcome",
+    "Actions": [
+      {
+        "Identifier": "welcome",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Welcome."
+        },
+        "Transitions": {
+          "NextAction": "set-queue",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-queue",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "${cdref:queue:appointments}"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "hang-up": {
+      "x": 540,
+      "y": 20
+    },
+    "set-queue": {
+      "x": 280,
+      "y": 20
+    },
+    "welcome": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:queue:appointments}",
+      "type": "queue",
+      "name": "appointments"
+    }
+  ]
+}

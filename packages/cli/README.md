@@ -20,7 +20,7 @@ flow-cli lint <dir-or-file> [--format text|json]        rule set over the whole 
 flow-cli render <dir-or-file> --resources map.json      standalone materialization
 flow-cli codegen <doc.flowdoc.json> [--to ts|tf] [--out <file>]  FlowDoc -> companion (.flow.ts or .flow.tf)
 flow-cli synth <file.flow.ts|file.flow.tf> [--out <dir>] companion -> FlowDoc (TS in a sandboxed child)
-flow-cli convert <doc.flowdoc.json> --to ts|tf [--address-map <file>] [--keep-old]
+flow-cli convert <doc.flowdoc.json> --to ts|tf [--address-map <file>] [--keep-old] [--force]
 flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json]
 flow-cli diff <dir> --instance <arn>                     local FlowDocs vs the live instance
 flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]
@@ -257,13 +257,19 @@ Without `--to` it writes the kind the document's `meta.sourceKind` names, and
 `ts` when it names none. An existing output file is read first: its `@keep`
 comments survive, and a `.flow.tf` also keeps its `refs` bindings,
 `instance_id`, `tags`, `state`, `lint`, `provider`, `lifecycle` and
-`depends_on`.
+`depends_on`. Writing the document's own companion (no `--out`, and the kind
+its `meta.sourceKind` names) also restamps the document's `meta.sourceHash`
+with the hash of what was written, so the pair stays in sync for the watcher.
+It refuses to write a companion beside one of the other kind; that is
+`convert`'s job.
 
 `flow-cli convert <doc> --to ts|tf` switches which companion a document has.
 It writes the new one from the document, carrying `@keep` comments across (as
 `# @keep` in HCL and `// @keep` in TypeScript), restamps the document's
 `meta.sourceKind` and `meta.sourceHash`, and deletes the old companion unless
-`--keep-old`. It refuses when the new companion already exists. What does not
+`--keep-old`. It refuses when the new companion already exists, and when the
+old one has edits the document does not hold (its hash is not the document's
+`meta.sourceHash`): run `synth` on it first, or pass `--force` to discard them. What does not
 carry is printed as a `note:` on stderr: converting to `tf` binds only what
 `--address-map` gives (the rest is `null` under a TODO comment) and writes
 `instance_id = var.connect_instance_id` with no tags or lint settings;
@@ -360,7 +366,9 @@ reads every flow and module in the instance and writes `<name>.flowdoc.json`
 plus its companion for each into `--out`, which defaults to the working
 directory and is created if needed. The companion is `<name>.flow.ts`, or
 `<name>.flow.tf` with `--author tf`, whose `refs` values are `null` until
-bound. `--no-codegen` writes the documents only.
+bound. A document whose other companion is already in `--out`, or whose
+existing companion does not parse, is reported as a failure rather than given
+a second companion or overwritten. `--no-codegen` writes the documents only.
 References come out as tokens, never ARNs, and the name is the slug the
 exporter derives from the console name (`Appointment Line` becomes
 `appointment-line`). A flow and a module that slug to the same name would
@@ -447,9 +455,11 @@ was edited externally since the watcher last wrote or observed it, and that
 edit does not carry the previous companion content's hash, the pair is dirty
 on both sides. The watcher then emits `conflict` and writes nothing. A pair
 that is already diverged when the watcher starts also gets a `conflict` rather
-than an overwrite. A name with both a `.flow.ts` and a `.flow.tf` is
-ambiguous: every change to either is an `error` naming both, and nothing is
-synced until one goes.
+than an overwrite. A document another tool has already restamped for the
+companion's current content (`codegen`, `convert`) is in sync, not a
+conflict. A name with both a `.flow.ts` and a `.flow.tf` is ambiguous: every
+change to either is an `error` naming both, nothing is synced, and removing
+one syncs from the other.
 
 The re-synth uses the same resolution rules `synth` documents above, so a
 watched directory needs no `node_modules` of its own for the builder files in
@@ -542,7 +552,7 @@ What it serves: the built studio assets from the installed
 If the studio package is present but has not been built, the command says so
 and names the build command.
 
-The API is these seven routes and nothing else; anything else under `/bridge`
+The API is these eight routes and nothing else; anything else under `/bridge`
 answers 404 with the method and path it was given
 (`src/bridge/server.ts`):
 

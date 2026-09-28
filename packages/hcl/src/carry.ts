@@ -46,6 +46,10 @@ export function readCarry(text: string, fileName = "<previous>"): Carry {
   if (resource === undefined) return carry;
 
   const expr = (a: Attribute): string => sourceOf(file, a.expr);
+  // Collected apart and merged at the end, so the result does not depend on
+  // whether refs comes before or after the actions: an explicit binding wins,
+  // and an address an action wrote fills a key refs leaves absent or null.
+  const sugar: Record<string, string> = {};
   for (const item of resource.body.items) {
     if (item.kind === "attribute") {
       switch (item.name) {
@@ -81,7 +85,11 @@ export function readCarry(text: string, fileName = "<previous>"): Carry {
       }
     } else if (item.type === "lint") carry.lint = sourceOf(file, item);
     else if (item.type === "lifecycle") carry.lifecycle = sourceOf(file, item);
-    else if (item.type === "action") sugarBindings(file, item, carry.bindings);
+    else if (item.type === "action") sugarBindings(file, item, sugar);
+  }
+  for (const [key, address] of Object.entries(sugar)) {
+    if (carry.bindings[key] === undefined || carry.bindings[key] === null)
+      carry.bindings[key] = address;
   }
 
   const keep = keptComments(file, resource);
@@ -102,8 +110,8 @@ function keyOf(file: HclFile, key: Expr): string | undefined {
   }
 }
 
-/** Bindings an action's sugar implies (rule 21), where refs does not already bind the key. */
-function sugarBindings(file: HclFile, block: Block, out: Record<string, string | null>): void {
+/** Bindings an action's sugar implies (rule 21); the first address for a key wins, as the reader refuses a second. */
+function sugarBindings(file: HclFile, block: Block, out: Record<string, string>): void {
   const visit = (e: Expr): void => {
     const address = arnAddress(e);
     if (address !== undefined) {
@@ -111,7 +119,7 @@ function sugarBindings(file: HclFile, block: Block, out: Record<string, string |
       const name = slugFromLabel(address.label);
       if (sugar !== undefined && name !== undefined) {
         const key = `${sugar.type}:${name}`;
-        if (out[key] === undefined || out[key] === null) out[key] = sourceOf(file, e);
+        out[key] ??= sourceOf(file, e);
       }
       return;
     }
