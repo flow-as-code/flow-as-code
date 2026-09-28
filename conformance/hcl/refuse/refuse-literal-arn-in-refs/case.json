@@ -1,3 +1,4 @@
 {
-  "description": "A literal ARN as a refs value."
+  "description": "A literal ARN as a refs value.",
+  "typescriptOnly": "The provider sees a refs value only after Terraform evaluates it, when a literal ARN and a resolved resource address are the same string (rule 20)."
 }

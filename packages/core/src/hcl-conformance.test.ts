@@ -206,6 +206,12 @@ describe("conformance/hcl/parse and refuse", () => {
       const err = JSON.parse(read(new URL("expected-error.json", dir))) as { code: string };
       expect(CODES).toContain(err.code);
       expect(existsSync(new URL("input.flow.tf", dir))).toBe(true);
+      // A case only the TypeScript reader can pass says why (README.md).
+      const spec = JSON.parse(read(new URL("case.json", dir))) as { typescriptOnly?: unknown };
+      if (spec.typescriptOnly !== undefined) {
+        expect(typeof spec.typescriptOnly).toBe("string");
+        expect((spec.typescriptOnly as string).length).toBeGreaterThan(20);
+      }
     });
   }
 });

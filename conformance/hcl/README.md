@@ -45,7 +45,8 @@ emitter's. `regenerate` and
 `address-sugar.json` describe what the TypeScript side does to a file it is
 rewriting, which the provider never does; the three `parse` cases named
 `sugar-*` are the TypeScript parser's, and the provider refuses those inputs
-with `REF_EXPRESSION_REFUSED`. A sidecar's `normalized` entries name the
+with `REF_EXPRESSION_REFUSED`. A case whose `case.json` carries
+`typescriptOnly` (a sentence saying why) is the TypeScript reader's alone. A sidecar's `normalized` entries name the
 attribute by path (`action[<id>].<block>.<attr>`), the value read (`from`),
 the key written (`to`) and, for sugar, the address bound (`binding`); `keep`
 lists the kept comment lines, for the resource and by action id. `options` in a `case.json` may carry
@@ -291,7 +292,14 @@ resource "flowascode_contact_flow" "appointment_line" {
     the right type, a JSONPath, or the full token (written `"$${cdref:...}"`,
     as any quoted string holding `${` must be); the reader normalizes the
     token to the key and records the normalization. A literal ARN there, or
-    as a `refs` value, is refused (`LITERAL_ARN`). A key of the wrong type, or
+    as a `refs` value, is refused (`LITERAL_ARN`). The provider refuses the
+    first but cannot refuse the second: it sees values, not expressions, and
+    Terraform validates a resource twice per plan, the second time with
+    references to existing resources resolved, so a literal ARN and a
+    resolved `aws_connect_queue.x.arn` are the same known string there
+    (observed with OpenTofu 1.12.6, 2026-09-28). `refuse/refuse-literal-arn-in-refs`
+    is therefore `typescriptOnly`; the provider's lint still refuses an ARN
+    in the flow's content. A key of the wrong type, or
     one that is not a reference key, is refused (`REF_KEY_MALFORMED`).
 21. A reference attribute holding a bare expression is refused with
     `REF_EXPRESSION_REFUSED`, naming the file, line and attribute, and the
