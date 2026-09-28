@@ -207,10 +207,22 @@ describe("conformance/hcl/parse and refuse", () => {
       expect(CODES).toContain(err.code);
       expect(existsSync(new URL("input.flow.tf", dir))).toBe(true);
       // A case only the TypeScript reader can pass says why (README.md).
-      const spec = JSON.parse(read(new URL("case.json", dir))) as { typescriptOnly?: unknown };
+      const spec = JSON.parse(read(new URL("case.json", dir))) as Record<string, unknown>;
+      const provider = ["typescriptOnly", "terraformError", "providerCode"].filter(
+        (k) => spec[k] !== undefined,
+      );
+      expect(
+        provider.length,
+        "at most one of typescriptOnly, terraformError, providerCode",
+      ).toBeLessThanOrEqual(1);
       if (spec.typescriptOnly !== undefined) {
         expect(typeof spec.typescriptOnly).toBe("string");
         expect((spec.typescriptOnly as string).length).toBeGreaterThan(20);
+      }
+      if (spec.terraformError !== undefined) expect(typeof spec.terraformError).toBe("string");
+      if (spec.providerCode !== undefined) {
+        expect(CODES).toContain(spec.providerCode);
+        expect(String(spec.providerWhy ?? "").length).toBeGreaterThan(20);
       }
     });
   }

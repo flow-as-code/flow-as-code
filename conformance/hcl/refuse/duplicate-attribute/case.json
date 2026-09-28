@@ -1,3 +1,4 @@
 {
-  "description": "An attribute given twice in one body. HCL refuses it (\"Attribute redefined\"), so Terraform does too before the provider sees it; the TypeScript reader refuses it with DUPLICATE_ATTRIBUTE."
+  "description": "An attribute given twice in one body. HCL refuses it (\"Attribute redefined\"), so Terraform does too before the provider sees it; the TypeScript reader refuses it with DUPLICATE_ATTRIBUTE.",
+  "terraformError": "Attribute redefined"
 }

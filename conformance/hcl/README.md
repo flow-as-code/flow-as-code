@@ -45,8 +45,17 @@ emitter's. `regenerate` and
 `address-sugar.json` describe what the TypeScript side does to a file it is
 rewriting, which the provider never does; the three `parse` cases named
 `sugar-*` are the TypeScript parser's, and the provider refuses those inputs
-with `REF_EXPRESSION_REFUSED`. A case whose `case.json` carries
-`typescriptOnly` (a sentence saying why) is the TypeScript reader's alone. A sidecar's `normalized` entries name the
+with `REF_EXPRESSION_REFUSED`. Three fields of a `refuse` case's
+`case.json` say where the provider parts from the TypeScript reader, each
+observed by running the case through Terraform and OpenTofu rather than
+argued: `typescriptOnly` (a sentence saying why) marks a case outside what
+the provider can see; `terraformError` names the error Terraform or OpenTofu
+itself reports, before the provider sees a value, and the provider passes
+the case on it; `providerCode`, with `providerWhy`, is the code the provider
+reports instead, because it sees a value where the reader sees an
+expression. The provider stands in for what a case refers to and does not
+declare (a resource address becomes a resource not yet created, a variable
+holds an ARN, a local or module output names a resource). A sidecar's `normalized` entries name the
 attribute by path (`action[<id>].<block>.<attr>`), the value read (`from`),
 the key written (`to`) and, for sugar, the address bound (`binding`); `keep`
 lists the kept comment lines, for the resource and by action id. `options` in a `case.json` may carry

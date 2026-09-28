@@ -1,3 +1,4 @@
 {
-  "description": "A second resource in the companion file."
+  "description": "A second resource in the companion file.",
+  "typescriptOnly": "The provider sees one resource at a time; a file is not a unit it knows."
 }

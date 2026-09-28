@@ -1,3 +1,5 @@
 {
-  "description": "A variable in a reference field; the message names the refs entry to write."
+  "description": "A variable in a reference field; the message names the refs entry to write.",
+  "providerCode": "LITERAL_ARN",
+  "providerWhy": "The provider sees the variable's value, which in practice is an ARN, not the expression."
 }

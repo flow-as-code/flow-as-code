@@ -1,3 +1,4 @@
 {
-  "description": "A string holding a lone surrogate, which no JSON document can carry faithfully."
+  "description": "A string holding a lone surrogate, which no JSON document can carry faithfully.",
+  "terraformError": "Invalid escape sequence"
 }

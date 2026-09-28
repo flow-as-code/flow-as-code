@@ -1,3 +1,4 @@
 {
-  "description": "A sub-block that is neither a catalog block nor generic."
+  "description": "A sub-block that is neither a catalog block nor generic.",
+  "terraformError": "Unsupported block type"
 }

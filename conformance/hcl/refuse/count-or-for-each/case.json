@@ -1,3 +1,4 @@
 {
-  "description": "A count meta-argument."
+  "description": "A count meta-argument.",
+  "typescriptOnly": "count and for_each are meta-arguments Terraform expands before the provider sees an instance; each instance is one flow to it."
 }
