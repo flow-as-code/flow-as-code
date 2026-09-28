@@ -13,12 +13,20 @@
 
 import type { FlowDoc } from "@flow-as-code/core";
 import type { Finding } from "@flow-as-code/core/lint";
-import { hasBlockingFindings, lint } from "@flow-as-code/core/lint";
+import { allRules, hasBlockingFindings, lint } from "@flow-as-code/core/lint";
+
+const HARD = new Set(allRules.filter((r) => r.hard === true).map((r) => r.id));
 
 export interface LintRequest {
   /** Monotonic sequence number; stale responses are dropped by the caller. */
   seq: number;
   doc: FlowDoc;
+  /**
+   * Rule ids to skip: a `.flow.tf` companion's `lint { disable = [...] }`.
+   * A hard rule named here is ignored rather than skipped, so no request can
+   * lint past a rule that blocks a save.
+   */
+  disable?: string[];
 }
 
 export interface LintResult {
@@ -63,8 +71,12 @@ export function handleLintRequest(request: unknown): LintResult {
   if (!isFlowDoc(doc)) {
     return { seq, findings: [], blocked: true, error: "Malformed lint request: no FlowDoc." };
   }
+  const requested = (request as { disable?: unknown }).disable;
+  const disable = Array.isArray(requested)
+    ? requested.filter((id): id is string => typeof id === "string" && !HARD.has(id))
+    : [];
   try {
-    const findings = lint(doc);
+    const findings = lint(doc, { disable });
     return { seq, findings, blocked: hasBlockingFindings(findings) };
   } catch (err) {
     return {

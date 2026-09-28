@@ -65,7 +65,7 @@ The studio bundles `@flow-as-code/cdk` and `@flow-as-code/tf` for those targets,
 
 ## The bridge (served by `flow-cli studio`)
 
-`BridgeStore` in `src/store/bridgeStore.ts` is the DocStore over the local `flow-cli studio` server, and it is what makes the round trip live. The browser cannot write files, so a save is a `PUT` and the CLI writes both the FlowDoc and the regenerated `<name>.flow.ts`. `assertSaveable` runs here before the request, exactly as it does in the other stores, and the server validates the document again on its side.
+`BridgeStore` in `src/store/bridgeStore.ts` is the DocStore over the local `flow-cli studio` server, and it is what makes the round trip live. The browser cannot write files, so a save is a `PUT` and the CLI writes both the FlowDoc and its regenerated companion, `<name>.flow.ts` or `<name>.flow.tf`. `assertSaveable` runs here before the request, exactly as it does in the other stores, and the server validates the document again on its side. The toolbar badges the open document's companion (`companion-badge`), and New flow (`src/components/NewFlowDialog.tsx`, bridge only) creates a document with the companion the user picks through `BridgeStore.create`. A `.flow.tf`'s `lint.disable` list reaches the lint worker as `LintRequest.disable`, which ignores any hard rule it names.
 
 The app knows it has a bridge because the server injects a description into the served `index.html` (`src/store/bridgeProtocol.ts`, `BRIDGE_GLOBAL`), which is read synchronously at boot. There is no probe request, so a static build makes no network call at all and still opens the built-in demo. The protocol file is a byte-for-byte copy of `packages/cli/src/bridge/protocol.ts`; a test in `@flow-as-code/cli` fails if the two drift.
 

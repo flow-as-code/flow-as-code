@@ -8,10 +8,26 @@
 // the app may talk to persistence except through a DocStore.
 
 import type { FlowDoc } from "@flow-as-code/core";
+import type { SourceKind } from "./bridgeProtocol.js";
 
 export interface DocRef {
   /** FlowDoc name; also the key passed to read and write. */
   name: string;
+  /**
+   * The companion source the document is paired with on disk. Only the
+   * flow-cli studio bridge pairs documents with source, so only it sets this.
+   */
+  sourceKind?: SourceKind;
+}
+
+/** A document as a store reads it. */
+export interface StoredDoc {
+  doc: FlowDoc;
+  text: string;
+  /** As DocRef.sourceKind. */
+  sourceKind?: SourceKind;
+  /** Lint rule ids a `.flow.tf` companion disables in its `lint` block. */
+  lintDisable?: string[];
 }
 
 export interface DocStore {
@@ -27,6 +43,6 @@ export interface DocStore {
    */
   readonly readOnly: boolean;
   list(): Promise<DocRef[]>;
-  read(name: string): Promise<{ doc: FlowDoc; text: string }>;
+  read(name: string): Promise<StoredDoc>;
   write(name: string, doc: FlowDoc): Promise<void>;
 }

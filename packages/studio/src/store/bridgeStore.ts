@@ -34,6 +34,7 @@ import {
   resolveUrl,
   BRIDGE_GLOBAL,
   type BridgeConflict,
+  type BridgeCreateRequest,
   type BridgeDocList,
   type BridgeDocPayload,
   type BridgeErrorBody,
@@ -42,9 +43,25 @@ import {
   type BridgeExportRequest,
   type BridgeExportResult,
   type BridgeInfo,
+  type BridgeWriteResult,
   type ConflictSide,
+  type SourceKind,
 } from "./bridgeProtocol.js";
-import type { DocRef, DocStore } from "./types.js";
+import type { DocRef, DocStore, StoredDoc } from "./types.js";
+
+/**
+ * A payload as the app holds it. The document is parsed from the file text,
+ * not taken pre-parsed, so the studio holds exactly what is on disk and
+ * applies the same schema check every other read path applies.
+ */
+function storedDoc(payload: BridgeDocPayload): StoredDoc {
+  return {
+    doc: parseFlowDoc(payload.text),
+    text: payload.text,
+    sourceKind: payload.sourceKind,
+    ...(payload.lintDisable === undefined ? {} : { lintDisable: payload.lintDisable }),
+  };
+}
 
 /** The slice of Response this store uses; both DOM and node fetch satisfy it. */
 export interface BridgeResponse {
@@ -155,15 +172,28 @@ export class BridgeStore implements DocStore {
 
   async list(): Promise<DocRef[]> {
     const body = await this.request<BridgeDocList>(docsUrl(this.base));
-    return body.docs.map((d) => ({ name: d.name }));
+    return body.docs.map((d) => ({ name: d.name, sourceKind: d.sourceKind }));
   }
 
-  async read(name: string): Promise<{ doc: FlowDoc; text: string }> {
+  async read(name: string): Promise<StoredDoc> {
     const payload = await this.request<BridgeDocPayload>(docUrl(this.base, name));
-    // Parsed from the file text, not from the pre-parsed doc, so the studio
-    // holds exactly what is on disk and applies the same schema check every
-    // other read path applies.
-    return { doc: parseFlowDoc(payload.text), text: payload.text };
+    return storedDoc(payload);
+  }
+
+  /**
+   * Creates a document and the companion it is paired with. The bridge
+   * refuses (409) when the document or either companion already exists, so
+   * this never overwrites anything.
+   */
+  async create(doc: FlowDoc, sourceKind: SourceKind): Promise<StoredDoc> {
+    assertSaveable(doc);
+    const request: BridgeCreateRequest = { doc, sourceKind };
+    const result = await this.request<BridgeWriteResult>(docsUrl(this.base), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    return storedDoc(result);
   }
 
   /**

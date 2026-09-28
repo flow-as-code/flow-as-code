@@ -130,3 +130,81 @@ describe("commit", () => {
     expect(actions[0]?.type).toBe("notice");
   });
 });
+
+describe("companions (B05a)", () => {
+  it("holds the open document's companion and lint.disable from the store", () => {
+    const state = reducer(initialState(createDemoStore()), {
+      type: "doc-loaded",
+      name: "appointment-line",
+      doc: demoDoc(),
+      sourceKind: "tf",
+      lintDisable: ["prompt-length-3000"],
+    });
+    expect(state.sourceKind).toBe("tf");
+    expect(state.lintDisable).toEqual(["prompt-length-3000"]);
+  });
+
+  it("takes a synced payload's lint list whole, so a removed lint block clears it", () => {
+    const tf = reducer(loaded(), {
+      type: "doc-synced",
+      name: "appointment-line",
+      doc: demoDoc(),
+      sourceKind: "tf",
+      lintDisable: ["prompt-length-3000"],
+    });
+    expect(tf.lintDisable).toEqual(["prompt-length-3000"]);
+    const cleared = reducer(tf, {
+      type: "doc-synced",
+      name: "appointment-line",
+      doc: demoDoc(),
+      sourceKind: "tf",
+    });
+    expect(cleared.lintDisable).toEqual([]);
+  });
+
+  it("says what reading a .flow.tf noticed when it synced", () => {
+    const state = reducer(loaded(), {
+      type: "doc-synced",
+      name: "appointment-line",
+      doc: demoDoc(),
+      sourceKind: "tf",
+      warnings: ['refs["queue:gone"] is referenced by no action; the next regeneration drops it.'],
+    });
+    expect(state.notice?.message).toBe(
+      'appointment-line.flow.tf: refs["queue:gone"] is referenced by no action; the next regeneration drops it.',
+    );
+  });
+
+  it("lists and opens a created document", () => {
+    const state = reducer(loaded(), {
+      type: "doc-created",
+      name: "a-new-line",
+      doc: { ...demoDoc(), name: "a-new-line" },
+      sourceKind: "tf",
+    });
+    expect(state.docList.map((d) => d.name)).toContain("a-new-line");
+    expect(state.docList.find((d) => d.name === "a-new-line")?.sourceKind).toBe("tf");
+    expect(state.docName).toBe("a-new-line");
+    expect(state.sourceKind).toBe("tf");
+  });
+
+  it("names the .flow.tf when it changed under unsaved canvas edits", () => {
+    const tf = reducer(loaded(), {
+      type: "doc-synced",
+      name: "appointment-line",
+      doc: demoDoc(),
+      sourceKind: "tf",
+    });
+    const dirty = reducer(tf, {
+      type: "mutated",
+      doc: setParam(tf.doc!, "welcome", "Text", "Unsaved."),
+    });
+    const next = reducer(dirty, {
+      type: "doc-synced",
+      name: "appointment-line",
+      doc: demoDoc(),
+      sourceKind: "tf",
+    });
+    expect(next.conflict?.reason).toContain("appointment-line.flow.tf changed on disk");
+  });
+});

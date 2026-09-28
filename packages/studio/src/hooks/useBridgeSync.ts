@@ -46,7 +46,14 @@ export function useBridgeSync(store: DocStore, dispatch: Dispatch<StudioAction>)
             try {
               // Same gate as every other read path: a document that does not
               // satisfy the schema must not reach the canvas.
-              dispatch({ type: "doc-synced", name: event.name, doc: parseFlowDoc(event.text) });
+              dispatch({
+                type: "doc-synced",
+                name: event.name,
+                doc: parseFlowDoc(event.text),
+                sourceKind: event.sourceKind,
+                ...(event.lintDisable === undefined ? {} : { lintDisable: event.lintDisable }),
+                ...(event.warnings === undefined ? {} : { warnings: event.warnings }),
+              });
             } catch (err) {
               dispatch({
                 type: "error",
@@ -58,9 +65,9 @@ export function useBridgeSync(store: DocStore, dispatch: Dispatch<StudioAction>)
             dispatch({ type: "conflict", conflict: event });
             return;
           case "error":
-            // The builder file did not become a FlowDoc, so the canvas and
-            // that file have stopped agreeing and stay that way until it
-            // synths. The reducer keeps it on screen for exactly that long.
+            // The companion did not become a FlowDoc, so the canvas and that
+            // file have stopped agreeing and stay that way until it reads
+            // again. The reducer keeps it on screen for exactly that long.
             dispatch({
               type: "sync-error",
               ...(event.name === undefined ? {} : { name: event.name }),

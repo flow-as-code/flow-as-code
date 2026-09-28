@@ -101,9 +101,10 @@ exported document. `flow-cli init --author tf` scaffolds a document with a
 `.flow.tf`, and `flow-cli studio` watches `.flow.tf` companions as it watches
 `.flow.ts` ones: an edit re-syncs the canvas within a second, a canvas save
 regenerates the file keeping what it carries, and a name with both companions
-is refused until one goes. `packages/cli/README.md` has the details. To be
-completed by B05 (the studio's companion badge, New flow dialog and
-flowascode export).
+is refused until one goes. In the studio the toolbar badges the open
+document's companion, New flow picks the companion for a new document, and a
+`.flow.tf`'s `lint` block reaches the lint panel. `packages/cli/README.md` has
+the details. To be completed by B05b (the studio's flowascode export).
 
 ## Versions and compatibility
 

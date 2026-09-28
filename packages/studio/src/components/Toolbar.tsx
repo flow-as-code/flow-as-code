@@ -20,6 +20,9 @@
 
 import { useMemo, useRef, useState } from "react";
 import { ExportDialog } from "./ExportDialog.js";
+import { NewFlowDialog } from "./NewFlowDialog.js";
+import { sourceSuffix } from "../store/bridgeProtocol.js";
+import { BridgeStore } from "../store/bridgeStore.js";
 import { openDirectoryStore, supportsDirectoryStore } from "../store/directoryStore.js";
 import { downloadDoc } from "../store/exportDoc.js";
 import { MemoryStore } from "../store/memoryStore.js";
@@ -34,6 +37,8 @@ export function Toolbar() {
   const { doc, docName, docList, store, dirty, blocked, lintPending, findings } = state;
   const fileInput = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const bridged = store instanceof BridgeStore;
   const readOnly = store.readOnly;
   // What the gate messages name: the demo has no Save, only the export preview.
   const gated = readOnly ? "Export" : "Save";
@@ -93,6 +98,20 @@ export function Toolbar() {
         {store.label}
         {dirty ? (readOnly ? " · edited in this tab" : " · unsaved changes") : ""}
       </span>
+      {bridged && docName !== null && state.sourceKind !== null && (
+        <span
+          data-testid="companion-badge"
+          className="rounded border border-neutral-300 px-2 py-0.5 font-mono text-xs text-neutral-600 dark:border-neutral-600 dark:text-neutral-300"
+          title={
+            state.sourceKind === "tf"
+              ? "Paired with a flowascode Terraform resource; a save regenerates it, an edit to it reloads the canvas."
+              : "Paired with TypeScript builder code; a save regenerates it, an edit to it reloads the canvas."
+          }
+        >
+          {docName}
+          {sourceSuffix(state.sourceKind)}
+        </span>
+      )}
       {readOnly && (
         <span
           data-testid="read-only-badge"
@@ -124,6 +143,18 @@ export function Toolbar() {
       )}
 
       <span className="flex-1" />
+
+      {bridged && (
+        <button
+          type="button"
+          data-testid="new-flow-button"
+          className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
+          onClick={() => setCreating(true)}
+        >
+          New flow
+        </button>
+      )}
+      {creating && <NewFlowDialog onClose={() => setCreating(false)} />}
 
       {!readOnly && (
         <input

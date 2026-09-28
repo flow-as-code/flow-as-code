@@ -23,7 +23,7 @@ import type { DocStore } from "./store/types.js";
 
 function Shell() {
   const { state, dispatch } = useStudio();
-  useLintWorker(state.doc, dispatch);
+  useLintWorker(state.doc, dispatch, state.lintDisable);
   // Live round trip: an edit to <name>.flow.ts reaches the canvas through this.
   useBridgeSync(state.store, dispatch);
 

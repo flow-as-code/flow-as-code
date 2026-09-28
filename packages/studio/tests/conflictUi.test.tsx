@@ -255,4 +255,14 @@ describe("conflict dialog", () => {
     expect(testId("conflict-identical").textContent).toContain("same flow");
     expect(query('[data-testid="conflict-diff"]')).toBeNull();
   });
+
+  it("names the .flow.tf when the code side is a Terraform companion", async () => {
+    await mount(
+      bridgeStore([]),
+      conflictFor({ sourceKind: "tf", sourcePath: "/tmp/flows/appointment-line.flow.tf" }),
+    );
+    const modal = testId("conflict-modal");
+    expect(modal.textContent).toContain(`Code · ${NAME}.flow.tf`);
+    expect(button("conflict-keep-doc").title).toContain(`regenerate ${NAME}.flow.tf`);
+  });
 });

@@ -94,7 +94,7 @@ describe("BridgeStore", () => {
   it("uses the global fetch without it as the receiver, as a browser requires", async () => {
     await withBrowserLikeFetch({ docs: [{ name: NAME, sourceKind: "ts" }] }, async () => {
       const s = new BridgeStore(INFO, { base: "", retryMs: 1, idleMs: 1 });
-      await expect(s.list()).resolves.toEqual([{ name: NAME }]);
+      await expect(s.list()).resolves.toEqual([{ name: NAME, sourceKind: "ts" }]);
     });
     await withBrowserLikeFetch(INFO, async () => {
       await expect(fetchBridgeInfo("")).resolves.toEqual(INFO);
@@ -108,7 +108,7 @@ describe("BridgeStore", () => {
         ? { body: { docs: [{ name: NAME, sourceKind: "ts" }] } }
         : { body: { name: NAME, doc: JSON.parse(text) as FlowDoc, text } },
     );
-    expect(await s.list()).toEqual([{ name: NAME }]);
+    expect(await s.list()).toEqual([{ name: NAME, sourceKind: "ts" }]);
     const read = await s.read(NAME);
     expect(read.text).toBe(text);
     expect(serialize(read.doc)).toBe(text);

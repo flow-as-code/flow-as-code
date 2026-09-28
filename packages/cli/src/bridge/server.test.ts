@@ -348,7 +348,7 @@ describe("studio bridge: documents", () => {
   it("lists and reads the demo document, byte-identically through BridgeStore", async () => {
     const dir = await demoDir();
     const { store } = await start(dir);
-    expect(await store.list()).toEqual([{ name: NAME }]);
+    expect(await store.list()).toEqual([{ name: NAME, sourceKind: "ts" }]);
 
     const onDisk = await readFile(join(dir, `${NAME}.flowdoc.json`), "utf8");
     const read = await store.read(NAME);

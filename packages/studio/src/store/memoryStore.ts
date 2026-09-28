@@ -12,7 +12,7 @@
 import type { FlowDoc } from "@flow-as-code/core";
 import { serialize } from "@flow-as-code/core";
 import { assertSaveable } from "../model/validate.js";
-import type { DocRef, DocStore } from "./types.js";
+import type { DocRef, DocStore, StoredDoc } from "./types.js";
 
 export class MemoryStore implements DocStore {
   readonly persistent = false;
@@ -30,7 +30,7 @@ export class MemoryStore implements DocStore {
     return Promise.resolve([...this.texts.keys()].sort().map((name) => ({ name })));
   }
 
-  read(name: string): Promise<{ doc: FlowDoc; text: string }> {
+  read(name: string): Promise<StoredDoc> {
     const text = this.texts.get(name);
     if (text === undefined) return Promise.reject(new Error(`No document named "${name}".`));
     return Promise.resolve({ doc: JSON.parse(text) as FlowDoc, text });
