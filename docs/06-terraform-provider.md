@@ -122,22 +122,33 @@ its schema file to one present under `conformance/schema/`.
 
 ## Migrating from hashicorp/aws
 
-To be completed by B04j. In outline: `terraform import` (or an `import` block
-with `-generate-config-out`) takes an existing flow into
-`flowascode_contact_flow`; the generated configuration carries literal ARNs in
-reference fields, which the studio refuses until they are replaced by keys and
-`refs` entries; a `moved` block from `aws_connect_contact_flow` or
-`aws_connect_contact_flow_module` moves state without a destroy, on Terraform
-1.8 and OpenTofu 1.10 and later.
+The provider's guide `migrate-from-aws-provider` (in its registry
+documentation) has the steps. Two ways in, neither recreating the flow:
+
+- A `moved` block from `aws_connect_contact_flow` or
+  `aws_connect_contact_flow_module` (Terraform 1.8, OpenTofu 1.10). The move
+  copies the flow's identity and live attributes; the next plan writes the
+  actions from the configuration, and when they describe the same flow
+  nothing changes in Connect.
+- `terraform import`, or an `import` block with `-generate-config-out`. The
+  provider reads the live flow back as action blocks, with reference keys in
+  the fields and each key bound in `refs` to the ARN it found in the
+  instance's inventory. Replace those ARNs with the addresses of the
+  resources that manage them: the provider accepts an ARN as a `refs` value
+  (it cannot tell one from a resolved address), but the TypeScript reader,
+  and so the studio, refuses it (`LITERAL_ARN`, rule 20).
 
 ## Publishing and the acceptance gate
 
-To be completed by B04i and B04k. In outline: releases are tagged `v*` in the
-provider repository, built by goreleaser, signed with a GPG key held in a
-GitHub Environment behind a required reviewer, published to the Terraform
-Registry and submitted to the OpenTofu registry; every pull request runs live
+Releases are tagged `v*` in the provider repository. The release workflow
+checks the tag is on main, the changelog has the version, and the unit and
+conformance lane passes, with no credentials; goreleaser then builds and
+signs in a GitHub Environment whose GPG key and required reviewer mean a tag
+alone cannot publish. The same build goes to the Terraform Registry and is
+submitted to the OpenTofu registry. Every pull request also runs live
 acceptance tests against a sandbox Connect instance on both floors, and an
-unreachable sandbox blocks the merge.
+unreachable sandbox blocks the merge. To be completed by B04i (the lane's
+first live run) and the first release.
 
 ## Considered and not used
 
