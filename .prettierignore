@@ -26,3 +26,8 @@ packages/cli/template/
 # the lint rules can read it in the studio's worker; held to the original by
 # packages/core/src/catalog.test.ts.
 packages/core/src/catalog/
+
+# FlowDocs in an example's flows/ are what flow-cli writes: canonical
+# serializer output, which Prettier would reformat. (Hidden from Prettier by
+# the old unanchored flows/ rule in .gitignore until 2026-09-28.)
+examples/*/flows/
