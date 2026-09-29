@@ -541,10 +541,57 @@ describe("exportInstance", () => {
     expect(result.warnings.join("\n")).toContain("CAMPAIGN");
   });
 
-  it("warns that module Settings are not modeled rather than dropping them silently", async () => {
-    const client = new FixtureClient("demo-instance");
-    const result = await exportInstance(client);
-    expect(result.warnings.join("\n")).toContain("ExternalInvocationConfiguration");
+  it("warns about module fields FlowDoc does not model only when they say something", async () => {
+    // Connect returns the separate Settings field as "" and
+    // ExternalInvocationConfiguration on every module; neither is worth a
+    // warning until it holds a value.
+    const quiet = await exportInstance(new FixtureClient("demo-instance"));
+    expect(quiet.warnings.join("\n")).not.toContain("external invocation");
+
+    class Enabled extends FixtureClient {
+      override async describeContactFlowModule(id: string): Promise<DescribedContactFlowModule> {
+        return { ...(await super.describeContactFlowModule(id)), externalInvocationEnabled: true };
+      }
+    }
+    const loud = await exportInstance(new Enabled("demo-instance"));
+    expect(loud.warnings.join("\n")).toContain("external invocation enabled");
+  });
+
+  it("exports a module's Settings, which travel in its content", async () => {
+    // Recorded from a sandbox instance: Connect keeps the Settings a module
+    // was created with inside its Content.
+    const client = new FixtureClient("module-settings");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    expect(result.failures).toEqual([]);
+    const flow = result.flows[0]!;
+    expect(flow.doc.kind).toBe("module");
+    expect(flow.doc.content.Settings).toEqual({
+      InputParameters: [{ Name: "customerId", Required: true, Type: "String" }],
+      OutputParameters: [],
+      Transitions: [{ Description: "", DisplayName: "Success", ReferenceName: "Success" }],
+    });
+    const golden = "conformance/export/module-settings/expected/customer-lookup";
+    expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
+    expect(flow.code).toBe(read(`${golden}.flow.ts`));
+  });
+
+  it("tokenizes an ARN inside a module's Settings like one in its actions", () => {
+    const inventory = readJson<InstanceInventory>(
+      "conformance/export/demo-instance/inventory.json",
+    );
+    const reverseMap = buildReverseMap(inventory);
+    const queue = inventory.queues[0]!;
+    const content = JSON.stringify({
+      Version: "2019-10-30",
+      StartAction: "end",
+      Settings: { InputParameters: [], OutputParameters: [], Transitions: [], Default: queue.arn },
+      Actions: [
+        { Identifier: "end", Type: "EndFlowModuleExecution", Parameters: {}, Transitions: {} },
+      ],
+    });
+    const doc = exportFlow(content, reverseMap, { name: "m", connectType: "MODULE" });
+    expect(JSON.stringify(doc.content.Settings)).not.toContain("arn:aws");
+    expect((doc.refs ?? []).map((r) => r.type)).toEqual(["queue"]);
   });
 
   it("emits codegen output beside the FlowDoc", async () => {

@@ -1,0 +1,17 @@
+{
+  "contactFlows": [],
+  "contactFlowModules": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/flow-module/eeee5555-0000-4000-8000-000000000031",
+      "id": "eeee5555-0000-4000-8000-000000000031",
+      "name": "Customer lookup",
+      "state": "ACTIVE"
+    }
+  ],
+  "queues": [],
+  "hoursOfOperations": [],
+  "prompts": [],
+  "lambdaFunctions": [],
+  "lexBots": [],
+  "views": []
+}

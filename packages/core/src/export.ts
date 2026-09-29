@@ -778,6 +778,13 @@ export function exportFlow(
     rewriteArns(raw.Actions, "Actions", reverseMap, acc) as FlowContent["Actions"]
   ).map(normalizeAction);
   const metadata = rewriteArns(raw.Metadata, "Metadata", reverseMap, acc);
+  // A module's Settings (its input and output parameters and transitions)
+  // live in its content, where materialize puts them; they are content, so
+  // they are exported, with any ARN in them tokenized like the actions'.
+  const settings =
+    raw.Settings === undefined
+      ? undefined
+      : (rewriteArns(raw.Settings, "Settings", reverseMap, acc) as FlowContent["Settings"]);
 
   if (acc.unknown.size > 0 || acc.interpolated.size > 0) {
     const sorted = (m: Map<string, string[]>) => [...m.keys()].sort();
@@ -794,6 +801,7 @@ export function exportFlow(
     StartAction: raw.StartAction,
     Actions: actions,
   };
+  if (settings !== undefined) flowContent.Settings = settings;
   if (lifted.rest !== undefined) flowContent.Metadata = lifted.rest;
 
   // Actions the instance never gave a position get the same deterministic
@@ -1020,10 +1028,18 @@ export async function exportInstance(
         client.describeContactFlowModule(id),
       );
       const module = described as DescribedContactFlowModule;
-      if (module.settings !== undefined || module.externalInvocationEnabled !== undefined) {
-        // Neither field has a FlowDoc home yet. Warn rather than drop silently.
+      // The module's Settings travel in its content and are exported with it.
+      // DescribeContactFlowModule also has a separate Settings field (an
+      // empty string on every module the sandbox returned, 2026-09-29) and
+      // ExternalInvocationConfiguration (always present); FlowDoc models
+      // neither, so warn only when one says something.
+      const separateSettings = module.settings?.trim() ?? "";
+      if (
+        (separateSettings !== "" && separateSettings !== "{}") ||
+        module.externalInvocationEnabled === true
+      ) {
         warnings.push(
-          `Module ${summary.arn} carries Settings or ExternalInvocationConfiguration, which FlowDoc does not model; they are not exported.`,
+          `Module ${summary.arn} has a Settings field outside its content or external invocation enabled, which FlowDoc does not model; they are not exported.`,
         );
       }
       emit(summary, described, "MODULE", saved);

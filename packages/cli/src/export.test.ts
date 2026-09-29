@@ -139,9 +139,9 @@ describe("export", () => {
       "recording-consent (module): recording-consent.flowdoc.json, recording-consent.flow.ts",
       `Exported 3 of 3 to ${out}`,
     ]);
-    // The exporter's warnings (a V1 bot, a CAMPAIGN flow, module settings) go
-    // to stderr so stdout stays a plain list.
-    expect(stderr).toHaveLength(3);
+    // The exporter's warnings (a V1 bot, a CAMPAIGN flow) go to stderr so
+    // stdout stays a plain list.
+    expect(stderr).toHaveLength(2);
     for (const line of stderr) expect(line).toMatch(/^warning: /);
   });
 
