@@ -392,8 +392,14 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
 }
 ```
 
-    The version resource is keyed to the module's `content_hash` and replaced
-    when it changes; the alias repoints in place. The version carries
+    The alias resource's `arn` is the module's ARN qualified by the alias id
+    (`.../flow-module/<module id>:<alias id>`): Connect gives an alias no ARN
+    of its own, and run through the TestCase API on 2026-09-29 a flow
+    invoking `<module>:<alias id>` ran the aliased version, `<module>:<version>`
+    that version, the bare ARN the module's current content, and
+    `<module>:<alias name>` nothing, though Connect stored all four without
+    complaint. The version resource is keyed to the module's `content_hash`
+    and replaced when it changes; the alias repoints in place. The version carries
     `lifecycle { create_before_destroy = true }`: Connect refuses to delete a
     version an alias points at ("Cannot delete version '1' tied to one
     alias", observed 2026-09-28), so the replacement is created and the alias
