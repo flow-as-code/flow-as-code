@@ -43,6 +43,17 @@ function targets(a: Action): string[] {
 }
 
 describe("FlowDoc schema", () => {
+  it("takes a displayName Connect would take, and refuses one it would not", () => {
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    const validate = ajv.compile(schema);
+    const named = (displayName: string) => ({ ...demo, displayName });
+    expect(validate(named("Appointment Line"))).toBe(true);
+    expect(validate(named("x".repeat(127)))).toBe(true);
+    for (const bad of ["", "   ", "x".repeat(128)]) {
+      expect(validate(named(bad)), JSON.stringify(bad)).toBe(false);
+    }
+  });
+
   it("validates the demo flow", () => {
     const ajv = new Ajv2020({ allErrors: true, strict: false });
     const validate = ajv.compile(schema);

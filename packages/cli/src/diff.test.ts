@@ -212,16 +212,17 @@ describe("runDiff", () => {
     ).toBe(true);
   });
 
-  it("the demo FlowDoc is unchanged against the demo instance", async () => {
-    const entries = await runDiff(DEMO, { instance: INSTANCE }, demoClients);
-    expect(entries).toEqual([
-      {
-        path: relative(process.cwd(), join(DEMO, "appointment-line.flowdoc.json")),
-        name: "appointment-line",
-        kind: "flow",
-        status: "unchanged",
-      },
-    ]);
+  it("the demo FlowDoc differs from the demo instance only in the name Connect shows", async () => {
+    // The instance calls the flow "Appointment Line"; the demo document names
+    // no displayName, so deploying it would rename the flow to its slug, and
+    // diff says so, in one line and nothing else.
+    const error = await expectCliError(runDiff(DEMO, { instance: INSTANCE }, demoClients));
+    expect(error.exitCode).toBe(1);
+    const changed = stdout
+      .join("")
+      .split("\n")
+      .filter((l) => /^[+-]\s/.test(l));
+    expect(changed).toEqual(['+  "displayName": "Appointment Line",']);
   });
 
   it("exits 1 with a unified diff of the canonical JSON for a changed document", async () => {

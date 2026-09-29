@@ -359,3 +359,13 @@ describe("terraform identifiers", () => {
     expect(files["flow_refs.tf"]).toContain("queue__2nd_tier_arn");
   });
 });
+
+describe("the name Connect shows", () => {
+  it("is the document's displayName when it has one", () => {
+    const flows = emitTf([{ ...flow("main-line"), displayName: 'Main Line "Night"' }]).files[
+      "flows.tf"
+    ]!;
+    expect(flows).toMatch(/^\s+name\s+= "Main Line \\"Night\\""$/m);
+    expect(flows).toContain('resource "aws_connect_contact_flow" "main_line"');
+  });
+});

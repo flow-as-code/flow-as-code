@@ -88,7 +88,7 @@ does not exist.
 ## FlowDoc (added 2026-08-30)
 
 - Synthesis emits FlowDoc per docs/01-flowdoc-spec.md (content + layout + refs + meta), not bare Flow JSON. Deterministic ordering and the owned auto-layout (`conformance/layout/README.md`, `src/layout.ts`; it replaced dagre on 2026-09-11 so a second implementation can reproduce omitted positions) for missing positions.
-- Format 0.2 (2026-09-11): the `view` reference type (version in the alias slot, `Refs.view(name, version?)`), `meta.sourceKind` (`ts` or `tf`), and an optional top-level `description` carried by `FlowConfig`, `synth`, codegen and export. `migrateFlowDoc` (`src/migrate.ts`) reads 0.1 and 0.2 and returns 0.2; `conformance/migrate/` holds the cases; every reader in the repository migrates on the way in.
+- Format 0.2 (2026-09-11): the `view` reference type (version in the alias slot, `Refs.view(name, version?)`), `meta.sourceKind` (`ts` or `tf`), and an optional top-level `description` carried by `FlowConfig`, `synth`, codegen and export. Added 2026-09-29, before 0.2 shipped in a release: an optional `displayName`, the name Connect shows when it is not the slug in `name`, carried the same way; export writes it whenever the instance's name is not the slug it assigns, and `connectName(doc)` is what every deploy path names the resource. `migrateFlowDoc` (`src/migrate.ts`) reads 0.1 and 0.2 and returns 0.2; `conformance/migrate/` holds the cases; every reader in the repository migrates on the way in.
 - GenericBlock: any unmodeled Action round-trips verbatim through builder, studio, and codegen.
 
 ## Codegen (FlowDoc -> TypeScript)

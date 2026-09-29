@@ -2,6 +2,7 @@
   "flowdoc": "0.2",
   "kind": "flow",
   "name": "sample-after-contact-work-flow",
+  "displayName": "Sample after contact work flow",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",

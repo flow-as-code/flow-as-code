@@ -801,6 +801,12 @@ function liftMetadata(
 export interface ExportFlowOptions {
   /** FlowDoc name. Must be a slug; use slugifyResourceName on a console name. */
   name: string;
+  /**
+   * The name Connect holds, when it is not `name`: carried into
+   * FlowDoc.displayName so a deploy of the export keeps it. Ignored when
+   * equal to `name` or empty.
+   */
+  displayName?: string;
   connectType: ConnectType;
   /** Defaults to "module" when connectType is MODULE, "flow" otherwise. */
   kind?: "flow" | "module";
@@ -893,6 +899,11 @@ export function exportFlow(
     flowdoc: FLOWDOC_VERSION,
     kind: options.kind ?? (options.connectType === "MODULE" ? "module" : "flow"),
     name: options.name,
+    ...(options.displayName === undefined ||
+    options.displayName === "" ||
+    options.displayName === options.name
+      ? {}
+      : { displayName: options.displayName }),
     ...(options.description === undefined || options.description === ""
       ? {}
       : { description: options.description }),
@@ -1045,6 +1056,7 @@ export async function exportInstance(
     const instanceId = parseConnectArn(summary.arn)?.instanceId;
     const doc = exportFlow(described.content, reverseMap, {
       name: entry.name,
+      displayName: described.name,
       connectType,
       description: described.description,
       generator: options.generator,

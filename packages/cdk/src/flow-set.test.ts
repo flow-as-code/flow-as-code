@@ -340,3 +340,13 @@ describe("FlowSet sources and determinism", () => {
     );
   });
 });
+
+describe("the name Connect shows", () => {
+  it("is a document's displayName when it has one, and the construct id stays the slug", () => {
+    const doc = { ...demoDoc(), displayName: "Appointment Line" };
+    const template = synthTemplate([doc]);
+    const [logicalId, flow] = only(template, "AWS::Connect::ContactFlow");
+    expect(flow.Properties.Name).toBe("Appointment Line");
+    expect(logicalId).toContain("appointmentline");
+  });
+});

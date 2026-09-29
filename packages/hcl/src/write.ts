@@ -96,6 +96,7 @@ export function resourceLines(doc: FlowDoc, options: ResourceOptions = {}): stri
   if (carry.provider !== undefined) line(1, `provider = ${carry.provider}`);
   line(1, `instance_id = ${carry.instanceId ?? options.instanceId ?? "var.connect_instance_id"}`);
   line(1, `name = ${quote(doc.name)}`);
+  if (doc.displayName !== undefined) line(1, `display_name = ${quote(doc.displayName)}`);
   if (!isModule) line(1, `type = ${quote(doc.connectType)}`);
   if (doc.description !== undefined) line(1, `description = ${quote(doc.description)}`);
   if (carry.state !== undefined) line(1, `state = ${carry.state}`);

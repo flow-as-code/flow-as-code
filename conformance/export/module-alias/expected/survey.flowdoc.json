@@ -2,6 +2,7 @@
   "flowdoc": "0.2",
   "kind": "module",
   "name": "survey",
+  "displayName": "Survey",
   "connectType": "MODULE",
   "content": {
     "Version": "2019-10-30",

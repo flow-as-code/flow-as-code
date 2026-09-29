@@ -140,6 +140,10 @@ documentation) has the steps. Two ways in, neither recreating the flow:
   (it cannot tell one from a resolved address), but the TypeScript reader,
   and so the studio, refuses it (`LITERAL_ARN`, rule 20).
 
+A flow or module whose Connect name is not a slug (a console's "Main Line")
+keeps it: `name` becomes the slug and `display_name` the Connect name, so
+adopting it renames nothing.
+
 ## Publishing and the acceptance gate
 
 Releases are tagged `v*` in the provider repository. The release workflow

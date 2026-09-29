@@ -2,6 +2,7 @@
   "flowdoc": "0.2",
   "kind": "flow",
   "name": "default-queue-transfer",
+  "displayName": "Default queue transfer",
   "connectType": "QUEUE_TRANSFER",
   "content": {
     "Version": "2019-10-30",

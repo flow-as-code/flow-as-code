@@ -2,6 +2,7 @@
   "flowdoc": "0.2",
   "kind": "module",
   "name": "customer-lookup",
+  "displayName": "Customer lookup",
   "connectType": "MODULE",
   "content": {
     "Version": "2019-10-30",

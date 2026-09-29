@@ -27,6 +27,13 @@
       "minLength": 1,
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
     },
+    "displayName": {
+      "description": "The flow's name as Connect shows it, when that is not the slug in name: an adopted flow keeps its console name (\"Main Line\") while name stays a slug for file names and references. Optional; absent means Connect's name is name. CreateContactFlowModule caps a name at 127 characters and requires a non-space character.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 127,
+      "pattern": "\\S"
+    },
     "description": {
       "description": "The flow's description as Connect shows it. Optional; CreateContactFlow caps it at 500 characters.",
       "type": "string",

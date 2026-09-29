@@ -35,6 +35,14 @@ import {
 
 const root = new URL("../../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf8");
+/**
+ * A golden: UPDATE_GOLDENS=1 rewrites it from what the code now produces,
+ * to be read in the diff before committing, as the other golden suites do.
+ */
+const golden_ = (path: string, actual: string): string => {
+  if (process.env.UPDATE_GOLDENS === "1") writeFileSync(new URL(path, root), actual);
+  return read(path);
+};
 const readJson = <T>(path: string): T => JSON.parse(read(path)) as T;
 
 const INSTANCE =
@@ -499,7 +507,7 @@ describe("exportInstance", () => {
 
     for (const flow of result.flows) {
       const golden = `conformance/export/demo-instance/expected/${flow.doc.name}.flowdoc.json`;
-      expect(serialize(flow.doc), golden).toBe(read(golden));
+      expect(serialize(flow.doc), golden).toBe(golden_(golden, serialize(flow.doc)));
     }
   });
 
@@ -517,12 +525,18 @@ describe("exportInstance", () => {
     }
   });
 
-  it("matches the demo FlowDoc apart from meta", async () => {
+  it("matches the demo FlowDoc apart from meta and the name Connect shows", async () => {
+    // The instance names the flow "Appointment Line", as a console would;
+    // the export keeps that as displayName so a deploy of it does not rename
+    // the flow to its slug. Everything else is the demo, byte for byte.
     const client = new FixtureClient("demo-instance");
     const result = await exportInstance(client);
     const demo = readJson<FlowDoc>("conformance/demo/appointment-line.flowdoc.json");
     const exported = result.flows.find((f) => f.doc.name === "appointment-line")!.doc;
-    expect(serialize({ ...exported, meta: undefined })).toBe(serialize(demo));
+    expect(exported.displayName).toBe("Appointment Line");
+    expect(serialize({ ...exported, meta: undefined })).toBe(
+      serialize({ ...demo, displayName: "Appointment Line" }),
+    );
   });
 
   // DescribeContactFlow throws ContactFlowNotPublishedException for a flow that
@@ -579,8 +593,8 @@ describe("exportInstance", () => {
       Transitions: [{ Description: "", DisplayName: "Success", ReferenceName: "Success" }],
     });
     const golden = "conformance/export/module-settings/expected/customer-lookup";
-    expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
-    expect(flow.code).toBe(read(`${golden}.flow.ts`));
+    expect(serialize(flow.doc)).toBe(golden_(`${golden}.flowdoc.json`, serialize(flow.doc)));
+    expect(flow.code).toBe(golden_(`${golden}.flow.ts`, flow.code!));
   });
 
   it("keeps the alias or version a flow invokes a module through", async () => {
@@ -605,12 +619,10 @@ describe("exportInstance", () => {
     expect(result.flows.map((f) => f.doc.name).sort()).toEqual(["survey", "survey-line"]);
     for (const exported of result.flows) {
       const golden = `conformance/export/module-alias/expected/${exported.doc.name}`;
-      if (process.env.UPDATE_GOLDENS === "1") {
-        writeFileSync(new URL(`${golden}.flowdoc.json`, root), serialize(exported.doc));
-        writeFileSync(new URL(`${golden}.flow.ts`, root), exported.code!);
-      }
-      expect(serialize(exported.doc)).toBe(read(`${golden}.flowdoc.json`));
-      expect(exported.code).toBe(read(`${golden}.flow.ts`));
+      expect(serialize(exported.doc)).toBe(
+        golden_(`${golden}.flowdoc.json`, serialize(exported.doc)),
+      );
+      expect(exported.code).toBe(golden_(`${golden}.flow.ts`, exported.code!));
     }
   });
 
@@ -671,7 +683,7 @@ describe("exportInstance", () => {
     const client = new FixtureClient("demo-instance");
     const result = await exportInstance(client, { codegen: true });
     const flow = result.flows.find((f) => f.doc.name === "appointment-line")!;
-    expect(flow.code).toBe(read(codegenGolden));
+    expect(flow.code).toBe(golden_(codegenGolden, flow.code!));
     // The generated source is exactly what codegen produces for the doc, so the
     // export path adds no drift of its own.
     expect(flow.code).toBe(codegen(flow.doc));
@@ -716,8 +728,8 @@ describe("exportInstance", () => {
     ]);
     expect(serialize(flow.doc)).not.toContain("arn:aws");
     const golden = "conformance/export/managed-view/expected/sample-after-contact-work-flow";
-    expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
-    expect(flow.code).toBe(read(`${golden}.flow.ts`));
+    expect(serialize(flow.doc)).toBe(golden_(`${golden}.flowdoc.json`, serialize(flow.doc)));
+    expect(flow.code).toBe(golden_(`${golden}.flow.ts`, flow.code!));
   });
 
   it("keeps a view whose version is not a slug as an unknown ARN rather than dropping the version", () => {
@@ -747,7 +759,7 @@ describe("exportInstance", () => {
     ]);
     for (const flow of result.flows) {
       const golden = `conformance/export/omitted-parameters/expected/${flow.doc.name}.flowdoc.json`;
-      expect(serialize(flow.doc), golden).toBe(read(golden));
+      expect(serialize(flow.doc), golden).toBe(golden_(golden, serialize(flow.doc)));
       expect(flow.code, flow.doc.name).toBeDefined();
     }
   });

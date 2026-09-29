@@ -151,6 +151,12 @@ export interface FlowDoc {
   flowdoc: typeof FLOWDOC_VERSION;
   kind: "flow" | "module";
   name: string;
+  /**
+   * The flow's name as Connect shows it, when that is not the slug in `name`
+   * (an adopted "Main Line"). Absent means Connect's name is `name`. At most
+   * 127 characters, with a non-space character.
+   */
+  displayName?: string;
   /** The flow's description as Connect shows it. Optional; at most 500 characters. */
   description?: string;
   connectType: ConnectType;
@@ -266,4 +272,9 @@ export function assertFlowDoc(value: unknown, context: string): asserts value is
       }
     }
   }
+}
+
+/** The name Connect holds for a document: its displayName, else its name. */
+export function connectName(doc: Pick<FlowDoc, "name" | "displayName">): string {
+  return doc.displayName ?? doc.name;
 }

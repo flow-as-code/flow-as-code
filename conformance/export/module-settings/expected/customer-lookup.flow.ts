@@ -6,6 +6,7 @@ import { EndFlowModuleExecution, FlowModule, GenericBlock } from "@flow-as-code/
 export function customerLookup(): FlowModule {
   return new FlowModule({
     name: "customer-lookup",
+    displayName: "Customer lookup",
     settings: {
       InputParameters: [{ Name: "customerId", Required: true, Type: "String" }],
       OutputParameters: [],
