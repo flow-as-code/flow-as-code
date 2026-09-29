@@ -37,12 +37,16 @@ const FILES = [
 const NOT_FORMATTED = new Set(["conformance/hcl/parse/whitespace-variants/input.flow.tf"]);
 
 /**
- * Inputs HCL's own parser refuses, so `tofu fmt` writes nothing for them:
- * the lone-surrogate refuse case ("Cannot encode character U+d800 in
- * UTF-8"). This parser reads it, and the literal reader refuses it with the
- * contract's code.
+ * Inputs HCL's own parser refuses, so `tofu fmt` writes nothing for them and
+ * fails the whole run: the lone-surrogate refuse case ("Cannot encode
+ * character U+d800 in UTF-8") and the duplicate-attribute one ("Attribute
+ * redefined"). This parser reads both, and the document reader refuses them
+ * with the contract's codes.
  */
-const TOFU_REFUSES = new Set(["conformance/hcl/refuse/lone-surrogate/input.flow.tf"]);
+const TOFU_REFUSES = new Set([
+  "conformance/hcl/refuse/lone-surrogate/input.flow.tf",
+  "conformance/hcl/refuse/duplicate-attribute/input.flow.tf",
+]);
 
 describe("every committed Terraform file", () => {
   it("is found", () => {
