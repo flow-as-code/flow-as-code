@@ -22,5 +22,12 @@
   "prompts": [],
   "lambdaFunctions": [],
   "lexBots": [],
-  "views": []
+  "views": [],
+  "moduleAliases": [
+    {
+      "moduleArn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/flow-module/eeee5555-0000-4000-8000-000000000041",
+      "aliasId": "a11a5000-0000-4000-8000-000000000041",
+      "name": "prod"
+    }
+  ]
 }
