@@ -20,7 +20,9 @@ and create, update and delete the flow through the Amazon Connect API:
 - `flowascode_contact_flow_module`: a flow module, with its settings.
 - `flowascode_contact_flow_module_version`: a snapshot of a module, keyed to
   its content hash.
-- `flowascode_contact_flow_module_alias`: a named pointer at a version.
+- `flowascode_contact_flow_module_alias`: a named pointer at a version. Its
+  `arn` is the module ARN qualified by the alias id, the only form Connect
+  runs as the alias (contract rule 27 records the run that showed it).
 - `data.flowascode_view`: an AWS-managed or custom view, by name and type.
 
 It is not the emitter. `flow-cli emit --target tf` still writes
