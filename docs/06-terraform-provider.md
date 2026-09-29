@@ -147,8 +147,8 @@ signs in a GitHub Environment whose GPG key and required reviewer mean a tag
 alone cannot publish. The same build goes to the Terraform Registry and is
 submitted to the OpenTofu registry. Every pull request also runs live
 acceptance tests against a sandbox Connect instance on both floors, and an
-unreachable sandbox blocks the merge. To be completed by B04i (the lane's
-first live run) and the first release.
+unreachable sandbox blocks the merge. The lane has run green on both floors;
+the rest is to be completed by the first release.
 
 ## Considered and not used
 
