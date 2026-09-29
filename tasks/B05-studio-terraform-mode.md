@@ -1,6 +1,6 @@
 # B05: studio Terraform mode
 
-Phase B, plan `/Users/austinrose/.claude/plans/let-s-make-a-plan-glowing-sphinx.md` (settled decisions 5, 12 and 19).
+Phase B, the approved plan (settled decisions 5, 12 and 19).
 
 ## Acceptance criteria
 

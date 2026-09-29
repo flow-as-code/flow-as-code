@@ -1,6 +1,6 @@
 # B04: the Terraform provider
 
-Phase B, plan `/Users/austinrose/.claude/plans/let-s-make-a-plan-glowing-sphinx.md` (settled decisions 1, 3, 4, 8 to 11, 13, 15, 17). The provider lives in its own repository, `flow-as-code/terraform-provider-flowascode` (Go); this file records what landed there and the operator actions it needs.
+Phase B, the approved plan (settled decisions 1, 3, 4, 8 to 11, 13, 15, 17). The provider lives in its own repository, `flow-as-code/terraform-provider-flowascode` (Go); this file records what landed there and the operator actions it needs.
 
 ## Acceptance criteria
 
