@@ -233,6 +233,9 @@ class Reader {
     const connectType = (
       isModule ? "MODULE" : this.required(attrs, "type", resource)
     ) as ConnectType;
+    const displayName = attrs.has("display_name")
+      ? this.string(attrs.get("display_name")!.expr, "display_name")
+      : undefined;
     const description = attrs.has("description")
       ? this.string(attrs.get("description")!.expr, "description")
       : undefined;
@@ -289,6 +292,7 @@ class Reader {
       flowdoc: FLOWDOC_VERSION,
       kind: isModule ? "module" : "flow",
       name,
+      ...(displayName === undefined ? {} : { displayName }),
       ...(description === undefined ? {} : { description }),
       connectType,
       content,

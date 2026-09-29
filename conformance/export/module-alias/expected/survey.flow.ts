@@ -6,6 +6,7 @@ import { EndFlowModuleExecution, FlowModule } from "@flow-as-code/core";
 export function survey(): FlowModule {
   return new FlowModule({
     name: "survey",
+    displayName: "Survey",
     settings: { InputParameters: [], OutputParameters: [], Transitions: [] },
   }).add(
     new EndFlowModuleExecution({ id: "end" }),

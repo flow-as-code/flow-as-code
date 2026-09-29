@@ -4,7 +4,11 @@
 import { DisconnectParticipant, Flow, GenericBlock } from "@flow-as-code/core";
 
 export function sampleAfterContactWorkFlow(): Flow {
-  return new Flow({ name: "sample-after-contact-work-flow", connectType: "CONTACT_FLOW" }).add(
+  return new Flow({
+    name: "sample-after-contact-work-flow",
+    displayName: "Sample after contact work flow",
+    connectType: "CONTACT_FLOW",
+  }).add(
     new GenericBlock({
       id: "wrap-up",
       type: "ShowView",

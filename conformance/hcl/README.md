@@ -166,7 +166,8 @@ resource "flowascode_contact_flow" "appointment_line" {
    underscores, and an underscore is prefixed when the slug starts with a
    digit.
 4. Attributes come before blocks. Their order is `provider` (only when the
-   user wrote one), `instance_id`, `name`, `type` (flows only: the document's
+   user wrote one), `instance_id`, `name`, `display_name` (only when the
+   document has a `displayName`), `type` (flows only: the document's
    `connectType`), `description` (only when the document has one), `state`
    (only when the user wrote one), `external_invocation_enabled` (modules,
    only when the user wrote one), `start` (only when the document's
@@ -301,7 +302,9 @@ resource "flowascode_contact_flow" "appointment_line" {
     key, or `lint` or `lifecycle` block given twice (`DUPLICATE_ATTRIBUTE`).
     A parameter set to `null` is unset, as Terraform reads it, and a value in
     parentheses reads as the value inside.
-20. The settable attributes are `instance_id`, `name`, `type`, `description`,
+20. The settable attributes are `instance_id`, `name`, `display_name` (the
+    name Connect shows when it is not `name`: the document's `displayName`),
+    `type`, `description`,
     `state` (`ACTIVE` or `ARCHIVED`), `start`, `refs`, `tags`, `settings`,
     `external_invocation_enabled` (modules), the `lint` block, and the
     meta-arguments `depends_on`, `provider` and `lifecycle`. A reference
@@ -349,8 +352,8 @@ resource "flowascode_contact_flow" "appointment_line" {
     `state`, `external_invocation_enabled`, `lint`, `depends_on`, `provider`,
     `lifecycle`, and comment lines marked `@keep` directly above an `action`
     block (keyed by `id`) or above the resource. Any other comment is
-    dropped, as codegen drops them from a `.flow.ts`. `description` comes
-    from the document.
+    dropped, as codegen drops them from a `.flow.ts`. `display_name` and
+    `description` come from the document.
 25. Regenerating is idempotent: writing a companion, reading it, and writing
     it again produces the same bytes.
 

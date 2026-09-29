@@ -10,7 +10,11 @@ import {
 } from "@flow-as-code/core";
 
 export function surveyLine(): Flow {
-  return new Flow({ name: "survey-line", connectType: "CONTACT_FLOW" }).add(
+  return new Flow({
+    name: "survey-line",
+    displayName: "Survey line",
+    connectType: "CONTACT_FLOW",
+  }).add(
     new InvokeFlowModule({
       id: "prod",
       module: Refs.module("survey", "prod"),

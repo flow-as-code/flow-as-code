@@ -12,6 +12,11 @@ import type { Point } from "./flowdoc.js";
 
 export interface FlowConfig {
   name: string;
+  /**
+   * The name Connect shows, when it is not `name` (an adopted "Main Line").
+   * At most 127 characters, with a non-space character.
+   */
+  displayName?: string;
   /** The flow's description as Connect shows it. Optional; at most 500 characters. */
   description?: string;
   connectType?: ConnectType;
@@ -23,6 +28,7 @@ export interface FlowConfig {
 
 export class Flow {
   readonly name: string;
+  readonly displayName?: string;
   readonly description?: string;
   readonly connectType: ConnectType;
   readonly kind: "flow" | "module" = "flow";
@@ -40,6 +46,15 @@ export class Flow {
       );
     }
     this.name = config.name;
+    if (config.displayName !== undefined) {
+      const d = config.displayName;
+      if (d.length < 1 || d.length > 127 || !/\S/.test(d)) {
+        throw new Error(
+          `Invalid displayName for "${config.name}": Connect takes 1 to 127 characters with at least one that is not a space.`,
+        );
+      }
+      this.displayName = d;
+    }
     if (config.description !== undefined) this.description = config.description;
     this.connectType = config.connectType ?? "CONTACT_FLOW";
     this.layout = config.layout ?? {};

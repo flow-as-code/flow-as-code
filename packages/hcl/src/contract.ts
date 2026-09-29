@@ -65,6 +65,7 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
 export const RESOURCE_ATTRIBUTES = [
   "instance_id",
   "name",
+  "display_name",
   "type",
   "description",
   "state",

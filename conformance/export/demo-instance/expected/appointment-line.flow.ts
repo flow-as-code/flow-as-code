@@ -15,7 +15,11 @@ import {
 } from "@flow-as-code/core";
 
 export function appointmentLine(): Flow {
-  return new Flow({ name: "appointment-line", connectType: "CONTACT_FLOW" }).add(
+  return new Flow({
+    name: "appointment-line",
+    displayName: "Appointment Line",
+    connectType: "CONTACT_FLOW",
+  }).add(
     new UpdateFlowLoggingBehavior({
       id: "enable-logging",
       behavior: "Enabled",

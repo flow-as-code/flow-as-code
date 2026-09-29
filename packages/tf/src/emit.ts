@@ -27,6 +27,7 @@ import {
   type RefEntry,
   SLUG_PATTERN,
   collectRefs,
+  connectName,
   lookupRefValue,
   migrateFlowDoc,
   parseToken,
@@ -327,7 +328,7 @@ function flowsTf(
   for (const doc of docs) {
     const refs = (inSetByDoc.get(docKey(doc)) ?? []).length > 0 ? refsLocalFor(doc) : REFS_LOCAL;
     const template = `templatefile("\${path.module}/flows/${doc.name}.flow.tftpl", local.${refs})`;
-    const body: HclLine[] = [arg("instance_id", instanceId), arg("name", quote(doc.name))];
+    const body: HclLine[] = [arg("instance_id", instanceId), arg("name", quote(connectName(doc)))];
     // `type` exists on the flow resource only; the module resource has none.
     if (doc.kind === "flow") body.push(arg("type", quote(doc.connectType)));
     body.push(arg("content", template));

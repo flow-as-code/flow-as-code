@@ -33,6 +33,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  connectName,
   migrateFlowDoc,
   allRules,
   collectRefs,
@@ -192,7 +193,7 @@ export class FlowSet extends Construct {
       const { content, used } = materializeDoc(doc);
       const module = new CfnContactFlowModule(this, `Module-${doc.name}`, {
         instanceArn: props.instanceArn,
-        name: doc.name,
+        name: connectName(doc),
         content,
       });
       for (const dep of used) module.addResourceDependency(dep);
@@ -234,7 +235,7 @@ export class FlowSet extends Construct {
       const { content, used } = materializeDoc(doc);
       const flow = new CfnContactFlow(this, `Flow-${doc.name}`, {
         instanceArn: props.instanceArn,
-        name: doc.name,
+        name: connectName(doc),
         type: doc.connectType,
         content,
       });

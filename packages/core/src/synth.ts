@@ -97,6 +97,7 @@ export function synth(flow: Flow, options: SynthOptions = {}): FlowDoc {
     flowdoc: FLOWDOC_VERSION,
     kind: flow.kind,
     name: flow.name,
+    ...(flow.displayName === undefined ? {} : { displayName: flow.displayName }),
     ...(flow.description === undefined ? {} : { description: flow.description }),
     connectType: flow.connectType,
     content,

@@ -2227,6 +2227,7 @@ export function factoryName(name: string, taken: ReadonlySet<string> = new Set()
 
 function flowConfigEntries(doc: FlowDoc): [string, V][] {
   const entries: [string, V][] = [["name", doc.name]];
+  if (doc.displayName !== undefined) entries.push(["displayName", doc.displayName]);
   if (doc.description !== undefined) entries.push(["description", doc.description]);
   if (doc.kind !== "module") entries.push(["connectType", doc.connectType]);
   // A module's empty Settings is synth's default, so it is not worth emitting;

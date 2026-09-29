@@ -47,3 +47,21 @@ describe("Flow.add enforces the 250 action limit", () => {
     );
   });
 });
+
+describe("displayName", () => {
+  // Connect takes a name of 1 to 127 characters with a non-space character
+  // (https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateContactFlowModule.html).
+  it("takes the name Connect shows, up to 127 characters", () => {
+    expect(new Flow({ name: "main-line", displayName: "Main Line" }).displayName).toBe("Main Line");
+    expect(new Flow({ name: "a", displayName: "x".repeat(127) }).displayName).toHaveLength(127);
+    expect(new FlowModule({ name: "m", displayName: "Survey (v2)" }).displayName).toBe(
+      "Survey (v2)",
+    );
+  });
+
+  it("refuses an empty, blank, or over-long name", () => {
+    for (const bad of ["", "   ", "x".repeat(128)]) {
+      expect(() => new Flow({ name: "a", displayName: bad })).toThrow(/Invalid displayName/);
+    }
+  });
+});

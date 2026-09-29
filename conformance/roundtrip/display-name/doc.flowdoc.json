@@ -1,32 +1,33 @@
 {
   "flowdoc": "0.2",
   "kind": "flow",
-  "name": "draft-line",
-  "displayName": "Draft Line",
+  "name": "main-line",
+  "displayName": "Main Line \"After Hours\" (général)",
+  "description": "Adopted from the console with its name kept.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "greet",
+    "StartAction": "closed",
     "Actions": [
       {
-        "Identifier": "greet",
+        "Identifier": "closed",
         "Type": "MessageParticipant",
         "Parameters": {
-          "Text": "This flow has never been published."
+          "Text": "We are closed."
         },
         "Transitions": {
-          "NextAction": "hang-up",
+          "NextAction": "bye",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
-              "NextAction": "hang-up"
+              "NextAction": "bye"
             }
           ],
           "Conditions": []
         }
       },
       {
-        "Identifier": "hang-up",
+        "Identifier": "bye",
         "Type": "DisconnectParticipant",
         "Parameters": {},
         "Transitions": {}
@@ -34,23 +35,17 @@
     ]
   },
   "layout": {
-    "greet": {
-      "x": 20,
+    "bye": {
+      "x": 280,
       "y": 20
     },
-    "hang-up": {
-      "x": 280,
+    "closed": {
+      "x": 20,
       "y": 20
     }
   },
   "refs": [],
   "meta": {
-    "generator": "core@0.2",
-    "source": {
-      "alias": "$SAVED",
-      "id": "cccc3333-0000-4000-8000-000000000002",
-      "instanceId": "11111111-2222-3333-4444-555555555555",
-      "name": "Draft Line"
-    }
+    "generator": "core@0.2"
   }
 }

@@ -72,6 +72,7 @@ export function canonicalize(doc: FlowDoc): FlowDoc {
     flowdoc: doc.flowdoc,
     kind: doc.kind,
     name: doc.name,
+    ...(doc.displayName === undefined ? {} : { displayName: doc.displayName }),
     ...(doc.description === undefined ? {} : { description: doc.description }),
     connectType: doc.connectType,
     content: ordered(
