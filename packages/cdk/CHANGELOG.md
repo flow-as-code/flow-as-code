@@ -1,5 +1,39 @@
 # @flow-as-code/cdk
 
+## 0.2.0
+
+### Minor Changes
+
+- 81780fb: FlowDoc gains an optional `displayName`: the name Connect shows when it is not the slug in `name`. `name` stays the slug that names files and references; `displayName` is what a deploy names the Connect resource, and every path now uses it (`connectName(doc)`): the CDK construct's `Name`, `emitTf`'s `name`, and `@flow-as-code/hcl`'s new `display_name` attribute. Export writes it whenever the instance's name is not the slug it assigns, so a console flow called "Main Line" is exported as `name: "main-line"`, `displayName: "Main Line"`, and deploying the export keeps its name. The builder takes it as `FlowConfig.displayName` (1 to 127 characters, not blank).
+- 0ca35a6: FlowDoc 0.2. The format gains the `view` reference type (`Refs.view(name, version?)`, version in the alias slot), `meta.sourceKind` (`ts` or `tf`), and an optional top-level `description` that the builder, `synth`, codegen and export all carry. `migrateFlowDoc` reads 0.1 and 0.2 and returns 0.2; the CLI, the studio, `FlowSet` and `emitTf` migrate every document on the way in, and the CLI and the studio validate a file against the schema of the version it names first. `synth()` and `exportFlow()` stamp `core@0.2`; `flow-cli synth`, `export` and the studio bridge stamp `meta.sourceKind`. `TokenBinder` gains an optional `view(name, version?)`.
+
+  The auto-layout every tool assigns to an unplaced action is now an owned layered algorithm specified in `conformance/layout/README.md` (ADR-0005) rather than dagre, so a second implementation can reproduce it; `autoLayout(actions, start?)` takes the document's start action, `@flow-as-code/core` drops its only runtime dependency, and flows that relied on auto-layout are arranged differently on the canvas (hand-placed positions are untouched).
+
+  Export reads `ListViews`, so a flow that shows an AWS-managed view (the stock after contact work flow) exports with a `${cdref:view:<name>@<version>}` reference instead of failing on an unknown ARN; `parseConnectArn` reads the view ARN form that nests under no instance, and `ConnectInventoryClient` gains `listViews()`.
+
+### Patch Changes
+
+- Updated dependencies [dfd5c3b]
+- Updated dependencies [d0c8885]
+- Updated dependencies [5b7db7a]
+- Updated dependencies [4895560]
+- Updated dependencies [40f33a7]
+- Updated dependencies [f822c37]
+- Updated dependencies [81780fb]
+- Updated dependencies [1eeed56]
+- Updated dependencies [07080eb]
+- Updated dependencies [e3e131a]
+- Updated dependencies [3f3f471]
+- Updated dependencies [0ca35a6]
+- Updated dependencies [2e9446a]
+- Updated dependencies [5538b55]
+- Updated dependencies [8ef9309]
+- Updated dependencies [0282a03]
+- Updated dependencies [ed22e85]
+- Updated dependencies [e6ac8f3]
+- Updated dependencies [b2d81ed]
+  - @flow-as-code/core@0.2.0
+
 ## 0.1.2
 
 ### Patch Changes

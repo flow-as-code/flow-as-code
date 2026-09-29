@@ -1,5 +1,45 @@
 # @flow-as-code/cli
 
+## 0.2.0
+
+### Minor Changes
+
+- d0c8885: `flow-cli` learns the `.flow.tf` companion. `codegen --to tf` writes a document as a `flowascode_contact_flow` resource (without `--to`, the kind the document's `meta.sourceKind` names), keeping an existing file's `@keep` comments, `refs` bindings and carried attributes; `synth` reads a `.flow.tf` back in process; `export --author tf` writes one per exported document; `emit --target flowascode` writes a document set for the flowascode provider; and the new `convert --to ts|tf` switches a document's companion, carrying `@keep` comments across and printing what the new companion does not carry. `@flow-as-code/core` exports `extractKeepComments`, and `codegen` takes `options.keep` in place of the comments `previous` holds. `init --author tf` scaffolds a `.flow.tf`, and `flow-cli studio` and the watch engine pair a document with either companion: a `.flow.tf` edit re-syncs the document in process, a canvas save regenerates it keeping its bindings and settings, and a name with both companions is refused. The studio bridge protocol is version 2, in both byte copies: payloads carry `sourceKind` and a `.flow.tf`'s `lintDisable`, a write result names its companion as `sourcePath` and `sourceText` (was `tsPath` and `tsText`), a conflict names `sourcePath` and `sourceKind`, synced events carry the `.flow.tf` reader's warnings, `flowascode` joins the export targets, and `POST /bridge/docs` creates a document with the companion it names. The watch engine's events and `noteWrite` take `sourcePath`, `sourceKind` and `sourceContent` in place of `tsPath` and `tsContent`. In the studio, the toolbar badges the open document's companion, New flow creates a document with the companion the user picks, a `.flow.tf`'s `lint.disable` list reaches the lint panel (never for a hard rule), and what reading a `.flow.tf` noticed shows as a notice. "Export as…" offers a fourth target, "Terraform (flowascode provider)", byte-identical to `flow-cli emit --target flowascode` and sharing the Terraform address map. `convert` refuses to discard companion edits the document lacks unless `--force`, and `codegen` restamps the document it pairs with.
+- 0ca35a6: FlowDoc 0.2. The format gains the `view` reference type (`Refs.view(name, version?)`, version in the alias slot), `meta.sourceKind` (`ts` or `tf`), and an optional top-level `description` that the builder, `synth`, codegen and export all carry. `migrateFlowDoc` reads 0.1 and 0.2 and returns 0.2; the CLI, the studio, `FlowSet` and `emitTf` migrate every document on the way in, and the CLI and the studio validate a file against the schema of the version it names first. `synth()` and `exportFlow()` stamp `core@0.2`; `flow-cli synth`, `export` and the studio bridge stamp `meta.sourceKind`. `TokenBinder` gains an optional `view(name, version?)`.
+
+  The auto-layout every tool assigns to an unplaced action is now an owned layered algorithm specified in `conformance/layout/README.md` (ADR-0005) rather than dagre, so a second implementation can reproduce it; `autoLayout(actions, start?)` takes the document's start action, `@flow-as-code/core` drops its only runtime dependency, and flows that relied on auto-layout are arranged differently on the canvas (hand-placed positions are untouched).
+
+  Export reads `ListViews`, so a flow that shows an AWS-managed view (the stock after contact work flow) exports with a `${cdref:view:<name>@<version>}` reference instead of failing on an unknown ARN; `parseConnectArn` reads the view ARN form that nests under no instance, and `ConnectInventoryClient` gains `listViews()`.
+
+### Patch Changes
+
+- Updated dependencies [dfd5c3b]
+- Updated dependencies [d0c8885]
+- Updated dependencies [5b7db7a]
+- Updated dependencies [4895560]
+- Updated dependencies [40f33a7]
+- Updated dependencies [f822c37]
+- Updated dependencies [81780fb]
+- Updated dependencies [2a2ac57]
+- Updated dependencies [1eeed56]
+- Updated dependencies [07080eb]
+- Updated dependencies [e3e131a]
+- Updated dependencies [3f3f471]
+- Updated dependencies [0ca35a6]
+- Updated dependencies [2e9446a]
+- Updated dependencies [5538b55]
+- Updated dependencies [17f0f3e]
+- Updated dependencies [8ef9309]
+- Updated dependencies [0282a03]
+- Updated dependencies [ed22e85]
+- Updated dependencies [e6ac8f3]
+- Updated dependencies [b2d81ed]
+  - @flow-as-code/core@0.2.0
+  - @flow-as-code/studio@0.2.0
+  - @flow-as-code/cdk@0.2.0
+  - @flow-as-code/tf@0.2.0
+  - @flow-as-code/hcl@0.2.0
+
 ## 0.1.2
 
 ### Patch Changes
