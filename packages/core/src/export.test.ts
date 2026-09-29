@@ -590,13 +590,18 @@ describe("exportInstance", () => {
       "${cdref:module:survey@1}",
       "${cdref:module:survey}",
     ]);
-    const golden = "conformance/export/module-alias/expected/survey-line";
-    if (process.env.UPDATE_GOLDENS === "1") {
-      writeFileSync(new URL(`${golden}.flowdoc.json`, root), serialize(flow.doc));
-      writeFileSync(new URL(`${golden}.flow.ts`, root), flow.code!);
+    // Every document the case exports, the module too, has its golden, as
+    // the Go provider's conformance runner requires.
+    expect(result.flows.map((f) => f.doc.name).sort()).toEqual(["survey", "survey-line"]);
+    for (const exported of result.flows) {
+      const golden = `conformance/export/module-alias/expected/${exported.doc.name}`;
+      if (process.env.UPDATE_GOLDENS === "1") {
+        writeFileSync(new URL(`${golden}.flowdoc.json`, root), serialize(exported.doc));
+        writeFileSync(new URL(`${golden}.flow.ts`, root), exported.code!);
+      }
+      expect(serialize(exported.doc)).toBe(read(`${golden}.flowdoc.json`));
+      expect(exported.code).toBe(read(`${golden}.flow.ts`));
     }
-    expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
-    expect(flow.code).toBe(read(`${golden}.flow.ts`));
   });
 
   it("keeps two aliases of one module apart when a resource map binds each", () => {
