@@ -45,10 +45,16 @@ resource "flowascode_contact_flow_module" "after_call_survey" {
 
 # A snapshot of the module's content, replaced when the content
 # changes, and the aliases the flows in this set invoke it through.
+# Connect will not delete a version an alias points at, so the new
+# version is created and the alias moved before the old one goes.
 resource "flowascode_contact_flow_module_version" "after_call_survey" {
   instance_id            = var.connect_instance_id
   contact_flow_module_id = flowascode_contact_flow_module.after_call_survey.contact_flow_module_id
   content_hash           = flowascode_contact_flow_module.after_call_survey.content_hash
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "flowascode_contact_flow_module_alias" "after_call_survey_prod" {
@@ -88,10 +94,16 @@ resource "flowascode_contact_flow_module" "satisfaction_question" {
 
 # A snapshot of the module's content, replaced when the content
 # changes, and the aliases the flows in this set invoke it through.
+# Connect will not delete a version an alias points at, so the new
+# version is created and the alias moved before the old one goes.
 resource "flowascode_contact_flow_module_version" "satisfaction_question" {
   instance_id            = var.connect_instance_id
   contact_flow_module_id = flowascode_contact_flow_module.satisfaction_question.contact_flow_module_id
   content_hash           = flowascode_contact_flow_module.satisfaction_question.content_hash
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "flowascode_contact_flow_module_alias" "satisfaction_question_prod" {

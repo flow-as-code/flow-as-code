@@ -201,10 +201,16 @@ function flowsTf(
       "",
       "# A snapshot of the module's content, replaced when the content",
       "# changes, and the aliases the flows in this set invoke it through.",
+      "# Connect will not delete a version an alias points at, so the new",
+      "# version is created and the alias moved before the old one goes.",
       `resource "${MODULE_VERSION_RESOURCE}" ${quote(ident(doc.name))} {`,
       `  instance_id = ${instanceId}`,
       `  contact_flow_module_id = ${module}.contact_flow_module_id`,
       `  content_hash = ${module}.content_hash`,
+      "",
+      "  lifecycle {",
+      "    create_before_destroy = true",
+      "  }",
       "}",
     );
     for (const alias of versions) {
