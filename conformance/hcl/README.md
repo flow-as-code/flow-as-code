@@ -233,6 +233,12 @@ resource "flowascode_contact_flow" "appointment_line" {
     - `json`: `jsonencode({...})`.
     - An empty object, map or list is written inline: `{}`, `[]`,
       `jsonencode({})`.
+    - Read backwards: where the provider's attribute is a string, a map of
+      strings or a list of strings, a number or a bool reads as the string
+      Terraform converts it to (`5` as `"5"`, `true` as `"true"`), and an
+      object or tuple is refused (`parse/coerced-scalars`). A TypeScript
+      reader refuses a number whose JavaScript string differs from
+      Terraform's (past 2^53, or in exponent form) instead of guessing.
 12. Inside `jsonencode` keys keep their Flow language spelling, in byte order;
     a key that is a valid HCL identifier is unquoted and any other is quoted,
     as are `for`, `if`, `in`, `null`, `true` and `false` wherever an object

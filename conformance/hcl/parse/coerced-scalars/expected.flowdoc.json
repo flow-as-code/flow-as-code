@@ -1,0 +1,72 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "coerced-scalars",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "remember",
+    "Actions": [
+      {
+        "Identifier": "remember",
+        "Type": "UpdateContactAttributes",
+        "Parameters": {
+          "Attributes": {
+            "ratio": "0.5",
+            "retries": "3",
+            "tier": "gold",
+            "vip": "true"
+          }
+        },
+        "Transitions": {
+          "NextAction": "say",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "say",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "5"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 540,
+      "y": 20
+    },
+    "remember": {
+      "x": 20,
+      "y": 20
+    },
+    "say": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": []
+}

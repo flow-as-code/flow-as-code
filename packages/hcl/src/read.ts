@@ -713,7 +713,8 @@ class Reader {
       }
       case "list":
         if (expr.kind !== "tuple") return this.shapeRefused(expr, path, "a list");
-        if (e.of === undefined) return this.literal(expr, path);
+        if (e.of === undefined)
+          return expr.items.map((x, k) => this.stringScalar(x, `${path}[${k}]`));
         return expr.items.map((x, k) => this.value(x, e.of!, `${path}[${k}]`));
       case "map": {
         if (expr.kind !== "object") return this.shapeRefused(expr, path, "a map");
@@ -726,14 +727,39 @@ class Reader {
           if (isNull(item.value)) continue;
           out[k] =
             e.of === undefined
-              ? this.literal(item.value, `${path}.${k}`)
+              ? this.stringScalar(item.value, `${path}.${k}`)
               : this.value(item.value, e.of, `${path}.${k}`);
         }
         return out;
       }
       default:
-        return this.literal(expr, path);
+        return this.stringScalar(expr, path);
     }
+  }
+
+  /**
+   * A value where the provider's attribute is a string, a map of strings or a
+   * list of strings (every kind above that reaches here). Terraform converts
+   * a number or a bool to its string and refuses anything else, so this does
+   * the same, and both sides read one file to one document. A number whose
+   * JavaScript string is not the one Terraform writes (past 2^53, or in
+   * exponent form) is refused rather than guessed: quote it.
+   */
+  stringScalar(expr: Expr, path: string): string {
+    const v = this.literal(expr, path);
+    if (typeof v === "string") return v;
+    if (typeof v === "boolean") return String(v);
+    if (typeof v === "number") {
+      const text = String(v);
+      if (!/e/i.test(text) && (!Number.isInteger(v) || Number.isSafeInteger(v))) return text;
+      return this.fail(
+        "NON_LITERAL_VALUE",
+        expr,
+        path,
+        `${path} is a number a string cannot hold exactly here; write it as a string.`,
+      );
+    }
+    return this.shapeRefused(expr, path, "a string");
   }
 
   /** A value of the wrong shape for its catalog kind: an expression, or a literal of another type. */

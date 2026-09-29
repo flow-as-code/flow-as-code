@@ -164,6 +164,49 @@ describe("the round-trip rule over every committed document", () => {
   });
 });
 
+describe("a number or bool where the provider takes a string", () => {
+  const flow = (param: string) =>
+    [
+      'resource "flowascode_contact_flow" "f" {',
+      "  instance_id = var.connect_instance_id",
+      '  name        = "f"',
+      '  type        = "CONTACT_FLOW"',
+      "  action {",
+      '    id = "say"',
+      '    next = "bye"',
+      `    message_participant { ${param} }`,
+      "    error {",
+      '      type = "NoMatchingError"',
+      '      next = "bye"',
+      "    }",
+      "  }",
+      "  action {",
+      '    id = "bye"',
+      "    disconnect_participant {}",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+  const refusal = (param: string): unknown => {
+    try {
+      toFlowDoc(flow(param), { fileName: "f.flow.tf" });
+    } catch (error) {
+      return (error as { code?: string }).code;
+    }
+    return undefined;
+  };
+
+  it("refuses a number whose string Terraform would write differently", () => {
+    expect(refusal("text = 12345678901234567890")).toBe("NON_LITERAL_VALUE");
+    expect(refusal("text = 1e21")).toBe("NON_LITERAL_VALUE");
+  });
+
+  it("refuses an object or a tuple, as Terraform does", () => {
+    expect(refusal("text = { a = 1 }")).toBe("NON_LITERAL_VALUE");
+    expect(refusal('text = ["a"]')).toBe("NON_LITERAL_VALUE");
+  });
+});
+
 describe("the writer's rounding", () => {
   it("writes a fractional position as the nearest integer", () => {
     const doc = json<FlowDoc>(HCL, "..", "layout", "single", "doc.flowdoc.json");
