@@ -2,7 +2,7 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type {
   ConnectInventoryClient,
@@ -573,6 +573,42 @@ describe("exportInstance", () => {
     const golden = "conformance/export/module-settings/expected/customer-lookup";
     expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
     expect(flow.code).toBe(read(`${golden}.flow.ts`));
+  });
+
+  it("keeps the alias or version a flow invokes a module through", async () => {
+    // Connect stores InvokeFlowModule's FlowModuleId as written, qualifier and
+    // all (sandbox, 2026-09-29): an alias name, a version, or $LATEST.
+    const client = new FixtureClient("module-alias");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    expect(result.failures).toEqual([]);
+    const flow = result.flows.find((f) => f.doc.name === "survey-line")!;
+    const ids = flow.doc.content.Actions.filter((a) => a.Type === "InvokeFlowModule").map(
+      (a) => a.Parameters.FlowModuleId,
+    );
+    expect(ids).toEqual([
+      "${cdref:module:survey@prod}",
+      "${cdref:module:survey@1}",
+      "${cdref:module:survey}",
+    ]);
+    const golden = "conformance/export/module-alias/expected/survey-line";
+    if (process.env.UPDATE_GOLDENS === "1") {
+      writeFileSync(new URL(`${golden}.flowdoc.json`, root), serialize(flow.doc));
+      writeFileSync(new URL(`${golden}.flow.ts`, root), flow.code!);
+    }
+    expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
+    expect(flow.code).toBe(read(`${golden}.flow.ts`));
+  });
+
+  it("keeps two aliases of one module apart when a resource map binds each", () => {
+    const base =
+      "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/flow-module/m1";
+    const map = reverseMapOfResourceMap({
+      "${cdref:module:survey@beta}": `${base}:beta`,
+      "${cdref:module:survey@prod}": `${base}:prod`,
+    });
+    expect(map.warnings).toEqual([]);
+    expect(lookupArn(map, `${base}:prod`)?.token).toBe("${cdref:module:survey@prod}");
+    expect(lookupArn(map, `${base}:beta`)?.token).toBe("${cdref:module:survey@beta}");
   });
 
   it("tokenizes an ARN inside a module's Settings like one in its actions", () => {

@@ -482,7 +482,10 @@ export function reverseMapOfResourceMap(resourceMap: Record<string, string>): Re
       warnings.push(`Skipping map key that is not a reference token: ${token}`);
       continue;
     }
-    const arn = normalizeArn(value);
+    // An entry that pins an alias or version is keyed by the ARN exactly as
+    // bound, so two aliases of one module bound to their own qualified ARNs
+    // stay two entries; lookupArn still falls back to the bare ARN.
+    const arn = entry.alias === undefined ? normalizeArn(value) : value;
     const existing = byArn.get(arn);
     if (existing !== undefined) {
       warnings.push(`${arn} is mapped by both ${existing.token} and ${token}; keeping the first.`);
@@ -594,8 +597,11 @@ function rewriteArns(
   if (typeof value === "string") {
     if (WHOLE_ARN.test(value)) {
       const entry = lookupArn(reverseMap, value);
-      if (entry !== undefined)
-        return entry.type === "view" ? viewToken(entry, value, path, acc) : entry.token;
+      if (entry !== undefined) {
+        if (entry.type === "view") return viewToken(entry, value, path, acc);
+        if (entry.type === "module") return moduleToken(entry, value);
+        return entry.token;
+      }
       record(acc.unknown, value, path);
       return value;
     }
@@ -629,6 +635,20 @@ function viewToken(entry: RefEntry, arn: string, path: string, acc: RewriteAccum
   if (SLUG_PATTERN.test(qualifier)) return token("view", entry.name, qualifier);
   record(acc.unknown, arn, path);
   return arn;
+}
+
+/**
+ * A module invoked through a qualified ARN (`flow-module/<id>:prod`, or a
+ * version, `:1`) keeps the qualifier as the token's alias: the document says
+ * `${cdref:module:survey@prod}` where Connect holds the qualified ARN. A
+ * qualifier that is not a slug (`$LATEST`, `$SAVED`) cannot ride in the alias
+ * slot and names what the bare ARN already does, so the bare token stands.
+ */
+function moduleToken(entry: RefEntry, arn: string): string {
+  if (entry.alias !== undefined) return entry.token;
+  const qualifier = parseConnectArn(arn)?.qualifier;
+  if (qualifier === undefined || !SLUG_PATTERN.test(qualifier)) return entry.token;
+  return token("module", entry.name, qualifier);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,0 +1,114 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "survey-line",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "prod",
+    "Actions": [
+      {
+        "Identifier": "prod",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:survey@prod}"
+        },
+        "Transitions": {
+          "NextAction": "pinned",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "pinned",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:survey@1}"
+        },
+        "Transitions": {
+          "NextAction": "latest",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "latest",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:survey}"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 800,
+      "y": 20
+    },
+    "latest": {
+      "x": 540,
+      "y": 20
+    },
+    "pinned": {
+      "x": 280,
+      "y": 20
+    },
+    "prod": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:module:survey@1}",
+      "type": "module",
+      "name": "survey",
+      "alias": "1"
+    },
+    {
+      "token": "${cdref:module:survey@prod}",
+      "type": "module",
+      "name": "survey",
+      "alias": "prod"
+    },
+    {
+      "token": "${cdref:module:survey}",
+      "type": "module",
+      "name": "survey"
+    }
+  ],
+  "meta": {
+    "generator": "core@0.2",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000041",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Survey line"
+    }
+  }
+}
