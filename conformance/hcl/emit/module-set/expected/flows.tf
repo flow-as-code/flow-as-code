@@ -73,8 +73,22 @@ resource "flowascode_contact_flow_module" "satisfaction_question" {
     next = "done"
     get_participant_input {
       input_time_limit_seconds = 5
-      store_input              = "True"
+      store_input              = "False"
       text                     = "Press 1 if we solved your problem, or 2 if we did not."
+    }
+    condition {
+      operator = "Equals"
+      operands = ["1"]
+      next     = "done"
+    }
+    condition {
+      operator = "Equals"
+      operands = ["2"]
+      next     = "done"
+    }
+    error {
+      type = "InputTimeLimitExceeded"
+      next = "done"
     }
     error {
       type = "NoMatchingCondition"

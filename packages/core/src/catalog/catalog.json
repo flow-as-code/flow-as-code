@@ -1446,7 +1446,8 @@
           {
             "type": "InputTimeLimitExceeded",
             "required": false,
-            "builder": true
+            "builder": true,
+            "when": "StoreInput is \"False\" or absent, where the service refuses the action without it; with StoreInput \"True\" it refuses the branch (sandbox, 2026-09-29; the page does not say)"
           },
           {
             "type": "NoMatchingCondition",

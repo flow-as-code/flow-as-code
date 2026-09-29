@@ -118,6 +118,15 @@ V1 `LexBot` names a bot by name, region and alias, which the `lex` reference
 type does not bind, so that form round-trips as a GenericBlock.
 https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
 
+`StoreInput` decides the shape of a `GetParticipantInput`, and the service
+enforces it at create (sandbox, 2026-09-29): with `"True"` the action needs
+`InputValidation` and refuses `Conditions`, `NoMatchingCondition` and
+`InputTimeLimitExceeded`; with `"False"` or absent it needs both of those
+error branches. The page says the first three; the timeout branch was found
+by deploying. Lint does not encode this yet (no catalog field expresses a
+condition on a parameter's value), so a document can pass lint and be
+refused.
+
 ## Constraints worth encoding
 
 Each of these is a lint rule, a type constraint, or both. Sources are the
