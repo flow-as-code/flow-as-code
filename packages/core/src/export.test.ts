@@ -822,6 +822,7 @@ describe("createConnectInventoryClient", () => {
       { aliasId: "a-2", name: "beta" },
     ]);
     expect(fake.sent[0]?.input.ContactFlowModuleId).toBe("module-1");
+    expect(fake.sent[0]?.input.MaxResults).toBe(100);
     expect(fake.sent[1]?.input.NextToken).toBe("page2");
   });
 

@@ -1270,7 +1270,10 @@ export function createConnectInventoryClient(
           new c.ListContactFlowModuleAliasesCommand({
             InstanceId: instanceId,
             ContactFlowModuleId: contactFlowModuleId,
-            MaxResults: maxResults,
+            // Its maximum is 100, not 1000: the sandbox refused 1000 on
+            // 2026-09-29 ("MaxResults must have a length less than or equal
+            // to 100").
+            MaxResults: Math.min(maxResults, 100),
             NextToken: nextToken,
           }),
         (r) =>
