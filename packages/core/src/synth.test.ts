@@ -9,6 +9,7 @@ import type {
   GetParticipantInputConfig,
   InvokeLambdaFunctionConfig,
   MessageParticipantConfig,
+  UpdateContactAttributesConfig,
   UpdateContactTargetQueueConfig,
 } from "./index.js";
 import {
@@ -1082,8 +1083,17 @@ describe("A01 acceptance: unwired error branches do not compile", () => {
     // objects are type-annotated so a missing property is reported on the
     // annotated declaration rather than somewhere inside a reflowed literal.
 
-    // @ts-expect-error onError is required on MessageParticipant
-    const missingMessageError: MessageParticipantConfig = { id: "a", text: "hi", next: "b" };
+    // @ts-expect-error onError is required on UpdateContactAttributes
+    const missingAttributesError: UpdateContactAttributesConfig = {
+      id: "a",
+      attributes: { caller: "known" },
+      next: "b",
+    };
+
+    // MessageParticipant's catch-all is optional: the service accepts the
+    // action without it (conformance/flow-language/actions.md, rule 37), so a
+    // config without onError compiles.
+    const messageWithoutError: MessageParticipantConfig = { id: "a", text: "hi", next: "b" };
 
     // @ts-expect-error onError is required on UpdateContactTargetQueue
     const missingQueueError: UpdateContactTargetQueueConfig = {
@@ -1184,7 +1194,8 @@ describe("A01 acceptance: unwired error branches do not compile", () => {
 
     // Referenced so the declarations are not dead code.
     expect([
-      missingMessageError,
+      missingAttributesError,
+      messageWithoutError,
       missingQueueError,
       wrongRefKind,
       bothBodies,
@@ -1195,7 +1206,7 @@ describe("A01 acceptance: unwired error branches do not compile", () => {
       bothInputBodies,
       wrongInputRefKind,
       badDigit,
-    ]).toHaveLength(11);
+    ]).toHaveLength(12);
   });
 });
 

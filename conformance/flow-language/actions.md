@@ -822,6 +822,16 @@ SPEC.md lists the current set.
       NoMatchingError") and accepted the action with `Errors` empty. The
       page's Errors section had been read as the usual catch-all.
     - `GetParticipantInput`: see the paragraph above the constraints.
+    The converse was checked the same day: each branch the catalog requires
+    was removed on its own, and the service refused every such action but
+    one. `MessageParticipant` was accepted without its catch-all, and a full
+    export of the instance's default and sample flows carries 59
+    `MessageParticipant` actions with no error branch at all, so its
+    catch-all is optional (`OPTIONAL_CATCH_ALL`). The same export agrees with
+    every refusal above: each `TransferContactToQueue` wires
+    `QueueAtCapacity`, each `CheckMetricData` wires `NoMatchingCondition`
+    and a condition, every `UpdateContactRecordingBehavior` has `Errors`
+    empty, and every `GetParticipantInput` carries `StoreInput`.
     Two refusals were the fixtures' parameters, not the catalog: the
     `contact-data` fixture's `UpdateContactData` (Voice ID fields on an
     instance without Voice ID) and the `contact-routing` fixture's first

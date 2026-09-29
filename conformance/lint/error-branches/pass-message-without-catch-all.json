@@ -1,0 +1,41 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "case",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "say",
+    "Actions": [
+      {
+        "Identifier": "say",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Thanks for calling."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 280,
+      "y": 20
+    },
+    "say": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

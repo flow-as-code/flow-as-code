@@ -432,8 +432,15 @@ function terminal(a: FlowAction, make: () => Block): Inversion | undefined {
  */
 const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefined> = {
   [ActionType.MessageParticipant]: (a, ctx) => {
-    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
-    if (w === undefined) return undefined;
+    // The catch-all is optional: the service accepts the action without it
+    // and the console's own flows usually omit it.
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length > 1 || (errors.length === 1 && errors[0]!.ErrorType !== NO_MATCHING_ERROR)) {
+      return undefined;
+    }
+    const w = { next: t.NextAction, onError: errors[0]?.NextAction };
     const p = a.Parameters;
     const keys = Object.keys(p);
     if (keys.length !== 1) return undefined;
@@ -449,7 +456,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       if (ref === undefined) return undefined;
       entries.push(["prompt", ref]);
     } else return undefined;
-    entries.push(["next", w.next], ["onError", w.onError]);
+    entries.push(["next", w.next]);
+    if (w.onError !== undefined) entries.push(["onError", w.onError]);
     const body =
       keys[0] === "Text"
         ? { text: cast<string>(p.Text) }
@@ -463,7 +471,7 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         id: a.Identifier,
         ...body,
         next: w.next,
-        onError: w.onError,
+        ...(w.onError === undefined ? {} : { onError: w.onError }),
       }),
     };
   },

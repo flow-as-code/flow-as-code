@@ -176,6 +176,23 @@ describe("GenericBlock fallback keeps the round-trip lossless", () => {
     const doc = docWith([
       {
         Identifier: "no-error-branch",
+        Type: "UpdateContactAttributes",
+        Parameters: { Attributes: { caller: "known" }, TargetContact: "Current" },
+        Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+      },
+      { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+    ]);
+    const out = codegen(doc);
+    expect(out).toContain('type: "UpdateContactAttributes"');
+    expect(out).not.toContain("new UpdateContactAttributes(");
+  });
+
+  it("writes a MessageParticipant without its optional catch-all as a typed block", () => {
+    // The service accepts the action without the branch and the console's own
+    // flows usually omit it (conformance/flow-language/actions.md, rule 37).
+    const doc = docWith([
+      {
+        Identifier: "say",
         Type: "MessageParticipant",
         Parameters: { Text: "hi" },
         Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
@@ -183,8 +200,11 @@ describe("GenericBlock fallback keeps the round-trip lossless", () => {
       { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
     ]);
     const out = codegen(doc);
-    expect(out).toContain('type: "MessageParticipant"');
-    expect(out).not.toContain("new MessageParticipant(");
+    expect(out).toContain("new MessageParticipant(");
+    expect(out).not.toContain("onError");
+    expect(new MessageParticipant({ id: "say", text: "hi", next: "bye" }).toAction()).toEqual(
+      doc.content.Actions[0],
+    );
   });
 
   it("keeps tokens inside GenericBlock parameters as verbatim strings", () => {
