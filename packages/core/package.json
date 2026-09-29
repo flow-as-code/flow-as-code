@@ -1,6 +1,6 @@
 {
   "name": "@flow-as-code/core",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Typed builder, synthesizer, codegen, lint engine, map and binder materialization, export reverse-mapping, and simulate client for Amazon Connect Flow language. IaC-agnostic; references are abstract tokens.",
   "keywords": [
     "amazon-connect",
