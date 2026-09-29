@@ -1546,7 +1546,17 @@ export class UpdateContactAttributes extends Block {
   }
 }
 
-export interface UpdateContactRecordingBehaviorConfig extends Wired {
+/**
+ * Sets which participants a voice call records. Takes no error branch: the
+ * service refused `NoMatchingError` on this action ("Invalid Action error.
+ * Error: NoMatchingError") and accepted it with `Errors` empty (sandbox,
+ * 2026-09-29; conformance/flow-language/actions.md, rule 37), so the class
+ * writes a next target and nothing else.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html
+ */
+export interface UpdateContactRecordingBehaviorConfig {
+  id: string;
+  next: Target;
   recordedParticipants: ("Agent" | "Customer")[];
   screenRecordedParticipants?: "Agent"[];
   ivrRecordingBehavior?: "Enabled" | "Disabled";
@@ -1573,7 +1583,7 @@ export class UpdateContactRecordingBehavior extends Block {
   }
 
   protected transitions(): Transitions {
-    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+    return wire(this.config.next, []);
   }
 }
 

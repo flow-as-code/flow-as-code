@@ -4,16 +4,6 @@
       "rule": "conditional-shape",
       "blockId": "ask",
       "messageIncludes": "GetParticipantInput needs StoreInput."
-    },
-    {
-      "rule": "conditional-shape",
-      "blockId": "ask",
-      "messageIncludes": "without StoreInput \"True\" must not carry InputValidation"
-    },
-    {
-      "rule": "conditional-shape",
-      "blockId": "ask",
-      "messageIncludes": "without StoreInput \"True\" must not wire the \"InvalidPhoneNumber\" branch"
     }
   ],
   "doc": {
@@ -29,23 +19,14 @@
           "Identifier": "ask",
           "Type": "GetParticipantInput",
           "Parameters": {
-            "Text": "Press 1 or 2.",
             "InputTimeLimitSeconds": "5",
-            "InputValidation": {
-              "PhoneNumberValidation": {
-                "NumberFormat": "E164"
-              }
-            }
+            "Text": "Press 1."
           },
           "Transitions": {
             "NextAction": "bye",
             "Errors": [
               {
                 "ErrorType": "InputTimeLimitExceeded",
-                "NextAction": "bye"
-              },
-              {
-                "ErrorType": "InvalidPhoneNumber",
                 "NextAction": "bye"
               },
               {

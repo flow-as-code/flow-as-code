@@ -5,15 +5,15 @@
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "menu",
+    "StartAction": "ask",
     "Actions": [
       {
-        "Identifier": "menu",
+        "Identifier": "ask",
         "Type": "GetParticipantInput",
         "Parameters": {
-          "Text": "This call may be recorded. Press 1 to continue.",
           "InputTimeLimitSeconds": "5",
-          "StoreInput": "False"
+          "StoreInput": "False",
+          "Text": "Press any key."
         },
         "Transitions": {
           "NextAction": "bye",
@@ -31,33 +31,6 @@
               "NextAction": "bye"
             }
           ],
-          "Conditions": [
-            {
-              "NextAction": "record",
-              "Condition": {
-                "Operator": "Equals",
-                "Operands": [
-                  "1"
-                ]
-              }
-            }
-          ]
-        }
-      },
-      {
-        "Identifier": "record",
-        "Type": "UpdateContactRecordingBehavior",
-        "Parameters": {
-          "RecordingBehavior": {
-            "RecordedParticipants": [
-              "Agent",
-              "Customer"
-            ]
-          }
-        },
-        "Transitions": {
-          "NextAction": "bye",
-          "Errors": [],
           "Conditions": []
         }
       },
@@ -70,17 +43,13 @@
     ]
   },
   "layout": {
-    "menu": {
-      "x": 0,
-      "y": 0
-    },
-    "record": {
-      "x": 200,
-      "y": 0
+    "ask": {
+      "x": 20,
+      "y": 20
     },
     "bye": {
-      "x": 400,
-      "y": 0
+      "x": 280,
+      "y": 20
     }
   },
   "refs": []

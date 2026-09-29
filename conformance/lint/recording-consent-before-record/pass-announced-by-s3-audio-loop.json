@@ -50,12 +50,7 @@
         },
         "Transitions": {
           "NextAction": "end",
-          "Errors": [
-            {
-              "ErrorType": "NoMatchingError",
-              "NextAction": "end"
-            }
-          ],
+          "Errors": [],
           "Conditions": []
         }
       },

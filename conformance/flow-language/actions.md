@@ -121,10 +121,12 @@ https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
 `StoreInput` decides the shape of a `GetParticipantInput`, and the service
 enforces it at create (sandbox, 2026-09-29): with `"True"` the action needs
 `InputValidation` and refuses `Conditions`, `NoMatchingCondition` and
-`InputTimeLimitExceeded`; with `"False"` or absent it needs both of those
-error branches. The page says the first three; the timeout branch was found
-by deploying. The catalog's `shapes` encode both forms and the
-`conditional-shape` lint rule enforces them.
+`InputTimeLimitExceeded`; with `"False"` it needs both of those error
+branches, with or without conditions. `StoreInput` itself must be present:
+the service refused an action without it ("Action is missing required
+property. Path: Actions[0].Parameters.StoreInput"). The page says the first
+three; the rest was found by deploying. The catalog's `shapes` encode both
+forms and the `conditional-shape` lint rule enforces them.
 
 ## Constraints worth encoding
 
@@ -134,7 +136,7 @@ individual action pages linked above.
 1. `TransferContactToQueue` takes **no parameters**. The queue comes from a
    preceding `UpdateContactTargetQueue`. A single "transfer to queue" in the
    builder is therefore two Actions. Its errors are `QueueAtCapacity` and
-   `NoMatchingError`.
+   `NoMatchingError`, and the service requires both (rule 37).
 2. `CheckHoursOfOperation` requires **exactly two** conditions, `Equals True`
    and `Equals False`, and no others.
 3. `UpdateContactTargetQueue` accepts `QueueId` or `AgentId`, never both.
@@ -444,7 +446,8 @@ individual action pages linked above.
     default queue transfer flow, recorded under
     `conformance/export/omitted-parameters`, contradicts that last clause: it
     wires `NoMatchingCondition` on a `NumberOfAgentsStaffed` check as the
-    block's False branch, orders the errors `NoMatchingError` then
+    block's False branch (and the service requires the branch, and at least
+    one condition, whatever the metric: rule 37), orders the errors `NoMatchingError` then
     `NoMatchingCondition`, and mirrors `NextAction` onto the `NoMatchingError`
     target; the builder writes that shape for every metric. The console's
     Sample queue configurations flow writes its queue-age check with the two
@@ -799,6 +802,34 @@ nine and none covered this. `action-allowed-in-flow-type` landed the same day
 as the tenth, driven by `FLOW_TYPE_RESTRICTIONS` in
 `packages/core/src/actions.ts`, which is transcribed from this reference.
 SPEC.md lists the current set.
+
+37. Service validation sweep (2026-09-29, sandbox, us-west-2). Every modeled
+    type was created in a minimal flow carrying only the error branches the
+    catalog then marked required (Lex, whose sandbox has no bot, was not).
+    Four types were refused, each with `InvalidContactFlowException` naming
+    the problem, and the catalog now says what the service enforces:
+    - `TransferContactToQueue` and `DequeueContactAndTransferToQueue` need
+      `QueueAtCapacity` as well as the catch-all ("Action is missing required
+      error. Error: QueueAtCapacity"); either branch alone is refused. The
+      pages list it without saying it is required.
+    - `CheckMetricData` needs `NoMatchingCondition` whatever the metric, and
+      at least one condition ("Action is missing required property. Path:
+      Transitions.Conditions", with `Conditions` empty or absent). The
+      catalog's `minConditions` records the second, and `error-branches`
+      reports both.
+    - `UpdateContactRecordingBehavior` takes no error branch at all: the
+      service refused `NoMatchingError` ("Invalid Action error. Error:
+      NoMatchingError") and accepted the action with `Errors` empty. The
+      page's Errors section had been read as the usual catch-all.
+    - `GetParticipantInput`: see the paragraph above the constraints.
+    Two refusals were the fixtures' parameters, not the catalog: the
+    `contact-data` fixture's `UpdateContactData` (Voice ID fields on an
+    instance without Voice ID) and the `contact-routing` fixture's first
+    `CreateCallbackContact` both came back "Invalid Action type", and each
+    type was accepted with minimal parameters. A `Wait` with the
+    `flow-control` fixture's `Events` and conditions was refused ("Invalid
+    Action property value") and stays as the page describes it until a
+    console export shows the shape.
 
 ## Per-action parameter shapes
 

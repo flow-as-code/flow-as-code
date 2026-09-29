@@ -1,0 +1,5 @@
+---
+"@flow-as-code/core": minor
+---
+
+Lint now requires what Amazon Connect enforces when a flow is created, found by creating every modeled action type in a sandbox instance (2026-09-29; `conformance/flow-language/actions.md`, rule 37). `error-branches` requires `QueueAtCapacity` on `TransferContactToQueue` and `DequeueContactAndTransferToQueue`, and `NoMatchingCondition` and at least one condition on `CheckMetricData` (the catalog's new `minConditions`, read through `minConditionsFor`). It also reports an error branch the action's type does not have, which the service refuses. `conditional-shape` requires `StoreInput` on `GetParticipantInput`, and `NoMatchingCondition` whenever `StoreInput` is not "True". `UpdateContactRecordingBehavior` takes no error branch: the service refuses `NoMatchingError` there, so the builder no longer writes one, its config drops `onError`, and a document carrying the branch reads back as a GenericBlock until the branch is removed. Each of these flows passed lint before and was refused at deploy.

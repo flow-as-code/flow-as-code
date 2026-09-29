@@ -120,6 +120,12 @@ export interface CatalogTransitions {
   next: NextRule;
   conditions: ConditionsKind;
   /**
+   * The fewest conditions the service accepts, when it refuses an action
+   * without any (CheckMetricData, observed 2026-09-29). error-branches
+   * reports an action with fewer.
+   */
+  minConditions?: number;
+  /**
    * For kind fixed: the operands, in the order the builder emits them. For
    * kind enum: the operands the page names, when it names them, in the order
    * the studio offers them.
@@ -243,6 +249,11 @@ export function builderErrors(type: string): string[] {
 /** How an action of this type uses Conditions, or undefined for an unmodeled type. */
 export function conditionsKind(type: string): ConditionsKind | undefined {
   return modeledEntry(type)?.transitions.conditions;
+}
+
+/** The fewest conditions an action of this type must carry; 0 when the catalog sets none. */
+export function minConditionsFor(type: string): number {
+  return modeledEntry(type)?.transitions.minConditions ?? 0;
 }
 
 /** The catalog's rule for NextAction on this type, or undefined for an unmodeled type. */

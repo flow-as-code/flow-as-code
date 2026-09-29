@@ -1,0 +1,69 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "case",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "set-queue",
+    "Actions": [
+      {
+        "Identifier": "set-queue",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "$.Attributes.queueArn"
+        },
+        "Transitions": {
+          "NextAction": "transfer",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "transfer",
+        "Type": "TransferContactToQueue",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 540,
+      "y": 20
+    },
+    "set-queue": {
+      "x": 20,
+      "y": 20
+    },
+    "transfer": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": []
+}

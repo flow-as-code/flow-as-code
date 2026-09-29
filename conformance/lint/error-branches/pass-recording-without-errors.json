@@ -5,25 +5,8 @@
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "announce",
+    "StartAction": "record",
     "Actions": [
-      {
-        "Identifier": "announce",
-        "Type": "MessageParticipant",
-        "Parameters": {
-          "Text": "This call may be recorded."
-        },
-        "Transitions": {
-          "NextAction": "record",
-          "Errors": [
-            {
-              "ErrorType": "NoMatchingError",
-              "NextAction": "record"
-            }
-          ],
-          "Conditions": []
-        }
-      },
       {
         "Identifier": "record",
         "Type": "UpdateContactRecordingBehavior",
@@ -50,17 +33,13 @@
     ]
   },
   "layout": {
-    "announce": {
-      "x": 0,
-      "y": 0
+    "bye": {
+      "x": 280,
+      "y": 20
     },
     "record": {
-      "x": 200,
-      "y": 0
-    },
-    "bye": {
-      "x": 400,
-      "y": 0
+      "x": 20,
+      "y": 20
     }
   },
   "refs": []

@@ -49,6 +49,7 @@ import {
   UpdateContactData,
   UpdateContactEventHooks,
   UpdateContactRecordingAndAnalyticsBehavior,
+  UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
@@ -203,6 +204,23 @@ describe("error branch wiring", () => {
     expect(
       () => new UpdateFlowLoggingBehavior({ id: "log", behavior: cast<never>("On"), next: "n" }),
     ).toThrow(/must be Enabled or Disabled/);
+  });
+
+  it("writes UpdateContactRecordingBehavior with no error branch, which the service refuses", () => {
+    // CreateContactFlow refused NoMatchingError on this action and accepted
+    // it with Errors empty (2026-09-29; conformance/flow-language/actions.md,
+    // rule 37). An earlier builder wrote the catch-all.
+    const block = new UpdateContactRecordingBehavior({
+      id: "record",
+      recordedParticipants: ["Agent", "Customer"],
+      next: "n",
+    });
+    expect(block.toAction()).toEqual({
+      Identifier: "record",
+      Type: "UpdateContactRecordingBehavior",
+      Parameters: { RecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] } },
+      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
   });
 
   it("writes recording and analytics behavior in the page's shapes and takes one form per block", () => {
