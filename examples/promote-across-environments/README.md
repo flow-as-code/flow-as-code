@@ -1,7 +1,7 @@
 # Promote one flow across two environments
 
-One FlowDoc, deployed to a dev environment and a prod environment, on both
-deploy paths, with no per-environment ARN table anywhere.
+One FlowDoc, deployed to a dev environment and a prod environment, on every
+deploy path, with no per-environment ARN table anywhere.
 
 This is the claim the rest of the repository makes in prose (`README.md`,
 `docs/adr/0004-prior-art-aws-l2-cdk-library.md`), demonstrated with commands you
@@ -22,6 +22,7 @@ refs.dev.tfmap.json                   dev's terraform ADDRESSES, one per referen
 refs.prod.tfmap.json                  prod's terraform addresses, same references
 terraform/dev/                        your own dev configuration: provider, resources
 terraform/prod/                       your own prod configuration: provider, remote state
+flowascode/dev/, flowascode/prod/     the same halves for the flowascode provider
 cdk/app.ts                            one CDK app, two stacks, two binders
 ```
 
@@ -161,6 +162,44 @@ Success! The configuration is valid.
 instance id (`TF_VAR_connect_instance_id`, which the emitted `variables.tf`
 declares and nothing in this repository has a value for).
 
+## Step 2b: the flowascode provider path
+
+The same flow, the same two address maps, emitted for the
+`flow-as-code/flowascode` provider instead: the flow becomes one
+`flowascode_contact_flow` resource with an `action` block per action, and the
+provider creates it through the Amazon Connect API rather than through
+`aws_connect_contact_flow`.
+
+```
+npx flow-cli emit flows/ --target flowascode --address-map refs.dev.tfmap.json  --out build/flowascode-dev
+npx flow-cli emit flows/ --target flowascode --address-map refs.prod.tfmap.json --out build/flowascode-prod
+diff -r build/flowascode-dev build/flowascode-prod
+```
+
+```
+diff -r build/flowascode-dev/flows.tf build/flowascode-prod/flows.tf
+14,16c14,16
+<     "hours:main-line"           = aws_connect_hours_of_operation.main_line.arn
+<     "lambda:appointment-lookup" = aws_lambda_function.appointment_lookup.arn
+<     "queue:appointments"        = aws_connect_queue.appointments.arn
+---
+>     "hours:main-line"           = data.terraform_remote_state.platform.outputs.main_line_hours_arn
+>     "lambda:appointment-lookup" = data.terraform_remote_state.platform.outputs.appointment_lookup_arn
+>     "queue:appointments"        = data.terraform_remote_state.platform.outputs.appointments_queue_arn
+```
+
+Three files each (`flows.tf`, `variables.tf`, `versions.tf.example`), and the
+difference is the resource's `refs` block: the action blocks name
+`"queue:appointments"`, and only `refs` says which queue that is in each
+environment. Neither tree holds an ARN.
+
+`flowascode/dev/` and `flowascode/prod/` are the environment halves for this
+path. Their `resources.tf` files are the Terraform path's, byte for byte (the
+test holds them equal); their `providers.tf` adds the flowascode provider
+beside hashicorp/aws. Validating the assembled trees needs the provider on a
+registry, which it is not yet, so that step is not shown here and the test
+marks it pending.
+
 ## Step 3: the CDK path
 
 There is no map here at all. `FlowSet` takes a `TokenBinder`, and each binder
@@ -231,13 +270,15 @@ npx vitest run --project repo tests/promoteAcrossEnvironments.test.ts
 
 ```
 Test Files  1 passed (1)
-     Tests  12 passed | 2 skipped (14)
+     Tests  23 passed | 2 skipped | 1 todo (26)
 ```
 
 It reads the files in this directory, emits both Terraform trees, asserts the
 difference set is exactly `["flow_refs.tf"]`, asserts each `flow_refs.tf` holds
-its own environment's addresses and no ARN, and synthesizes the CDK app to
-compare the two stacks.
+its own environment's addresses and no ARN, does the same for the two
+flowascode trees (difference set `["flows.tf"]`, and only inside `refs`), and
+synthesizes the CDK app to compare the two stacks. The todo is step 2b's
+validation, pending the provider's registry release.
 
 The two skipped tests are step 2's `tofu validate`, which needs a real `tofu` and
 a provider download. They are gated on `RUN_TOFU_VALIDATE=1`, like every other
@@ -249,7 +290,7 @@ RUN_TOFU_VALIDATE=1 npx vitest run --project repo tests/promoteAcrossEnvironment
 
 ```
 Test Files  1 passed (1)
-     Tests  14 passed (14)
+     Tests  25 passed | 1 todo (26)
 ```
 
 ## What this example does not do

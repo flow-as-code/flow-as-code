@@ -5,8 +5,7 @@
 // examples/promote-across-environments, run rather than described.
 //
 // The repository claims that one FlowDoc reaches two environments without a
-// per-environment ARN table (README.md, docs/04-release-and-positioning.md,
-// docs/drafts/positioning-post.md). Nothing proved it: every FlowSet test built
+// per-environment ARN table (README.md). Nothing proved it: every FlowSet test built
 // exactly one stack, and the two emit-tf fixtures each emit one tree. This runs
 // the example's own inputs, on both paths, and holds the claim to what the
 // tools actually produce.
@@ -17,6 +16,12 @@
 // giving one tree a different `instanceIdExpression` adds flows.tf and drops
 // variables.tf from the other tree and turns it red too.
 //
+// The flowascode path (examples/promote-across-environments/flowascode/) is held
+// the same way: its two trees differ in exactly flows.tf, and only inside the
+// refs block. Mutation-verified: emitting the prod tree with the dev map turns
+// the difference set empty and red. Its `tofu validate` half waits for the
+// provider to resolve from a registry (B03e).
+//
 // The `tofu validate` half is gated on RUN_TOFU_VALIDATE=1 like every other
 // test that runs the real tool, and it uses the same harness and provider
 // cache. The emit-tf CI job is what sets that variable, so this file also holds
@@ -25,6 +30,7 @@
 import { readFileSync } from "node:fs";
 
 import { collectRefs, type FlowDoc } from "@flow-as-code/core";
+import { emitFlowascode } from "@flow-as-code/hcl";
 import { emitTf } from "@flow-as-code/tf";
 import { Template } from "aws-cdk-lib/assertions";
 import { describe, expect, it } from "vitest";
@@ -214,6 +220,80 @@ describe("one FlowDoc, two Terraform trees", () => {
       600_000,
     );
   });
+});
+
+describe("one FlowDoc, two flowascode trees", () => {
+  const emitNative = (addressMap: Record<string, string>): Record<string, string> =>
+    emitFlowascode([doc], { addressMap }).files;
+  const dev = emitNative(maps.dev);
+  const prod = emitNative(maps.prod);
+
+  /** The resource's refs block, and flows.tf with that block removed. */
+  const REFS_BLOCK = /^ {2}refs = \{\n(?: {4}.*\n)*? {2}\}\n/m;
+  const split = (flows: string): { refs: string; rest: string } => {
+    const refs = REFS_BLOCK.exec(flows)?.[0] ?? "";
+    return { refs, rest: flows.replace(REFS_BLOCK, "") };
+  };
+
+  it("emits the same set of files for both environments", () => {
+    const names = Object.keys(dev).sort();
+    expect(Object.keys(prod).sort()).toEqual(names);
+    expect(names).toEqual(["flows.tf", "variables.tf", "versions.tf.example"]);
+  });
+
+  it("differs in exactly one file, flows.tf", () => {
+    const differing = Object.keys(dev)
+      .filter((name) => dev[name] !== prod[name])
+      .sort();
+    expect(differing).toEqual(["flows.tf"]);
+  });
+
+  it("differs only inside the refs block", () => {
+    const devFlows = split(dev["flows.tf"] ?? "");
+    const prodFlows = split(prod["flows.tf"] ?? "");
+    // A pattern that matched nothing would make the two rests equal for the
+    // wrong reason: the whole files, which differ.
+    expect(devFlows.refs).toContain('"queue:appointments"');
+    expect(prodFlows.refs).toContain('"queue:appointments"');
+    expect(devFlows.rest).toBe(prodFlows.rest);
+    expect(devFlows.rest).toContain('queue_id = "queue:appointments"');
+  });
+
+  it.each([
+    ["dev", maps.dev, maps.prod],
+    ["prod", maps.prod, maps.dev],
+  ])("gives %s a refs block holding its own addresses and no ARN", (name, own, other) => {
+    const flows = (name === "dev" ? dev : prod)["flows.tf"] ?? "";
+    const { refs } = split(flows);
+    for (const address of Object.values(own)) expect(refs).toContain(address);
+    for (const address of Object.values(other)) expect(flows).not.toContain(address);
+    expect(flows).not.toContain("TODO: no terraform address");
+  });
+
+  it("writes no literal ARN into either tree", () => {
+    for (const files of [dev, prod]) {
+      for (const [path, content] of Object.entries(files)) {
+        expect(content, path).not.toMatch(/arn:aws/i);
+      }
+    }
+  });
+
+  it.each(["dev", "prod"] as const)(
+    "gives %s the same resources as the Terraform path, and the flowascode provider",
+    (name) => {
+      // The two paths deploy the same flow against the same supporting
+      // resources, so the environment halves are copies, held equal here.
+      expect(readExample(`flowascode/${name}/resources.tf`)).toBe(
+        readExample(`terraform/${name}/resources.tf`),
+      );
+      const providers = readExample(`flowascode/${name}/providers.tf`);
+      expect(providers).toContain('source  = "flow-as-code/flowascode"');
+      expect(providers).toContain('version = "~> 0.1"');
+      expect(providers).toContain('provider "flowascode"');
+    },
+  );
+
+  it.todo("validates each tree once flow-as-code/flowascode resolves from a registry (B03e)");
 });
 
 /** The Content property is a plain string or an `Fn::Join` of strings and intrinsics. */

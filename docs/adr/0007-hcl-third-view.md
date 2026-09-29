@@ -54,3 +54,45 @@ invariant, since both read to the same action, and the catalog's shape, not the
 builder, decides which (a form the builder leaves generic can still be typed in
 HCL). A `.flow.tf` written by hand in a shape the writer would not produce is
 normalized on its first regeneration.
+
+## Round-trip limits
+
+Recorded as building the reader, the writer and the provider found them. Each
+is held by a fixture or a test named here, so none is a promise made in prose
+only.
+
+- Typed or generic is the writer's choice, not the author's. An `integer`
+  parameter holding a JSONPath makes the whole action `generic`, because the
+  provider's attribute for that kind is a number (contract rule 11), and an
+  `integerString` a JavaScript number cannot hold exactly (`-0`, anything past
+  2^53) stays a string. `packages/hcl/src/document.test.ts` holds both, and
+  the `numbers` round-trip case holds the ordinary forms.
+- Positions come back as integers. A fractional position (the console exports
+  them) is rounded on write, and a `position` block equal to the auto-layout's
+  is not written at all, so a document laid out by the owned layout carries no
+  positions in HCL (rule 15; `positions`, `missing-positions`).
+- Comments survive only under `@keep`, directly above the resource or an
+  action block; every other comment is gone after the next regeneration
+  (`regenerate/keep-comments`, `parse/comments-everywhere`).
+- Address sugar is the TypeScript reader's alone. `aws_connect_queue.x.arn`
+  in a reference field is rewritten to a key plus a `refs` entry on the next
+  save; the provider refuses the same text as `REF_EXPRESSION_REFUSED`, since
+  it sees only the evaluated value (`refuse-alias-sugar`, `sugar-*`).
+- Some refusals belong to Terraform. A lone surrogate escape and a repeated
+  attribute are refused by HCL's own parser before the provider sees
+  anything, and an unknown attribute or block by Terraform's schema check;
+  the TypeScript reader refuses the same inputs with the contract's codes
+  (`terraformError` in those cases' `case.json`).
+- A literal ARN in `refs` is refused only by the TypeScript reader (rule 20).
+  Terraform validates a resource twice per plan, the second time with
+  references to existing resources already resolved to ARNs, so the provider
+  cannot tell a literal from a resolved address
+  (`refuse-literal-arn-in-refs`, `typescriptOnly`).
+- Layout is not drift. `content_hash` hashes the content without Metadata,
+  so moving a block on the canvas changes `content` but not the hash a module
+  version is keyed to, and the provider's drift check ignores Metadata too (the provider's `TestLayoutIsNotDrift`).
+- Import names keys after the live resources. A flow read from an instance
+  with no `refs` in state binds each ARN through the instance's inventory,
+  and each key is derived from that resource's name, so a key chosen
+  differently when the flow was authored comes back under the name-derived
+  one. Drift on a managed flow keeps the keys in state. The provider's `TestImportRecoversBlocksAndBindings` and `TestDriftShowsAsBlocksAndIsCorrected` hold the two.
