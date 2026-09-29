@@ -27,11 +27,13 @@ Added 2026-09-01: `GetParticipantInput` models the DTMF menu form of the action 
 
 ## Lint rules (ids stable, fixtures in /conformance)
 
-Eleven rules, in the order `allRules` lists them (`src/lint/rules/index.ts`): no-literal-arn, no-unresolved-token, reachable-blocks, error-branches, terminal-blocks, module-depth-5, prompt-length-3000, recording-consent-before-record, unique-names, action-allowed-in-flow-type, action-count.
+Twelve rules, in the order `allRules` lists them (`src/lint/rules/index.ts`): no-literal-arn, no-unresolved-token, reachable-blocks, error-branches, terminal-blocks, module-depth-5, prompt-length-3000, recording-consent-before-record, unique-names, action-allowed-in-flow-type, action-count, conditional-shape.
 
 `action-allowed-in-flow-type` (added 2026-08-31): almost every Connect action documents the flow types it is legal in, and violating one fails at create time with a message that does not name the offending block. Restrictions are recorded per action in conformance/flow-language/actions.md. `action-count` reports a flow whose Action count exceeds the 250 Connect allows, the same limit the schema enforces.
 
 Added 2026-09-01: `prompt-length-3000` also counts a `GetParticipantInput` body, which is billed the same way as a message. `recording-consent-before-record` treats a `GetParticipantInput` that plays a body as an announcement; a menu with no body is silent and does not satisfy the rule. Content is what counts on both announcing actions: an empty or blank `Text` or `SSML` plays nothing, on a menu or a `MessageParticipant`, and the studio writes `Text: ""` until the author types. `action-allowed-in-flow-type` restricts `GetParticipantInput` to contact, transfer, customer queue and module flows.
+
+`conditional-shape` (added 2026-09-29) enforces the catalog's `shapes`: which parameters, error branches and conditions an action must or must not carry given another parameter's static value. `GetParticipantInput` is the first: with `StoreInput` `"True"` it needs `InputValidation` and takes no conditions and no `NoMatchingCondition` or `InputTimeLimitExceeded` branch; without it, it needs the `InputTimeLimitExceeded` branch and takes no `InputValidation` or `InvalidPhoneNumber`. Each shape records its source, the action's page or a dated observation: the timeout branch's rule comes from the service refusing the action on the sandbox, not from the page. A deciding parameter that is not a plain string is not checked.
 
 `no-literal-arn` and `no-unresolved-token` are hard rules: the studio may never save through them (docs/02-studio-design.md). Every other rule reports.
 

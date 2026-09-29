@@ -123,9 +123,8 @@ enforces it at create (sandbox, 2026-09-29): with `"True"` the action needs
 `InputValidation` and refuses `Conditions`, `NoMatchingCondition` and
 `InputTimeLimitExceeded`; with `"False"` or absent it needs both of those
 error branches. The page says the first three; the timeout branch was found
-by deploying. Lint does not encode this yet (no catalog field expresses a
-condition on a parameter's value), so a document can pass lint and be
-refused.
+by deploying. The catalog's `shapes` encode both forms and the
+`conditional-shape` lint rule enforces them.
 
 ## Constraints worth encoding
 

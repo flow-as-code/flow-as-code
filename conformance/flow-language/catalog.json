@@ -1423,6 +1423,47 @@
           ]
         }
       ],
+      "shapes": [
+        {
+          "when": {
+            "key": "StoreInput",
+            "equals": "True"
+          },
+          "requires": {
+            "parameters": [
+              "InputValidation"
+            ]
+          },
+          "forbids": {
+            "errors": [
+              "NoMatchingCondition",
+              "InputTimeLimitExceeded"
+            ],
+            "conditions": true
+          },
+          "source": "The page: InputValidation is required if and only if StoreInput is True, NoMatchingCondition may be defined only if StoreInput is False, and conditions are not supported. InputTimeLimitExceeded: refused by the service on 2026-09-29 (sandbox), which the page does not say."
+        },
+        {
+          "when": {
+            "key": "StoreInput",
+            "notEquals": "True"
+          },
+          "requires": {
+            "errors": [
+              "InputTimeLimitExceeded"
+            ]
+          },
+          "forbids": {
+            "parameters": [
+              "InputValidation"
+            ],
+            "errors": [
+              "InvalidPhoneNumber"
+            ]
+          },
+          "source": "The page: InputValidation only with StoreInput True, InvalidPhoneNumber only with StoreInput True. InputTimeLimitExceeded: the service refused the action without it on 2026-09-29 (sandbox), which the page does not say."
+        }
+      ],
       "refs": [
         {
           "path": "PromptId",

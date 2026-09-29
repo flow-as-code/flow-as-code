@@ -139,6 +139,20 @@ export interface CatalogTransitions {
 
 export type ActionCategory = "contact" | "participant" | "flowControl" | "interaction";
 
+/**
+ * A shape an action must take when one of its parameters has, or lacks, a
+ * static value: GetParticipantInput with StoreInput "True" needs
+ * InputValidation and takes no conditions. The conditional-shape lint rule
+ * reads these. An absent parameter counts as not equal to any value.
+ */
+export interface CatalogShape {
+  when: { key: string; equals?: string; notEquals?: string };
+  requires?: { parameters?: readonly string[]; errors?: readonly string[] };
+  forbids?: { parameters?: readonly string[]; errors?: readonly string[]; conditions?: boolean };
+  /** Where the rule comes from: the action's page, or an observation with its date. */
+  source: string;
+}
+
 export interface ModeledAction {
   category: ActionCategory;
   doc: string;
@@ -150,6 +164,8 @@ export interface ModeledAction {
   flowTypes: readonly string[] | "unrestricted";
   parameters: readonly CatalogParameter[];
   constraints?: readonly CatalogConstraint[];
+  /** Parameter-dependent shapes; see CatalogShape. */
+  shapes?: readonly CatalogShape[];
   refs: readonly CatalogRef[];
   /** Paths whose string is billed prompt text (Text and SSML forms). */
   textBodies?: readonly string[];
