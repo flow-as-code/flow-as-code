@@ -213,6 +213,12 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html
  */
 export const OPTIONAL_CATCH_ALL: readonly string[] = [
+  // MessageParticipant: the page lists the catch-all, but CreateContactFlow
+  // accepts the action without it, and a full export of Connect's default and
+  // sample flows carries 59 messages with no error branch (2026-09-29;
+  // conformance/flow-language/actions.md, rule 37).
+  // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipant.html
+  ActionType.MessageParticipant,
   ActionType.MessageParticipantIteratively,
   ActionType.Loop,
   ActionType.UpdateContactTextToSpeechVoice,

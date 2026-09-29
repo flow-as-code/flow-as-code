@@ -149,7 +149,15 @@ export type MessageBody =
   | { ssml: string; text?: never; prompt?: never }
   | { prompt: Ref<"prompt"> | JsonPath; text?: never; ssml?: never };
 
-export type MessageParticipantConfig = Wired & MessageBody;
+/**
+ * `onError` is optional: the service accepts the action without the
+ * catch-all, and Connect's own sample and default flows omit it on most of
+ * their messages (CreateContactFlow and a full instance export, 2026-09-29;
+ * conformance/flow-language/actions.md, rule 37). The builder wires it when
+ * given, as the page describes.
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipant.html
+ */
+export type MessageParticipantConfig = { id: string; next: Target; onError?: Target } & MessageBody;
 
 export class MessageParticipant extends Block {
   readonly type = ActionType.MessageParticipant;
@@ -166,7 +174,10 @@ export class MessageParticipant extends Block {
   }
 
   protected transitions(): Transitions {
-    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+    return wire(
+      this.config.next,
+      this.config.onError === undefined ? [] : [[NO_MATCHING_ERROR, this.config.onError]],
+    );
   }
 }
 

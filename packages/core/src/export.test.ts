@@ -470,8 +470,12 @@ describe("exportFlow", () => {
         name: "default-queue-transfer",
         connectType: "QUEUE_TRANSFER",
       });
-      expect(codegen(doc)).toBe(
-        read("conformance/export/omitted-parameters/expected/default-queue-transfer.flow.ts"),
+      const out = codegen(doc);
+      expect(out).toBe(
+        golden_(
+          "conformance/export/omitted-parameters/expected/default-queue-transfer.flow.ts",
+          out,
+        ),
       );
     });
 

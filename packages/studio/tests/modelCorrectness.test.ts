@@ -258,7 +258,11 @@ describe("M4 condition edges only move onto blocks that take conditions", () => 
     // no demotion; without the explicit check the edge landed as a bare
     // NextAction no drag could produce, and the done drag then overwrote it.
     const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
-    const message = addBlock(loop.doc, "MessageParticipant", { x: 0, y: 1000 });
+    // The edge starts on an attribute update without its catch-all, generic
+    // before and after the edge leaves it, so only the Loop is under test. (A
+    // message will not do: its catch-all is optional, so a message with a
+    // next edge is typed and giving the edge up would demote it.)
+    const message = addBlock(loop.doc, "UpdateContactAttributes", { x: 0, y: 1000 });
     const wired = connectNodes(message.doc, message.id, "hang-up", "primary")!;
     expect(rewireEdge(wired, nextEdgeId(message.id), loop.id, "hang-up")).toBeUndefined();
     expect(getAction(wired, loop.id)?.Transitions.NextAction).toBeUndefined();
@@ -440,7 +444,11 @@ describe("C3 a new block can be wired up", () => {
     // twice. Before the rule was read from the catalog this knew only a
     // menu's no-match error, and the done branch stayed behind.
     const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
-    const message = addBlock(loop.doc, "MessageParticipant", { x: 0, y: 1000 });
+    // The edge starts on an attribute update without its catch-all, generic
+    // before and after the edge leaves it, so only the Loop is under test. (A
+    // message will not do: its catch-all is optional, so a message with a
+    // next edge is typed and giving the edge up would demote it.)
+    const message = addBlock(loop.doc, "UpdateContactAttributes", { x: 0, y: 1000 });
     const doneOnly: FlowDoc = {
       ...message.doc,
       content: {
@@ -901,9 +909,11 @@ describe("M5 a GetParticipantInput is authored as a DTMF menu", () => {
           }
         : x,
     );
-    // The edge being moved starts on an unfinished message, which can give it
-    // up without the guard having a say; what is under test is the check.
-    const b = addBlock(a.doc, "MessageParticipant", { x: 0, y: 1000 });
+    // The edge being moved starts on an unfinished attribute update, generic
+    // until its catch-all is wired, which can give it up without the guard
+    // having a say; what is under test is the check. (A message is typed
+    // with only a next edge, its catch-all being optional.)
+    const b = addBlock(a.doc, "UpdateContactAttributes", { x: 0, y: 1000 });
     const disagreeing = connectNodes(b.doc, b.id, "hang-up", "primary")!;
     expect(rewireEdge(disagreeing, nextEdgeId(b.id), a.id, "hang-up")).toBeUndefined();
 

@@ -2,7 +2,7 @@
   "expect": [
     {
       "rule": "error-branches",
-      "blockId": "say",
+      "blockId": "set",
       "messageIncludes": "NoMatchingError"
     }
   ],
@@ -13,13 +13,16 @@
     "connectType": "CONTACT_FLOW",
     "content": {
       "Version": "2019-10-30",
-      "StartAction": "say",
+      "StartAction": "set",
       "Actions": [
         {
-          "Identifier": "say",
-          "Type": "MessageParticipant",
+          "Identifier": "set",
+          "Type": "UpdateContactAttributes",
           "Parameters": {
-            "Text": "Hello."
+            "Attributes": {
+              "caller": "known"
+            },
+            "TargetContact": "Current"
           },
           "Transitions": {
             "NextAction": "bye",
@@ -36,12 +39,12 @@
       ]
     },
     "layout": {
-      "say": {
-        "x": 0,
-        "y": 0
-      },
       "bye": {
         "x": 200,
+        "y": 0
+      },
+      "set": {
+        "x": 0,
         "y": 0
       }
     },
