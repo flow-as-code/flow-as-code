@@ -115,6 +115,14 @@ class FixtureClient implements ConnectInventoryClient {
     return Promise.resolve(this.inventory.views ?? []);
   }
 
+  listContactFlowModuleAliases(id: string): Promise<{ aliasId: string; name: string }[]> {
+    return Promise.resolve(
+      (this.inventory.moduleAliases ?? [])
+        .filter((a) => a.moduleArn.endsWith(`/${id}`))
+        .map((a) => ({ aliasId: a.aliasId, name: a.name })),
+    );
+  }
+
   describeContactFlowModule(id: string): Promise<DescribedContactFlowModule> {
     const content = this.content(id);
     const base = id.replace(":$SAVED", "");
@@ -577,7 +585,9 @@ describe("exportInstance", () => {
 
   it("keeps the alias or version a flow invokes a module through", async () => {
     // Connect stores InvokeFlowModule's FlowModuleId as written, qualifier and
-    // all (sandbox, 2026-09-29): an alias name, a version, or $LATEST.
+    // all (sandbox, 2026-09-29), and runs an alias only through its id: the
+    // flow here invokes <module>:<alias id>, a version, and $LATEST, and the
+    // inventory's alias listing names the id.
     const client = new FixtureClient("module-alias");
     const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
     expect(result.failures).toEqual([]);
@@ -602,6 +612,28 @@ describe("exportInstance", () => {
       expect(serialize(exported.doc)).toBe(read(`${golden}.flowdoc.json`));
       expect(exported.code).toBe(read(`${golden}.flow.ts`));
     }
+  });
+
+  it("keeps an alias id when the inventory cannot name it", () => {
+    // A client without listContactFlowModuleAliases, or an alias whose name is
+    // not a slug: the invocation still exports, with the id as the alias.
+    const inventory = readJson<InstanceInventory>("conformance/export/module-alias/inventory.json");
+    const content = read(
+      "conformance/export/module-alias/flows/cccc3333-0000-4000-8000-000000000041.json",
+    );
+    const bare = { ...inventory, moduleAliases: undefined };
+    const doc = exportFlow(content, buildReverseMap(bare), {
+      name: "survey-line",
+      connectType: "CONTACT_FLOW",
+    });
+    expect(doc.content.Actions[0]!.Parameters.FlowModuleId).toBe(
+      "${cdref:module:survey@a11a5000-0000-4000-8000-000000000041}",
+    );
+    const odd = buildReverseMap({
+      ...inventory,
+      moduleAliases: [{ ...inventory.moduleAliases![0]!, name: "Prod Alias" }],
+    });
+    expect(odd.warnings.join("\n")).toContain('Module alias "Prod Alias"');
   });
 
   it("keeps two aliases of one module apart when a resource map binds each", () => {
@@ -761,6 +793,35 @@ describe("createConnectInventoryClient", () => {
     });
     const queues = await client.listQueues();
     expect(queues.map((q) => q.name)).toEqual(["One", "Two"]);
+    expect(fake.sent[1]?.input.NextToken).toBe("page2");
+  });
+
+  it("lists a module's aliases by id and name, across pages", async () => {
+    const fake = sender({
+      ListContactFlowModuleAliasesCommand: [
+        {
+          ContactFlowModuleAliasSummaryList: [{ AliasId: "a-1", AliasName: "prod", Version: 3 }],
+          NextToken: "page2",
+        },
+        {
+          ContactFlowModuleAliasSummaryList: [
+            { AliasId: "a-2", AliasName: "beta" },
+            { Version: 1 },
+          ],
+        },
+      ],
+    });
+    const client = createConnectInventoryClient({
+      connect: fake,
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    expect(await client.listContactFlowModuleAliases!("module-1")).toEqual([
+      { aliasId: "a-1", name: "prod" },
+      { aliasId: "a-2", name: "beta" },
+    ]);
+    expect(fake.sent[0]?.input.ContactFlowModuleId).toBe("module-1");
     expect(fake.sent[1]?.input.NextToken).toBe("page2");
   });
 

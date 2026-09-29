@@ -236,6 +236,20 @@ export interface InstanceInventory {
   lambdaFunctions: string[];
   lexBots: LexBotSummary[];
   views: ViewSummary[];
+  /**
+   * Each module's aliases, when the client can list them. A flow invokes an
+   * alias as `<module ARN>:<alias id>`, the only qualifier Connect runs as
+   * the alias (conformance/hcl/README.md rule 27), so the reverse map needs
+   * the id to read the invocation back as `module:<name>@<alias name>`.
+   */
+  moduleAliases?: ModuleAliasSummary[];
+}
+
+/** One alias of one module, from ListContactFlowModuleAliases. */
+export interface ModuleAliasSummary {
+  moduleArn: string;
+  aliasId: string;
+  name: string;
 }
 
 /** A described flow or module: the operation that carries the Flow language. */
@@ -280,6 +294,14 @@ export interface ConnectInventoryClient {
   listLambdaFunctions(): Promise<string[]>;
   listBots(): Promise<LexBotSummary[]>;
   listViews(): Promise<ViewSummary[]>;
+  /**
+   * A module's aliases. Optional, so a client written before it still works;
+   * without it an invocation through an alias exports as the alias id.
+   * https://docs.aws.amazon.com/connect/latest/APIReference/API_ListContactFlowModuleAliases.html
+   */
+  listContactFlowModuleAliases?(
+    contactFlowModuleId: string,
+  ): Promise<{ aliasId: string; name: string }[]>;
 }
 
 export interface CollectInventoryOptions {
@@ -317,6 +339,15 @@ export async function collectInventory(
     client.listBots(),
     client.listViews(),
   ]);
+  const moduleAliases: ModuleAliasSummary[] = [];
+  if (client.listContactFlowModuleAliases !== undefined) {
+    for (const m of contactFlowModules) {
+      const id = m.id ?? m.arn.slice(m.arn.lastIndexOf("/") + 1);
+      for (const a of await client.listContactFlowModuleAliases(id)) {
+        moduleAliases.push({ moduleArn: m.arn, aliasId: a.aliasId, name: a.name });
+      }
+    }
+  }
   return {
     contactFlows,
     contactFlowModules,
@@ -326,6 +357,7 @@ export async function collectInventory(
     lambdaFunctions,
     lexBots,
     views,
+    ...(moduleAliases.length === 0 ? {} : { moduleAliases }),
   };
 }
 
@@ -464,7 +496,28 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
     add(bot.aliasArn, raw, "lex");
   }
 
-  return { byArn: assignNames(candidates, warnings), warnings };
+  const byArn = assignNames(candidates, warnings);
+  // An invocation through an alias names the alias by id; key it so the
+  // document reads module:<name>@<alias name>, the key the alias resource
+  // binds. An alias whose name is not a slug cannot ride in the alias slot,
+  // so its invocation keeps the id.
+  for (const a of inventory.moduleAliases ?? []) {
+    const module = byArn.get(normalizeArn(a.moduleArn));
+    if (module === undefined) continue;
+    if (!SLUG_PATTERN.test(a.name)) {
+      warnings.push(
+        `Module alias "${a.name}" of ${a.moduleArn} is not a slug; a flow invoking it exports with its alias id.`,
+      );
+      continue;
+    }
+    byArn.set(`${normalizeArn(a.moduleArn)}:${a.aliasId}`, {
+      token: token("module", module.name, a.name),
+      type: "module",
+      name: module.name,
+      alias: a.name,
+    });
+  }
+  return { byArn, warnings };
 }
 
 /**
@@ -1088,6 +1141,7 @@ interface ConnectCommands {
   ListLambdaFunctionsCommand: new (input: any) => any;
   ListBotsCommand: new (input: any) => any;
   ListViewsCommand: new (input: any) => any;
+  ListContactFlowModuleAliasesCommand: new (input: any) => any;
 }
 
 async function loadConnectCommands(): Promise<ConnectCommands> {
@@ -1208,6 +1262,21 @@ export function createConnectInventoryClient(
             ...summary(s),
             state: s.State,
           })),
+      ),
+
+    listContactFlowModuleAliases: (contactFlowModuleId) =>
+      paginate<{ aliasId: string; name: string }>(
+        (c, nextToken) =>
+          new c.ListContactFlowModuleAliasesCommand({
+            InstanceId: instanceId,
+            ContactFlowModuleId: contactFlowModuleId,
+            MaxResults: maxResults,
+            NextToken: nextToken,
+          }),
+        (r) =>
+          (r.ContactFlowModuleAliasSummaryList ?? [])
+            .filter((a: any) => typeof a.AliasId === "string" && typeof a.AliasName === "string")
+            .map((a: any) => ({ aliasId: a.AliasId as string, name: a.AliasName as string })),
       ),
 
     describeContactFlowModule: async (contactFlowModuleId) => {
