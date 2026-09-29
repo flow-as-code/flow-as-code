@@ -12,12 +12,16 @@
         "Type": "GetParticipantInput",
         "Parameters": {
           "InputTimeLimitSeconds": "5",
-          "StoreInput": "True",
+          "StoreInput": "False",
           "Text": "Press 1 if we solved your problem, or 2 if we did not."
         },
         "Transitions": {
           "NextAction": "done",
           "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "done"
+            },
             {
               "ErrorType": "NoMatchingCondition",
               "NextAction": "done"
@@ -27,7 +31,26 @@
               "NextAction": "done"
             }
           ],
-          "Conditions": []
+          "Conditions": [
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "1"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "2"
+                ]
+              }
+            }
+          ]
         }
       },
       {
