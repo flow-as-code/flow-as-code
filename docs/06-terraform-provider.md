@@ -5,10 +5,8 @@ applies it. This page is the reader's map: what the provider is, what a
 `.flow.tf` looks like, how it pairs with a document, which versions work
 together, how to migrate from `hashicorp/aws`, and how the provider is
 published. The contract itself is `conformance/hcl/README.md`; the decisions
-are ADR-0006 and ADR-0007.
-
-Sections marked "to be completed" fill in as their tasks land; each marker
-names the task.
+are ADR-0006 and ADR-0007. To learn it by doing, start with
+[Your first flow with the Terraform provider](tutorials/01-first-flow.md).
 
 ## What it is
 
@@ -115,9 +113,9 @@ The provider has its own semantic version from v0.1.0 and records the commit
 of `conformance/` it vendors. The FlowDoc format version it reads is the one
 the schema under `conformance/schema/` names at that commit.
 
-| Provider                | FlowDoc | Schema file             | Terraform     | OpenTofu       |
-| ----------------------- | ------- | ----------------------- | ------------- | -------------- |
-| to be completed by B04k | 0.2     | flowdoc-0.2.schema.json | 1.8 and later | 1.10 and later |
+| Provider | FlowDoc | Schema file             | Terraform     | OpenTofu       |
+| -------- | ------- | ----------------------- | ------------- | -------------- |
+| 0.1.x    | 0.2     | flowdoc-0.2.schema.json | 1.8 and later | 1.10 and later |
 
 A repository test holds the table's FlowDoc column to `FLOWDOC_VERSION` and
 its schema file to one present under `conformance/schema/`.
@@ -149,12 +147,19 @@ adopting it renames nothing.
 Releases are tagged `v*` in the provider repository. The release workflow
 checks the tag is on main, the changelog has the version, and the unit and
 conformance lane passes, with no credentials; goreleaser then builds and
-signs in a GitHub Environment whose GPG key and required reviewer mean a tag
-alone cannot publish. The same build goes to the Terraform Registry and is
-submitted to the OpenTofu registry. Every pull request also runs live
-acceptance tests against a sandbox Connect instance on both floors, and an
-unreachable sandbox blocks the merge. The lane has run green on both floors;
-the rest is to be completed by the first release.
+signs `SHA256SUMS` in a GitHub Environment whose GPG key and required reviewer
+mean a tag alone cannot publish. The signing key's fingerprint is in the
+provider repository's `SECURITY.md`, and its public half is `signing-key.asc`
+there. Every pull request also runs live acceptance tests against a sandbox
+Connect instance on both floors (Terraform 1.8, OpenTofu 1.10), and an
+unreachable sandbox blocks the merge.
+
+v0.1.0 was published on 2026-09-29 and is served by the Terraform Registry at
+https://registry.terraform.io/providers/flow-as-code/flowascode, where
+`terraform init` installs it with its signature checked. The same key is
+registered with the OpenTofu registry; the provider's own OpenTofu listing is
+pending, and until it lands `tofu init` cannot resolve
+`flow-as-code/flowascode`.
 
 ## Considered and not used
 

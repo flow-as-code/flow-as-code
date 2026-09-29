@@ -242,8 +242,8 @@ program
   .description(
     "Serve the local visual editor over a directory. The bridge binds 127.0.0.1 only, " +
       "picks a free port unless --port says otherwise, and keeps every <name>.flowdoc.json " +
-      "in sync with its <name>.flow.ts: a canvas save regenerates the builder source, and " +
-      "an edit to the source reloads the canvas.",
+      "in sync with its companion, <name>.flow.ts or <name>.flow.tf: a canvas save " +
+      "regenerates the companion, and an edit to the companion reloads the canvas.",
   )
   .argument("[dir]", "directory to open (default: the working directory)")
   .option("--port <port>", "port to listen on (default: a free port)")

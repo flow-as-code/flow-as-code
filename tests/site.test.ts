@@ -312,6 +312,9 @@ describe("the published site tree", () => {
       "og.png",
       "robots.txt",
       "sitemap.xml",
+      // The agent skills as plain markdown, copied from plugins/flow-as-code/
+      // skills/ (docs/07-agent-skills.md); tests/skills.test.ts holds the copy.
+      "skills",
       "studio",
       // Not a page and not a logo: the screenshot the READMEs show. npm and
       // GitHub can only render an image by absolute URL, so it lives here for

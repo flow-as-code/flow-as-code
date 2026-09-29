@@ -67,6 +67,7 @@ import {
 const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const SITE = join(ROOT, "site");
 const DEMO = join(ROOT, "packages", "studio", "dist-demo");
+const SKILLS = join(ROOT, "plugins", "flow-as-code", "skills");
 const BUILD_COMMAND = "npm run build";
 const LOGO_COMMAND = "npm run build:logo";
 const RASTER_COMMAND = "npm run build:raster";
@@ -134,6 +135,54 @@ const ROOT_ASSETS = [
  */
 const PAGES = [
   {
+    source: "docs/tutorials/01-first-flow.md",
+    slug: "docs/tutorial-first-flow",
+    group: "Tutorials: the Terraform provider",
+    title: "Your first flow with the Terraform provider",
+    description:
+      "Deploy a contact flow written as HCL action blocks with the flow-as-code/flowascode provider, and see what it does at plan time: lint that stops a missing branch or a pasted ARN, and a console edit shown as a diff to one action.",
+  },
+  {
+    source: "docs/tutorials/02-promote.md",
+    slug: "docs/tutorial-promote",
+    group: "Tutorials: the Terraform provider",
+    title: "Promote a flow from dev to prod",
+    description:
+      "One flow in a Terraform module, one root module per environment, and a pipeline that plans every environment, applies dev, and refuses to apply prod unless prod's plan carries the document dev ran. Also: looking resources up by name, and releasing shared modules through aliases.",
+  },
+  {
+    source: "docs/tutorials/03-adopt.md",
+    slug: "docs/tutorial-adopt",
+    group: "Tutorials: the Terraform provider",
+    title: "Bring existing flows under Terraform",
+    description:
+      "Take over flows built in the console or managed by hashicorp/aws without recreating them: import blocks with generated configuration, flow-cli export for a whole instance, and moved blocks from aws_connect_contact_flow.",
+  },
+  {
+    source: "docs/tutorials/04-studio.md",
+    slug: "docs/tutorial-studio",
+    group: "Tutorials: the Terraform provider",
+    title: "Edit a .flow.tf in the studio",
+    description:
+      "Keep a flow's HCL and the visual editor in step in both directions, keep refs bindings and @keep comments across canvas edits, and switch a flow's companion between HCL and TypeScript.",
+  },
+  {
+    source: "examples/terraform-provider/cookbook/README.md",
+    slug: "docs/example-terraform-provider-cookbook",
+    group: "Tutorials: the Terraform provider",
+    title: "The flow cookbook",
+    description:
+      "Complete flows for the Terraform provider, one pattern each and each applied to a live instance: business hours, a keypad menu, collected input, Lambda routing, a callback when the queue is full, a percentage split, a shared module released through an alias, and a generic block.",
+  },
+  {
+    source: "docs/07-agent-skills.md",
+    slug: "docs/agent-skills",
+    group: "Tutorials: the Terraform provider",
+    title: "Agent skills for AI coding agents",
+    description:
+      "The Agent Skills this repository ships for authoring, promoting and adopting flows and for flow-cli, how to install them in Claude Code as a plugin, and where any other agent can read them.",
+  },
+  {
     source: "docs/01-flowdoc-spec.md",
     slug: "docs/flowdoc-spec",
     group: "Format and design",
@@ -180,6 +229,14 @@ const PAGES = [
     title: "Promote one flow across two environments",
     description:
       "A walkthrough you can run: one FlowDoc reaching a dev and a prod environment down both the Terraform and the CDK path, with no per-environment ARN table, and what the example does not claim.",
+  },
+  {
+    source: "examples/terraform-provider/README.md",
+    slug: "docs/example-terraform-provider",
+    group: "Worked example",
+    title: "The Terraform provider example",
+    description:
+      "The files behind the provider tutorials: a flows module, dev and prod root modules that differ only in one module call, a platform configuration prod reads, the cookbook, and a GitHub Actions promotion pipeline.",
   },
   {
     source: "packages/cli/README.md",
@@ -308,7 +365,7 @@ const DOCS_INDEX = {
   slug: "docs",
   title: "Documentation",
   description:
-    "Every document this project publishes: the FlowDoc format spec, the studio and Terraform emitter designs, the CLI and package references, a runnable promotion example, and the decision records.",
+    "Every document this project publishes: tutorials for the Terraform provider, the flow cookbook and agent skills, the FlowDoc format spec, the studio and Terraform emitter designs, the CLI and package references, runnable examples, and the decision records.",
 };
 
 /** What each package is, for llms.txt. Kept to one clause each. */
@@ -685,6 +742,8 @@ The problem it solves: an Amazon Connect flow is a JSON document full of literal
 
 Where that claim is held to what the tools do: \`examples/promote-across-environments/\` (published below) is one FlowDoc reaching a dev and a prod environment on both deploy paths, and \`tests/promoteAcrossEnvironments.test.ts\` asserts that the two emitted Terraform trees differ in exactly one file, \`flow_refs.tf\`, and that the CDK path takes no map at all. The Terraform path does take an \`--address-map\`, which is a different object from the ARN table above: its values are Terraform addresses of resources the reader's own configuration manages, and the emitter refuses any value matching \`arn:aws\` outright.
 
+A Terraform provider, \`flow-as-code/flowascode\` on the Terraform Registry, manages flows natively: a flow is a \`flowascode_contact_flow\` resource of HCL action blocks, linted at plan time, with references as keys bound per environment in a \`refs\` map. The tutorials below deploy, promote and adopt flows with it.
+
 Status: the repository is public and Apache-2.0. The packages are published to npm under the @flow-as-code scope (@flow-as-code/hcl from its first release), versioned together and released as a set, so install them at matching versions. The studio demo below is live and runs entirely in the browser, with no install and no account.
 
 ## Start here
@@ -710,11 +769,38 @@ ${groups
   )
   .join("\n\n")}
 
+## Agent skills
+
+Agent Skills for coding agents working on flows with these tools, as plain markdown. In Claude Code the repository is also a plugin marketplace: \`/plugin marketplace add flow-as-code/flow-as-code\`. See [Agent skills for AI coding agents](${pageUrl(origin, "docs/agent-skills")}).
+
+${skillsList(origin)}
+
 ## Optional
 
 - [llms-full.txt](${origin}/llms-full.txt): every page above as one markdown file, for a model that would rather fetch once than crawl.
 - [Conformance fixtures](${GITHUB}/tree/main/conformance): the cross-language contract, as data.
 `;
+}
+
+/**
+ * One llms.txt line per published skill file: each SKILL.md with the
+ * description its frontmatter gives, then the files it references.
+ */
+function skillsList(origin) {
+  const lines = [];
+  for (const name of readdirSync(SKILLS).sort()) {
+    const text = readFileSync(join(SKILLS, name, "SKILL.md"), "utf8");
+    const description = /^description: (.*)$/m.exec(text)?.[1];
+    if (description === undefined) fail(`skills/${name}/SKILL.md has no description.`);
+    lines.push(`- [${name}](${origin}/skills/${name}/SKILL.md): ${description}`);
+    const refs = join(SKILLS, name, "references");
+    if (existsSync(refs)) {
+      for (const file of readdirSync(refs).sort()) {
+        lines.push(`  - [${name}/references/${file}](${origin}/skills/${name}/references/${file})`);
+      }
+    }
+  }
+  return lines.join("\n");
 }
 
 /**
@@ -800,6 +886,9 @@ function main() {
   if (existsSync(join(SITE, "studio"))) {
     fail("site/studio exists and would collide with the copied demo. Rename or remove it.");
   }
+  if (existsSync(join(SITE, "skills"))) {
+    fail("site/skills exists and would collide with the published skills. Rename or remove it.");
+  }
   if (existsSync(join(SITE, "docs"))) {
     fail("site/docs exists and would collide with the rendered docs. Rename or remove it.");
   }
@@ -824,6 +913,8 @@ function main() {
   mkdirSync(OUT, { recursive: true });
   cpSync(SITE, OUT, { recursive: true });
   cpSync(DEMO, join(OUT, "studio"), { recursive: true });
+  // The agent skills, as the plain markdown an agent reads (docs/07-agent-skills.md).
+  cpSync(SKILLS, join(OUT, "skills"), { recursive: true });
   // The one edit made to the copied artifact, and only to its <head>: see
   // studioCard above for why the card cannot live in the shell itself.
   const studioIndex = join(OUT, "studio", "index.html");
