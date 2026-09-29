@@ -101,7 +101,7 @@ describe("the hosted demo artifact", () => {
     expect(app!.text).toContain(DEMO_SCOPE);
   });
 
-  it.runIf(built)("bakes in the demo flow, its GenericBlock, and the read-only badge", () => {
+  it.runIf(built)("bakes in the demo flow, its block types, and the read-only badge", () => {
     const app = files().find(({ name }) => name.startsWith("index-") && name.endsWith(".js"));
     expect(app!.text).toContain("appointment-line");
     expect(app!.text).toContain("UpdateFlowLoggingBehavior");

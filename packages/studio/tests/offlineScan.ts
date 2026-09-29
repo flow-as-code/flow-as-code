@@ -12,6 +12,25 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { actionCatalog } from "@flow-as-code/core";
+
+/**
+ * The citations the action catalog carries (conformance/flow-language/
+ * catalog.json): the page URL of every documented Connect action, of the four
+ * category pages, and of the flow language root. The lint rules read the
+ * catalog, so it travels in both bundles as data. Each entry is still an exact
+ * string from a reviewed file; a URL is added by adding an action to the
+ * contract, never by matching a prefix.
+ */
+function catalogCitations(): string[] {
+  const { flowLanguage, categories, actions } = actionCatalog;
+  return [
+    flowLanguage.root,
+    flowLanguage.actions,
+    ...Object.values(categories).map((c) => c.doc),
+    ...Object.values(actions).map((a) => a.doc),
+  ];
+}
 
 /**
  * Every entry is the exact string constant a bundled library carries (an XML
@@ -48,8 +67,11 @@ export const ALLOWED_URLS = new Set([
   "https://json-schema.org/draft/2020-12/vocab/unevaluated",
   "https://json-schema.org/draft/2020-12/vocab/validation",
   "https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#",
-  // $id of the bundled FlowDoc schema itself (conformance/schema).
+  // $id of each bundled FlowDoc schema (conformance/schema): the current one
+  // and every older version the studio still reads.
   "https://flow-as-code.dev/schema/flowdoc-0.1.schema.json",
+  "https://flow-as-code.dev/schema/flowdoc-0.2.schema.json",
+  ...catalogCitations(),
   // Citations @flow-as-code/tf WRITES into the HCL it emits, as comments above the
   // resources they document (packages/tf/src/emit.ts). The studio bundles
   // that emitter for its Terraform export target, so these travel as output

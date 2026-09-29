@@ -2,7 +2,7 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type {
   ConnectInventoryClient,
@@ -30,6 +30,7 @@ import {
   reverseMapOfResourceMap,
   serialize,
   slugifyResourceName,
+  type ViewSummary,
 } from "./index.js";
 
 const root = new URL("../../../", import.meta.url);
@@ -110,6 +111,10 @@ class FixtureClient implements ConnectInventoryClient {
     return Promise.resolve(this.inventory.contactFlowModules);
   }
 
+  listViews(): Promise<ViewSummary[]> {
+    return Promise.resolve(this.inventory.views ?? []);
+  }
+
   describeContactFlowModule(id: string): Promise<DescribedContactFlowModule> {
     const content = this.content(id);
     const base = id.replace(":$SAVED", "");
@@ -168,6 +173,25 @@ describe("ARN parsing", () => {
     expect(saved?.resourceId).toBe("f1");
     expect(saved?.qualifier).toBe("$SAVED");
     expect(parseConnectArn(`${INSTANCE}/contact-flow/f1:3`)?.qualifier).toBe("3");
+  });
+
+  // The one Connect ARN that nests under no instance: an AWS-managed view,
+  // with `aws` where an account id would be and the version as a qualifier.
+  it("parses an AWS-managed view ARN, which belongs to no instance", () => {
+    const parsed = parseConnectArn("arn:aws:connect:us-east-1:aws:view/after-contact-work:1");
+    expect(parsed).toEqual({
+      partition: "aws",
+      region: "us-east-1",
+      account: "aws",
+      instanceId: "",
+      resourceType: "view",
+      resourceId: "after-contact-work",
+      qualifier: "1",
+    });
+    expect(parseConnectArn("arn:aws:connect:us-east-1:aws:view/")).toBeUndefined();
+    expect(normalizeArn("arn:aws:connect:us-east-1:aws:view/after-contact-work:1")).toBe(
+      "arn:aws:connect:us-east-1:aws:view/after-contact-work",
+    );
     expect(normalizeArn(`${INSTANCE}/contact-flow/f1:$SAVED`)).toBe(`${INSTANCE}/contact-flow/f1`);
   });
 
@@ -457,7 +481,7 @@ describe("exportInstance", () => {
 
   it("exports every flow and module the instance can represent", async () => {
     const client = new FixtureClient("demo-instance");
-    const result = await exportInstance(client, { codegen: true, generator: "core@0.1" });
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
 
     expect(result.flows.map((f) => f.doc.name)).toEqual([
       "appointment-line",
@@ -517,10 +541,98 @@ describe("exportInstance", () => {
     expect(result.warnings.join("\n")).toContain("CAMPAIGN");
   });
 
-  it("warns that module Settings are not modeled rather than dropping them silently", async () => {
-    const client = new FixtureClient("demo-instance");
-    const result = await exportInstance(client);
-    expect(result.warnings.join("\n")).toContain("ExternalInvocationConfiguration");
+  it("warns about module fields FlowDoc does not model only when they say something", async () => {
+    // Connect returns the separate Settings field as "" and
+    // ExternalInvocationConfiguration on every module; neither is worth a
+    // warning until it holds a value.
+    const quiet = await exportInstance(new FixtureClient("demo-instance"));
+    expect(quiet.warnings.join("\n")).not.toContain("external invocation");
+
+    class Enabled extends FixtureClient {
+      override async describeContactFlowModule(id: string): Promise<DescribedContactFlowModule> {
+        return { ...(await super.describeContactFlowModule(id)), externalInvocationEnabled: true };
+      }
+    }
+    const loud = await exportInstance(new Enabled("demo-instance"));
+    expect(loud.warnings.join("\n")).toContain("external invocation enabled");
+  });
+
+  it("exports a module's Settings, which travel in its content", async () => {
+    // Recorded from a sandbox instance: Connect keeps the Settings a module
+    // was created with inside its Content.
+    const client = new FixtureClient("module-settings");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    expect(result.failures).toEqual([]);
+    const flow = result.flows[0]!;
+    expect(flow.doc.kind).toBe("module");
+    expect(flow.doc.content.Settings).toEqual({
+      InputParameters: [{ Name: "customerId", Required: true, Type: "String" }],
+      OutputParameters: [],
+      Transitions: [{ Description: "", DisplayName: "Success", ReferenceName: "Success" }],
+    });
+    const golden = "conformance/export/module-settings/expected/customer-lookup";
+    expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
+    expect(flow.code).toBe(read(`${golden}.flow.ts`));
+  });
+
+  it("keeps the alias or version a flow invokes a module through", async () => {
+    // Connect stores InvokeFlowModule's FlowModuleId as written, qualifier and
+    // all (sandbox, 2026-09-29): an alias name, a version, or $LATEST.
+    const client = new FixtureClient("module-alias");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    expect(result.failures).toEqual([]);
+    const flow = result.flows.find((f) => f.doc.name === "survey-line")!;
+    const ids = flow.doc.content.Actions.filter((a) => a.Type === "InvokeFlowModule").map(
+      (a) => a.Parameters.FlowModuleId,
+    );
+    expect(ids).toEqual([
+      "${cdref:module:survey@prod}",
+      "${cdref:module:survey@1}",
+      "${cdref:module:survey}",
+    ]);
+    // Every document the case exports, the module too, has its golden, as
+    // the Go provider's conformance runner requires.
+    expect(result.flows.map((f) => f.doc.name).sort()).toEqual(["survey", "survey-line"]);
+    for (const exported of result.flows) {
+      const golden = `conformance/export/module-alias/expected/${exported.doc.name}`;
+      if (process.env.UPDATE_GOLDENS === "1") {
+        writeFileSync(new URL(`${golden}.flowdoc.json`, root), serialize(exported.doc));
+        writeFileSync(new URL(`${golden}.flow.ts`, root), exported.code!);
+      }
+      expect(serialize(exported.doc)).toBe(read(`${golden}.flowdoc.json`));
+      expect(exported.code).toBe(read(`${golden}.flow.ts`));
+    }
+  });
+
+  it("keeps two aliases of one module apart when a resource map binds each", () => {
+    const base =
+      "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/flow-module/m1";
+    const map = reverseMapOfResourceMap({
+      "${cdref:module:survey@beta}": `${base}:beta`,
+      "${cdref:module:survey@prod}": `${base}:prod`,
+    });
+    expect(map.warnings).toEqual([]);
+    expect(lookupArn(map, `${base}:prod`)?.token).toBe("${cdref:module:survey@prod}");
+    expect(lookupArn(map, `${base}:beta`)?.token).toBe("${cdref:module:survey@beta}");
+  });
+
+  it("tokenizes an ARN inside a module's Settings like one in its actions", () => {
+    const inventory = readJson<InstanceInventory>(
+      "conformance/export/demo-instance/inventory.json",
+    );
+    const reverseMap = buildReverseMap(inventory);
+    const queue = inventory.queues[0]!;
+    const content = JSON.stringify({
+      Version: "2019-10-30",
+      StartAction: "end",
+      Settings: { InputParameters: [], OutputParameters: [], Transitions: [], Default: queue.arn },
+      Actions: [
+        { Identifier: "end", Type: "EndFlowModuleExecution", Parameters: {}, Transitions: {} },
+      ],
+    });
+    const doc = exportFlow(content, reverseMap, { name: "m", connectType: "MODULE" });
+    expect(JSON.stringify(doc.content.Settings)).not.toContain("arn:aws");
+    expect((doc.refs ?? []).map((r) => r.type)).toEqual(["queue"]);
   });
 
   it("emits codegen output beside the FlowDoc", async () => {
@@ -546,13 +658,54 @@ describe("exportInstance", () => {
     await expect(exportInstance(client)).rejects.toBeInstanceOf(ExportError);
   });
 
+  // The stock after contact work flow shows an AWS-managed view. ListViews
+  // lists that view, so its ARN reverse-maps, and the version the ARN carries
+  // (`:1`) rides in the token's alias slot. Before FlowDoc 0.2 this flow was
+  // an unknown-ARN failure by design; the unknown-arns case still is, because
+  // its inventory lists no views.
+  it("exports a flow that shows an AWS-managed view, keeping the version", async () => {
+    const client = new FixtureClient("managed-view");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+
+    expect(result.failures).toEqual([]);
+    expect(result.flows.map((f) => f.doc.name)).toEqual(["sample-after-contact-work-flow"]);
+    const flow = result.flows[0]!;
+    const show = flow.doc.content.Actions.find((a) => a.Type === "ShowView")!;
+    expect((show.Parameters.ViewResource as { Id: string }).Id).toBe(
+      "${cdref:view:after-contact-work@1}",
+    );
+    expect(flow.doc.refs).toEqual([
+      {
+        token: "${cdref:view:after-contact-work@1}",
+        type: "view",
+        name: "after-contact-work",
+        alias: "1",
+      },
+    ]);
+    expect(serialize(flow.doc)).not.toContain("arn:aws");
+    const golden = "conformance/export/managed-view/expected/sample-after-contact-work-flow";
+    expect(serialize(flow.doc)).toBe(read(`${golden}.flowdoc.json`));
+    expect(flow.code).toBe(read(`${golden}.flow.ts`));
+  });
+
+  it("keeps a view whose version is not a slug as an unknown ARN rather than dropping the version", () => {
+    const inventory = readJson<InstanceInventory>("conformance/export/managed-view/inventory.json");
+    const reverseMap = buildReverseMap(inventory);
+    const content = read(
+      "conformance/export/managed-view/flows/cccc3333-0000-4000-8000-000000000021.json",
+    ).replace("view/after-contact-work:1", "view/after-contact-work:$LATEST");
+    expect(() =>
+      exportFlow(content, reverseMap, { name: "acw", connectType: "CONTACT_FLOW" }),
+    ).toThrow(ExportError);
+  });
+
   // Whole-instance export over content recorded from a live instance, where
   // two of the action types arrive with no Parameters key at all.
   it("exports flows whose actions Connect returned without Parameters", async () => {
     const client = new FixtureClient("omitted-parameters");
     const result = await exportInstance(client, {
       codegen: true,
-      generator: "core@0.1",
+      generator: "core@0.2",
     });
 
     expect(result.failures).toEqual([]);
@@ -623,6 +776,51 @@ describe("createConnectInventoryClient", () => {
     });
     await client.listQueues();
     expect(fake.sent[0]?.input.QueueTypes).toEqual(["STANDARD"]);
+  });
+
+  // ListViews caps a page at 100, below the 1000 the other lists take, and
+  // AWS-managed views come back beside the instance's own without a filter.
+  it("pages ListViews at its own maximum of 100", async () => {
+    const fake = sender({
+      ListViewsCommand: [
+        {
+          ViewsSummaryList: [
+            {
+              Arn: "arn:aws:connect:us-east-1:aws:view/after-contact-work",
+              Id: "after-contact-work",
+              Name: "after-contact-work",
+              Type: "AWS_MANAGED",
+              Status: "PUBLISHED",
+            },
+          ],
+          NextToken: "page2",
+        },
+        {
+          ViewsSummaryList: [
+            {
+              Arn: `${INSTANCE}/view/vvvv0000-0000-4000-8000-000000000001`,
+              Id: "vvvv0000-0000-4000-8000-000000000001",
+              Name: "Order lookup",
+              Type: "CUSTOMER_MANAGED",
+            },
+          ],
+        },
+      ],
+    });
+    const client = createConnectInventoryClient({
+      connect: fake,
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    const views = await client.listViews();
+    expect(fake.sent[0]?.input.MaxResults).toBe(100);
+    expect(fake.sent[0]?.input.Type).toBeUndefined();
+    expect(fake.sent[1]?.input.NextToken).toBe("page2");
+    expect(views.map((v) => [v.name, v.type])).toEqual([
+      ["after-contact-work", "AWS_MANAGED"],
+      ["Order lookup", "CUSTOMER_MANAGED"],
+    ]);
   });
 
   // lexVersion is required, so a full inventory takes two passes.

@@ -26,18 +26,19 @@ import {
   type FieldDesc,
 } from "../model/inspectorSchema.js";
 import {
-  MESSAGE_BODY_KEYS,
-  MutationRefused,
   deleteBlock,
   getAction,
   incomingCount,
+  MESSAGE_BODY_KEYS,
+  type MessageBodyKey,
   messageBodyKey,
+  MutationRefused,
   removeCondition,
   setCondition,
   setMessageBody,
   setNumberParam,
+  type SetNumberResult,
   setParam,
-  type MessageBodyKey,
 } from "../model/mutations.js";
 import { commit, useStudio } from "../state/studio.js";
 import { RefPicker } from "./RefPicker.js";
@@ -114,14 +115,30 @@ function useDraft(value: string): [string, (next: string) => void] {
   return [draft, setDraft];
 }
 
+/**
+ * The dynamic form of a numeric or enumerated parameter: a single JSONPath
+ * where the block class also takes a number or a listed name (a Loop's count,
+ * a Wait's timeout, GetMetricData's channel). A number input or a select
+ * cannot hold it, so the field is shown as text instead; the block is typed
+ * either way, since the inverters accept the JSONPath form.
+ */
+function isJsonPathValue(value: unknown): value is string {
+  return typeof value === "string" && value.startsWith("$.");
+}
+
 function TextField({
   label,
   value,
   onCommit,
+  testId,
+  error,
 }: {
   label: string;
   value: string;
   onCommit: (next: string) => void;
+  testId?: string;
+  /** A refused commit's message; the refused text stays on screen, as in NumberField. */
+  error?: string | undefined;
 }) {
   const [draft, setDraft] = useDraft(value);
   return (
@@ -131,6 +148,7 @@ function TextField({
       </span>
       <input
         type="text"
+        data-testid={testId}
         className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -138,6 +156,11 @@ function TextField({
           if (draft !== value) onCommit(draft);
         }}
       />
+      {error !== undefined && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
     </label>
   );
 }
@@ -305,19 +328,90 @@ export function Inspector() {
   };
 
   const renderField = (field: FieldDesc) => {
-    const value = action.Parameters[field.key];
+    const stored = action.Parameters[field.key];
+    // A nested field edits one key of an object parameter (ShowView's
+    // ViewResource.Id and ViewResource.Version) and leaves its other keys as
+    // they are; every other field is the parameter itself.
+    const nested = field.kind === "text" || field.kind === "ref" ? field.nested : undefined;
+    const holder =
+      stored !== null && typeof stored === "object" && !Array.isArray(stored)
+        ? (stored as Record<string, unknown>)
+        : undefined;
+    const value = nested === undefined ? stored : holder?.[nested];
+    const fieldKey = nested === undefined ? field.key : `${field.key}.${nested}`;
+    const write = (next: unknown, options?: { clears?: readonly string[] }) => {
+      if (nested === undefined) return setParam(doc, selected, field.key, next, options);
+      const object = { ...(holder ?? {}) };
+      if (next === undefined) delete object[nested];
+      else object[nested] = next;
+      return setParam(doc, selected, field.key, object, options);
+    };
     switch (field.kind) {
       case "text":
         return (
           <TextField
-            key={`${selected}:${field.key}`}
+            key={`${selected}:${fieldKey}`}
             label={field.label}
+            testId={`text-${fieldKey}`}
             value={typeof value === "string" ? value : ""}
-            onCommit={(next) => mutate(() => setParam(doc, selected, field.key, next, field))}
+            onCommit={(next) =>
+              mutate(() => write(field.optional === true && next === "" ? undefined : next, field))
+            }
           />
         );
       case "number": {
         const errorKey = `${selected}:${field.key}`;
+        const commitNumber = (next: string) => {
+          let result: SetNumberResult;
+          try {
+            result = setNumberParam(doc, selected, field.key, next, field);
+          } catch (err) {
+            if (err instanceof MutationRefused) {
+              // The guard refused (an emptied last routing field would
+              // demote the block); the parameter keeps its value and the
+              // field says why.
+              setNumberErrors((prev) => ({ ...prev, [errorKey]: err.message }));
+              return;
+            }
+            dispatch({
+              type: "error",
+              message: err instanceof Error ? err.message : String(err),
+            });
+            return;
+          }
+          if (result.ok) {
+            setNumberErrors((prev) => {
+              const rest = { ...prev };
+              delete rest[errorKey];
+              return rest;
+            });
+            dispatch({ type: "mutated", doc: result.doc });
+          } else {
+            // The parameter keeps its previous value; the field shows why.
+            setNumberErrors((prev) => ({ ...prev, [errorKey]: result.error }));
+          }
+        };
+        if (isJsonPathValue(value)) {
+          // Another JSONPath is stored as typed; a number goes through the
+          // same bounds as the number field, and lands in the static form.
+          return (
+            <TextField
+              key={`${selected}:${field.key}:jsonpath`}
+              label={`${field.label} (JSONPath)`}
+              testId={`jsonpath-${field.key}`}
+              value={value}
+              error={numberErrors[errorKey]}
+              onCommit={(next) => {
+                const trimmed = next.trim();
+                if (isJsonPathValue(trimmed)) {
+                  mutate(() => setParam(doc, selected, field.key, trimmed));
+                } else {
+                  commitNumber(next);
+                }
+              }}
+            />
+          );
+        }
         // A stored value is a number, or its decimal string for fields
         // declared asString; anything else (absent, malformed) shows empty.
         const shown =
@@ -328,24 +422,32 @@ export function Inspector() {
             field={field}
             value={shown}
             error={numberErrors[errorKey]}
-            onCommit={(next) => {
-              const result = setNumberParam(doc, selected, field.key, next, field);
-              if (result.ok) {
-                setNumberErrors((prev) => {
-                  const rest = { ...prev };
-                  delete rest[errorKey];
-                  return rest;
-                });
-                dispatch({ type: "mutated", doc: result.doc });
-              } else {
-                // The parameter keeps its previous value; the field shows why.
-                setNumberErrors((prev) => ({ ...prev, [errorKey]: result.error }));
-              }
-            }}
+            onCommit={commitNumber}
           />
         );
       }
       case "select":
+        if (isJsonPathValue(value)) {
+          // A listed name typed here lands in the select on the next render.
+          return (
+            <TextField
+              key={`${selected}:${field.key}:jsonpath`}
+              label={`${field.label} (JSONPath)`}
+              testId={`jsonpath-${field.key}`}
+              value={value}
+              onCommit={(next) =>
+                mutate(() =>
+                  setParam(
+                    doc,
+                    selected,
+                    field.key,
+                    field.optional === true && next.trim() === "" ? undefined : next.trim(),
+                  ),
+                )
+              }
+            />
+          );
+        }
         return (
           <label key={`${selected}:${field.key}`} className="block">
             <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
@@ -376,7 +478,7 @@ export function Inspector() {
         );
       case "ref":
         return (
-          <div key={`${selected}:${field.key}`}>
+          <div key={`${selected}:${fieldKey}`}>
             <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
               {field.label}
             </span>
@@ -385,7 +487,11 @@ export function Inspector() {
               refType={field.refType}
               value={typeof value === "string" ? value : undefined}
               optional={field.optional}
-              onChange={(v) => mutate(() => setParam(doc, selected, field.key, v, field))}
+              // The field's clears apply on a set, never on a delete: choosing
+              // "(not set)" on the queue picker must not erase an authored
+              // agent queue, and the block stays expressible either way, so
+              // the guard would not see that loss.
+              onChange={(v) => mutate(() => (v === undefined ? write(undefined) : write(v, field)))}
             />
           </div>
         );
@@ -395,7 +501,9 @@ export function Inspector() {
             key={`${selected}:${field.key}`}
             label={field.label}
             value={value}
-            onCommit={(parsed) => mutate(() => setParam(doc, selected, field.key, parsed))}
+            onCommit={(parsed) =>
+              mutate(() => setParam(doc, selected, field.key, parsed, { clears: field.clears }))
+            }
           />
         );
     }

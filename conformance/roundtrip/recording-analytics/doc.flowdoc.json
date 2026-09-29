@@ -1,0 +1,186 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "recording-analytics",
+  "description": "The recording block in each of its forms, one per block, announced first.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "announce",
+    "Actions": [
+      {
+        "Identifier": "announce",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "This conversation may be recorded."
+        },
+        "Transitions": {
+          "NextAction": "record-voice-ivr",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "record-voice-ivr",
+        "Type": "UpdateContactRecordingAndAnalyticsBehavior",
+        "Parameters": {
+          "VoiceBehavior": {
+            "VoiceRecordingBehavior": {
+              "IVRRecordingBehavior": "Enabled",
+              "RecordedParticipants": [
+                "Agent",
+                "Customer"
+              ]
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "record-voice",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "record-chat"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "record-voice",
+        "Type": "UpdateContactRecordingAndAnalyticsBehavior",
+        "Parameters": {
+          "VoiceBehavior": {
+            "VoiceRecordingBehavior": {
+              "RecordedParticipants": [
+                "Customer"
+              ]
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "record-screen",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "record-screen",
+        "Type": "UpdateContactRecordingAndAnalyticsBehavior",
+        "Parameters": {
+          "ScreenRecordingBehavior": {
+            "ScreenRecordedParticipants": [
+              "Agent"
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "record-chat",
+        "Type": "UpdateContactRecordingAndAnalyticsBehavior",
+        "Parameters": {
+          "ChatBehavior": {
+            "ChatAnalyticsBehavior": {
+              "AnalyticsLanguage": "en-US",
+              "AnalyticsModes": [
+                "ContactLens"
+              ],
+              "Enabled": "True",
+              "InFlightChatRedactionConfiguration": {
+                "DeliverUnprocessedMessages": "False",
+                "Enabled": "True",
+                "RedactionEntities": [
+                  "CREDIT_DEBIT_NUMBER",
+                  "SSN"
+                ],
+                "RedactionMaskMode": "PII"
+              }
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "InFlightRedactionConfigurationFailed",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "announce": {
+      "x": 20,
+      "y": 20
+    },
+    "bye": {
+      "x": 1060,
+      "y": 20
+    },
+    "record-chat": {
+      "x": 540,
+      "y": 120
+    },
+    "record-screen": {
+      "x": 800,
+      "y": 20
+    },
+    "record-voice": {
+      "x": 540,
+      "y": 20
+    },
+    "record-voice-ivr": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": []
+}

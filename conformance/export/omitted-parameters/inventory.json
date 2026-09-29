@@ -22,5 +22,6 @@
   "hoursOfOperations": [],
   "prompts": [],
   "lambdaFunctions": [],
-  "lexBots": []
+  "lexBots": [],
+  "views": []
 }

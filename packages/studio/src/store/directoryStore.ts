@@ -9,7 +9,7 @@
 import type { FlowDoc } from "@flow-as-code/core";
 import { serialize } from "@flow-as-code/core";
 import { assertSaveable, parseFlowDoc } from "../model/validate.js";
-import type { DocRef, DocStore } from "./types.js";
+import type { DocRef, DocStore, StoredDoc } from "./types.js";
 
 // The async-iteration and picker members are WICG additions not yet in TS's
 // lib.dom; declare the minimum used here.
@@ -51,7 +51,7 @@ export class DirectoryStore implements DocStore {
     return names.sort().map((name) => ({ name }));
   }
 
-  async read(name: string): Promise<{ doc: FlowDoc; text: string }> {
+  async read(name: string): Promise<StoredDoc> {
     const handle = await this.dir.getFileHandle(`${name}${FLOWDOC_SUFFIX}`);
     const text = await (await handle.getFile()).text();
     // Same guard as the single-file open path: a folder can hold anything.

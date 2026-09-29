@@ -32,6 +32,9 @@ export default defineConfig({
       },
       { find: /^@flow-as-code\/core$/, replacement: source("core/src/index.ts") },
       { find: /^@flow-as-code\/tf\/emit$/, replacement: source("tf/src/emit.ts") },
+      // The whole of @flow-as-code/hcl is browser-safe (its own
+      // lint-browser-safe test), so its root is the one specifier.
+      { find: /^@flow-as-code\/hcl$/, replacement: source("hcl/src/index.ts") },
       {
         find: /^@flow-as-code\/cdk\/scaffold$/,
         replacement: source("cdk/src/scaffold.ts"),

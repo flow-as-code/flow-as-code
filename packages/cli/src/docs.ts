@@ -9,17 +9,29 @@
 // come out as a CliError naming the offending path. Every problem in the set is
 // reported, not just the first, so one run fixes one round of edits.
 //
-// schema/flowdoc-0.1.schema.json is a byte copy of
-// conformance/schema/flowdoc-0.1.schema.json, kept inside the package because
-// the conformance tree is not published. src/schema.test.ts fails if the two
-// drift, so the CLI and the cross-language contract cannot disagree.
+// schema/flowdoc-<version>.schema.json are byte copies of
+// conformance/schema/flowdoc-<version>.schema.json, kept inside the package
+// because the conformance tree is not published. src/schema.test.ts fails if
+// any pair drifts, so the CLI and the cross-language contract cannot disagree.
+//
+// A document is validated against the schema of the version its `flowdoc`
+// field names and then migrated to the current version, so every command
+// works on one version and a 0.1 file written before FlowDoc 0.2 still loads.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { FlowDoc } from "@flow-as-code/core";
-import { NO_LITERAL_ARN, literalArnMessage, literalArnPaths } from "@flow-as-code/core";
+import type { FlowDoc, SupportedFlowDocVersion } from "@flow-as-code/core";
+import {
+  FLOWDOC_VERSION,
+  NO_LITERAL_ARN,
+  SUPPORTED_FLOWDOC_VERSIONS,
+  isSupportedFlowDocVersion,
+  literalArnMessage,
+  literalArnPaths,
+  migrateFlowDoc,
+} from "@flow-as-code/core";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { AnySchema, ValidateFunction } from "ajv";
 
@@ -31,10 +43,16 @@ export const FLOWDOC_SUFFIX = ".flowdoc.json";
 /** Errors reported for one document before the rest are elided. */
 const MAX_SCHEMA_ERRORS = 10;
 
-/** Absolute path of the packaged FlowDoc schema (`../schema` from src or dist). */
-export const SCHEMA_PATH = fileURLToPath(
-  new URL("../schema/flowdoc-0.1.schema.json", import.meta.url),
-);
+/** Absolute paths of the packaged FlowDoc schemas, by format version (`../schema` from src or dist). */
+export const SCHEMA_PATHS: Readonly<Record<SupportedFlowDocVersion, string>> = Object.fromEntries(
+  SUPPORTED_FLOWDOC_VERSIONS.map((version) => [
+    version,
+    fileURLToPath(new URL(`../schema/flowdoc-${version}.schema.json`, import.meta.url)),
+  ]),
+) as Record<SupportedFlowDocVersion, string>;
+
+/** The schema of the current format version. */
+export const SCHEMA_PATH = SCHEMA_PATHS[FLOWDOC_VERSION];
 
 export interface LoadedDoc {
   /** Absolute path the document was read from. */
@@ -42,14 +60,29 @@ export interface LoadedDoc {
   doc: FlowDoc;
 }
 
-let compiled: ValidateFunction | undefined;
+const compiled = new Map<SupportedFlowDocVersion, ValidateFunction>();
 
-function flowDocValidator(): ValidateFunction {
-  if (compiled === undefined) {
-    const schema = JSON.parse(readFileSync(SCHEMA_PATH, "utf8")) as AnySchema;
-    compiled = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+function flowDocValidator(version: SupportedFlowDocVersion): ValidateFunction {
+  let validate = compiled.get(version);
+  if (validate === undefined) {
+    const schema = JSON.parse(readFileSync(SCHEMA_PATHS[version], "utf8")) as AnySchema;
+    validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+    compiled.set(version, validate);
   }
-  return compiled;
+  return validate;
+}
+
+/** The format version a value claims, when it is one this build reads. */
+function versionOf(value: unknown): SupportedFlowDocVersion | undefined {
+  const version = (value as { flowdoc?: unknown } | null)?.flowdoc;
+  return isSupportedFlowDocVersion(version) ? version : undefined;
+}
+
+/** The sentence a document with an unreadable `flowdoc` field gets. */
+function unsupportedVersion(value: unknown): string {
+  const got = (value as { flowdoc?: unknown } | null)?.flowdoc;
+  const known = SUPPORTED_FLOWDOC_VERSIONS.map((v) => JSON.stringify(v)).join(" or ");
+  return `/flowdoc must be ${known}, got ${got === undefined ? "nothing" : JSON.stringify(got)}`;
 }
 
 /** One schema violation, as "<where> <what>". */
@@ -99,7 +132,9 @@ function causedByLiteralArn(instancePath: string, arnPaths: readonly string[]): 
  * only after a schema failure would let exactly those documents onto disk.
  */
 export function flowDocProblems(value: unknown): string[] {
-  const validate = flowDocValidator();
+  const version = versionOf(value);
+  if (version === undefined) return [unsupportedVersion(value)];
+  const validate = flowDocValidator(version);
   const valid = validate(value);
   const errors = valid ? [] : (validate.errors ?? []);
   const arnPaths = literalArnPaths(value);
@@ -145,9 +180,11 @@ export function resolveDocPaths(target: string): string[] {
   return files;
 }
 
-/** Reads and schema-validates every document a `<dir-or-file>` argument names. */
+/**
+ * Reads, schema-validates and migrates every document a `<dir-or-file>`
+ * argument names. Every returned document is at the current format version.
+ */
 export function loadDocs(target: string): LoadedDoc[] {
-  const validate = flowDocValidator();
   const problems: string[] = [];
   const loaded: LoadedDoc[] = [];
 
@@ -168,7 +205,8 @@ export function loadDocs(target: string): LoadedDoc[] {
       continue;
     }
 
-    if (!validate(parsed)) {
+    const version = versionOf(parsed);
+    if (version === undefined || !flowDocValidator(version)(parsed)) {
       for (const problem of flowDocProblems(parsed)) {
         problems.push(
           problem.startsWith("... and ") || isRuleProblem(problem)
@@ -179,7 +217,7 @@ export function loadDocs(target: string): LoadedDoc[] {
       continue;
     }
 
-    loaded.push({ path, doc: parsed as FlowDoc });
+    loaded.push({ path, doc: migrateFlowDoc(parsed, path) });
   }
 
   if (problems.length > 0) {

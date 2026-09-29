@@ -1,0 +1,3 @@
+{
+  "description": "An optional parameter set to null is unset, as Terraform reads it: the document has no key for it."
+}

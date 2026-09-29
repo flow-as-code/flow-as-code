@@ -23,9 +23,38 @@
 //   parameters stay verbatim strings and are never rewritten.
 
 import {
+  AGENT_METRIC_TYPES,
   ActionType,
+  CALLBACK_NUMBER_NOT_DIALABLE,
+  CHANNEL_MISMATCH,
   DTMF_DIGITS,
+  EVENT_HOOKS,
   INPUT_TIME_LIMIT_EXCEEDED,
+  INVALID_CALLBACK_NUMBER,
+  LEX_TIMEOUT_MAX,
+  LEX_TIMEOUT_MIN,
+  LOOP_CONTINUE,
+  LOOP_DONE,
+  MESSAGES_INTERRUPTED,
+  METRIC_OPERATORS,
+  METRIC_TYPES,
+  PARTICIPANT_NOT_FOUND,
+  PERCENTAGE_THRESHOLD_MAX,
+  QUEUE_CHANNELS,
+  SYSTEM_TAG_PREFIX,
+  TAG_LIMIT,
+  TIME_LIMIT_EXCEEDED,
+  TARGET_CONTACTS,
+  TTS_ENGINES,
+  TTS_STYLES,
+  VOICE_ID_RESPONSE_TIME_MAX,
+  VOICE_ID_RESPONSE_TIME_MIN,
+  VOICE_ID_THRESHOLD_MAX,
+  VOICE_ID_THRESHOLD_MIN,
+  WAIT_COMPLETED,
+  WAIT_EVENTS,
+  WAIT_TIMEOUT_MAX,
+  WAIT_TIMEOUT_MIN,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
@@ -34,20 +63,41 @@ import type { DtmfDigit } from "./actions.js";
 import type { Block, DtmfBranch, GenericBlockConfig, MessageBody } from "./blocks.js";
 import {
   CheckHoursOfOperation,
+  CheckMetricData,
   Compare,
+  ConnectParticipantWithLexBot,
+  CreateCallbackContact,
+  DequeueContactAndTransferToQueue,
   DisconnectParticipant,
+  DistributeByPercentage,
   EndFlowExecution,
   EndFlowModuleExecution,
   GenericBlock,
+  GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
   InvokeLambdaFunction,
+  Loop,
   MessageParticipant,
+  MessageParticipantIteratively,
+  ShowView,
+  TagContact,
+  TransferContactToAgent,
+  UntagContact,
   TransferContactToQueue,
   TransferToFlow,
   UpdateContactAttributes,
+  UpdateContactCallbackNumber,
+  UpdateContactData,
+  UpdateContactEventHooks,
+  UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
+  UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
+  UpdateContactTextToSpeechVoice,
+  UpdateFlowAttributes,
+  UpdateFlowLoggingBehavior,
+  Wait,
 } from "./blocks.js";
 import type {
   ConditionOperator,
@@ -73,6 +123,12 @@ export interface CodegenOptions {
    * re-attach there. Everything else regenerates.
    */
   previous?: string;
+  /**
+   * Kept comment lines to attach, in place of those `previous` holds: what
+   * `flow-cli convert` carries over from a `.flow.tf`, whose `# @keep` lines
+   * arrive here rewritten as `// @keep`.
+   */
+  keep?: KeepComments;
 }
 
 const DEFAULT_MODULE_SPECIFIER = PACKAGE_NAMES.core;
@@ -271,7 +327,16 @@ function refSource(value: unknown, type: RefType, ctx: Ctx): Raw | undefined {
       ctx.refs = true;
       return new Raw(`Refs.module(${quoteString(entry.name)}, ${quoteString(entry.alias)})`);
     }
-    if (entry.alias !== undefined) return undefined; // only module refs carry aliases
+    if (type === "view") {
+      // The alias slot holds the view version, and a view need not pin one.
+      ctx.refs = true;
+      return new Raw(
+        entry.alias === undefined
+          ? `Refs.view(${quoteString(entry.name)})`
+          : `Refs.view(${quoteString(entry.name)}, ${quoteString(entry.alias)})`,
+      );
+    }
+    if (entry.alias !== undefined) return undefined; // only module and view refs carry aliases
     ctx.refs = true;
     return new Raw(`Refs.${type}(${quoteString(entry.name)})`);
   }
@@ -403,6 +468,321 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
+  [ActionType.MessageParticipantIteratively]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction !== undefined) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length > 1 || (errors.length === 1 && errors[0]!.ErrorType !== NO_MATCHING_ERROR)) {
+      return undefined;
+    }
+    const conditions = t.Conditions ?? [];
+    if (conditions.length > 1 || !conditions.every(isCondition)) return undefined;
+    const interrupt = conditions[0];
+    if (
+      interrupt !== undefined &&
+      stableJson(interrupt.Condition) !==
+        stableJson({ Operator: "Equals", Operands: [MESSAGES_INTERRUPTED] })
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["Messages"], ["InterruptFrequencySeconds"])) return undefined;
+    const raw = a.Parameters.Messages;
+    if (!Array.isArray(raw) || raw.length === 0) return undefined;
+    const messages: Record<string, unknown>[] = [];
+    const messageV: V[] = [];
+    for (const m of raw) {
+      if (m === null || typeof m !== "object" || Array.isArray(m)) return undefined;
+      const keys = Object.keys(m as Record<string, unknown>);
+      if (keys.length !== 1) return undefined;
+      const [key] = keys;
+      const value = (m as Record<string, unknown>)[key!];
+      if (key === "Text" && typeof value === "string") {
+        messages.push({ text: value });
+        messageV.push(new ObjV([["text", value]]));
+      } else if (key === "SSML" && typeof value === "string") {
+        messages.push({ ssml: value });
+        messageV.push(new ObjV([["ssml", value]]));
+      } else if (key === "PromptId") {
+        const ref = refSource(value, "prompt", ctx);
+        if (ref === undefined) return undefined;
+        messages.push({ prompt: value });
+        messageV.push(new ObjV([["prompt", ref]]));
+      } else if (key === "Media") {
+        const media = value as Record<string, unknown> | null;
+        if (
+          media === null ||
+          typeof media !== "object" ||
+          !paramKeysAre(media, ["Uri", "SourceType", "MediaType"]) ||
+          typeof media.Uri !== "string" ||
+          media.SourceType !== "S3" ||
+          media.MediaType !== "Audio"
+        ) {
+          return undefined;
+        }
+        messages.push({ media: { uri: media.Uri } });
+        messageV.push(new ObjV([["media", new ObjV([["uri", media.Uri]])]]));
+      } else {
+        return undefined;
+      }
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["messages", new ArrV(messageV)],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, messages };
+    const seconds = a.Parameters.InterruptFrequencySeconds;
+    if ((seconds !== undefined) !== (interrupt !== undefined)) return undefined;
+    if (seconds !== undefined) {
+      if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+      const n = Number(seconds);
+      if (!Number.isSafeInteger(n)) return undefined;
+      entries.push(["interruptFrequencySeconds", n], ["onInterrupt", interrupt!.NextAction]);
+      config.interruptFrequencySeconds = n;
+      config.onInterrupt = interrupt!.NextAction;
+    }
+    if (errors.length === 1) {
+      entries.push(["onError", errors[0]!.NextAction]);
+      config.onError = errors[0]!.NextAction;
+    }
+    return {
+      cls: "MessageParticipantIteratively",
+      entries,
+      block: new MessageParticipantIteratively(cast<never>(config)),
+    };
+  },
+
+  [ActionType.ConnectParticipantWithLexBot]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 3 ||
+      errors[0]!.ErrorType !== INPUT_TIME_LIMIT_EXCEEDED ||
+      errors[1]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[2]!.ErrorType !== NO_MATCHING_CONDITION
+    ) {
+      return undefined;
+    }
+    // The class mirrors NextAction onto the no-match branch.
+    if (t.NextAction !== errors[2]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (!conditions.every(isCondition)) return undefined;
+    for (const c of conditions) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+      if (typeof c.Condition.Operands[0] !== "string") return undefined;
+    }
+    const p = a.Parameters;
+    const optional = [
+      "PromptId",
+      "Text",
+      "SSML",
+      "LexSessionAttributes",
+      "LexInitializationData",
+      "LexTimeoutSeconds",
+    ];
+    if (!paramKeysAre(p, ["LexV2Bot"], optional)) return undefined;
+    const bodies = ["PromptId", "Text", "SSML"].filter((k) => p[k] !== undefined);
+    if (bodies.length > 1) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (bodies[0] === "Text" && typeof p.Text === "string") {
+      entries.push(["text", p.Text]);
+      config.text = p.Text;
+    } else if (bodies[0] === "SSML" && typeof p.SSML === "string") {
+      entries.push(["ssml", p.SSML]);
+      config.ssml = p.SSML;
+    } else if (bodies[0] === "PromptId") {
+      const ref = refSource(p.PromptId, "prompt", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["prompt", ref]);
+      config.prompt = p.PromptId;
+    } else if (bodies[0] !== undefined) {
+      return undefined;
+    }
+    const bot = p.LexV2Bot as Record<string, unknown> | null;
+    if (bot === null || typeof bot !== "object" || !paramKeysAre(bot, ["AliasArn"])) {
+      return undefined;
+    }
+    const botRef = refSource(bot.AliasArn, "lex", ctx);
+    if (botRef === undefined) return undefined;
+    entries.push(["bot", botRef]);
+    config.bot = bot.AliasArn;
+    if (p.LexSessionAttributes !== undefined) {
+      if (!isStringMap(p.LexSessionAttributes)) return undefined;
+      entries.push(["sessionAttributes", toV(p.LexSessionAttributes)]);
+      config.sessionAttributes = p.LexSessionAttributes;
+    }
+    if (p.LexInitializationData !== undefined) {
+      const init = p.LexInitializationData as Record<string, unknown> | null;
+      if (
+        init === null ||
+        typeof init !== "object" ||
+        !paramKeysAre(init, ["InitialMessage"]) ||
+        typeof init.InitialMessage !== "string"
+      ) {
+        return undefined;
+      }
+      entries.push(["initialMessage", init.InitialMessage]);
+      config.initialMessage = init.InitialMessage;
+    }
+    if (p.LexTimeoutSeconds !== undefined) {
+      const timeout = p.LexTimeoutSeconds as Record<string, unknown> | null;
+      if (timeout === null || typeof timeout !== "object" || !paramKeysAre(timeout, ["Text"])) {
+        return undefined;
+      }
+      const raw = timeout.Text;
+      if (typeof raw !== "string" || !/^[1-9][0-9]*$/.test(raw)) return undefined;
+      const seconds = Number(raw);
+      if (seconds < LEX_TIMEOUT_MIN || seconds > LEX_TIMEOUT_MAX) return undefined;
+      entries.push(["timeoutSeconds", seconds]);
+      config.timeoutSeconds = seconds;
+    }
+    const intents = conditions.map((c) => ({
+      name: cast<string>(c.Condition.Operands[0]),
+      target: c.NextAction,
+    }));
+    entries.push(
+      [
+        "intents",
+        new ArrV(
+          intents.map(
+            (i) =>
+              new ObjV([
+                ["name", i.name],
+                ["target", i.target],
+              ]),
+          ),
+        ),
+      ],
+      ["onNoMatch", errors[2]!.NextAction],
+      ["onError", errors[1]!.NextAction],
+      ["onTimeout", errors[0]!.NextAction],
+    );
+    return {
+      cls: "ConnectParticipantWithLexBot",
+      entries,
+      block: new ConnectParticipantWithLexBot(
+        cast<never>({
+          ...config,
+          intents,
+          onNoMatch: errors[2]!.NextAction,
+          onError: errors[1]!.NextAction,
+          onTimeout: errors[0]!.NextAction,
+        }),
+      ),
+    };
+  },
+
+  [ActionType.ShowView]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    // The admin guide's order, and NextAction a copy of the catch-all's target.
+    if (
+      errors.length !== 3 ||
+      errors[0]!.ErrorType !== NO_MATCHING_CONDITION ||
+      errors[1]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[2]!.ErrorType !== TIME_LIMIT_EXCEEDED
+    ) {
+      return undefined;
+    }
+    if (t.NextAction !== errors[1]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (!conditions.every(isCondition)) return undefined;
+    for (const c of conditions) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+      if (typeof c.Condition.Operands[0] !== "string") return undefined;
+    }
+    const p = a.Parameters;
+    if (
+      !paramKeysAre(
+        p,
+        ["ViewResource", "InvocationTimeLimitSeconds"],
+        ["ViewData", "SensitiveDataConfiguration"],
+      )
+    ) {
+      return undefined;
+    }
+    const resource = p.ViewResource as Record<string, unknown> | null;
+    if (
+      resource === null ||
+      typeof resource !== "object" ||
+      !paramKeysAre(resource, ["Id"], ["Version"])
+    ) {
+      return undefined;
+    }
+    const view = refSource(resource.Id, "view", ctx);
+    if (view === undefined) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["view", view],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, view: resource.Id };
+    if (resource.Version !== undefined) {
+      if (typeof resource.Version !== "string") return undefined;
+      entries.push(["version", resource.Version]);
+      config.version = resource.Version;
+    }
+    const seconds = p.InvocationTimeLimitSeconds;
+    if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+    const n = Number(seconds);
+    if (!Number.isSafeInteger(n)) return undefined;
+    entries.push(["timeoutSeconds", n]);
+    config.timeoutSeconds = n;
+    if (p.ViewData !== undefined) {
+      const data = p.ViewData;
+      if (data === null || typeof data !== "object" || Array.isArray(data)) return undefined;
+      entries.push(["data", toV(data)]);
+      config.data = data;
+    }
+    if (p.SensitiveDataConfiguration !== undefined) {
+      const sensitive = p.SensitiveDataConfiguration as Record<string, unknown> | null;
+      if (
+        sensitive === null ||
+        typeof sensitive !== "object" ||
+        !paramKeysAre(sensitive, ["HideResponseOn"]) ||
+        !Array.isArray(sensitive.HideResponseOn) ||
+        !sensitive.HideResponseOn.every((h) => typeof h === "string" && h !== "")
+      ) {
+        return undefined;
+      }
+      entries.push(["hideResponseOn", new ArrV([...cast<string[]>(sensitive.HideResponseOn)])]);
+      config.hideResponseOn = sensitive.HideResponseOn;
+    }
+    const actions = conditions.map((c) => ({
+      action: cast<string>(c.Condition.Operands[0]),
+      target: c.NextAction,
+    }));
+    entries.push(
+      [
+        "actions",
+        new ArrV(
+          actions.map(
+            (b) =>
+              new ObjV([
+                ["action", b.action],
+                ["target", b.target],
+              ]),
+          ),
+        ),
+      ],
+      ["onNoMatch", errors[0]!.NextAction],
+      ["onTimeout", errors[2]!.NextAction],
+      ["onError", errors[1]!.NextAction],
+    );
+    return {
+      cls: "ShowView",
+      entries,
+      block: new ShowView(
+        cast<never>({
+          ...config,
+          actions,
+          onNoMatch: errors[0]!.NextAction,
+          onTimeout: errors[2]!.NextAction,
+          onError: errors[1]!.NextAction,
+        }),
+      ),
+    };
+  },
+
   [ActionType.GetParticipantInput]: (a, ctx) => {
     const t = a.Transitions;
     const errors = t.Errors ?? [];
@@ -496,6 +876,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     terminal(a, () => new DisconnectParticipant({ id: a.Identifier })),
   [ActionType.EndFlowExecution]: (a) =>
     terminal(a, () => new EndFlowExecution({ id: a.Identifier })),
+  [ActionType.TransferContactToAgent]: (a) =>
+    terminal(a, () => new TransferContactToAgent({ id: a.Identifier })),
   [ActionType.EndFlowModuleExecution]: (a) =>
     terminal(a, () => new EndFlowModuleExecution({ id: a.Identifier })),
 
@@ -540,6 +922,352 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         onOutOfHours: outOfHours!.NextAction,
         onError: errors[0]!.NextAction,
       }),
+    };
+  },
+
+  [ActionType.Loop]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (errors.length > 1 || (errors.length === 1 && errors[0]!.ErrorType !== NO_MATCHING_ERROR)) {
+      return undefined;
+    }
+    const conditions = t.Conditions ?? [];
+    if (conditions.length !== 2) return undefined;
+    const [cont, done] = conditions;
+    if (
+      stableJson(cont!.Condition) !== stableJson({ Operator: "Equals", Operands: [LOOP_CONTINUE] })
+    ) {
+      return undefined;
+    }
+    if (stableJson(done!.Condition) !== stableJson({ Operator: "Equals", Operands: [LOOP_DONE] })) {
+      return undefined;
+    }
+    // The class mirrors NextAction onto the done path.
+    if (t.NextAction !== done!.NextAction) return undefined;
+    if (!paramKeysAre(a.Parameters, ["LoopCount"])) return undefined;
+    // The console's spelling: a decimal string, or a single JSONPath.
+    const raw = a.Parameters.LoopCount;
+    if (typeof raw !== "string") return undefined;
+    let count: number | string;
+    let countV: V;
+    if (/^(0|[1-9][0-9]?|100)$/.test(raw)) {
+      count = Number(raw);
+      countV = count;
+    } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) {
+      count = raw;
+      ctx.jsonPath = true;
+      countV = new Raw(`jsonPath(${quoteString(raw)})`);
+    } else {
+      return undefined;
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["count", countV],
+      ["onContinue", cont!.NextAction],
+      ["onDone", done!.NextAction],
+    ];
+    if (errors.length === 1) entries.push(["onError", errors[0]!.NextAction]);
+    return {
+      cls: "Loop",
+      entries,
+      block: new Loop({
+        id: a.Identifier,
+        count: cast<never>(count),
+        onContinue: cont!.NextAction,
+        onDone: done!.NextAction,
+        ...(errors.length === 1 ? { onError: errors[0]!.NextAction } : {}),
+      }),
+    };
+  },
+
+  [ActionType.Wait]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (errors.length === 0 || errors.length > 2) return undefined;
+    if (errors[0]!.ErrorType !== NO_MATCHING_ERROR) return undefined;
+    if (errors.length === 2 && errors[1]!.ErrorType !== PARTICIPANT_NOT_FOUND) return undefined;
+    // The class mirrors NextAction onto the catch-all.
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    const [timeout, ...events] = conditions;
+    if (
+      stableJson(timeout!.Condition) !==
+      stableJson({ Operator: "Equals", Operands: [WAIT_COMPLETED] })
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["TimeLimitSeconds"], ["Events"])) return undefined;
+    const listed = a.Parameters.Events;
+    const eventNames = events.map((c) => c.Condition.Operands[0]);
+    // Events and their conditions name the same events, in the class's order.
+    const expected: string[] = listed === undefined ? [] : cast<string[]>(listed);
+    if (!Array.isArray(expected) || stableJson(expected) !== stableJson(eventNames)) {
+      return undefined;
+    }
+    const order = WAIT_EVENTS.filter((e) => eventNames.includes(e));
+    if (stableJson(order) !== stableJson(eventNames)) return undefined;
+    for (const c of events) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+    }
+    const bot = eventNames.includes("BotParticipantDisconnected");
+    if (bot !== (errors.length === 2)) return undefined;
+    // The console's spelling: a decimal string, or a single JSONPath.
+    const raw = a.Parameters.TimeLimitSeconds;
+    if (typeof raw !== "string") return undefined;
+    let seconds: number | string;
+    let secondsV: V;
+    if (/^[1-9][0-9]*$/.test(raw)) {
+      seconds = Number(raw);
+      if (
+        !Number.isSafeInteger(seconds) ||
+        seconds < WAIT_TIMEOUT_MIN ||
+        seconds > WAIT_TIMEOUT_MAX
+      ) {
+        return undefined;
+      }
+      secondsV = seconds;
+    } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) {
+      seconds = raw;
+      ctx.jsonPath = true;
+      secondsV = new Raw(`jsonPath(${quoteString(raw)})`);
+    } else {
+      return undefined;
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["timeoutSeconds", secondsV],
+      ["onTimeout", timeout!.NextAction],
+    ];
+    const onEvent: Record<string, string> = {};
+    for (const c of events) onEvent[cast<string>(c.Condition.Operands[0])] = c.NextAction;
+    if (events.length > 0) {
+      entries.push([
+        "onEvent",
+        new ObjV(events.map((c) => [cast<string>(c.Condition.Operands[0]), c.NextAction])),
+      ]);
+    }
+    entries.push(["onError", errors[0]!.NextAction]);
+    if (errors.length === 2) entries.push(["onParticipantNotFound", errors[1]!.NextAction]);
+    return {
+      cls: "Wait",
+      entries,
+      block: new Wait({
+        id: a.Identifier,
+        timeoutSeconds: cast<never>(seconds),
+        onTimeout: timeout!.NextAction,
+        ...(events.length > 0 ? { onEvent: cast<never>(onEvent) } : {}),
+        onError: errors[0]!.NextAction,
+        ...(errors.length === 2 ? { onParticipantNotFound: errors[1]!.NextAction } : {}),
+      }),
+    };
+  },
+
+  [ActionType.DistributeByPercentage]: (a) => {
+    const t = a.Transitions;
+    if (Object.keys(a.Parameters).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length !== 1 || errors[0]!.ErrorType !== NO_MATCHING_CONDITION) return undefined;
+    // The console mirrors NextAction onto the remainder branch, and so does the class.
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    const branches: { percent: number; target: string }[] = [];
+    let previous = 1;
+    for (const c of conditions) {
+      const operand = c.Condition.Operands[0];
+      if (c.Condition.Operator !== "NumberLessThan" || c.Condition.Operands.length !== 1) {
+        return undefined;
+      }
+      if (typeof operand !== "string" || !/^[1-9][0-9]*$/.test(operand)) return undefined;
+      const threshold = Number(operand);
+      if (threshold <= previous || threshold > PERCENTAGE_THRESHOLD_MAX) return undefined;
+      branches.push({ percent: threshold - previous, target: c.NextAction });
+      previous = threshold;
+    }
+    return {
+      cls: "DistributeByPercentage",
+      entries: [
+        ["id", a.Identifier],
+        [
+          "branches",
+          new ArrV(
+            branches.map(
+              (b) =>
+                new ObjV([
+                  ["percent", b.percent],
+                  ["target", b.target],
+                ]),
+            ),
+          ),
+        ],
+        ["onRemainder", errors[0]!.NextAction],
+      ],
+      block: new DistributeByPercentage({
+        id: a.Identifier,
+        branches,
+        onRemainder: errors[0]!.NextAction,
+      }),
+    };
+  },
+
+  [ActionType.UpdateFlowAttributes]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    if (!paramKeysAre(a.Parameters, ["FlowAttributes"])) return undefined;
+    const raw = a.Parameters.FlowAttributes;
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    // The console's value shape: { Value: "<string>" } for every attribute.
+    const attributes: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const entry = v as Record<string, unknown> | null;
+      if (entry === null || typeof entry !== "object" || !paramKeysAre(entry, ["Value"])) {
+        return undefined;
+      }
+      if (typeof entry.Value !== "string") return undefined;
+      attributes[k] = entry.Value;
+    }
+    return {
+      cls: "UpdateFlowAttributes",
+      entries: [
+        ["id", a.Identifier],
+        ["attributes", toV(attributes)],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UpdateFlowAttributes({
+        id: a.Identifier,
+        attributes,
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
+  [ActionType.CheckMetricData]: (a, ctx) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    // The console writes the two errors in either order; the class writes
+    // the catch-all first, and the comparison in invertAction re-emits this
+    // action in that order, so an export in the other order round-trips as
+    // a GenericBlock. Reading them by type keeps the inverter honest about
+    // which order it would reproduce.
+    const onError = errors.find((e) => e.ErrorType === NO_MATCHING_ERROR);
+    const onNoMatch = errors.find((e) => e.ErrorType === NO_MATCHING_CONDITION);
+    if (errors.length !== 2 || onError === undefined || onNoMatch === undefined) return undefined;
+    // The console mirrors NextAction onto the catch-all, and so does the class.
+    if (t.NextAction !== onError.NextAction) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    if (!paramKeysAre(a.Parameters, ["MetricType"], ["QueueId", "AgentId"])) return undefined;
+    const p = a.Parameters;
+    if (p.QueueId !== undefined && p.AgentId !== undefined) return undefined;
+    const metric = p.MetricType;
+    if (typeof metric !== "string" || !(METRIC_TYPES as readonly string[]).includes(metric)) {
+      return undefined;
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["metric", metric],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, metric };
+    for (const [key, prop] of [
+      ["QueueId", "queue"],
+      ["AgentId", "agent"],
+    ] as const) {
+      if (p[key] === undefined) continue;
+      const ref = refSource(p[key], "queue", ctx);
+      if (ref === undefined) return undefined;
+      entries.push([prop, ref]);
+      config[prop] = p[key];
+    }
+    const branches: { operator: string; operand: string; target: string }[] = [];
+    for (const c of conditions) {
+      const operand = c.Condition.Operands[0];
+      if (
+        !(METRIC_OPERATORS as readonly string[]).includes(c.Condition.Operator) ||
+        c.Condition.Operands.length !== 1 ||
+        typeof operand !== "string"
+      ) {
+        return undefined;
+      }
+      branches.push({ operator: c.Condition.Operator, operand, target: c.NextAction });
+    }
+    if (
+      (AGENT_METRIC_TYPES as readonly string[]).includes(metric) &&
+      (branches.length !== 1 ||
+        branches[0]!.operator !== "NumberGreaterThan" ||
+        branches[0]!.operand !== "0")
+    ) {
+      return undefined;
+    }
+    entries.push(
+      [
+        "branches",
+        new ArrV(
+          branches.map(
+            (b) =>
+              new ObjV([
+                ["operator", b.operator],
+                ["operand", b.operand],
+                ["target", b.target],
+              ]),
+          ),
+        ),
+      ],
+      ["onNoMatch", onNoMatch.NextAction],
+      ["onError", onError.NextAction],
+    );
+    return {
+      cls: "CheckMetricData",
+      entries,
+      block: new CheckMetricData(
+        cast<never>({
+          ...config,
+          branches,
+          onNoMatch: onNoMatch.NextAction,
+          onError: onError.NextAction,
+        }),
+      ),
+    };
+  },
+
+  [ActionType.GetMetricData]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, [], ["QueueId", "AgentId", "QueueChannel"])) return undefined;
+    if (p.QueueId !== undefined && p.AgentId !== undefined) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    for (const [key, prop] of [
+      ["QueueId", "queue"],
+      ["AgentId", "agent"],
+    ] as const) {
+      if (p[key] === undefined) continue;
+      const ref = refSource(p[key], "queue", ctx);
+      if (ref === undefined) return undefined;
+      entries.push([prop, ref]);
+      config[prop] = p[key];
+    }
+    if (p.QueueChannel !== undefined) {
+      const channel = p.QueueChannel;
+      if (typeof channel !== "string") return undefined;
+      if ((QUEUE_CHANNELS as readonly string[]).includes(channel)) {
+        entries.push(["channel", channel]);
+      } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(channel)) {
+        ctx.jsonPath = true;
+        entries.push(["channel", new Raw(`jsonPath(${quoteString(channel)})`)]);
+      } else {
+        return undefined;
+      }
+      config.channel = channel;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "GetMetricData",
+      entries,
+      block: new GetMetricData(cast<never>({ ...config, next: w.next, onError: w.onError })),
     };
   },
 
@@ -670,6 +1398,391 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
+  [ActionType.DequeueContactAndTransferToQueue]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== "QueueAtCapacity" ||
+      errors[1]!.ErrorType !== NO_MATCHING_ERROR
+    ) {
+      return undefined;
+    }
+    const keys = Object.keys(a.Parameters);
+    if (
+      keys.length > 1 ||
+      (keys[0] !== undefined && keys[0] !== "QueueId" && keys[0] !== "AgentId")
+    ) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const target: Record<string, unknown> = {};
+    const field = keys[0];
+    if (field !== undefined) {
+      const ref = refSource(a.Parameters[field], "queue", ctx);
+      if (ref === undefined) return undefined;
+      const prop = field === "QueueId" ? "queue" : "agent";
+      entries.push([prop, ref]);
+      target[prop] = a.Parameters[field];
+    }
+    entries.push(
+      ["next", t.NextAction],
+      ["onQueueAtCapacity", errors[0]!.NextAction],
+      ["onError", errors[1]!.NextAction],
+    );
+    return {
+      cls: "DequeueContactAndTransferToQueue",
+      entries,
+      block: new DequeueContactAndTransferToQueue(
+        cast<never>({
+          id: a.Identifier,
+          ...target,
+          next: t.NextAction,
+          onQueueAtCapacity: errors[0]!.NextAction,
+          onError: errors[1]!.NextAction,
+        }),
+      ),
+    };
+  },
+
+  [ActionType.UpdateContactRoutingBehavior]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    const keys = Object.keys(a.Parameters);
+    if (keys.length !== 1) return undefined;
+    const field = keys[0]!;
+    if (field !== "QueuePriority" && field !== "QueueTimeAdjustmentSeconds") return undefined;
+    // The console's spelling: a decimal string, no leading zero.
+    const raw = a.Parameters[field];
+    const shape = field === "QueuePriority" ? /^[1-9][0-9]*$/ : /^-?(0|[1-9][0-9]*)$/;
+    if (typeof raw !== "string" || !shape.test(raw)) return undefined;
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value)) return undefined;
+    const prop = field === "QueuePriority" ? "queuePriority" : "queueTimeAdjustmentSeconds";
+    return {
+      cls: "UpdateContactRoutingBehavior",
+      entries: [
+        ["id", a.Identifier],
+        [prop, value],
+        ["next", t.NextAction],
+      ],
+      block: new UpdateContactRoutingBehavior(
+        cast<never>({ id: a.Identifier, [prop]: value, next: t.NextAction }),
+      ),
+    };
+  },
+
+  [ActionType.CreateCallbackContact]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    const required = ["InitialCallDelaySeconds", "MaximumConnectionAttempts", "RetryDelaySeconds"];
+    if (!paramKeysAre(p, required, ["QueueId", "AgentId", "ContactFlowId", "CallerId"])) {
+      return undefined;
+    }
+    if (p.QueueId !== undefined && p.AgentId !== undefined) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    for (const [key, prop] of [
+      ["QueueId", "queue"],
+      ["AgentId", "agent"],
+    ] as const) {
+      if (p[key] === undefined) continue;
+      const ref = refSource(p[key], "queue", ctx);
+      if (ref === undefined) return undefined;
+      entries.push([prop, ref]);
+      config[prop] = p[key];
+    }
+    for (const [key, prop] of [
+      ["InitialCallDelaySeconds", "initialCallDelaySeconds"],
+      ["MaximumConnectionAttempts", "maximumConnectionAttempts"],
+      ["RetryDelaySeconds", "retryDelaySeconds"],
+    ] as const) {
+      // The console's spelling: a decimal string, no leading zero.
+      const raw = p[key];
+      if (typeof raw !== "string" || !/^[1-9][0-9]*$/.test(raw)) return undefined;
+      const value = Number(raw);
+      if (!Number.isSafeInteger(value)) return undefined;
+      entries.push([prop, value]);
+      config[prop] = value;
+    }
+    if (p.ContactFlowId !== undefined) {
+      const ref = refSource(p.ContactFlowId, "flow", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["flow", ref]);
+      config.flow = p.ContactFlowId;
+    }
+    if (p.CallerId !== undefined) {
+      if (typeof p.CallerId !== "string") return undefined;
+      entries.push(["callerId", p.CallerId]);
+      config.callerId = p.CallerId;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "CreateCallbackContact",
+      entries,
+      block: new CreateCallbackContact(
+        cast<never>({ ...config, next: w.next, onError: w.onError }),
+      ),
+    };
+  },
+
+  [ActionType.UpdateContactCallbackNumber]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== INVALID_CALLBACK_NUMBER ||
+      errors[1]!.ErrorType !== CALLBACK_NUMBER_NOT_DIALABLE
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["CallbackNumber"])) return undefined;
+    const value = a.Parameters.CallbackNumber;
+    if (typeof value !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(value)) return undefined;
+    ctx.jsonPath = true;
+    return {
+      cls: "UpdateContactCallbackNumber",
+      entries: [
+        ["id", a.Identifier],
+        ["callbackNumber", new Raw(`jsonPath(${quoteString(value)})`)],
+        ["next", t.NextAction],
+        ["onInvalidNumber", errors[0]!.NextAction],
+        ["onNotDialable", errors[1]!.NextAction],
+      ],
+      block: new UpdateContactCallbackNumber({
+        id: a.Identifier,
+        callbackNumber: cast<never>(value),
+        next: t.NextAction,
+        onInvalidNumber: errors[0]!.NextAction,
+        onNotDialable: errors[1]!.NextAction,
+      }),
+    };
+  },
+
+  [ActionType.TagContact]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    if (!paramKeysAre(a.Parameters, ["Tags"])) return undefined;
+    const tags = a.Parameters.Tags;
+    if (!isStringMap(tags)) return undefined;
+    const keys = Object.keys(tags);
+    if (keys.length === 0 || keys.length > TAG_LIMIT) return undefined;
+    if (keys.some((k) => k.startsWith(SYSTEM_TAG_PREFIX))) return undefined;
+    return {
+      cls: "TagContact",
+      entries: [
+        ["id", a.Identifier],
+        ["tags", toV(tags)],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new TagContact({ id: a.Identifier, tags, next: w.next, onError: w.onError }),
+    };
+  },
+
+  [ActionType.UntagContact]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    if (!paramKeysAre(a.Parameters, ["TagKeys"])) return undefined;
+    const keys = a.Parameters.TagKeys;
+    if (!Array.isArray(keys) || keys.length === 0) return undefined;
+    if (!keys.every((k) => typeof k === "string" && k !== "" && !k.startsWith(SYSTEM_TAG_PREFIX))) {
+      return undefined;
+    }
+    return {
+      cls: "UntagContact",
+      entries: [
+        ["id", a.Identifier],
+        ["tagKeys", new ArrV([...cast<string[]>(keys)])],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UntagContact({
+        id: a.Identifier,
+        tagKeys: cast<string[]>(keys),
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
+  [ActionType.UpdateContactTextToSpeechVoice]: (a, ctx) => {
+    // The catch-all is optional: the page requires it, the service and the
+    // console's exports do not.
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (errors.length > 1 || (errors.length === 1 && errors[0]!.ErrorType !== NO_MATCHING_ERROR)) {
+      return undefined;
+    }
+    const w = { next: t.NextAction, onError: errors[0]?.NextAction };
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["TextToSpeechVoice"], ["TextToSpeechEngine", "TextToSpeechStyle"])) {
+      return undefined;
+    }
+    const voice = p.TextToSpeechVoice;
+    if (typeof voice !== "string" || voice === "") return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["voice", voice],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, voice };
+    for (const [key, prop, allowed] of [
+      ["TextToSpeechEngine", "engine", TTS_ENGINES],
+      ["TextToSpeechStyle", "style", TTS_STYLES],
+    ] as const) {
+      const value = p[key];
+      if (value === undefined) continue;
+      if (typeof value !== "string") return undefined;
+      if ((allowed as readonly string[]).includes(value)) {
+        entries.push([prop, value]);
+      } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(value)) {
+        ctx.jsonPath = true;
+        entries.push([prop, new Raw(`jsonPath(${quoteString(value)})`)]);
+      } else {
+        return undefined;
+      }
+      config[prop] = value;
+    }
+    entries.push(["next", w.next]);
+    if (w.onError !== undefined) entries.push(["onError", w.onError]);
+    return {
+      cls: "UpdateContactTextToSpeechVoice",
+      entries,
+      block: new UpdateContactTextToSpeechVoice(
+        cast<never>({ ...config, next: w.next, onError: w.onError }),
+      ),
+    };
+  },
+
+  [ActionType.UpdateContactData]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    const strings = [
+      ["Name", "name"],
+      ["Description", "description"],
+      ["LanguageCode", "languageCode"],
+      ["CustomerId", "customerId"],
+      ["WatchlistId", "watchlistId"],
+      ["WisdomSessionArn", "wisdomSessionArn"],
+    ] as const;
+    const flags = [
+      ["IsVoiceIdStreamingEnabled", "voiceIdStreaming"],
+      ["IsVoiceAuthenticationEnabled", "voiceAuthentication"],
+      ["IsFraudDetectionEnabled", "fraudDetection"],
+    ] as const;
+    const numbers = [
+      [
+        "VoiceAuthenticationThreshold",
+        "voiceAuthenticationThreshold",
+        VOICE_ID_THRESHOLD_MIN,
+        VOICE_ID_THRESHOLD_MAX,
+      ],
+      [
+        "VoiceAuthenticationResponseTime",
+        "voiceAuthenticationResponseTime",
+        VOICE_ID_RESPONSE_TIME_MIN,
+        VOICE_ID_RESPONSE_TIME_MAX,
+      ],
+      [
+        "FraudDetectionThreshold",
+        "fraudDetectionThreshold",
+        VOICE_ID_THRESHOLD_MIN,
+        VOICE_ID_THRESHOLD_MAX,
+      ],
+    ] as const;
+    const optional = [
+      ...strings.map(([k]) => k),
+      "References",
+      ...flags.map(([k]) => k),
+      ...numbers.map(([k]) => k),
+    ];
+    if (!paramKeysAre(p, [], [...optional, "TargetContact"])) return undefined;
+    const target = p.TargetContact;
+    if (
+      target !== undefined &&
+      (typeof target !== "string" || !(TARGET_CONTACTS as readonly string[]).includes(target))
+    ) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (target !== undefined) {
+      entries.push(["targetContact", target]);
+      config.targetContact = target;
+    }
+    for (const [key, prop] of strings) {
+      if (p[key] === undefined) continue;
+      if (typeof p[key] !== "string") return undefined;
+      entries.push([prop, p[key]]);
+      config[prop] = p[key];
+    }
+    if (p.References !== undefined) {
+      if (!isStringMap(p.References)) return undefined;
+      entries.push(["references", toV(p.References)]);
+      config.references = p.References;
+    }
+    for (const [key, prop] of flags) {
+      if (p[key] === undefined) continue;
+      if (p[key] !== "TRUE" && p[key] !== "FALSE") return undefined;
+      entries.push([prop, p[key] === "TRUE"]);
+      config[prop] = p[key] === "TRUE";
+    }
+    for (const [key, prop, min, max] of numbers) {
+      const raw = p[key];
+      if (raw === undefined) continue;
+      if (typeof raw !== "string" || !/^(0|[1-9][0-9]*)$/.test(raw)) return undefined;
+      const value = Number(raw);
+      if (value < min || value > max) return undefined;
+      entries.push([prop, value]);
+      config[prop] = value;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "UpdateContactData",
+      entries,
+      block: new UpdateContactData(cast<never>({ ...config, next: w.next, onError: w.onError })),
+    };
+  },
+
+  [ActionType.UpdateContactEventHooks]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    if (!paramKeysAre(a.Parameters, ["EventHooks"])) return undefined;
+    const hooks = a.Parameters.EventHooks;
+    if (hooks === null || typeof hooks !== "object" || Array.isArray(hooks)) return undefined;
+    const keys = Object.keys(hooks);
+    if (keys.length !== 1) return undefined;
+    const hook = keys[0]!;
+    if (!(EVENT_HOOKS as readonly string[]).includes(hook)) return undefined;
+    const value = (hooks as Record<string, unknown>)[hook];
+    const ref = refSource(value, "flow", ctx);
+    if (ref === undefined) return undefined;
+    return {
+      cls: "UpdateContactEventHooks",
+      entries: [
+        ["id", a.Identifier],
+        ["hook", hook],
+        ["flow", ref],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UpdateContactEventHooks({
+        id: a.Identifier,
+        hook: cast<never>(hook),
+        flow: cast<never>(value),
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
   [ActionType.UpdateContactAttributes]: (a) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined) return undefined;
@@ -741,6 +1854,94 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         next: w.next,
         onError: w.onError,
       }),
+    };
+  },
+
+  [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== CHANNEL_MISMATCH
+    ) {
+      return undefined;
+    }
+    // The voice recording form or the screen recording form, never both (the
+    // service refuses two objects on one block); the chat form and the voice
+    // analytics settings stay generic.
+    if (!paramKeysAre(a.Parameters, [], ["VoiceBehavior", "ScreenRecordingBehavior"])) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    const vb = a.Parameters.VoiceBehavior as Record<string, unknown> | undefined;
+    if (vb !== undefined) {
+      if (vb === null || typeof vb !== "object" || Array.isArray(vb)) return undefined;
+      if (!paramKeysAre(vb, ["VoiceRecordingBehavior"])) return undefined;
+      const rb = vb.VoiceRecordingBehavior as Record<string, unknown> | null;
+      if (rb === null || typeof rb !== "object" || Array.isArray(rb)) return undefined;
+      if (!paramKeysAre(rb, ["RecordedParticipants"], ["IVRRecordingBehavior"])) return undefined;
+      const recorded = rb.RecordedParticipants;
+      if (!Array.isArray(recorded) || !recorded.every((p) => p === "Agent" || p === "Customer")) {
+        return undefined;
+      }
+      const voice: [string, V][] = [["recordedParticipants", new ArrV([...recorded])]];
+      const voiceConfig: Record<string, unknown> = { recordedParticipants: recorded };
+      const ivr = rb.IVRRecordingBehavior;
+      if (ivr !== undefined) {
+        if (ivr !== "Enabled" && ivr !== "Disabled") return undefined;
+        voice.push(["ivrRecordingBehavior", ivr]);
+        voiceConfig.ivrRecordingBehavior = ivr;
+      }
+      entries.push(["voice", new ObjV(voice)]);
+      config.voice = voiceConfig;
+    }
+    const sb = a.Parameters.ScreenRecordingBehavior as Record<string, unknown> | undefined;
+    if (sb !== undefined) {
+      if (sb === null || typeof sb !== "object" || Array.isArray(sb)) return undefined;
+      if (!paramKeysAre(sb, ["ScreenRecordedParticipants"])) return undefined;
+      const screen = sb.ScreenRecordedParticipants;
+      if (!Array.isArray(screen) || !screen.every((p) => p === "Agent")) return undefined;
+      entries.push(["screenRecordedParticipants", new ArrV([...screen])]);
+      config.screenRecordedParticipants = screen;
+    }
+    if ((vb === undefined) === (sb === undefined)) return undefined;
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onChannelMismatch", errors[1]!.NextAction],
+    );
+    return {
+      cls: "UpdateContactRecordingAndAnalyticsBehavior",
+      entries,
+      block: new UpdateContactRecordingAndAnalyticsBehavior(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onChannelMismatch: errors[1]!.NextAction,
+        }),
+      ),
+    };
+  },
+
+  [ActionType.UpdateFlowLoggingBehavior]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    if (!paramKeysAre(a.Parameters, ["FlowLoggingBehavior"])) return undefined;
+    const behavior = a.Parameters.FlowLoggingBehavior;
+    if (behavior !== "Enabled" && behavior !== "Disabled") return undefined;
+    return {
+      cls: "UpdateFlowLoggingBehavior",
+      entries: [
+        ["id", a.Identifier],
+        ["behavior", behavior],
+        ["next", t.NextAction],
+      ],
+      block: new UpdateFlowLoggingBehavior({ id: a.Identifier, behavior, next: t.NextAction }),
     };
   },
 
@@ -910,7 +2111,8 @@ function invertAction(a: FlowAction, ctx: Ctx): Inversion {
 // @keep comments
 // ---------------------------------------------------------------------------
 
-interface KeepComments {
+/** Comment lines marked `@keep`, above the export function and above each block by id. */
+export interface KeepComments {
   beforeExport: string[];
   beforeBlock: Map<string, string[]>;
 }
@@ -918,7 +2120,8 @@ interface KeepComments {
 const NEW_BLOCK = /^new [A-Za-z_$][A-Za-z0-9_$]*\(\{/;
 const BLOCK_ID = /\bid: (["'])((?:[^"'\\]|\\.)*)\1/;
 
-function extractKeepComments(previous: string): KeepComments {
+/** The `@keep` comment lines of a generated source, keyed as codegen re-attaches them. */
+export function extractKeepComments(previous: string): KeepComments {
   const out: KeepComments = { beforeExport: [], beforeBlock: new Map() };
   const lines = previous.split("\n");
   let pending: string[] = [];
@@ -1024,6 +2227,7 @@ export function factoryName(name: string, taken: ReadonlySet<string> = new Set()
 
 function flowConfigEntries(doc: FlowDoc): [string, V][] {
   const entries: [string, V][] = [["name", doc.name]];
+  if (doc.description !== undefined) entries.push(["description", doc.description]);
   if (doc.kind !== "module") entries.push(["connectType", doc.connectType]);
   // A module's empty Settings is synth's default, so it is not worth emitting;
   // a non-empty one must be, or synth would re-default it and the round trip
@@ -1040,7 +2244,7 @@ function flowConfigEntries(doc: FlowDoc): [string, V][] {
   // hand-placed positions are worth carrying in source. Either way
   // synth(codegen(doc)) reproduces doc.layout.
   if (doc.layout !== undefined) {
-    const auto = autoLayout(doc.content.Actions);
+    const auto = autoLayout(doc.content.Actions, doc.content.StartAction);
     if (stableJson(doc.layout) !== stableJson(auto)) {
       const layoutEntries = Object.keys(doc.layout)
         .sort()
@@ -1088,9 +2292,10 @@ export function codegen(doc: FlowDoc, options: CodegenOptions = {}): string {
   }
   const spec = options.moduleSpecifier ?? DEFAULT_MODULE_SPECIFIER;
   const keep =
-    options.previous === undefined
+    options.keep ??
+    (options.previous === undefined
       ? { beforeExport: [], beforeBlock: new Map<string, string[]>() }
-      : extractKeepComments(options.previous);
+      : extractKeepComments(options.previous));
 
   const ctx: Ctx = { refs: false, jsonPath: false };
   const inversions = doc.content.Actions.map((a) => invertAction(a, ctx));

@@ -1,0 +1,10 @@
+{
+  "description": "A lint block disabling one rule, and a document whose one reference has no binding at all.",
+  "doc": "../../../roundtrip/dtmf-menu/doc.flowdoc.json",
+  "options": {
+    "lintDisable": [
+      "prompt-length-3000"
+    ]
+  },
+  "validate": "skip"
+}

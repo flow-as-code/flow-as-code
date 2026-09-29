@@ -1,0 +1,398 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "flow-control",
+  "description": "Flow-control actions, with a loop whose continue path is a back edge.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "greet",
+    "Actions": [
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Please hold while we look that up."
+        },
+        "Transitions": {
+          "NextAction": "remember",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "remember",
+        "Type": "UpdateFlowAttributes",
+        "Parameters": {
+          "FlowAttributes": {
+            "lastPrompt": {
+              "Value": "greet"
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "split",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "split",
+        "Type": "DistributeByPercentage",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "again",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "31"
+                ]
+              }
+            },
+            {
+              "NextAction": "staffed",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "51"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "staffed",
+        "Type": "CheckMetricData",
+        "Parameters": {
+          "MetricType": "NumberOfAgentsStaffed"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "wait-for-customer"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "load-metrics",
+              "Condition": {
+                "Operator": "NumberGreaterThan",
+                "Operands": [
+                  "0"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "load-metrics",
+        "Type": "GetMetricData",
+        "Parameters": {
+          "QueueChannel": "Voice",
+          "QueueId": "${cdref:queue:front-desk}"
+        },
+        "Transitions": {
+          "NextAction": "queue-depth",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "queue-depth",
+        "Type": "CheckMetricData",
+        "Parameters": {
+          "MetricType": "NumberOfContactsInQueue",
+          "QueueId": "${cdref:queue:front-desk}"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "load-agent-metrics",
+              "Condition": {
+                "Operator": "NumberLessThan",
+                "Operands": [
+                  "5"
+                ]
+              }
+            },
+            {
+              "NextAction": "bye",
+              "Condition": {
+                "Operator": "NumberGreaterOrEqualTo",
+                "Operands": [
+                  "5"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "load-agent-metrics",
+        "Type": "GetMetricData",
+        "Parameters": {
+          "AgentId": "$.Attributes.preferredAgentArn",
+          "QueueChannel": "$.Channel"
+        },
+        "Transitions": {
+          "NextAction": "wait-for-customer",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "again",
+        "Type": "Loop",
+        "Parameters": {
+          "LoopCount": "2"
+        },
+        "Transitions": {
+          "NextAction": "dynamic-loop",
+          "Errors": [],
+          "Conditions": [
+            {
+              "NextAction": "greet",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "ContinueLooping"
+                ]
+              }
+            },
+            {
+              "NextAction": "dynamic-loop",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "DoneLooping"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "dynamic-loop",
+        "Type": "Loop",
+        "Parameters": {
+          "LoopCount": "$.Attributes.retries"
+        },
+        "Transitions": {
+          "NextAction": "wait-for-customer",
+          "Errors": [],
+          "Conditions": [
+            {
+              "NextAction": "greet",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "ContinueLooping"
+                ]
+              }
+            },
+            {
+              "NextAction": "wait-for-customer",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "DoneLooping"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "wait-for-customer",
+        "Type": "Wait",
+        "Parameters": {
+          "Events": [
+            "CustomerReturned",
+            "BotParticipantDisconnected"
+          ],
+          "TimeLimitSeconds": "300"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ParticipantNotFound",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "wait-briefly",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "WaitCompleted"
+                ]
+              }
+            },
+            {
+              "NextAction": "greet",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "CustomerReturned"
+                ]
+              }
+            },
+            {
+              "NextAction": "bye",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "BotParticipantDisconnected"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "wait-briefly",
+        "Type": "Wait",
+        "Parameters": {
+          "TimeLimitSeconds": "$.Attributes.graceSeconds"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "bye",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "WaitCompleted"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "again": {
+      "x": 800,
+      "y": 20
+    },
+    "bye": {
+      "x": 2360,
+      "y": 20
+    },
+    "dynamic-loop": {
+      "x": 1060,
+      "y": 20
+    },
+    "greet": {
+      "x": 20,
+      "y": 20
+    },
+    "load-agent-metrics": {
+      "x": 1580,
+      "y": 20
+    },
+    "load-metrics": {
+      "x": 1060,
+      "y": 120
+    },
+    "queue-depth": {
+      "x": 1320,
+      "y": 20
+    },
+    "remember": {
+      "x": 280,
+      "y": 20
+    },
+    "split": {
+      "x": 540,
+      "y": 20
+    },
+    "staffed": {
+      "x": 800,
+      "y": 120
+    },
+    "wait-briefly": {
+      "x": 2100,
+      "y": 20
+    },
+    "wait-for-customer": {
+      "x": 1840,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:queue:front-desk}",
+      "type": "queue",
+      "name": "front-desk"
+    }
+  ]
+}

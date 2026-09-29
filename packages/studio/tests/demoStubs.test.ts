@@ -16,13 +16,14 @@ import * as demoNames from "../src/demo/package-names.js";
 import * as realBridge from "../src/store/bridgeStore.js";
 import {
   BRIDGE_GLOBAL,
+  BRIDGE_PROTOCOL,
   type BridgeConflict,
   type BridgeInfo,
 } from "../src/store/bridgeProtocol.js";
 
 const surface = (mod: object): string[] => Object.keys(mod).sort();
 
-const info: BridgeInfo = { protocol: 1, token: "t", label: "demo", dir: "/nowhere" };
+const info: BridgeInfo = { protocol: BRIDGE_PROTOCOL, token: "t", label: "demo", dir: "/nowhere" };
 
 describe("demo stub: package names", () => {
   it("exports exactly what @flow-as-code/core's package-names exports", () => {

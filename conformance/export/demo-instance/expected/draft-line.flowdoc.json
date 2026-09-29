@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.1",
+  "flowdoc": "0.2",
   "kind": "flow",
   "name": "draft-line",
   "connectType": "CONTACT_FLOW",
@@ -44,7 +44,7 @@
   },
   "refs": [],
   "meta": {
-    "generator": "core@0.1",
+    "generator": "core@0.2",
     "source": {
       "alias": "$SAVED",
       "id": "cccc3333-0000-4000-8000-000000000002",

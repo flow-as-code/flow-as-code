@@ -1,0 +1,16 @@
+{
+  "refs": {
+    "prompt:welcome-prompt": "data.aws_connect_prompt.welcome_prompt.arn"
+  },
+  "lint": [],
+  "tags": {},
+  "instanceId": "var.connect_instance_id",
+  "normalized": [
+    {
+      "attribute": "action[welcome].message_participant.prompt_id",
+      "from": "data.aws_connect_prompt.welcome_prompt.arn",
+      "to": "prompt:welcome-prompt",
+      "binding": "data.aws_connect_prompt.welcome_prompt.arn"
+    }
+  ]
+}

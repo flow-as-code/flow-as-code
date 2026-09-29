@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.1",
+  "flowdoc": "0.2",
   "kind": "module",
   "name": "after-call-survey",
   "connectType": "MODULE",
@@ -53,7 +53,7 @@
   "layout": {
     "ask-question": {
       "x": 280,
-      "y": 50
+      "y": 20
     },
     "intro": {
       "x": 20,

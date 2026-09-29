@@ -68,6 +68,7 @@
   "dependencies": {
     "@flow-as-code/cdk": "0.1.2",
     "@flow-as-code/core": "0.1.2",
+    "@flow-as-code/hcl": "0.1.2",
     "@flow-as-code/studio": "0.1.2",
     "@flow-as-code/tf": "0.1.2",
     "ajv": "^8.20.0",

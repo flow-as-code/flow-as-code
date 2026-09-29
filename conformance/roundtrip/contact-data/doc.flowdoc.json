@@ -1,0 +1,248 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "contact-data",
+  "description": "Contact-data actions: tags, voice, data and event hooks.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "tag",
+    "Actions": [
+      {
+        "Identifier": "tag",
+        "Type": "TagContact",
+        "Parameters": {
+          "Tags": {
+            "team": "cx",
+            "tier": "$.Attributes.tier"
+          }
+        },
+        "Transitions": {
+          "NextAction": "untag",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "untag",
+        "Type": "UntagContact",
+        "Parameters": {
+          "TagKeys": [
+            "tier"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "set-voice",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-voice",
+        "Type": "UpdateContactTextToSpeechVoice",
+        "Parameters": {
+          "TextToSpeechEngine": "Neural",
+          "TextToSpeechStyle": "Conversational",
+          "TextToSpeechVoice": "Matthew"
+        },
+        "Transitions": {
+          "NextAction": "set-voice-dynamic",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-voice-dynamic",
+        "Type": "UpdateContactTextToSpeechVoice",
+        "Parameters": {
+          "TextToSpeechEngine": "$.Attributes.engine",
+          "TextToSpeechVoice": "$.Attributes.voice"
+        },
+        "Transitions": {
+          "NextAction": "set-data",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-data",
+        "Type": "UpdateContactData",
+        "Parameters": {
+          "CustomerId": "c-1",
+          "Description": "Priority caller",
+          "FraudDetectionThreshold": "50",
+          "IsFraudDetectionEnabled": "FALSE",
+          "IsVoiceAuthenticationEnabled": "TRUE",
+          "IsVoiceIdStreamingEnabled": "TRUE",
+          "LanguageCode": "en-US",
+          "Name": "$.Attributes.name",
+          "References": {
+            "CaseId": "$.Attributes.caseId"
+          },
+          "TargetContact": "Related",
+          "VoiceAuthenticationResponseTime": "7",
+          "VoiceAuthenticationThreshold": "80",
+          "WatchlistId": "a1B2c3D4e5F6g7H8i9J0kL",
+          "WisdomSessionArn": "$.Wisdom.SessionArn"
+        },
+        "Transitions": {
+          "NextAction": "set-data-minimal",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-data-minimal",
+        "Type": "UpdateContactData",
+        "Parameters": {
+          "WisdomSessionArn": "$.Wisdom.SessionArn"
+        },
+        "Transitions": {
+          "NextAction": "set-queue-flow",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-queue-flow",
+        "Type": "UpdateContactEventHooks",
+        "Parameters": {
+          "EventHooks": {
+            "CustomerQueue": "${cdref:flow:queue-experience}"
+          }
+        },
+        "Transitions": {
+          "NextAction": "set-whisper-flow",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-whisper-flow",
+        "Type": "UpdateContactEventHooks",
+        "Parameters": {
+          "EventHooks": {
+            "CustomerWhisper": "$.Attributes.whisperFlow"
+          }
+        },
+        "Transitions": {
+          "NextAction": "greet",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Thanks for calling."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 2360,
+      "y": 20
+    },
+    "greet": {
+      "x": 2100,
+      "y": 20
+    },
+    "set-data": {
+      "x": 1060,
+      "y": 20
+    },
+    "set-data-minimal": {
+      "x": 1320,
+      "y": 20
+    },
+    "set-queue-flow": {
+      "x": 1580,
+      "y": 20
+    },
+    "set-voice": {
+      "x": 540,
+      "y": 20
+    },
+    "set-voice-dynamic": {
+      "x": 800,
+      "y": 20
+    },
+    "set-whisper-flow": {
+      "x": 1840,
+      "y": 20
+    },
+    "tag": {
+      "x": 20,
+      "y": 20
+    },
+    "untag": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:flow:queue-experience}",
+      "type": "flow",
+      "name": "queue-experience"
+    }
+  ]
+}

@@ -2,38 +2,34 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-import {
-  ActionType,
-  NO_MATCHING_CONDITION,
-  NO_MATCHING_ERROR,
-  TERMINAL_ACTIONS,
-} from "../../actions.js";
+import { modeledEntry, requiredErrorsFor } from "../../catalog.js";
 import { isTerminal } from "../graph.js";
 import type { Rule } from "../types.js";
-
-const MODELED = new Set<string>(Object.values(ActionType));
 
 /**
  * The backstop for the type-level enforcement in the builder. It catches what
  * types cannot: hand-edited FlowDocs, exported flows, and studio edits.
  *
  * Only modeled actions are checked. We cannot know an unmodeled action's error
- * set, and some documented actions genuinely have none.
+ * set, and some documented actions genuinely have none. Which branches an
+ * action must wire comes from the catalog (conformance/flow-language/
+ * catalog.json): the catch-all for most, NoMatchingCondition for Compare, two
+ * named errors and no catch-all for some of the types the modeled set is
+ * growing into, and none at all for others.
  */
 export const errorBranches: Rule = {
   id: "error-branches",
-  description: "Every non-terminal modeled action must wire its catch-all error branch.",
+  description:
+    "Every non-terminal modeled action must wire the error branches its page requires, the catch-all for most, and any branch a parameter it carries makes required.",
   check({ doc, report }) {
     for (const action of doc.content.Actions) {
       if (isTerminal(action)) continue;
-      if (!MODELED.has(action.Type)) continue;
-      if (TERMINAL_ACTIONS.includes(action.Type)) continue;
+      const entry = modeledEntry(action.Type);
+      if (entry === undefined || entry.terminal) continue;
 
-      // Compare is the one modeled action that fails with NoMatchingCondition.
-      const expected =
-        action.Type === ActionType.Compare ? NO_MATCHING_CONDITION : NO_MATCHING_ERROR;
-      const wired = (action.Transitions.Errors ?? []).some((e) => e.ErrorType === expected);
-      if (!wired) {
+      const wired = new Set((action.Transitions.Errors ?? []).map((e) => e.ErrorType));
+      for (const expected of requiredErrorsFor(action.Type, action.Parameters)) {
+        if (wired.has(expected)) continue;
         report({
           severity: "error",
           blockId: action.Identifier,

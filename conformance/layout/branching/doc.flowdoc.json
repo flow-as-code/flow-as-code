@@ -1,0 +1,85 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "branching",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "hours",
+    "Actions": [
+      {
+        "Identifier": "hours",
+        "Type": "CheckHoursOfOperation",
+        "Parameters": {},
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "closed"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "open",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "True"
+                ]
+              }
+            },
+            {
+              "NextAction": "closed",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "False"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "open",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "We are open."
+        },
+        "Transitions": {
+          "NextAction": "end",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "closed",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "We are closed."
+        },
+        "Transitions": {
+          "NextAction": "end",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "end",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

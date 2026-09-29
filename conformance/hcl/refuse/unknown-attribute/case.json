@@ -1,0 +1,4 @@
+{
+  "description": "An attribute outside the settable set.",
+  "terraformError": "Unsupported argument"
+}

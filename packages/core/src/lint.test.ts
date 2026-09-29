@@ -22,7 +22,7 @@ interface FailFixture {
 const docsOf = (parsed: { doc?: FlowDoc; docs?: FlowDoc[] }): FlowDoc[] =>
   parsed.docs ?? (parsed.doc === undefined ? [parsed as unknown as FlowDoc] : [parsed.doc]);
 
-const schema = JSON.parse(read("conformance/schema/flowdoc-0.1.schema.json"));
+const schema = JSON.parse(read("conformance/schema/flowdoc-0.2.schema.json"));
 const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
 
 const ruleDirs = dirs("conformance/lint")
@@ -132,9 +132,23 @@ describe("engine", () => {
   });
 
   it("honours disabled rules", () => {
+    const orphan = JSON.parse(
+      readFileSync(
+        new URL("../../../conformance/lint/reachable-blocks/fail-orphan.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { doc: FlowDoc };
+    const docs = [orphan.doc];
+    expect(lint(docs).some((f) => f.rule === "reachable-blocks")).toBe(true);
     expect(
-      lint(dirty(), { disable: ["no-literal-arn"] }).filter((f) => f.rule === "no-literal-arn"),
+      lint(docs, { disable: ["reachable-blocks"] }).filter((f) => f.rule === "reachable-blocks"),
     ).toEqual([]);
+  });
+
+  it("refuses to disable a hard rule", () => {
+    expect(() => lint(dirty(), { disable: ["no-literal-arn", "no-unresolved-token"] })).toThrow(
+      "lint cannot disable a hard rule: no-literal-arn, no-unresolved-token.",
+    );
   });
 
   it("flags a hard rule as blocking a studio save", () => {

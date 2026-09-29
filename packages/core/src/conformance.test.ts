@@ -3,15 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { readFileSync, readdirSync } from "node:fs";
+import { ActionType } from "./actions.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { migrateFlowDoc, serialize, type FlowDoc } from "./index.js";
 
 // The conformance directory is the cross-language contract (conformance/README.md).
 // These assertions are what a future Go provider must also satisfy.
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
 
-const schema = JSON.parse(read("conformance/schema/flowdoc-0.1.schema.json"));
+const schema = JSON.parse(read("conformance/schema/flowdoc-0.2.schema.json"));
+const schema01 = JSON.parse(read("conformance/schema/flowdoc-0.1.schema.json"));
 const demoRaw = read("conformance/demo/appointment-line.flowdoc.json");
 const demo = JSON.parse(demoRaw);
 
@@ -22,7 +25,7 @@ interface Action {
   Transitions: {
     NextAction?: string;
     Errors?: { ErrorType: string; NextAction: string }[];
-    Conditions?: { NextAction: string }[];
+    Conditions?: { NextAction: string; Condition: { Operator: string; Operands: unknown[] } }[];
   };
 }
 
@@ -90,10 +93,20 @@ describe("demo flow invariants", () => {
     expect(terminal.map((a) => a.Type)).toEqual(["DisconnectParticipant"]);
   });
 
-  // GenericBlock passthrough is what makes a small modeled set survivable,
-  // so the canonical fixture must always exercise it.
-  it("includes an unmodeled action for GenericBlock passthrough", () => {
-    expect(actions.map((a) => a.Type)).toContain("UpdateFlowLoggingBehavior");
+  // GenericBlock passthrough is what makes a small modeled set survivable.
+  // The demo carried it (UpdateFlowLoggingBehavior) until the builder gained
+  // that type on 2026-09-11; the unknown-actions fixture holds it now, with
+  // only types the builder does not model, so a newly modeled type is caught
+  // there rather than quietly ending the guarantee.
+  it("is modeled end to end, with passthrough exercised by the unknown-actions fixture", () => {
+    const modeled = new Set<string>(Object.values(ActionType));
+    expect(actions.filter((a) => !modeled.has(a.Type)).map((a) => a.Type)).toEqual([]);
+    const unknown = JSON.parse(read("conformance/roundtrip/unknown-actions/doc.flowdoc.json")) as {
+      content: { Actions: { Type: string }[] };
+    };
+    const types = unknown.content.Actions.map((a) => a.Type);
+    expect(types.length).toBeGreaterThan(0);
+    expect(types.filter((t) => modeled.has(t))).toEqual([]);
   });
 });
 
@@ -164,6 +177,523 @@ describe("FlowDoc schema rejections", () => {
       a.Parameters.QueueId = "$.Attributes.queueId";
     });
     expect(validate(doc)).toBe(true);
+  });
+});
+
+// The contact-routing round-trip fixture is the subject for the bounds the
+// schema holds on the callback and routing actions.
+describe("FlowDoc schema rejections: contact routing", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/contact-routing/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a callback delay written as a JSON number, which the console never writes",
+      mutate("offer-callback", (a) => {
+        a.Parameters.InitialCallDelaySeconds = 60;
+      }),
+    ],
+    [
+      "zero connection attempts",
+      mutate("offer-callback", (a) => {
+        a.Parameters.MaximumConnectionAttempts = "0";
+      }),
+    ],
+    [
+      "a retry delay with a leading zero",
+      mutate("offer-callback", (a) => {
+        a.Parameters.RetryDelaySeconds = "0600";
+      }),
+    ],
+    [
+      "a callback with both a queue and an agent queue",
+      mutate("offer-callback", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
+    [
+      "a literal ARN as the callback flow",
+      mutate("offer-callback", (a) => {
+        a.Parameters.ContactFlowId =
+          "arn:aws:connect:us-east-1:111122223333:instance/a/contact-flow/b";
+      }),
+    ],
+    [
+      "a queue priority of zero",
+      mutate("bump-priority", (a) => {
+        a.Parameters.QueuePriority = "0";
+      }),
+    ],
+    [
+      "a queue priority written as a JSON number",
+      mutate("bump-priority", (a) => {
+        a.Parameters.QueuePriority = 1;
+      }),
+    ],
+    [
+      "a static callback number",
+      mutate("set-callback-number", (a) => {
+        a.Parameters.CallbackNumber = "+15555550100";
+      }),
+    ],
+    [
+      "a priority and a time adjustment together",
+      mutate("bump-priority", (a) => {
+        a.Parameters.QueueTimeAdjustmentSeconds = "30";
+      }),
+    ],
+    [
+      "a queue-to-queue transfer naming both a queue and an agent queue",
+      mutate("move-to-priority-queue", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
+describe("FlowDoc schema rejections: flow control", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/flow-control/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a loop count above 100",
+      mutate("again", (a) => {
+        a.Parameters.LoopCount = "101";
+      }),
+    ],
+    [
+      "a loop count written as a JSON number, which the console never writes",
+      mutate("again", (a) => {
+        a.Parameters.LoopCount = 2;
+      }),
+    ],
+    [
+      "a loop count with a leading zero",
+      mutate("again", (a) => {
+        a.Parameters.LoopCount = "02";
+      }),
+    ],
+    [
+      "a percentage threshold above 100",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operands = ["101"];
+      }),
+    ],
+    [
+      "a percentage branch with an operator other than NumberLessThan",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operator = "NumberGreaterThan";
+      }),
+    ],
+    [
+      "a percentage threshold written as a JSON number",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operands = [20];
+      }),
+    ],
+    [
+      "a percentage branch with two operands",
+      mutate("split", (a) => {
+        a.Transitions.Conditions![0]!.Condition.Operands = ["20", "30"];
+      }),
+    ],
+    [
+      "a flow attribute as a flat string, which the console never writes",
+      mutate("remember", (a) => {
+        a.Parameters.FlowAttributes = { lastPrompt: "greet" };
+      }),
+    ],
+    [
+      "a flow attribute wrapper with a key other than Value",
+      mutate("remember", (a) => {
+        a.Parameters.FlowAttributes = { lastPrompt: { Value: "greet", Type: "string" } };
+      }),
+    ],
+    [
+      "a wait of zero seconds",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.TimeLimitSeconds = "0";
+      }),
+    ],
+    [
+      "a wait written as a JSON number, which the console never writes",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.TimeLimitSeconds = 300;
+      }),
+    ],
+    [
+      "a wait event the page does not list",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.Events = ["CustomerReturned", "LambdaReturned"];
+      }),
+    ],
+    [
+      "a wait event listed twice",
+      mutate("wait-for-customer", (a) => {
+        a.Parameters.Events = ["CustomerReturned", "CustomerReturned"];
+      }),
+    ],
+    [
+      "a metric the page does not list",
+      mutate("staffed", (a) => {
+        a.Parameters.MetricType = "NumberOfAgentsHappy";
+      }),
+    ],
+    [
+      "a metric check naming both a queue and an agent queue",
+      mutate("queue-depth", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
+    [
+      "a metric load for a channel the page does not list",
+      mutate("load-metrics", (a) => {
+        a.Parameters.QueueChannel = "Email";
+      }),
+    ],
+    [
+      "a metric load naming both a queue and an agent queue",
+      mutate("load-metrics", (a) => {
+        a.Parameters.AgentId = "${cdref:queue:agents}";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+
+  it("still accepts a JSONPath loop count and wait timeout", () => {
+    const doc = mutate("wait-for-customer", (a) => {
+      a.Parameters.TimeLimitSeconds = "$.Attributes.holdSeconds";
+    });
+    expect(validate(doc)).toBe(true);
+  });
+});
+
+describe("FlowDoc schema rejections: contact data", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/contact-data/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "seven tags",
+      mutate("tag", (a) => {
+        a.Parameters.Tags = Object.fromEntries("abcdefg".split("").map((k) => [k, k]));
+      }),
+    ],
+    [
+      "a system tag key",
+      mutate("tag", (a) => {
+        a.Parameters.Tags = { "aws:connect:instanceId": "x" };
+      }),
+    ],
+    [
+      "a non-string tag value",
+      mutate("tag", (a) => {
+        a.Parameters.Tags = { count: 1 };
+      }),
+    ],
+    [
+      "removing a system tag",
+      mutate("untag", (a) => {
+        a.Parameters.TagKeys = ["aws:connect:instanceId"];
+      }),
+    ],
+    [
+      "an empty key list, which the service refuses",
+      mutate("untag", (a) => {
+        a.Parameters.TagKeys = [];
+      }),
+    ],
+    [
+      "a text-to-speech engine the pages do not list",
+      mutate("set-voice", (a) => {
+        a.Parameters.TextToSpeechEngine = "premium";
+      }),
+    ],
+    [
+      "a text-to-speech engine in the admin guide's lower case, which the console never writes",
+      mutate("set-voice", (a) => {
+        a.Parameters.TextToSpeechEngine = "neural";
+      }),
+    ],
+    [
+      "an empty voice name",
+      mutate("set-voice", (a) => {
+        a.Parameters.TextToSpeechVoice = "";
+      }),
+    ],
+    [
+      "a voice authentication threshold above 100",
+      mutate("set-data", (a) => {
+        a.Parameters.VoiceAuthenticationThreshold = "101";
+      }),
+    ],
+    [
+      "a response time below 5 seconds",
+      mutate("set-data", (a) => {
+        a.Parameters.VoiceAuthenticationResponseTime = "4";
+      }),
+    ],
+    [
+      "a lowercase Voice ID flag",
+      mutate("set-data", (a) => {
+        a.Parameters.IsVoiceAuthenticationEnabled = "true";
+      }),
+    ],
+    [
+      "a target the page does not list",
+      mutate("set-data", (a) => {
+        a.Parameters.TargetContact = "Flow";
+      }),
+    ],
+    [
+      "two event hooks in one action",
+      mutate("set-queue-flow", (a) => {
+        a.Parameters.EventHooks = {
+          CustomerQueue: "${cdref:flow:a}",
+          CustomerHold: "${cdref:flow:b}",
+        };
+      }),
+    ],
+    [
+      "an event hook the page does not list",
+      mutate("set-queue-flow", (a) => {
+        a.Parameters.EventHooks = { AgentQueue: "${cdref:flow:a}" };
+      }),
+    ],
+    [
+      "a literal ARN as an event hook's flow",
+      mutate("set-queue-flow", (a) => {
+        a.Parameters.EventHooks = {
+          CustomerQueue: "arn:aws:connect:us-east-1:111122223333:instance/a/contact-flow/b",
+        };
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
+describe("FlowDoc schema rejections: participant", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/participant/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a loop message with two bodies",
+      mutate("hold-music", (a) => {
+        a.Parameters.Messages = [{ Text: "hi", SSML: "<speak>hi</speak>" }];
+      }),
+    ],
+    [
+      "a loop with no messages",
+      mutate("hold-music", (a) => {
+        a.Parameters.Messages = [];
+      }),
+    ],
+    [
+      "an interrupt frequency written as a JSON number",
+      mutate("hold-music", (a) => {
+        a.Parameters.InterruptFrequencySeconds = 30;
+      }),
+    ],
+    [
+      "a media message from somewhere other than S3",
+      mutate("hold-music", (a) => {
+        a.Parameters.Messages = [
+          { Media: { Uri: "s3://b/x", SourceType: "HTTP", MediaType: "Audio" } },
+        ];
+      }),
+    ],
+    [
+      "a Lex bot with both a text and an SSML body",
+      mutate("ask-intent", (a) => {
+        a.Parameters.SSML = "<speak>hi</speak>";
+      }),
+    ],
+    [
+      "a Lex bot alias as a literal ARN",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexV2Bot = {
+          AliasArn: "arn:aws:lex:us-east-1:111122223333:bot-alias/BOT/ALIAS",
+        };
+      }),
+    ],
+    [
+      "a Lex timeout written as a JSON number",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexTimeoutSeconds = { Text: 300 };
+      }),
+    ],
+    [
+      "a Lex timeout below the console's one minute",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexTimeoutSeconds = { Text: "59" };
+      }),
+    ],
+    [
+      "a Lex timeout above the console's seven days",
+      mutate("ask-intent", (a) => {
+        a.Parameters.LexTimeoutSeconds = { Text: "604801" };
+      }),
+    ],
+    [
+      "a Lex action with no bot at all",
+      mutate("ask-intent", (a) => {
+        delete a.Parameters.LexV2Bot;
+      }),
+    ],
+    [
+      "a view resource with no id",
+      mutate("show-form", (a) => {
+        a.Parameters.ViewResource = { Version: "1" };
+      }),
+    ],
+    [
+      "a view id as a literal ARN",
+      mutate("show-form", (a) => {
+        a.Parameters.ViewResource = { Id: "arn:aws:connect:us-west-2:aws:view/form:1" };
+      }),
+    ],
+    [
+      "a view time limit written as a JSON number",
+      mutate("show-form", (a) => {
+        a.Parameters.InvocationTimeLimitSeconds = 300;
+      }),
+    ],
+    [
+      "a view without a time limit, which the service refuses",
+      mutate("show-form", (a) => {
+        delete a.Parameters.InvocationTimeLimitSeconds;
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
+describe("FlowDoc schema rejections: recording and analytics", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/recording-analytics/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+  const voice = (a: Action): Record<string, unknown> =>
+    (a.Parameters.VoiceBehavior as { VoiceRecordingBehavior: Record<string, unknown> })
+      .VoiceRecordingBehavior;
+
+  it("accepts the fixture as committed, chat form included", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a recorded participant other than Agent or Customer",
+      mutate("record-voice-ivr", (a) => {
+        voice(a).RecordedParticipants = ["Supervisor"];
+      }),
+    ],
+    [
+      "a participant recorded twice",
+      mutate("record-voice-ivr", (a) => {
+        voice(a).RecordedParticipants = ["Agent", "Agent"];
+      }),
+    ],
+    [
+      "an IVR recording value other than Enabled or Disabled",
+      mutate("record-voice-ivr", (a) => {
+        voice(a).IVRRecordingBehavior = "On";
+      }),
+    ],
+    [
+      "a screen recorded participant other than Agent",
+      mutate("record-screen", (a) => {
+        a.Parameters.ScreenRecordingBehavior = { ScreenRecordedParticipants: ["Customer"] };
+      }),
+    ],
+    [
+      "a chat and a voice behavior on one block",
+      mutate("record-voice-ivr", (a) => {
+        a.Parameters.ChatBehavior = { ChatAnalyticsBehavior: { Enabled: "True" } };
+      }),
+    ],
+    [
+      "a voice and a screen behavior on one block, which the service refuses",
+      mutate("record-voice-ivr", (a) => {
+        a.Parameters.ScreenRecordingBehavior = { ScreenRecordedParticipants: ["Agent"] };
+      }),
+    ],
+    [
+      "a voice behavior with no recording object",
+      mutate("record-voice-ivr", (a) => {
+        a.Parameters.VoiceBehavior = {};
+      }),
+    ],
+    [
+      "a screen behavior with no participant list",
+      mutate("record-screen", (a) => {
+        a.Parameters.ScreenRecordingBehavior = {};
+      }),
+    ],
+    [
+      "no behavior at all, which the service refuses",
+      mutate("record-screen", (a) => {
+        a.Parameters = {};
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
   });
 });
 
@@ -278,7 +808,11 @@ describe("all conformance fixtures are schema-valid", () => {
           ? [`${dir}${e.name}`]
           : [],
     );
-  const files = collect("conformance/").filter((f) => !f.includes("/schema/"));
+  // conformance/migrate inputs are older versions by design; their own suite
+  // below validates them against the schema they name.
+  const files = collect("conformance/").filter(
+    (f) => !f.includes("/schema/") && !f.includes("/migrate/"),
+  );
 
   it("finds a non-trivial number of fixtures", () => {
     expect(files.length).toBeGreaterThan(15);
@@ -324,5 +858,75 @@ describe("kind and connectType agree", () => {
 
   it("rejects a flow whose connectType is MODULE", () => {
     expect(validator({ ...base, kind: "flow", connectType: "MODULE" })).toBe(false);
+  });
+});
+
+// A version bump ships a migration plus fixtures (docs/01-flowdoc-spec.md,
+// Versioning). conformance/migrate holds an input at each older version and
+// the exact bytes it becomes; a second implementation runs the same files.
+describe("FlowDoc migration", () => {
+  const validate02 = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const validate01 = new Ajv2020({ allErrors: true, strict: false }).compile(schema01);
+  const cases = readdirSync(new URL("conformance/migrate/", root), { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+
+  it("has a case per older version", () => {
+    expect(cases).toEqual(["minimal-0.1", "with-meta-0.1"]);
+  });
+
+  it.each(cases)("%s: the input is valid at its own version and migrates byte for byte", (c) => {
+    const input = JSON.parse(read(`conformance/migrate/${c}/input.flowdoc.json`));
+    expect(validate01(input), JSON.stringify(validate01.errors)).toBe(true);
+    expect(validate02(input)).toBe(false);
+    const migrated = migrateFlowDoc(input);
+    expect(serialize(migrated)).toBe(read(`conformance/migrate/${c}/expected.flowdoc.json`));
+    expect(validate02(migrated), JSON.stringify(validate02.errors)).toBe(true);
+    expect(validate01(migrated)).toBe(false);
+  });
+
+  it("returns a current document unchanged", () => {
+    expect(migrateFlowDoc(demo)).toBe(demo);
+  });
+
+  it("refuses every version it does not read", () => {
+    const { versions } = JSON.parse(read("conformance/migrate/invalid.json")) as {
+      versions: unknown[];
+    };
+    expect(versions.length).toBeGreaterThan(3);
+    for (const version of versions) {
+      expect(() => migrateFlowDoc({ ...demo, flowdoc: version })).toThrow(/is not supported/);
+    }
+  });
+
+  it("0.2 accepts what 0.1 could not say: a view token, a version pin on it, sourceKind, description", () => {
+    const doc = JSON.parse(demoRaw);
+    doc.description = "The demo appointment line.";
+    doc.meta = { ...doc.meta, sourceKind: "tf" };
+    doc.content.Actions.push({
+      Identifier: "show-acw",
+      Type: "ShowView",
+      Parameters: {
+        ViewResource: { Id: "${cdref:view:after-contact-work@1}" },
+        InvocationTimeLimitSeconds: "300",
+      },
+      Transitions: {},
+    });
+    doc.refs.push({
+      token: "${cdref:view:after-contact-work@1}",
+      type: "view",
+      name: "after-contact-work",
+      alias: "1",
+    });
+    expect(validate02(doc), JSON.stringify(validate02.errors)).toBe(true);
+    doc.flowdoc = "0.1";
+    expect(validate01(doc)).toBe(false);
+  });
+
+  it("0.2 still refuses a sourceKind it does not know", () => {
+    const doc = JSON.parse(demoRaw);
+    doc.meta = { ...doc.meta, sourceKind: "yaml" };
+    expect(validate02(doc)).toBe(false);
   });
 });

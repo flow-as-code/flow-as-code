@@ -60,7 +60,7 @@ describe("the built demo boots", () => {
       const text = root.textContent ?? "";
       expect(text).toContain("Flow Studio");
       expect(text).toContain("Read-only demo");
-      // The demo flow rendered, GenericBlock included.
+      // The demo flow rendered, its logging block included.
       expect(text).toContain("MessageParticipant");
       expect(text).toContain("UpdateFlowLoggingBehavior");
       expect(root.querySelector('[data-testid="read-only-badge"]')).not.toBeNull();

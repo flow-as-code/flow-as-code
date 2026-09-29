@@ -68,6 +68,15 @@ const EXPECTED: Record<string, string[]> = {
     "CUSTOMER_QUEUE",
     "MODULE",
   ],
+  MessageParticipantIteratively: ["CUSTOMER_QUEUE", "CUSTOMER_HOLD", "AGENT_HOLD", "MODULE"],
+  ConnectParticipantWithLexBot: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_QUEUE",
+    "MODULE",
+  ],
+  ShowView: ["CONTACT_FLOW", "CUSTOMER_QUEUE", "MODULE"],
   CheckHoursOfOperation: [
     "CONTACT_FLOW",
     "AGENT_TRANSFER",
@@ -86,6 +95,31 @@ const EXPECTED: Record<string, string[]> = {
   InvokeFlowModule: ["CONTACT_FLOW", "MODULE"],
   TransferContactToQueue: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
   UpdateContactTargetQueue: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
+  DequeueContactAndTransferToQueue: ["CUSTOMER_QUEUE", "MODULE"],
+  TransferContactToAgent: ["AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
+  UpdateContactRoutingBehavior: ["CONTACT_FLOW", "MODULE"],
+  CreateCallbackContact: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_QUEUE",
+    "MODULE",
+  ],
+  UpdateContactCallbackNumber: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_QUEUE",
+    "MODULE",
+  ],
+  DistributeByPercentage: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_QUEUE",
+    "MODULE",
+  ],
+  CheckMetricData: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "CUSTOMER_QUEUE", "MODULE"],
   TransferToFlow: ["CONTACT_FLOW", "AGENT_TRANSFER", "QUEUE_TRANSFER", "MODULE"],
   UpdateContactRecordingBehavior: [
     "CONTACT_FLOW",
@@ -129,8 +163,19 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
   it("records the unrestricted actions rather than leaving a gap", () => {
     expect([...FLOW_TYPE_UNRESTRICTED].sort()).toEqual([
       "Compare",
+      "GetMetricData",
       "InvokeLambdaFunction",
+      "Loop",
+      "TagContact",
+      "UntagContact",
       "UpdateContactAttributes",
+      "UpdateContactData",
+      "UpdateContactEventHooks",
+      "UpdateContactRecordingAndAnalyticsBehavior",
+      "UpdateContactTextToSpeechVoice",
+      "UpdateFlowAttributes",
+      "UpdateFlowLoggingBehavior",
+      "Wait",
     ]);
   });
 

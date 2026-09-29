@@ -1,0 +1,8 @@
+{
+  "description": "Every sequence a quoted string could read as template syntax, escaped; the instance id from a resource address.",
+  "doc": "../../../emit-tf/hostile-text/hostile-text.flowdoc.json",
+  "options": {
+    "instanceId": "aws_connect_instance.main.id"
+  },
+  "validate": "skip"
+}

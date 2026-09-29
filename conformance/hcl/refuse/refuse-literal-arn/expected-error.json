@@ -1,0 +1,4 @@
+{
+  "code": "LITERAL_ARN",
+  "path": "action[set-queue].update_contact_target_queue.queue_id"
+}

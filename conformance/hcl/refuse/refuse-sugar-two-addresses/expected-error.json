@@ -1,0 +1,5 @@
+{
+  "code": "REF_EXPRESSION_REFUSED",
+  "path": "action[look-up-again].invoke_lambda_function.lambda_function_arn",
+  "messageIncludes": "already bound to aws_lambda_function.lookup.arn"
+}

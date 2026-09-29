@@ -18,7 +18,7 @@ import { demoDoc } from "../src/store/demoStore.js";
 
 export { demoDoc };
 
-/** Asserts the doc validates against conformance/schema/flowdoc-0.1.schema.json. */
+/** Asserts the doc validates against conformance/schema/flowdoc-0.2.schema.json. */
 export function expectSchemaValid(doc: FlowDoc): void {
   expect(schemaErrorsFor(doc)).toEqual([]);
 }
@@ -38,7 +38,7 @@ export function expectByteStable(doc: FlowDoc): void {
  */
 export function compareDoc(): FlowDoc {
   return {
-    flowdoc: "0.1",
+    flowdoc: "0.2",
     kind: "flow",
     name: "compare-line",
     connectType: "CONTACT_FLOW",
@@ -100,7 +100,7 @@ export function menuDoc(): FlowDoc {
     },
   });
   return {
-    flowdoc: "0.1",
+    flowdoc: "0.2",
     kind: "flow",
     name: "menu-line",
     connectType: "CONTACT_FLOW",
@@ -158,7 +158,7 @@ export function menuDoc(): FlowDoc {
  */
 export function detachableDoc(): FlowDoc {
   return {
-    flowdoc: "0.1",
+    flowdoc: "0.2",
     kind: "flow",
     name: "detachable",
     connectType: "CONTACT_FLOW",
@@ -166,16 +166,18 @@ export function detachableDoc(): FlowDoc {
       Version: "2019-10-30",
       StartAction: "raw-a",
       Actions: [
+        // A type the builder does not model (it modeled the logging block
+        // these carried until 2026-09-11), in the console's shape.
         {
           Identifier: "raw-a",
-          Type: "UpdateFlowLoggingBehavior",
-          Parameters: { FlowLoggingBehavior: "Enabled" },
+          Type: "UpdatePreviousContactParticipantState",
+          Parameters: { PreviousContactParticipantState: "OffHold" },
           Transitions: { NextAction: "target", Errors: [], Conditions: [] },
         },
         {
           Identifier: "raw-b",
-          Type: "UpdateFlowLoggingBehavior",
-          Parameters: { FlowLoggingBehavior: "Disabled" },
+          Type: "UpdatePreviousContactParticipantState",
+          Parameters: { PreviousContactParticipantState: "OnHold" },
           Transitions: {
             NextAction: "raw-a",
             Errors: [{ ErrorType: "NoMatchingError", NextAction: "target" }],

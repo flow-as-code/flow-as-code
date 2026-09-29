@@ -1,0 +1,253 @@
+{
+  "flowdoc": "0.2",
+  "kind": "module",
+  "name": "contact-routing",
+  "description": "Queue-to-queue transfer with an overflow path.",
+  "connectType": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "set-callback-number",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "set-callback-number",
+        "Type": "UpdateContactCallbackNumber",
+        "Parameters": {
+          "CallbackNumber": "$.StoredCustomerInput"
+        },
+        "Transitions": {
+          "NextAction": "bump-priority",
+          "Errors": [
+            {
+              "ErrorType": "InvalidCallbackNumber",
+              "NextAction": "apologize"
+            },
+            {
+              "ErrorType": "CallbackNumberNotDialable",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bump-priority",
+        "Type": "UpdateContactRoutingBehavior",
+        "Parameters": {
+          "QueuePriority": "1"
+        },
+        "Transitions": {
+          "NextAction": "move-to-priority-queue",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "move-to-priority-queue",
+        "Type": "DequeueContactAndTransferToQueue",
+        "Parameters": {
+          "QueueId": "${cdref:queue:priority}"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "try-agent-queue"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "try-agent-queue",
+        "Type": "DequeueContactAndTransferToQueue",
+        "Parameters": {
+          "AgentId": "$.Attributes.preferredAgentArn"
+        },
+        "Transitions": {
+          "NextAction": "hand-to-agent",
+          "Errors": [
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "stay-in-queue"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "stay-in-queue",
+        "Type": "DequeueContactAndTransferToQueue",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "age-in-queue"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "age-in-queue",
+        "Type": "UpdateContactRoutingBehavior",
+        "Parameters": {
+          "QueueTimeAdjustmentSeconds": "300"
+        },
+        "Transitions": {
+          "NextAction": "offer-callback",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "offer-callback",
+        "Type": "CreateCallbackContact",
+        "Parameters": {
+          "CallerId": "$.SystemEndpoint.Address",
+          "ContactFlowId": "${cdref:flow:callback-greeting}",
+          "InitialCallDelaySeconds": "60",
+          "MaximumConnectionAttempts": "2",
+          "QueueId": "${cdref:queue:callbacks}",
+          "RetryDelaySeconds": "600"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "retry-callback"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "retry-callback",
+        "Type": "CreateCallbackContact",
+        "Parameters": {
+          "InitialCallDelaySeconds": "1",
+          "MaximumConnectionAttempts": "1",
+          "RetryDelaySeconds": "1"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "apologize"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "apologize",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "We could not move you to another queue. Please hold."
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hand-to-agent",
+        "Type": "TransferContactToAgent",
+        "Parameters": {},
+        "Transitions": {}
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "age-in-queue": {
+      "x": 1320,
+      "y": 20
+    },
+    "apologize": {
+      "x": 2100,
+      "y": 20
+    },
+    "bump-priority": {
+      "x": 280,
+      "y": 20
+    },
+    "done": {
+      "x": 2360,
+      "y": 20
+    },
+    "hand-to-agent": {
+      "x": 1060,
+      "y": 20
+    },
+    "move-to-priority-queue": {
+      "x": 540,
+      "y": 20
+    },
+    "offer-callback": {
+      "x": 1580,
+      "y": 20
+    },
+    "retry-callback": {
+      "x": 1840,
+      "y": 20
+    },
+    "set-callback-number": {
+      "x": 20,
+      "y": 20
+    },
+    "stay-in-queue": {
+      "x": 1060,
+      "y": 120
+    },
+    "try-agent-queue": {
+      "x": 800,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:flow:callback-greeting}",
+      "type": "flow",
+      "name": "callback-greeting"
+    },
+    {
+      "token": "${cdref:queue:callbacks}",
+      "type": "queue",
+      "name": "callbacks"
+    },
+    {
+      "token": "${cdref:queue:priority}",
+      "type": "queue",
+      "name": "priority"
+    }
+  ]
+}

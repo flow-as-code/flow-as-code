@@ -1,0 +1,3 @@
+{
+  "queue:appointments": "aws_connect_queue.appointments.arn"
+}

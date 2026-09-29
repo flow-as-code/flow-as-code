@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 // The Terraform/OpenTofu emitter. FlowDoc in, HCL plus .tftpl out, per
-// docs/03-tf-emitter.md. One-way in v1: there is no HCL to FlowDoc direction.
+// docs/03-tf-emitter.md. One-way: this output is not read back. The provider-
+// native shape, which is, is @flow-as-code/hcl's.
 //
 // `emitTf` is pure: it takes documents and returns a path -> content map, so the
 // goldens in conformance/emit-tf compare bytes with no filesystem involved.
@@ -27,6 +28,7 @@ import {
   SLUG_PATTERN,
   collectRefs,
   lookupRefValue,
+  migrateFlowDoc,
   parseToken,
   refKey,
   refVariableName,
@@ -500,7 +502,7 @@ function versionsExample(needsAwscc: boolean): string {
  * and paths come back sorted.
  */
 export function emitTf(docs: readonly FlowDoc[], options: EmitTfOptions = {}): EmitTfResult {
-  const ordered = checkDocs(docs);
+  const ordered = checkDocs(docs.map((doc) => migrateFlowDoc(doc, "emitTf")));
   const problems: string[] = [];
 
   const instanceId = options.instanceIdExpression ?? DEFAULT_INSTANCE_ID_EXPRESSION;

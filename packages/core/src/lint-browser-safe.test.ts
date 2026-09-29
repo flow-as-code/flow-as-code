@@ -62,8 +62,8 @@ describe("A02 acceptance: the lint engine is browser-safe", () => {
   });
 
   it("imports no third-party dependency at all", () => {
-    // dagre is fine in the studio bundle but the worker should not have to
-    // carry it. Keeping the lint graph dependency-free keeps the worker small.
+    // Keeping the lint graph dependency-free keeps the worker small, and core
+    // has no runtime dependency at all since the owned layout replaced dagre.
     expect([...graph.bare.keys()]).toEqual([]);
   });
 

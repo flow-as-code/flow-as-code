@@ -1,0 +1,4 @@
+{
+  "description": "An expression where the document needs a literal.",
+  "typescriptOnly": "The provider sees var.greeting's value, a string like any literal; only a reader of the text knows it was an expression."
+}

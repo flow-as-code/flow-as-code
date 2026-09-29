@@ -2,11 +2,13 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-// `flow-cli export --instance <arn> [--out <dir>] [--no-codegen] [--on-error abort|collect]`.
+// `flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen]
+// [--on-error abort|collect]`.
 //
 // Reads every flow and module in a live instance through @flow-as-code/core's
-// exportInstance and writes one `<name>.flowdoc.json` per document, plus
-// `<name>.flow.ts` unless --no-codegen, into --out (default: the working
+// exportInstance and writes one `<name>.flowdoc.json` per document, plus its
+// companion (`<name>.flow.ts`, or `<name>.flow.tf` with --author tf) unless
+// --no-codegen, into --out (default: the working
 // directory). The name is the slug the exporter derives from the console name,
 // which is also how `diff` finds the live counterpart of a local document.
 //
@@ -21,27 +23,28 @@
 // Both halves of a pair are written the way `synth` and the studio write them:
 // the document carries `meta.sourceHash` of the generated source, so the watch
 // engine sees an exported pair as in sync rather than as a conflict. An
-// existing `<name>.flow.ts` is read first so its `@keep` comments survive, as
-// `codegen` does.
+// existing companion is read first so its `@keep` comments (and a .flow.tf's
+// carried values) survive, as `codegen` does.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import type { ExportFailure, ExportedFlow, FlowDoc } from "@flow-as-code/core";
-import { codegen, collectInventory, exportInstance, serialize } from "@flow-as-code/core";
+import { collectInventory, exportInstance, serialize } from "@flow-as-code/core";
 
 import { type LiveClients, parseInstanceArn, SDK_CLIENTS } from "./aws.js";
+import { generateCompanion, parseKind, suffixOf, type SourceKind } from "./companion.js";
 import { FLOWDOC_SUFFIX } from "./docs.js";
 import { CliError, messageOf } from "./errors.js";
 import { generator, sha256Hex } from "./synth.js";
-
-export const TS_SUFFIX = ".flow.ts";
 
 export interface ExportOptions {
   instance: string;
   out?: string;
   /** commander's `--no-codegen` sets this false; absent means generate. */
   codegen?: boolean;
+  /** The companion to generate: ts (the default) or tf. */
+  author?: string;
   onError?: string;
 }
 
@@ -64,21 +67,39 @@ export interface ExportOutcome {
   warnings: string[];
 }
 
-/** Writes one exported document, and its source when asked. */
-function writeExported(flow: ExportedFlow, outDir: string, withCode: boolean): WrittenDoc {
+/** Writes one exported document, and its companion unless `author` is undefined. */
+function writeExported(
+  flow: ExportedFlow,
+  outDir: string,
+  author: SourceKind | undefined,
+): WrittenDoc {
   const { doc } = flow;
   const docFile = `${doc.name}${FLOWDOC_SUFFIX}`;
   const files = [docFile];
   let text: string;
 
-  if (withCode) {
-    const tsFile = `${doc.name}${TS_SUFFIX}`;
-    const tsPath = join(outDir, tsFile);
-    const previous = existsSync(tsPath) ? readFileSync(tsPath, "utf8") : undefined;
-    const source = codegen(doc, previous === undefined ? {} : { previous });
-    writeFileSync(tsPath, source, "utf8");
-    files.push(tsFile);
-    text = serialize({ ...doc, meta: { ...doc.meta, sourceHash: `sha256:${sha256Hex(source)}` } });
+  if (author !== undefined) {
+    const sourceFile = `${doc.name}${suffixOf(author)}`;
+    const sourcePath = join(outDir, sourceFile);
+    const otherFile = `${doc.name}${suffixOf(author === "ts" ? "tf" : "ts")}`;
+    if (existsSync(join(outDir, otherFile))) {
+      throw new CliError(
+        `${otherFile} already exists in ${outDir}; --author ${author} would give the document ` +
+          `two companions. Run \`flow-cli convert\` on it, or export into another directory.`,
+      );
+    }
+    const previous = existsSync(sourcePath) ? readFileSync(sourcePath, "utf8") : undefined;
+    const source = generateCompanion(
+      doc,
+      author,
+      previous === undefined ? {} : { previous, previousPath: sourcePath },
+    );
+    writeFileSync(sourcePath, source, "utf8");
+    files.push(sourceFile);
+    text = serialize({
+      ...doc,
+      meta: { ...doc.meta, sourceHash: `sha256:${sha256Hex(source)}`, sourceKind: author },
+    });
   } else {
     text = serialize(doc);
   }
@@ -97,7 +118,8 @@ export async function runExport(
   }
   const target = parseInstanceArn(options.instance);
   const outDir = resolve(options.out ?? ".");
-  const withCode = options.codegen !== false;
+  const author =
+    options.codegen === false ? undefined : parseKind(options.author ?? "ts", "--author");
 
   const client = await clients.inventory(target);
   // The inventory is listed on its own, apart from the flows: a refused list
@@ -148,7 +170,16 @@ export async function runExport(
       continue;
     }
     claimed.set(flow.doc.name, flow);
-    written.push(writeExported(flow, outDir, withCode));
+    // A document that cannot be written (another companion in the way, an
+    // existing companion that does not parse) is a failure like any other:
+    // under collect the rest are still written and every failure is listed.
+    try {
+      written.push(writeExported(flow, outDir, author));
+    } catch (error) {
+      if (!(error instanceof CliError)) throw error;
+      if (onError === "abort") throw error;
+      failures.push({ arn: flow.arn, name: flow.sourceName, reason: error.message });
+    }
   }
 
   for (const warning of result.warnings) console.error(`warning: ${warning}`);

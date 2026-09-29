@@ -37,6 +37,7 @@ import {
   materializeWithMap,
   serializeContent,
 } from "@flow-as-code/core";
+import { emitFlowascode } from "@flow-as-code/hcl";
 import { emitTf } from "@flow-as-code/tf/emit";
 import { assertSaveable } from "../model/validate.js";
 import { isExportSubdir, type ExportTarget } from "../store/bridgeProtocol.js";
@@ -67,13 +68,19 @@ export interface TfExportInput extends CommonInput {
   addressMap: Record<string, string>;
 }
 
+export interface FlowascodeExportInput extends CommonInput {
+  target: "flowascode";
+  /** Keyed as TfExportInput's is; see @flow-as-code/hcl EmitFlowascodeOptions. */
+  addressMap: Record<string, string>;
+}
+
 export interface RawExportInput extends CommonInput {
   target: "raw";
   /** Token to resolved value. Literal ARNs are the goal here, not a mistake. */
   resourceMap: Record<string, string>;
 }
 
-export type ExportInput = CdkExportInput | TfExportInput | RawExportInput;
+export type ExportInput = CdkExportInput | TfExportInput | FlowascodeExportInput | RawExportInput;
 
 /** Raw export refused: one or more tokens have no entry in the resource map. */
 export class ExportMapError extends Error {
@@ -153,6 +160,22 @@ export function exportTf(input: TfExportInput): ExportBundle {
 }
 
 /**
+ * The set as flowascode provider resources, from @flow-as-code/hcl: one resource
+ * per document with its actions as blocks, the same bytes as `flow-cli emit
+ * --target flowascode`. A reference with no address is bound to null under a
+ * TODO comment, which the provider refuses at plan time naming the key.
+ */
+export function exportFlowascode(input: FlowascodeExportInput): ExportBundle {
+  const subdir = checkSubdir(input.subdir ?? "");
+  const docs = gate(input.docs);
+  return {
+    target: "flowascode",
+    subdir,
+    files: sortFiles(emitFlowascode(docs, { addressMap: input.addressMap }).files),
+  };
+}
+
+/**
  * Materialized Flow language JSON, one `<name>.json` per document, the same
  * name and the same bytes `flow-cli render` writes.
  *
@@ -185,6 +208,8 @@ export function buildExport(input: ExportInput): ExportBundle {
       return exportCdk(input);
     case "tf":
       return exportTf(input);
+    case "flowascode":
+      return exportFlowascode(input);
     case "raw":
       return exportRaw(input);
   }

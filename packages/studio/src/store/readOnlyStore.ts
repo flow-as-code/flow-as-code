@@ -15,7 +15,7 @@
 // byte-stable serialization it already does.
 
 import type { FlowDoc } from "@flow-as-code/core";
-import type { DocRef, DocStore } from "./types.js";
+import type { DocRef, DocStore, StoredDoc } from "./types.js";
 
 export const READ_ONLY_MESSAGE =
   "This is a read-only demo: edits stay in this tab and are not saved. " +
@@ -34,7 +34,7 @@ export class ReadOnlyStore implements DocStore {
     return this.inner.list();
   }
 
-  read(name: string): Promise<{ doc: FlowDoc; text: string }> {
+  read(name: string): Promise<StoredDoc> {
     return this.inner.read(name);
   }
 

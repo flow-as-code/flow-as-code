@@ -16,9 +16,12 @@ import {
   ExportMapError,
   buildExport,
   exportCdk,
+  exportFlowascode,
   exportRaw,
   exportTf,
 } from "../src/export/targets.js";
+import { unmappedTokens } from "../src/export/refMap.js";
+import { newDoc } from "../src/model/newDoc.js";
 import { demoDoc } from "./helpers.js";
 
 const CONFORMANCE = new URL("../../../conformance/", import.meta.url);
@@ -183,4 +186,89 @@ describe("buildExport", () => {
 it("reads the conformance cases it compares against", () => {
   expect(fileURLToPath(TF_CASE)).toContain("conformance");
   expect(Object.keys(readTree(new URL("expected/", TF_CASE))).length).toBeGreaterThan(3);
+});
+
+describe("flowascode export (B05b)", () => {
+  const HCL_EMIT = new URL("hcl/emit/", CONFORMANCE);
+  const golden = (name: string, file: string): string =>
+    readFileSync(new URL(`${name}/expected/${file}`, HCL_EMIT), "utf8");
+  const caseDocs = (name: string): FlowDoc[] =>
+    readJson<{ docs: string[] }>(new URL(`${name}/case.json`, HCL_EMIT)).docs.map((p) =>
+      readJson<FlowDoc>(new URL(p, new URL(`${name}/`, HCL_EMIT))),
+    );
+  const caseMap = (name: string): Record<string, string> =>
+    readJson(new URL(`${name}/address-map.json`, HCL_EMIT));
+
+  it.each(["demo-complete-map", "demo-incomplete-map", "module-set"])(
+    "%s: byte-identical to the conformance golden",
+    (name) => {
+      const bundle = exportFlowascode({
+        target: "flowascode",
+        docs: caseDocs(name),
+        addressMap: caseMap(name),
+      });
+      expect(bundle.target).toBe("flowascode");
+      for (const [path, text] of Object.entries(bundle.files)) {
+        expect(text, path).toBe(golden(name, path));
+      }
+      expect(Object.keys(bundle.files)).toEqual([
+        "flows.tf",
+        "variables.tf",
+        "versions.tf.example",
+      ]);
+    },
+  );
+
+  it("goes through the save gate like every other target", () => {
+    const doc = demoDoc();
+    doc.content.Actions[0]!.Parameters.Text = "arn:aws:connect:us-west-2:111122223333:instance/x";
+    expect(() => buildExport({ target: "flowascode", docs: [doc], addressMap: {} })).toThrow(
+      /no-literal-arn/,
+    );
+  });
+
+  it("asks the flowascode emitter which references are unmapped", () => {
+    expect(
+      unmappedTokens(caseDocs("demo-incomplete-map"), caseMap("demo-incomplete-map"), "flowascode"),
+    ).toEqual(
+      unmappedTokens(caseDocs("demo-incomplete-map"), caseMap("demo-incomplete-map"), "tf"),
+    );
+    expect(
+      unmappedTokens(caseDocs("demo-incomplete-map"), caseMap("demo-incomplete-map"), "flowascode"),
+    ).toHaveLength(2);
+    // Only the flowascode emitter resolves an in-set module invoked without an
+    // alias, so the two targets disagree here and the scan must ask the right one.
+    const invoker: FlowDoc = {
+      ...newDoc("invoker", "flow"),
+      content: {
+        Version: "2019-10-30",
+        StartAction: "invoke",
+        Actions: [
+          {
+            Identifier: "invoke",
+            Type: "InvokeFlowModule",
+            Parameters: { FlowModuleId: "${cdref:module:helper}" },
+            Transitions: {
+              NextAction: "disconnect",
+              Errors: [{ ErrorType: "NoMatchingError", NextAction: "disconnect" }],
+              Conditions: [],
+            },
+          },
+          {
+            Identifier: "disconnect",
+            Type: "DisconnectParticipant",
+            Parameters: {},
+            Transitions: {},
+          },
+        ],
+      },
+    };
+    const set = [invoker, newDoc("helper", "module")];
+    expect(unmappedTokens(set, {}, "tf")).toEqual(["${cdref:module:helper}"]);
+    expect(unmappedTokens(set, {}, "flowascode")).toEqual([]);
+    // The set resolves its own modules, so nothing about them is unmapped.
+    expect(unmappedTokens(caseDocs("module-set"), {}, "flowascode")).toEqual([
+      "${cdref:queue:appointments}",
+    ]);
+  });
 });

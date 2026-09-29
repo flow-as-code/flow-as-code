@@ -13,7 +13,7 @@ Site and docs: <https://flow-as-code.dev/>. This package on npm:
 
 Implements docs/03-tf-emitter.md. Deterministic HCL emission, `terraform validate`-clean when the address map is complete, loud TODO placeholders when it is not. Never emits literal ARNs, provider blocks, or backend config.
 
-One-way in v1: FlowDoc in, HCL out. Reading HCL back into FlowDoc needs HCL evaluation and is deferred to the provider era.
+One-way: FlowDoc in, HCL out, and this output is not read back. `@flow-as-code/hcl` writes and reads the provider-native shape (a resource per flow with its actions as blocks), for the `flow-as-code/flowascode` provider; docs/06-terraform-provider.md says when to pick which.
 
 ## Use
 

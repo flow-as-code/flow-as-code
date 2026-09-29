@@ -9,7 +9,7 @@ import {
   docToGraph,
   parseEdgeId,
 } from "../src/model/graph.js";
-import { demoDoc } from "./helpers.js";
+import { demoDoc, detachableDoc } from "./helpers.js";
 
 describe("docToGraph on the demo doc", () => {
   const graph = docToGraph(demoDoc());
@@ -19,9 +19,10 @@ describe("docToGraph on the demo doc", () => {
     expect(graph.nodes.map((n) => n.id)).toContain("welcome");
   });
 
-  it("marks the unmodeled UpdateFlowLoggingBehavior action as a GenericBlock", () => {
-    const generic = graph.nodes.filter((n) => n.isGeneric);
-    expect(generic.map((n) => n.id)).toEqual(["enable-logging"]);
+  it("marks no demo node generic, and an unmodeled action's node as a GenericBlock", () => {
+    expect(graph.nodes.filter((n) => n.isGeneric)).toEqual([]);
+    const generic = docToGraph(detachableDoc()).nodes.filter((n) => n.isGeneric);
+    expect(generic.map((n) => n.id)).toEqual(["raw-a", "raw-b"]);
     expect(generic[0]?.category).toBe("generic");
   });
 
@@ -33,6 +34,7 @@ describe("docToGraph on the demo doc", () => {
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     expect(byId.get("welcome")?.category).toBe("Interact");
     expect(byId.get("check-hours")?.category).toBe("Branch");
+    expect(byId.get("enable-logging")?.category).toBe("Set");
     expect(byId.get("set-working-queue")?.category).toBe("Set");
     expect(byId.get("look-up-appointment")?.category).toBe("Integrate");
     expect(byId.get("hang-up")?.category).toBe("Terminate");
@@ -40,7 +42,7 @@ describe("docToGraph on the demo doc", () => {
 
   it("uses doc.layout positions verbatim", () => {
     const welcome = graph.nodes.find((n) => n.id === "welcome");
-    expect(welcome?.position).toEqual({ x: 280, y: 170 });
+    expect(welcome?.position).toEqual({ x: 280, y: 20 });
   });
 
   it("emits one edge per transition, error edges flagged and labeled", () => {
@@ -81,7 +83,7 @@ describe("layout fallback", () => {
     const doc = demoDoc();
     delete doc.layout!.welcome;
     const graph = docToGraph(doc);
-    expect(graph.nodes.find((n) => n.id === "check-hours")?.position).toEqual({ x: 540, y: 50 });
+    expect(graph.nodes.find((n) => n.id === "check-hours")?.position).toEqual({ x: 540, y: 20 });
     expect(graph.nodes.find((n) => n.id === "welcome")?.position).toBeDefined();
   });
 });

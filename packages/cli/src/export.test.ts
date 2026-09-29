@@ -24,6 +24,7 @@ import type {
   ResourceSummary,
 } from "@flow-as-code/core";
 import { serialize } from "@flow-as-code/core";
+import { toFlowDoc } from "@flow-as-code/hcl";
 
 import { MISSING_SDK_MESSAGE, SDK_PACKAGE } from "./aws.js";
 import { CliError } from "./errors.js";
@@ -138,10 +139,67 @@ describe("export", () => {
       "recording-consent (module): recording-consent.flowdoc.json, recording-consent.flow.ts",
       `Exported 3 of 3 to ${out}`,
     ]);
-    // The exporter's warnings (a V1 bot, a CAMPAIGN flow, module settings) go
-    // to stderr so stdout stays a plain list.
-    expect(stderr).toHaveLength(3);
+    // The exporter's warnings (a V1 bot, a CAMPAIGN flow) go to stderr so
+    // stdout stays a plain list.
+    expect(stderr).toHaveLength(2);
     for (const line of stderr) expect(line).toMatch(/^warning: /);
+  });
+
+  it("--author tf writes a .flow.tf per document, each reading back to its document", async () => {
+    const out = tempDir();
+    const outcome = await runExport(
+      { instance: INSTANCE, out, author: "tf" },
+      fixtureClients({ exportCase: "demo-instance" }),
+    );
+    expect(outcome.written.map((w) => w.files[1])).toEqual([
+      "appointment-line.flow.tf",
+      "draft-line.flow.tf",
+      "recording-consent.flow.tf",
+    ]);
+    expect(readdirSync(out).filter((f) => f.endsWith(".ts"))).toEqual([]);
+    for (const name of ["appointment-line", "draft-line", "recording-consent"]) {
+      const written = readDoc(join(out, `${name}.flowdoc.json`));
+      const tf = readFileSync(join(out, `${name}.flow.tf`), "utf8");
+      expect(written.meta?.sourceKind, name).toBe("tf");
+      expect(written.meta?.sourceHash, name).toBe(`sha256:${sha256Hex(tf)}`);
+      expect(tf, name).not.toContain("arn:aws");
+      const { content } = toFlowDoc(tf).doc;
+      const { Metadata: _metadata, ...authored } = written.content;
+      expect(content, name).toEqual({
+        ...authored,
+        ...(written.kind === "module" ? { Settings: authored.Settings ?? {} } : {}),
+      });
+    }
+  });
+
+  it("--author tf never adds a second companion, and collects that as a failure", async () => {
+    const out = tempDir();
+    writeFileSync(join(out, "draft-line.flow.ts"), "// mine\n");
+    writeFileSync(join(out, "appointment-line.flow.tf"), "resource {\n");
+    const error = await expectCliError(
+      runExport(
+        { instance: INSTANCE, out, author: "tf" },
+        fixtureClients({ exportCase: "demo-instance" }),
+      ),
+    );
+    expect(error.message).toBe("2 flow(s) could not be exported");
+    expect(stderr.some((l) => l.includes("draft-line.flow.ts already exists"))).toBe(true);
+    // The unparseable previous file is named, not "<previous>".
+    expect(stderr.some((l) => l.includes(join(out, "appointment-line.flow.tf")))).toBe(true);
+    expect(existsSync(join(out, "draft-line.flow.tf"))).toBe(false);
+    expect(readFileSync(join(out, "draft-line.flow.ts"), "utf8")).toBe("// mine\n");
+    // The third document is still written.
+    expect(existsSync(join(out, "recording-consent.flow.tf"))).toBe(true);
+  });
+
+  it("rejects an unknown --author before connecting", async () => {
+    const error = await expectCliError(
+      runExport(
+        { instance: INSTANCE, author: "hcl" },
+        fixtureClients({ exportCase: "demo-instance" }),
+      ),
+    );
+    expect(error.message).toBe('Unknown --author "hcl". Use "ts" or "tf".');
   });
 
   it("--no-codegen writes only the documents, with no sourceHash", async () => {

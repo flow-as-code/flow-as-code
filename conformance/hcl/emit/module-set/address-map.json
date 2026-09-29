@@ -1,0 +1,4 @@
+{
+  "module:after-call-survey@prod": "aws_connect_contact_flow_module.ignored_by_in_set_resolution.arn",
+  "queue:appointments": "aws_connect_queue.appointments.arn"
+}

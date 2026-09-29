@@ -28,7 +28,7 @@ export default defineConfig({
     // Vitest defaults to 5s. Several tests here do real work that is slow on a
     // cold cache and slower on a shared two-core CI runner: building a
     // TypeScript program over generated modules, synthesizing CDK templates,
-    // running dagre. Three of them intermittently blew the default budget, so
+    // laying out flows. Three of them intermittently blew the default budget, so
     // `npm test` was not reliably green from a clean checkout, which is exactly
     // the state CI runs in. This is a ceiling for hangs, not a latency budget;
     // tests that assert latency do so explicitly.

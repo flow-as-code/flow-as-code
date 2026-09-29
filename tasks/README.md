@@ -1,4 +1,4 @@
-# Phase A: OSS foundation (current focus)
+# Phase A: OSS foundation (closed 2026-09-10)
 
 Work in order. Each task: restate acceptance criteria, list assumptions, done means every criterion demonstrably met with tests green.
 
@@ -48,3 +48,35 @@ The private product repo's Phase 0 resumes after A08 (its tenant-stack consumes 
 - 2026-09-10: the release plan and the unposted positioning draft moved to the
   private product repo. Nothing under `docs/` is a marketing document now. A13
   records what went and what stayed.
+
+# Phase B: Terraform provider and HCL as a third view
+
+Approved 2026-09-11. A Go provider (`flow-as-code/flowascode`, its own
+repository) whose resources take action blocks and call the Connect API, a
+pure-TypeScript `@flow-as-code/hcl` package, and `.flow.tf` as a paired
+companion the studio reads and writes the way it reads and writes `.flow.ts`.
+FlowDoc stays the single interchange format. The decisions, the contract, and
+the operator actions are in the approved plan; each task file restates its
+acceptance criteria and records what landed.
+
+## Order
+
+Contract first: nothing downstream is built on a fact that is not frozen as
+data under `conformance/` first.
+
+| #   | Task                                                             | Group    |
+| --- | ---------------------------------------------------------------- | -------- |
+| B01 | Action catalog, 21 more modeled types, FlowDoc 0.2, owned layout | contract |
+| B02 | The HCL contract: resource shape, fixtures, docs skeleton        | contract |
+| B03 | `@flow-as-code/hcl` and the CLI companions                       | engine   |
+| B04 | The provider repository, acceptance lane, registries             | provider |
+| B05 | Studio Terraform mode                                            | studio   |
+| B06 | Docs, site, promotion example, ADRs                              | release  |
+
+## Why contract first
+
+The provider is a second implementation in a second language. Everything it
+must agree with the TypeScript side on (the action set, the HCL shape, the
+layout algorithm, the lint findings) is written down as fixtures both sides
+run before either side implements it, so a disagreement is a red test rather
+than a support ticket.

@@ -20,7 +20,7 @@ import { gunzipSync } from "node:zlib";
 
 import { afterAll, describe, expect, it } from "vitest";
 
-const PACKAGES = ["core", "cdk", "cli", "tf", "studio"] as const;
+const PACKAGES = ["core", "cdk", "cli", "tf", "hcl", "studio"] as const;
 
 /** What every package is, whatever its role in the set. */
 const SHARED_KEYWORDS = [
@@ -39,6 +39,7 @@ const PACKAGE_KEYWORDS: Readonly<Record<(typeof PACKAGES)[number], readonly stri
   cdk: ["aws-cdk"],
   cli: [],
   tf: ["terraform", "opentofu"],
+  hcl: ["terraform", "opentofu", "hcl"],
   studio: ["visual-editor"],
 };
 
@@ -51,14 +52,18 @@ const PACKAGE_KEYWORDS: Readonly<Record<(typeof PACKAGES)[number], readonly stri
  * ENOENT on the first run of every npm install of it.
  */
 const REQUIRED_DATA_FILES: Readonly<Record<(typeof PACKAGES)[number], readonly string[]>> = {
-  core: [],
+  // The action catalog, imported by src/catalog.ts and so by the lint rules;
+  // tsc emits the JSON beside the compiled module.
+  core: ["dist/catalog/catalog.json"],
   cdk: [],
   cli: [
     "template/appointment-line.flowdoc.json",
     "schema/flowdoc-0.1.schema.json",
+    "schema/flowdoc-0.2.schema.json",
     "schema/scenario-0.1.schema.json",
   ],
   tf: [],
+  hcl: [],
   studio: [],
 };
 

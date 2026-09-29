@@ -1,0 +1,325 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "participant",
+  "description": "Participant actions in a customer queue flow.",
+  "connectType": "CUSTOMER_QUEUE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "hold-music",
+    "Actions": [
+      {
+        "Identifier": "hold-music",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "InterruptFrequencySeconds": "30",
+          "Messages": [
+            {
+              "Text": "Thank you for holding."
+            },
+            {
+              "PromptId": "${cdref:prompt:hold-music}"
+            },
+            {
+              "SSML": "<speak>An agent will be with you <break time=\"1s\"/> shortly.</speak>"
+            },
+            {
+              "Media": {
+                "MediaType": "Audio",
+                "SourceType": "S3",
+                "Uri": "s3://prompts/hold.wav"
+              }
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hold-quietly"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "still-waiting",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "MessagesInterrupted"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "still-waiting",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Still waiting? An agent will be right with you."
+        },
+        "Transitions": {
+          "NextAction": "ask-intent",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ask-intent",
+        "Type": "ConnectParticipantWithLexBot",
+        "Parameters": {
+          "LexInitializationData": {
+            "InitialMessage": "Hi"
+          },
+          "LexSessionAttributes": {
+            "channel": "$.Channel"
+          },
+          "LexTimeoutSeconds": {
+            "Text": "300"
+          },
+          "LexV2Bot": {
+            "AliasArn": "${cdref:lex:sales-bot}"
+          },
+          "Text": "How can I help while you wait?"
+        },
+        "Transitions": {
+          "NextAction": "hold-quietly",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-quietly"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "show-form",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Sales"
+                ]
+              }
+            },
+            {
+              "NextAction": "show-any",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Support"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "show-form",
+        "Type": "ShowView",
+        "Parameters": {
+          "InvocationTimeLimitSeconds": "300",
+          "SensitiveDataConfiguration": {
+            "HideResponseOn": [
+              "TRANSCRIPT"
+            ]
+          },
+          "ViewData": {
+            "Heading": "$.Customer.LastName",
+            "Sections": [
+              {
+                "Title": "Address"
+              }
+            ]
+          },
+          "ViewResource": {
+            "Id": "${cdref:view:form@1}",
+            "Version": "1"
+          }
+        },
+        "Transitions": {
+          "NextAction": "end",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-quietly"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "TimeLimitExceeded",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "ask-again",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Next"
+                ]
+              }
+            },
+            {
+              "NextAction": "hold-music",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Back"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "show-any",
+        "Type": "ShowView",
+        "Parameters": {
+          "InvocationTimeLimitSeconds": "300",
+          "ViewResource": {
+            "Id": "$.Attributes.view"
+          }
+        },
+        "Transitions": {
+          "NextAction": "end",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-quietly"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "TimeLimitExceeded",
+              "NextAction": "end"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ask-again",
+        "Type": "ConnectParticipantWithLexBot",
+        "Parameters": {
+          "LexV2Bot": {
+            "AliasArn": "$.Attributes.botAlias"
+          },
+          "PromptId": "${cdref:prompt:greeting}"
+        },
+        "Transitions": {
+          "NextAction": "hold-music",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "hold-music"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hold-quietly",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "SSML": "<speak><break time=\"10s\"/></speak>"
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "end",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "ask-again": {
+      "x": 1060,
+      "y": 120
+    },
+    "ask-intent": {
+      "x": 540,
+      "y": 20
+    },
+    "end": {
+      "x": 1320,
+      "y": 20
+    },
+    "hold-music": {
+      "x": 20,
+      "y": 20
+    },
+    "hold-quietly": {
+      "x": 1060,
+      "y": 20
+    },
+    "show-any": {
+      "x": 800,
+      "y": 120
+    },
+    "show-form": {
+      "x": 800,
+      "y": 20
+    },
+    "still-waiting": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:lex:sales-bot}",
+      "type": "lex",
+      "name": "sales-bot"
+    },
+    {
+      "token": "${cdref:prompt:greeting}",
+      "type": "prompt",
+      "name": "greeting"
+    },
+    {
+      "token": "${cdref:prompt:hold-music}",
+      "type": "prompt",
+      "name": "hold-music"
+    },
+    {
+      "token": "${cdref:view:form@1}",
+      "type": "view",
+      "name": "form",
+      "alias": "1"
+    }
+  ]
+}

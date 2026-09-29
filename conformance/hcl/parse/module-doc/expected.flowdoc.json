@@ -1,0 +1,75 @@
+{
+  "flowdoc": "0.2",
+  "kind": "module",
+  "name": "survey-module",
+  "connectType": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "intro",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "intro",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "One question."
+        },
+        "Transitions": {
+          "NextAction": "ask",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "wrap-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ask",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:question@prod}"
+        },
+        "Transitions": {
+          "NextAction": "wrap-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "wrap-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "wrap-up",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "ask": {
+      "x": 280,
+      "y": 20
+    },
+    "intro": {
+      "x": 20,
+      "y": 20
+    },
+    "wrap-up": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:module:question@prod}",
+      "type": "module",
+      "name": "question",
+      "alias": "prod"
+    }
+  ]
+}

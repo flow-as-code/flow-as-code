@@ -8,7 +8,7 @@
 
 import { readFileSync } from "node:fs";
 import type { FlowAction, FlowDoc } from "@flow-as-code/core";
-import { DTMF_DIGITS, MAX_ACTIONS_PER_FLOW, codegen } from "@flow-as-code/core";
+import { DTMF_DIGITS, MAX_ACTIONS_PER_FLOW, codegen, lint } from "@flow-as-code/core";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CONDITION_OPERANDS,
@@ -18,6 +18,7 @@ import {
   defaultConditionFor,
   isDtmfMenu,
   isTerminalType,
+  offersErrorBranch,
   normalizeOperands,
 } from "../src/model/capabilities.js";
 import { conditionEdgeId, docToGraph, errorEdgeId, nextEdgeId } from "../src/model/graph.js";
@@ -38,7 +39,7 @@ import {
   setParam,
   rewireEdge,
 } from "../src/model/mutations.js";
-import { demoDoc, expectByteStable, expectSchemaValid, menuDoc } from "./helpers.js";
+import { demoDoc, detachableDoc, expectByteStable, expectSchemaValid, menuDoc } from "./helpers.js";
 
 /** conformance/roundtrip/edge-cases: a Compare with real condition branches. */
 function edgeCasesDoc(): FlowDoc {
@@ -139,6 +140,16 @@ describe("M2 a drag from a Compare creates a branch, never a NextAction", () => 
     expect(acceptsNextAction(getAction(demoDoc(), "welcome")!)).toBe(true);
     expect(acceptsNextAction(getAction(demoDoc(), "hang-up")!)).toBe(false);
     expect(isTerminalType("EndFlowExecution")).toBe(true);
+    // An error handle is offered where the type has an error to wire: not on
+    // a terminal, always on an unmodeled block, never on a modeled type whose
+    // page lists no error.
+    expect(offersErrorBranch(getAction(demoDoc(), "welcome")!)).toBe(true);
+    expect(offersErrorBranch(getAction(demoDoc(), "hang-up")!)).toBe(false);
+    expect(offersErrorBranch(getAction(detachableDoc(), "raw-a")!)).toBe(true);
+    expect(offersErrorBranch(getAction(demoDoc(), "enable-logging")!)).toBe(false);
+    const { doc, id } = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
+    expect(offersErrorBranch(getAction(doc, id)!)).toBe(false);
+    expect(connectNodes(doc, id, "hang-up", "error")).toBeUndefined();
   });
 });
 
@@ -161,6 +172,33 @@ describe("M3 numeric parameters honour the field's bounds", () => {
       );
       expect(result.ok, `${raw} should be refused`).toBe(false);
     }
+  });
+
+  it("deletes an optional parameter on an empty field and clears its rival on a value", () => {
+    const { doc, id } = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
+    expect(getAction(doc, id)?.Parameters).toEqual({ QueuePriority: "5" });
+    const aged = setNumberParam(doc, id, "QueueTimeAdjustmentSeconds", "-30", {
+      asString: true,
+      optional: true,
+      clears: ["QueuePriority"],
+    });
+    expect(aged.ok).toBe(true);
+    if (!aged.ok) return;
+    expect(getAction(aged.doc, id)?.Parameters).toEqual({ QueueTimeAdjustmentSeconds: "-30" });
+    expectSchemaValid(aged.doc);
+    // Once wired the block is typed, and emptying its only field leaves {}
+    // which the block class refuses, so the guard reports the demotion rather
+    // than letting it happen silently.
+    const wired = connectNodes(aged.doc, id, "hang-up", "primary")!;
+    expect([...demotedIds(wired)]).not.toContain(id);
+    expect(() =>
+      setNumberParam(wired, id, "QueueTimeAdjustmentSeconds", "", {
+        asString: true,
+        optional: true,
+      }),
+    ).toThrow(MutationRefused);
+    // Without optional, an empty field is still refused with a message.
+    expect(setNumberParam(wired, id, "QueueTimeAdjustmentSeconds", "", {}).ok).toBe(false);
   });
 
   it("accepts an in-range integer and keeps the doc schema-valid", () => {
@@ -199,17 +237,69 @@ describe("M3 numeric parameters honour the field's bounds", () => {
 
 describe("M4 condition edges only move onto blocks that take conditions", () => {
   it("refuses a condition edge dropped on a MessageParticipant", () => {
+    // A MessageParticipant's class reads no condition, so the move has
+    // nothing to mean and is answered before the guard is asked.
     const doc = edgeCasesDoc();
     const edge = conditionEdgeId("compare-tier", 0);
-    expect(() => rewireEdge(doc, edge, "ssml-greeting", "hang-up")).toThrow(MutationRefused);
+    expect(rewireEdge(doc, edge, "ssml-greeting", "hang-up")).toBeUndefined();
     expect(emittedClassFor(doc, "ssml-greeting")).toContain("new MessageParticipant(");
   });
 
   it("refuses a next edge dropped on a Compare", () => {
+    // A Compare's paths are all conditions (acceptsNextAction), so the drop
+    // has nothing to mean; the Compare is untouched and stays typed.
     const doc = edgeCasesDoc();
-    expect(() => rewireEdge(doc, nextEdgeId("ssml-greeting"), "compare-tier", "hang-up")).toThrow(
-      MutationRefused,
-    );
+    expect(rewireEdge(doc, nextEdgeId("ssml-greeting"), "compare-tier", "hang-up")).toBeUndefined();
+    expect(emittedClassFor(doc, "compare-tier")).toContain("new Compare(");
+  });
+
+  it("refuses a next edge dropped on an unfinished Loop, whose next path is its done branch", () => {
+    // The Loop is generic until both branches are wired, so the guard sees
+    // no demotion; without the explicit check the edge landed as a bare
+    // NextAction no drag could produce, and the done drag then overwrote it.
+    const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    const message = addBlock(loop.doc, "MessageParticipant", { x: 0, y: 1000 });
+    const wired = connectNodes(message.doc, message.id, "hang-up", "primary")!;
+    expect(rewireEdge(wired, nextEdgeId(message.id), loop.id, "hang-up")).toBeUndefined();
+    expect(getAction(wired, loop.id)?.Transitions.NextAction).toBeUndefined();
+
+    // A file can carry a Loop with its branches wired and no NextAction (the
+    // studio never writes that shape). A drop that agrees with the done
+    // branch lands and completes the block; one that disagrees is the same
+    // clobber as a drop on a block that already has a next edge.
+    const authored: FlowDoc = {
+      ...wired,
+      content: {
+        ...wired.content,
+        Actions: wired.content.Actions.map((x) =>
+          x.Identifier === loop.id
+            ? {
+                ...x,
+                Transitions: {
+                  Errors: [],
+                  Conditions: [
+                    {
+                      NextAction: "welcome",
+                      Condition: { Operator: "Equals", Operands: ["ContinueLooping"] },
+                    },
+                    {
+                      NextAction: "hang-up",
+                      Condition: { Operator: "Equals", Operands: ["DoneLooping"] },
+                    },
+                  ],
+                },
+              }
+            : x,
+        ),
+      },
+    };
+    expect(demotedIds(authored).has(loop.id)).toBe(true);
+    expect(rewireEdge(authored, nextEdgeId(message.id), loop.id, "welcome")).toBeUndefined();
+    const agreed = rewireEdge(authored, nextEdgeId(message.id), loop.id, "hang-up")!;
+    expect(getAction(agreed, loop.id)?.Transitions.NextAction).toBe("hang-up");
+    expect(getAction(agreed, message.id)?.Transitions.NextAction).toBeUndefined();
+    expect(demotedIds(agreed).has(loop.id)).toBe(false);
+    expectSchemaValid(agreed);
   });
 
   it("still moves a condition edge between blocks that do take conditions", () => {
@@ -270,6 +360,252 @@ describe("C3 a new block can be wired up", () => {
     const wired = connectNodes(doc, id, "hang-up", "primary")!;
     expect(getAction(wired, id)?.Transitions.NextAction).toBe("hang-up");
   });
+
+  it("a palette-inserted block is typed as soon as its branches are wired", () => {
+    // connectNodes writes Transitions in synth normal form (Errors and
+    // Conditions present), which is the form every block class emits and the
+    // form codegen compares against; without it the new block stayed a
+    // GenericBlock until a save and re-synth wrote the arrays back.
+    const { doc, id } = addBlock(demoDoc(), "MessageParticipant", { x: 0, y: 900 });
+    const next = connectNodes(doc, id, "hang-up", "primary")!;
+    const wired = connectNodes(next, id, "apologize", "error")!;
+    expect(getAction(wired, id)?.Transitions).toEqual({
+      NextAction: "hang-up",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "apologize" }],
+      Conditions: [],
+    });
+    expect([...demotedIds(wired)]).toEqual([]);
+    // A terminal action keeps its empty object.
+    expect(getAction(wired, "hang-up")?.Transitions).toEqual({});
+  });
+
+  it("a fixed-conditions block takes one drag per operand and mirrors NextAction", () => {
+    // CheckHoursOfOperation: Equals True, then Equals False (NextAction
+    // follows the out-of-hours path), then the catch-all from the error
+    // handle; three drags and the block is typed. A fourth primary drag has
+    // nothing left to mean.
+    const { doc, id } = addBlock(demoDoc(), "CheckHoursOfOperation", { x: 0, y: 900 });
+    expect(acceptsNextAction(getAction(doc, id)!)).toBe(false);
+    const open = connectNodes(doc, id, "welcome", "primary")!;
+    expect(getAction(open, id)?.Transitions.Conditions).toEqual([
+      { NextAction: "welcome", Condition: { Operator: "Equals", Operands: ["True"] } },
+    ]);
+    expect(getAction(open, id)?.Transitions.NextAction).toBeUndefined();
+    const closed = connectNodes(open, id, "announce-closed", "primary")!;
+    expect(getAction(closed, id)?.Transitions.NextAction).toBe("announce-closed");
+    expect(getAction(closed, id)?.Transitions.Conditions).toHaveLength(2);
+    expect(connectNodes(closed, id, "hang-up", "primary")).toBeUndefined();
+    const wired = connectNodes(closed, id, "apologize", "error")!;
+    expect([...demotedIds(wired)]).toEqual([]);
+    // Retargeting the out-of-hours branch carries NextAction along.
+    const moved = rewireEdge(wired, conditionEdgeId(id, 1), id, "hang-up")!;
+    expect(getAction(moved, id)?.Transitions.NextAction).toBe("hang-up");
+    expect([...demotedIds(moved)]).toEqual([]);
+    // And so does retargeting the next edge, the other half of the same path.
+    const back = rewireEdge(moved, nextEdgeId(id), id, "announce-closed")!;
+    expect(getAction(back, id)?.Transitions.Conditions?.[1]?.NextAction).toBe("announce-closed");
+    expect([...demotedIds(back)]).toEqual([]);
+  });
+
+  it("a Loop is typed after its two drags, with or without its optional error branch", () => {
+    const { doc, id } = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    // The page lists no error, some console exports carry one: the handle
+    // offers it and the block is typed either way.
+    expect(offersErrorBranch(getAction(doc, id)!)).toBe(true);
+    const again = connectNodes(doc, id, "welcome", "primary")!;
+    const done = connectNodes(again, id, "hang-up", "primary")!;
+    expect(getAction(done, id)?.Transitions).toEqual({
+      NextAction: "hang-up",
+      Errors: [],
+      Conditions: [
+        { NextAction: "welcome", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
+        { NextAction: "hang-up", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
+      ],
+    });
+    expect([...demotedIds(done)]).toEqual([]);
+    expectSchemaValid(done);
+    const withError = connectNodes(done, id, "apologize", "error")!;
+    expect(getAction(withError, id)?.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "apologize" },
+    ]);
+    expect([...demotedIds(withError)]).toEqual([]);
+    expectSchemaValid(withError);
+    expect(codegen(withError)).toContain('onError: "apologize"');
+  });
+
+  it("moving a Loop's next edge away takes its mirrored done branch along, and the reverse", () => {
+    // An unfinished Loop (only the done branch wired, as a file can carry
+    // it) is generic, so the guard has nothing to refuse and what is left is
+    // the bookkeeping: the next edge and the done branch are one path drawn
+    // twice. Before the rule was read from the catalog this knew only a
+    // menu's no-match error, and the done branch stayed behind.
+    const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    const message = addBlock(loop.doc, "MessageParticipant", { x: 0, y: 1000 });
+    const doneOnly: FlowDoc = {
+      ...message.doc,
+      content: {
+        ...message.doc.content,
+        Actions: message.doc.content.Actions.map((x) =>
+          x.Identifier === loop.id
+            ? {
+                ...x,
+                Transitions: {
+                  NextAction: "hang-up",
+                  Errors: [],
+                  Conditions: [
+                    {
+                      NextAction: "hang-up",
+                      Condition: { Operator: "Equals", Operands: ["DoneLooping"] },
+                    },
+                  ],
+                },
+              }
+            : x,
+        ),
+      },
+    };
+    expect(demotedIds(doneOnly).has(loop.id)).toBe(true);
+
+    const viaNext = rewireEdge(doneOnly, nextEdgeId(loop.id), message.id, "hang-up")!;
+    expect(getAction(viaNext, message.id)?.Transitions.NextAction).toBe("hang-up");
+    expect(getAction(viaNext, loop.id)?.Transitions).toEqual({ Errors: [], Conditions: [] });
+    expectSchemaValid(viaNext);
+
+    // The other half: a Compare takes the condition, and NextAction goes too.
+    const compare = addBlock(doneOnly, "Compare", { x: 0, y: 1100 });
+    const viaCondition = rewireEdge(
+      compare.doc,
+      conditionEdgeId(loop.id, 0),
+      compare.id,
+      "hang-up",
+    )!;
+    expect(getAction(viaCondition, loop.id)?.Transitions).toEqual({ Errors: [], Conditions: [] });
+    expect(getAction(viaCondition, compare.id)?.Transitions.Conditions?.[0]?.NextAction).toBe(
+      "hang-up",
+    );
+    expectSchemaValid(viaCondition);
+  });
+
+  it("a Wait's event drags list the event, pair the bot event with ParticipantNotFound, and stay typed", () => {
+    const { doc, id } = addBlock(demoDoc(), "Wait", { x: 0, y: 900 });
+    // WaitCompleted first, then the catch-all: the smallest typed Wait.
+    let wait = connectNodes(doc, id, "hang-up", "primary")!;
+    wait = connectNodes(wait, id, "apologize", "error")!;
+    expect([...demotedIds(wait)]).toEqual([]);
+    expect(getAction(wait, id)?.Parameters.Events).toBeUndefined();
+    // No bot event yet, so the error handle has nothing left to add: the
+    // ParticipantNotFound branch is not a gesture of its own.
+    expect(connectNodes(wait, id, "welcome", "error")).toBeUndefined();
+
+    // Each event drag lists the event; on a typed block, so the guard is
+    // watching, and it would have refused a branch without its listing.
+    const customer = connectNodes(wait, id, "welcome", "primary")!;
+    expect(getAction(customer, id)?.Parameters.Events).toEqual(["CustomerReturned"]);
+    expect([...demotedIds(customer)]).toEqual([]);
+
+    const bot = connectNodes(customer, id, "hang-up", "primary")!;
+    expect(getAction(bot, id)?.Parameters.Events).toEqual([
+      "CustomerReturned",
+      "BotParticipantDisconnected",
+    ]);
+    expect(getAction(bot, id)?.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "apologize" },
+      { ErrorType: "ParticipantNotFound", NextAction: "hang-up" },
+    ]);
+    expect([...demotedIds(bot)]).toEqual([]);
+    expectSchemaValid(bot);
+    expect(codegen(bot)).toContain('onParticipantNotFound: "hang-up"');
+    // All three branches wired: nothing left for a primary drag to mean.
+    expect(connectNodes(bot, id, "welcome", "primary")).toBeUndefined();
+
+    // Removing the bot branch takes its listing and its paired error away.
+    const unbot = removeCondition(bot, id, 2)!;
+    expect(getAction(unbot, id)?.Parameters.Events).toEqual(["CustomerReturned"]);
+    expect(getAction(unbot, id)?.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "apologize" },
+    ]);
+    expect([...demotedIds(unbot)]).toEqual([]);
+    // And the last event's removal drops the Events parameter altogether,
+    // the shape the block class writes with no events.
+    const none = removeCondition(unbot, id, 1)!;
+    expect(getAction(none, id)?.Parameters.Events).toBeUndefined();
+    expect([...demotedIds(none)]).toEqual([]);
+    expectSchemaValid(none);
+  });
+
+  it("the bot event's ParticipantNotFound is wired in the class's order even before the catch-all", () => {
+    // An unfinished Wait: the bot branch dragged before any error handle
+    // drag must not put ParticipantNotFound ahead of NoMatchingError, or the
+    // catch-all drag that follows would land second and the block would
+    // never invert.
+    const { doc, id } = addBlock(demoDoc(), "Wait", { x: 0, y: 900 });
+    let wait = connectNodes(doc, id, "hang-up", "primary")!; // WaitCompleted
+    wait = connectNodes(wait, id, "welcome", "primary")!; // CustomerReturned
+    wait = connectNodes(wait, id, "hang-up", "primary")!; // BotParticipantDisconnected
+    wait = connectNodes(wait, id, "apologize", "error")!; // NoMatchingError
+    expect(getAction(wait, id)?.Transitions.Errors?.map((e) => e.ErrorType)).toEqual([
+      "NoMatchingError",
+      "ParticipantNotFound",
+    ]);
+    expect([...demotedIds(wait)]).toEqual([]);
+    expectSchemaValid(wait);
+  });
+
+  it("a percentage split takes a 1% branch per drag and stays typed once its remainder is wired", () => {
+    const { doc, id } = addBlock(demoDoc(), "DistributeByPercentage", { x: 0, y: 900 });
+    const one = connectNodes(doc, id, "welcome", "primary")!;
+    const two = connectNodes(one, id, "apologize", "primary")!;
+    expect(getAction(two, id)?.Transitions.Conditions).toEqual([
+      { NextAction: "welcome", Condition: { Operator: "NumberLessThan", Operands: ["2"] } },
+      { NextAction: "apologize", Condition: { Operator: "NumberLessThan", Operands: ["3"] } },
+    ]);
+    const wired = connectNodes(two, id, "hang-up", "error")!;
+    expect(getAction(wired, id)?.Transitions.NextAction).toBe("hang-up");
+    expect([...demotedIds(wired)]).toEqual([]);
+    // A third branch on the typed block is a 1% claim too, not the empty
+    // placeholder, so the block stays typed.
+    const three = connectNodes(wired, id, "welcome", "primary")!;
+    expect(getAction(three, id)?.Transitions.Conditions?.[2]?.Condition.Operands).toEqual(["4"]);
+    expect([...demotedIds(three)]).toEqual([]);
+  });
+
+  it("a fresh UpdateContactCallbackNumber wired up on the canvas is typed, with no demotion", () => {
+    const fresh = addBlock(demoDoc(), "UpdateContactCallbackNumber", { x: 0, y: 900 });
+    let doc = connectNodes(fresh.doc, fresh.id, "hang-up", "primary")!;
+    doc = connectNodes(doc, fresh.id, "apologize", "error")!; // InvalidCallbackNumber
+    doc = connectNodes(doc, fresh.id, "welcome", "error")!; // CallbackNumberNotDialable
+    expect(getAction(doc, fresh.id)?.Transitions.Errors?.map((e) => e.ErrorType)).toEqual([
+      "InvalidCallbackNumber",
+      "CallbackNumberNotDialable",
+    ]);
+    expect(demotedIds(doc).has(fresh.id)).toBe(false);
+    expectSchemaValid(doc);
+    expectByteStable(doc);
+  });
+
+  it.each(["DequeueContactAndTransferToQueue", "CreateCallbackContact"] as const)(
+    "choosing (not set) on the queue picker of a %s keeps an authored agent queue",
+    (type) => {
+      const queueField = { clears: ["AgentId"] };
+      const agentField = { clears: ["QueueId"] };
+      const { doc, id } = addBlock(demoDoc(), type, { x: 0, y: 900 });
+      const withAgent = setParam(doc, id, "AgentId", "${cdref:queue:agent-jane}", agentField);
+      let wired = connectNodes(withAgent, id, "hang-up", "primary")!;
+      wired = connectNodes(wired, id, "apologize", "error")!;
+      if (type === "DequeueContactAndTransferToQueue") {
+        wired = connectNodes(wired, id, "apologize", "error")!;
+      }
+      expect(demotedIds(wired).has(id)).toBe(false);
+      // What the inspector does on "(not set)": a delete with no clears.
+      const cleared = setParam(wired, id, "QueueId", undefined);
+      expect(getAction(cleared, id)?.Parameters.AgentId).toBe("${cdref:queue:agent-jane}");
+      expect(demotedIds(cleared).has(id)).toBe(false);
+      // Setting the other still clears: the exclusivity is kept on a set.
+      const swapped = setParam(cleared, id, "QueueId", "${cdref:queue:front-desk}", queueField);
+      expect(getAction(swapped, id)?.Parameters.AgentId).toBeUndefined();
+      expect(getAction(swapped, id)?.Parameters.QueueId).toBe("${cdref:queue:front-desk}");
+    },
+  );
 
   it("an action whose last transition was detached can be rewired", () => {
     // A block that reached the canvas with no transitions (from a file, or an
@@ -523,12 +859,12 @@ describe("M5 a GetParticipantInput is authored as a DTMF menu", () => {
     ]);
     expectSchemaValid(moved);
 
-    // On a finished menu the same move is refused: the no-match path is
-    // required, so taking it away would demote the block (legality is the
-    // guard's, not a rule here).
-    expect(() =>
+    // Dropping it on a block whose class wires no NoMatchingCondition ("sales"
+    // is a MessageParticipant) has nothing to mean, and is refused before the
+    // guard would have seen the finished menu demoted.
+    expect(
       rewireEdge(menuDoc(), errorEdgeId("menu", 1, "NoMatchingCondition"), "sales", "bye"),
-    ).toThrow(MutationRefused);
+    ).toBeUndefined();
   });
 
   it("moving the next edge away from a menu takes the mirrored no-match error with it", () => {
@@ -842,5 +1178,120 @@ describe("moveNode and the action cap", () => {
       new RegExp(String(MAX_ACTIONS_PER_FLOW)),
     );
     expectSchemaValid(doc);
+  });
+});
+
+describe("the second review of the participant and flow-control gestures", () => {
+  /** A typed Wait with WaitCompleted, both events and the catch-all, on the demo. */
+  function fullWait(): { doc: FlowDoc; id: string } {
+    const { doc, id } = addBlock(demoDoc(), "Wait", { x: 0, y: 900 });
+    let wait = connectNodes(doc, id, "hang-up", "primary")!; // WaitCompleted
+    wait = connectNodes(wait, id, "apologize", "error")!; // NoMatchingError
+    wait = connectNodes(wait, id, "welcome", "primary")!; // CustomerReturned
+    wait = connectNodes(wait, id, "hang-up", "primary")!; // BotParticipantDisconnected
+    expect(demotedIds(wait).has(id)).toBe(false);
+    return { doc: wait, id };
+  }
+
+  it("a loop of prompts' interrupt drag brings its seconds, and removing it takes them away", () => {
+    const { doc, id } = addBlock(demoDoc(), "MessageParticipantIteratively", { x: 0, y: 900 });
+    // A fresh loop is finished as it is, the console's hold-flow shape.
+    expect(getAction(doc, id)?.Transitions).toEqual({ Errors: [], Conditions: [] });
+    expect(demotedIds(doc).has(id)).toBe(false);
+    const interrupted = connectNodes(doc, id, "welcome", "primary")!;
+    expect(getAction(interrupted, id)?.Parameters.InterruptFrequencySeconds).toBe("30");
+    expect(demotedIds(interrupted).has(id)).toBe(false);
+    expectSchemaValid(interrupted);
+    const quiet = removeCondition(interrupted, id, 0)!;
+    expect(getAction(quiet, id)?.Parameters.InterruptFrequencySeconds).toBeUndefined();
+    expect(demotedIds(quiet).has(id)).toBe(false);
+  });
+
+  it("a fresh loop of prompts is an end the terminal-blocks rule accepts", () => {
+    // The palette's block, alone in a hold flow, as the console's default
+    // hold flows are.
+    const { doc, id } = addBlock(demoDoc(), "MessageParticipantIteratively", { x: 0, y: 900 });
+    const loop = getAction(doc, id)!;
+    const hold: FlowDoc = {
+      ...doc,
+      connectType: "CUSTOMER_HOLD",
+      content: { ...doc.content, StartAction: id, Actions: [loop] },
+      layout: { [id]: { x: 20, y: 20 } },
+    };
+    expect(lint(hold).filter((f) => f.rule === "terminal-blocks")).toEqual([]);
+  });
+
+  it("re-adding a Wait event after removing it keeps the class's branch order", () => {
+    const { doc, id } = fullWait();
+    const without = removeCondition(doc, id, 1)!; // CustomerReturned
+    expect(getAction(without, id)?.Parameters.Events).toEqual(["BotParticipantDisconnected"]);
+    const back = connectNodes(without, id, "welcome", "primary")!;
+    expect(
+      getAction(back, id)?.Transitions.Conditions?.map((c) => c.Condition.Operands[0]),
+    ).toEqual(["WaitCompleted", "CustomerReturned", "BotParticipantDisconnected"]);
+    expect(getAction(back, id)?.Parameters.Events).toEqual([
+      "CustomerReturned",
+      "BotParticipantDisconnected",
+    ]);
+    expect(demotedIds(back).has(id)).toBe(false);
+  });
+
+  it("a catch-all moved onto a Wait lands in the class's error order", () => {
+    // An unfinished Wait holding the bot branch and ParticipantNotFound, then
+    // a NoMatchingError moved onto it from an unmodeled block: before, it
+    // landed after ParticipantNotFound and the Wait could never be typed.
+    const fresh = addBlock(detachableDoc(), "Wait", { x: 0, y: 900 });
+    let doc = connectNodes(fresh.doc, fresh.id, "target", "primary")!; // WaitCompleted
+    doc = connectNodes(doc, fresh.id, "target", "primary")!; // CustomerReturned
+    doc = connectNodes(doc, fresh.id, "target", "primary")!; // BotParticipantDisconnected
+    const moved = rewireEdge(doc, errorEdgeId("raw-b", 0, "NoMatchingError"), fresh.id, "target")!;
+    expect(getAction(moved, fresh.id)?.Transitions.Errors?.map((e) => e.ErrorType)).toEqual([
+      "NoMatchingError",
+      "ParticipantNotFound",
+    ]);
+    expect(demotedIds(moved).has(fresh.id)).toBe(false);
+  });
+
+  it("a Wait event moved between Waits carries its listing with it", () => {
+    const a = fullWait();
+    const b = addBlock(a.doc, "Wait", { x: 0, y: 1000 });
+    let doc = connectNodes(b.doc, b.id, "hang-up", "primary")!; // WaitCompleted
+    doc = connectNodes(doc, b.id, "apologize", "error")!; // NoMatchingError
+    const moved = rewireEdge(doc, conditionEdgeId(a.id, 1), b.id, "welcome")!;
+    expect(getAction(moved, a.id)?.Parameters.Events).toEqual(["BotParticipantDisconnected"]);
+    expect(getAction(moved, b.id)?.Parameters.Events).toEqual(["CustomerReturned"]);
+    expect(demotedIds(moved).has(a.id)).toBe(false);
+    expect(demotedIds(moved).has(b.id)).toBe(false);
+  });
+
+  it("an error or a branch the landing block's class does not read is refused", () => {
+    const split = addBlock(detachableDoc(), "DistributeByPercentage", { x: 0, y: 900 });
+    expect(
+      rewireEdge(split.doc, errorEdgeId("raw-b", 0, "NoMatchingError"), split.id, "target"),
+    ).toBeUndefined();
+    const wait = addBlock(menuDoc(), "Wait", { x: 0, y: 900 });
+    expect(rewireEdge(wait.doc, conditionEdgeId("menu", 0), wait.id, "bye")).toBeUndefined();
+  });
+
+  it("the recording block's two forms replace each other from the inspector's fields", () => {
+    const { doc, id } = addBlock(demoDoc(), "UpdateContactRecordingAndAnalyticsBehavior", {
+      x: 0,
+      y: 900,
+    });
+    let typed = connectNodes(doc, id, "hang-up", "primary")!;
+    typed = connectNodes(typed, id, "apologize", "error")!;
+    typed = connectNodes(typed, id, "apologize", "error")!;
+    expect(demotedIds(typed).has(id)).toBe(false);
+    const screen = setParam(
+      typed,
+      id,
+      "ScreenRecordingBehavior",
+      { ScreenRecordedParticipants: ["Agent"] },
+      { clears: ["VoiceBehavior"] },
+    );
+    expect(getAction(screen, id)?.Parameters).toEqual({
+      ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] },
+    });
+    expect(demotedIds(screen).has(id)).toBe(false);
   });
 });

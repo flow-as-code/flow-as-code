@@ -1,0 +1,52 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "digit-queue",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "set-queue",
+    "Actions": [
+      {
+        "Identifier": "set-queue",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "${cdref:queue:2fa}"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "hang-up": {
+      "x": 280,
+      "y": 20
+    },
+    "set-queue": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:queue:2fa}",
+      "type": "queue",
+      "name": "2fa"
+    }
+  ]
+}

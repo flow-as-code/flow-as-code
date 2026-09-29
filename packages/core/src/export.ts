@@ -42,12 +42,17 @@ import type {
 } from "./flowdoc.js";
 import { FLOW_LANGUAGE_VERSION, FLOWDOC_VERSION, SLUG_PATTERN } from "./flowdoc.js";
 import { autoLayout } from "./layout.js";
-import { collectRefs, parseToken } from "./refs.js";
+import { collectRefs, parseToken, token } from "./refs.js";
 import { canonicalize } from "./serialize.js";
 
 // --- ARN parsing -------------------------------------------------------------
-// Every Connect resource ARN nests under the instance ARN, so the resource part
-// splits on "/" into [instance, {instanceId}, {typeKeyword}, {resourceId}].
+// Every Connect resource ARN but one nests under the instance ARN, so the
+// resource part splits on "/" into [instance, {instanceId}, {typeKeyword},
+// {resourceId}]. The exception is an AWS-managed view, which belongs to no
+// instance and no account: `arn:aws:connect:<region>:aws:view/<name>:<version>`
+// (observed live 2026-09-01 on the stock "Sample after contact work flow";
+// https://docs.aws.amazon.com/connect/latest/APIReference/API_ListViews.html
+// lists AWS_MANAGED views beside CUSTOMER_MANAGED ones).
 // Two type keywords do not match their IAM resource-type names, which is the
 // trap this parser exists to avoid: a contact-flow-module is `flow-module` in
 // the ARN, and an hours-of-operation is `operating-hours`.
@@ -63,6 +68,7 @@ export const CONNECT_ARN_REF_TYPES: Readonly<Record<string, RefType>> = {
   queue: "queue",
   "operating-hours": "hours",
   prompt: "prompt",
+  view: "view",
 };
 
 /** FlowDoc ref type to ARN type keyword. The inverse of CONNECT_ARN_REF_TYPES. */
@@ -72,20 +78,24 @@ export const REF_TYPE_ARN_KEYWORDS: Readonly<Record<string, string>> = {
   queue: "queue",
   hours: "operating-hours",
   prompt: "prompt",
+  view: "view",
 };
 
 export interface ConnectArn {
   partition: string;
   region: string;
+  /** Digits, or `aws` for an AWS-managed view. */
   account: string;
+  /** Empty for an AWS-managed view, which belongs to no instance. */
   instanceId: string;
-  /** ARN type keyword, e.g. `contact-flow`, `flow-module`, `operating-hours`. */
+  /** ARN type keyword, e.g. `contact-flow`, `flow-module`, `operating-hours`, `view`. */
   resourceType?: string;
   resourceId?: string;
   /**
    * Trailing colon qualifier on a flow or module ARN: `$SAVED` or a version
    * number. Documented on DescribeContactFlow, which spells the alias form
-   * `arn:aws:.../contact-flow/{id}:$SAVED`.
+   * `arn:aws:.../contact-flow/{id}:$SAVED`. On a view ARN it is the view's
+   * version, which the reference token keeps in its alias slot.
    * https://docs.aws.amazon.com/connect/latest/APIReference/API_DescribeContactFlow.html
    */
   qualifier?: string;
@@ -97,6 +107,20 @@ export function parseConnectArn(arn: string): ConnectArn | undefined {
   if (parts.length < 6) return undefined;
   if (parts[0] !== "arn" || parts[2] !== "connect") return undefined;
   const segments = (parts[5] ?? "").split("/");
+  const qualifier = parts.length > 6 ? parts.slice(6).join(":") : undefined;
+  if (segments[0] === "view" && segments.length >= 2 && segments[1] !== "") {
+    // An AWS-managed view: no instance, and `aws` where an account id would be.
+    const parsed: ConnectArn = {
+      partition: parts[1] ?? "",
+      region: parts[3] ?? "",
+      account: parts[4] ?? "",
+      instanceId: "",
+      resourceType: "view",
+      resourceId: segments.slice(1).join("/"),
+    };
+    if (qualifier !== undefined) parsed.qualifier = qualifier;
+    return parsed;
+  }
   if (segments[0] !== "instance" || segments.length < 2) return undefined;
   const instanceId = segments[1] ?? "";
   if (instanceId === "") return undefined;
@@ -110,7 +134,7 @@ export function parseConnectArn(arn: string): ConnectArn | undefined {
     parsed.resourceType = segments[2];
     parsed.resourceId = segments.slice(3).join("/");
   }
-  if (parts.length > 6) parsed.qualifier = parts.slice(6).join(":");
+  if (qualifier !== undefined) parsed.qualifier = qualifier;
   return parsed;
 }
 
@@ -188,6 +212,20 @@ export interface LexBotSummary {
   aliasArn?: string;
 }
 
+/**
+ * One view, as ListViews returns it. AWS_MANAGED views (the stock after
+ * contact work view, for one) are listed beside the instance's own, and are
+ * what the stock flows show.
+ * https://docs.aws.amazon.com/connect/latest/APIReference/API_ListViews.html
+ */
+export interface ViewSummary {
+  arn: string;
+  id: string;
+  name: string;
+  type: "CUSTOMER_MANAGED" | "AWS_MANAGED";
+  status?: string;
+}
+
 export interface InstanceInventory {
   contactFlows: ContactFlowSummary[];
   contactFlowModules: ContactFlowModuleSummary[];
@@ -197,6 +235,7 @@ export interface InstanceInventory {
   /** Bare Lambda function ARNs, which is all ListLambdaFunctions returns. */
   lambdaFunctions: string[];
   lexBots: LexBotSummary[];
+  views: ViewSummary[];
 }
 
 /** A described flow or module: the operation that carries the Flow language. */
@@ -209,6 +248,8 @@ export interface DescribedContactFlow {
   state?: string;
   status?: string;
   version?: string;
+  /** The description Connect shows, carried into FlowDoc.description. */
+  description?: string;
   /** The Flow language JSON, as a string. */
   content: string;
   contentSha256?: string;
@@ -238,6 +279,7 @@ export interface ConnectInventoryClient {
   listPrompts(): Promise<ResourceSummary[]>;
   listLambdaFunctions(): Promise<string[]>;
   listBots(): Promise<LexBotSummary[]>;
+  listViews(): Promise<ViewSummary[]>;
 }
 
 export interface CollectInventoryOptions {
@@ -250,7 +292,7 @@ export interface CollectInventoryOptions {
   includeModules?: boolean;
 }
 
-/** Runs the nine list operations and assembles one inventory. */
+/** Runs the ten list operations and assembles one inventory. */
 export async function collectInventory(
   client: ConnectInventoryClient,
   options: CollectInventoryOptions = {},
@@ -264,6 +306,7 @@ export async function collectInventory(
     prompts,
     lambdaFunctions,
     lexBots,
+    views,
   ] = await Promise.all([
     client.listContactFlows(options.flowTypes),
     includeModules ? client.listContactFlowModules() : Promise.resolve([]),
@@ -272,6 +315,7 @@ export async function collectInventory(
     client.listPrompts(),
     client.listLambdaFunctions(),
     client.listBots(),
+    client.listViews(),
   ]);
   return {
     contactFlows,
@@ -281,6 +325,7 @@ export async function collectInventory(
     prompts,
     lambdaFunctions,
     lexBots,
+    views,
   };
 }
 
@@ -390,6 +435,9 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
   for (const p of inventory.prompts) add(p.arn, p.name, "prompt");
   for (const f of inventory.contactFlows) add(f.arn, f.name, "flow");
   for (const m of inventory.contactFlowModules) add(m.arn, m.name, "module");
+  // A view ARN in flow content carries the version as a qualifier; the map is
+  // keyed on the bare ARN and rewriteArns puts the version back as the alias.
+  for (const v of inventory.views) add(v.arn, v.name, "view");
 
   for (const arn of inventory.lambdaFunctions) {
     const fn = parseLambdaFunctionArn(arn);
@@ -434,7 +482,10 @@ export function reverseMapOfResourceMap(resourceMap: Record<string, string>): Re
       warnings.push(`Skipping map key that is not a reference token: ${token}`);
       continue;
     }
-    const arn = normalizeArn(value);
+    // An entry that pins an alias or version is keyed by the ARN exactly as
+    // bound, so two aliases of one module bound to their own qualified ARNs
+    // stay two entries; lookupArn still falls back to the bare ARN.
+    const arn = entry.alias === undefined ? normalizeArn(value) : value;
     const existing = byArn.get(arn);
     if (existing !== undefined) {
       warnings.push(`${arn} is mapped by both ${existing.token} and ${token}; keeping the first.`);
@@ -460,8 +511,10 @@ export function lookupArn(reverseMap: ReverseMap, arn: string): RefEntry | undef
  * 2026-09-01), and ListViews documents AWS_MANAGED views beside
  * CUSTOMER_MANAGED ones. Digits alone let that ARN through as prose, which put
  * a literal ARN in an exported FlowDoc (FlowDoc invariant 4) and past the lint
- * rule that fails on it. There is no view ref type yet, so it is reported as
- * an unknown ARN instead.
+ * rule that fails on it. Since FlowDoc 0.2 the view is a reference type of its
+ * own and ListViews feeds the reverse map, so the ARN becomes
+ * `${cdref:view:after-contact-work@1}`; an ARN the inventory does not list is
+ * still reported as unknown.
  * https://docs.aws.amazon.com/connect/latest/APIReference/API_ListViews.html
  */
 const ARN_ACCOUNT = "(?:[0-9]*|aws)";
@@ -544,7 +597,11 @@ function rewriteArns(
   if (typeof value === "string") {
     if (WHOLE_ARN.test(value)) {
       const entry = lookupArn(reverseMap, value);
-      if (entry !== undefined) return entry.token;
+      if (entry !== undefined) {
+        if (entry.type === "view") return viewToken(entry, value, path, acc);
+        if (entry.type === "module") return moduleToken(entry, value);
+        return entry.token;
+      }
       record(acc.unknown, value, path);
       return value;
     }
@@ -565,6 +622,35 @@ function rewriteArns(
   return value;
 }
 
+/**
+ * A view reference keeps the version the ARN carried: the console writes
+ * `arn:...:view/after-contact-work:1`, and `${cdref:view:after-contact-work@1}`
+ * is how the document says the same thing. A qualifier that is not a slug
+ * (`$LATEST`, say) cannot ride in the alias slot, so the ARN stays unknown
+ * rather than losing the version silently.
+ */
+function viewToken(entry: RefEntry, arn: string, path: string, acc: RewriteAccumulator): string {
+  const qualifier = parseConnectArn(arn)?.qualifier;
+  if (qualifier === undefined) return entry.token;
+  if (SLUG_PATTERN.test(qualifier)) return token("view", entry.name, qualifier);
+  record(acc.unknown, arn, path);
+  return arn;
+}
+
+/**
+ * A module invoked through a qualified ARN (`flow-module/<id>:prod`, or a
+ * version, `:1`) keeps the qualifier as the token's alias: the document says
+ * `${cdref:module:survey@prod}` where Connect holds the qualified ARN. A
+ * qualifier that is not a slug (`$LATEST`, `$SAVED`) cannot ride in the alias
+ * slot and names what the bare ARN already does, so the bare token stands.
+ */
+function moduleToken(entry: RefEntry, arn: string): string {
+  if (entry.alias !== undefined) return entry.token;
+  const qualifier = parseConnectArn(arn)?.qualifier;
+  if (qualifier === undefined || !SLUG_PATTERN.test(qualifier)) return entry.token;
+  return token("module", entry.name, qualifier);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -578,7 +664,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * both spellings are live output and mean the same thing.
  *
  * FlowDoc requires the key on every action
- * (conformance/schema/flowdoc-0.1.schema.json, `$defs.action.required`), so
+ * (conformance/schema/flowdoc-0.2.schema.json, `$defs.action.required`), so
  * passing the omission through produced a schema-invalid document, and codegen
  * read `Object.keys(a.Parameters)` straight off it and threw
  * "Cannot convert undefined or null to object". Filling in the empty map
@@ -665,6 +751,8 @@ export interface ExportFlowOptions {
   connectType: ConnectType;
   /** Defaults to "module" when connectType is MODULE, "flow" otherwise. */
   kind?: "flow" | "module";
+  /** The flow's description, when the instance has one. */
+  description?: string;
   /** Recorded in meta.generator. Defaults to the package identity. */
   generator?: string;
   /** Merged into meta, after generator. */
@@ -710,6 +798,13 @@ export function exportFlow(
     rewriteArns(raw.Actions, "Actions", reverseMap, acc) as FlowContent["Actions"]
   ).map(normalizeAction);
   const metadata = rewriteArns(raw.Metadata, "Metadata", reverseMap, acc);
+  // A module's Settings (its input and output parameters and transitions)
+  // live in its content, where materialize puts them; they are content, so
+  // they are exported, with any ARN in them tokenized like the actions'.
+  const settings =
+    raw.Settings === undefined
+      ? undefined
+      : (rewriteArns(raw.Settings, "Settings", reverseMap, acc) as FlowContent["Settings"]);
 
   if (acc.unknown.size > 0 || acc.interpolated.size > 0) {
     const sorted = (m: Map<string, string[]>) => [...m.keys()].sort();
@@ -726,11 +821,15 @@ export function exportFlow(
     StartAction: raw.StartAction,
     Actions: actions,
   };
+  if (settings !== undefined) flowContent.Settings = settings;
   if (lifted.rest !== undefined) flowContent.Metadata = lifted.rest;
 
   // Actions the instance never gave a position get the same deterministic
   // auto-layout synth would have assigned, so the studio can open the result.
-  const auto = Object.values(lifted.layout).length === actions.length ? {} : autoLayout(actions);
+  const auto =
+    Object.values(lifted.layout).length === actions.length
+      ? {}
+      : autoLayout(actions, raw.StartAction);
   const layout: Record<string, Point> = {};
   for (const action of actions) {
     layout[action.Identifier] = lifted.layout[action.Identifier] ??
@@ -741,6 +840,9 @@ export function exportFlow(
     flowdoc: FLOWDOC_VERSION,
     kind: options.kind ?? (options.connectType === "MODULE" ? "module" : "flow"),
     name: options.name,
+    ...(options.description === undefined || options.description === ""
+      ? {}
+      : { description: options.description }),
     connectType: options.connectType,
     content: flowContent,
     layout,
@@ -891,6 +993,7 @@ export async function exportInstance(
     const doc = exportFlow(described.content, reverseMap, {
       name: entry.name,
       connectType,
+      description: described.description,
       generator: options.generator,
       meta: {
         // Provenance, deliberately without the ARN. An exported FlowDoc is an
@@ -945,10 +1048,18 @@ export async function exportInstance(
         client.describeContactFlowModule(id),
       );
       const module = described as DescribedContactFlowModule;
-      if (module.settings !== undefined || module.externalInvocationEnabled !== undefined) {
-        // Neither field has a FlowDoc home yet. Warn rather than drop silently.
+      // The module's Settings travel in its content and are exported with it.
+      // DescribeContactFlowModule also has a separate Settings field (an
+      // empty string on every module the sandbox returned, 2026-09-29) and
+      // ExternalInvocationConfiguration (always present); FlowDoc models
+      // neither, so warn only when one says something.
+      const separateSettings = module.settings?.trim() ?? "";
+      if (
+        (separateSettings !== "" && separateSettings !== "{}") ||
+        module.externalInvocationEnabled === true
+      ) {
         warnings.push(
-          `Module ${summary.arn} carries Settings or ExternalInvocationConfiguration, which FlowDoc does not model; they are not exported.`,
+          `Module ${summary.arn} has a Settings field outside its content or external invocation enabled, which FlowDoc does not model; they are not exported.`,
         );
       }
       emit(summary, described, "MODULE", saved);
@@ -976,6 +1087,7 @@ interface ConnectCommands {
   ListPromptsCommand: new (input: any) => any;
   ListLambdaFunctionsCommand: new (input: any) => any;
   ListBotsCommand: new (input: any) => any;
+  ListViewsCommand: new (input: any) => any;
 }
 
 async function loadConnectCommands(): Promise<ConnectCommands> {
@@ -1047,6 +1159,7 @@ export function createConnectInventoryClient(
     state: f.State,
     status: f.Status,
     version: f.Version === undefined ? undefined : String(f.Version),
+    description: f.Description,
     content: f.Content ?? "",
     contentSha256: f.FlowContentSha256 ?? f.FlowModuleContentSha256,
   });
@@ -1186,5 +1299,28 @@ export function createConnectInventoryClient(
       }
       return out;
     },
+
+    // ListViews caps a page at 100 (its own maximum, smaller than the other
+    // lists') and returns AWS_MANAGED views beside the instance's own when no
+    // Type filter is given, which is what the reverse map needs: the stock
+    // flows show AWS-managed views.
+    // https://docs.aws.amazon.com/connect/latest/APIReference/API_ListViews.html
+    listViews: () =>
+      paginate<ViewSummary>(
+        (c, nextToken) =>
+          new c.ListViewsCommand({
+            InstanceId: instanceId,
+            MaxResults: Math.min(maxResults, 100),
+            NextToken: nextToken,
+          }),
+        (r) =>
+          (r.ViewsSummaryList ?? []).map((v: any) => ({
+            arn: v.Arn ?? "",
+            id: v.Id ?? "",
+            name: v.Name ?? "",
+            type: v.Type ?? "CUSTOMER_MANAGED",
+            ...(v.Status === undefined ? {} : { status: v.Status }),
+          })),
+      ),
   };
 }

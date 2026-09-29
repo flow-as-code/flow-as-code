@@ -52,3 +52,26 @@ describe("handleLintRequest on malformed messages", () => {
     expect(handleLintRequest(undefined).seq).toBe(UNKNOWN_SEQ);
   });
 });
+
+describe("handleLintRequest with a .flow.tf's lint.disable", () => {
+  const noTerminal = () => {
+    const doc = demoDoc();
+    doc.content.Actions = doc.content.Actions.filter((a) => a.Identifier !== "hang-up");
+    return doc;
+  };
+
+  it("skips the rules the companion disables", () => {
+    const result = handleLintRequest({ seq: 1, doc: noTerminal(), disable: ["terminal-blocks"] });
+    expect(result.error).toBeUndefined();
+    expect(result.findings.some((f) => f.rule === "terminal-blocks")).toBe(false);
+  });
+
+  it("never skips a hard rule, whatever the request says", () => {
+    const doc = demoDoc();
+    doc.content.Actions[0]!.Parameters.Text = "arn:aws:connect:us-west-2:111122223333:instance/x";
+    const result = handleLintRequest({ seq: 1, doc, disable: ["no-literal-arn"] });
+    expect(result.error).toBeUndefined();
+    expect(result.findings.some((f) => f.rule === "no-literal-arn")).toBe(true);
+    expect(result.blocked).toBe(true);
+  });
+});

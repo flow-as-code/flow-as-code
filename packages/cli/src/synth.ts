@@ -49,9 +49,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { FlowDoc } from "@flow-as-code/core";
+import type { SourceKind, FlowDoc } from "@flow-as-code/core";
 import { PACKAGE_NAMES, SLUG_PATTERN, serialize } from "@flow-as-code/core";
 
+import { kindOfPath, readTfCompanion } from "./companion.js";
 import { cliVersion } from "./version.js";
 
 /**
@@ -415,8 +416,35 @@ export async function synthFile(sourcePath: string): Promise<SynthFileResult> {
 }
 
 /** Serializes a doc with the meta this CLI stamps. Byte-stable. */
-export function serializeWithMeta(doc: FlowDoc, sourceHash: string): string {
-  return serialize({ ...doc, meta: { generator: generator(), sourceHash } });
+export function serializeWithMeta(
+  doc: FlowDoc,
+  sourceHash: string,
+  sourceKind: SourceKind = "ts",
+): string {
+  return serialize({ ...doc, meta: { generator: generator(), sourceHash, sourceKind } });
+}
+
+/**
+ * A `.flow.tf` companion read to its FlowDoc, in this process: HCL is parsed,
+ * never run, so there is no sandbox to enter. Warnings (a refs key no action
+ * uses, a resource address rewritten to its key) go to stderr.
+ */
+export async function synthTfToFile(absPath: string, dir: string): Promise<string> {
+  // Hashed as bytes, as the watcher hashes them; decoded strictly, so a file
+  // that is not UTF-8 is refused rather than read as replacement characters.
+  const bytes = await readFile(absPath);
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new SynthError(`${absPath} is not UTF-8 text.`);
+  }
+  const { doc, warnings } = readTfCompanion(text, absPath);
+  for (const warning of warnings) console.error(`warning: ${warning}`);
+  await mkdir(dir, { recursive: true });
+  const docPath = join(dir, `${doc.name}.flowdoc.json`);
+  await writeFile(docPath, serializeWithMeta(doc, `sha256:${sha256Hex(bytes)}`, "tf"), "utf8");
+  return docPath;
 }
 
 /**
@@ -427,6 +455,7 @@ export function serializeWithMeta(doc: FlowDoc, sourceHash: string): string {
 export async function synthToFiles(sourcePath: string, outDir?: string): Promise<string[]> {
   const absPath = resolve(sourcePath);
   const dir = outDir === undefined ? dirname(absPath) : resolve(outDir);
+  if (kindOfPath(absPath) === "tf") return [await synthTfToFile(absPath, dir)];
   const { flows, sourceHash } = await synthFile(absPath);
   await mkdir(dir, { recursive: true });
   const written: string[] = [];

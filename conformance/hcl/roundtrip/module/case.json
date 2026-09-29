@@ -1,0 +1,5 @@
+{
+  "description": "A module with empty Settings: no type attribute, no settings attribute, and a module alias bound through the flowascode alias resource.",
+  "doc": "../../../roundtrip/after-call-survey/doc.flowdoc.json",
+  "validate": "skip"
+}

@@ -1,0 +1,5 @@
+{
+  "code": "REF_EXPRESSION_REFUSED",
+  "path": "action[set-queue].update_contact_target_queue.queue_id",
+  "messageIncludes": "already bound to aws_connect_queue.other.arn"
+}

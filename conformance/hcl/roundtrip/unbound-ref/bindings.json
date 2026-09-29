@@ -1,0 +1,4 @@
+{
+  "hours:main-line": "aws_connect_hours_of_operation.main_line.arn",
+  "queue:appointments": "aws_connect_queue.appointments.arn"
+}

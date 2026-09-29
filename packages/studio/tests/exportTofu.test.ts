@@ -20,7 +20,7 @@ import {
   supportFor,
   tofu,
 } from "../../tf/src/__fixtures__/tofu.js";
-import { exportTf } from "../src/export/targets.js";
+import { exportFlowascode, exportTf } from "../src/export/targets.js";
 
 const cases = loadCases();
 const demoCase = (name: string) => {
@@ -75,4 +75,31 @@ describe.skipIf(!TOFU_ENABLED)("the studio's terraform export (RUN_TOFU_VALIDATE
     expect(validate.output).toContain("TODO_MISSING_ADDRESS_queue_appointments");
     expect(validate.output).toContain("TODO_MISSING_ADDRESS_lambda_appointment_lookup");
   }, 600_000);
+});
+
+describe.skipIf(!TOFU_ENABLED)("the studio's flowascode export (RUN_TOFU_VALIDATE=1)", () => {
+  // `tofu validate` needs the provider on a registry, which is task B03e; until
+  // then the export is held to what needs no provider: every file is exactly
+  // what `tofu fmt` would write.
+  it.each(["demo-complete-map", "demo-incomplete-map", "module-set"])(
+    "%s is a tofu fmt fixed point",
+    (name) => {
+      const testCase = demoCase(name);
+      const bundle = exportFlowascode({
+        target: "flowascode",
+        docs: testCase.docs,
+        addressMap: testCase.options.addressMap ?? {},
+      });
+      const dir = materializeFiles({
+        "flows.tf": bundle.files["flows.tf"]!,
+        ...(bundle.files["variables.tf"] === undefined
+          ? {}
+          : { "variables.tf": bundle.files["variables.tf"] }),
+      });
+      const fmt = tofu(["fmt", "-check", "-list=true", "-no-color"], dir);
+      expect(fmt.output.trim()).toBe("");
+      expect(fmt.status).toBe(0);
+    },
+    120_000,
+  );
 });

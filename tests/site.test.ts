@@ -719,7 +719,7 @@ describe("what tells a crawler where to look", () => {
     expect(llmsSaysPublished, "llms.txt agrees with README.md on publish status").toBe(
       readmeSaysPublished,
     );
-    for (const pkg of ["core", "cli", "studio", "cdk", "tf"]) {
+    for (const pkg of ["core", "cli", "studio", "cdk", "tf", "hcl"]) {
       expect(llms, `@flow-as-code/${pkg} in llms.txt`).toContain(`@flow-as-code/${pkg}`);
     }
     expect(llms).toContain(`${ORIGIN}/studio/`);

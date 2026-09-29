@@ -1,0 +1,4 @@
+{
+  "code": "LITERAL_ARN",
+  "path": "refs[queue:appointments]"
+}

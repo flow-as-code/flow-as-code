@@ -15,6 +15,8 @@
 // And refusals are shown. The demotion invariant refuses real gestures, and a
 // canvas that ignores them silently is indistinguishable from a broken one.
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { FlowDoc } from "@flow-as-code/core";
 import { act, useEffect, type ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -36,7 +38,8 @@ import {
   typeAndBlur,
   unmount,
 } from "./appHarness.js";
-import { compareDoc, demoDoc, menuDoc } from "./helpers.js";
+import { addBlock, connectNodes, setParam } from "../src/model/mutations.js";
+import { compareDoc, demoDoc, detachableDoc, menuDoc } from "./helpers.js";
 
 beforeAll(installDomStubs);
 afterEach(() => {
@@ -45,6 +48,18 @@ afterEach(() => {
 });
 
 const NAME = "test.flowdoc.json";
+
+/** A demo document with one more block, inserted and wired the way the canvas would. */
+function withRoutingBlock(): { doc: FlowDoc; id: string } {
+  const added = addBlock(demoDoc(), "UpdateContactRoutingBehavior", { x: 0, y: 900 });
+  return { doc: connectNodes(added.doc, added.id, "hang-up", "primary")!, id: added.id };
+}
+function withCallbackBlock(): { doc: FlowDoc; id: string } {
+  const added = addBlock(demoDoc(), "CreateCallbackContact", { x: 0, y: 900 });
+  let doc = connectNodes(added.doc, added.id, "hang-up", "primary")!;
+  doc = connectNodes(doc, added.id, "apologize", "error")!;
+  return { doc, id: added.id };
+}
 
 /**
  * Puts an arbitrary document in front of the real components. StudioProvider
@@ -153,6 +168,269 @@ describe("R1 every transition is rendered", () => {
     await renderDoc(doc, <Canvas />);
     expect(document.querySelector('[data-testid="demoted-welcome"]')).not.toBeNull();
     expect(document.querySelector('[data-testid="demoted-announce-closed"]')).toBeNull();
+  });
+});
+
+describe("an unmodeled block on the canvas", () => {
+  /** Replaces window.confirm and records what it was asked. */
+  function stubConfirm(answer: boolean): { asked: string[] } {
+    const asked: string[] = [];
+    window.confirm = (message?: string) => {
+      asked.push(message ?? "");
+      return answer;
+    };
+    return { asked };
+  }
+
+  it("opens the read-only raw JSON inspector", async () => {
+    await renderDoc(
+      detachableDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+      </>,
+    );
+    expect(present('[data-testid="node-raw-a"]').textContent).toContain("unmodeled");
+    await click(present('[data-testid="raw-button-raw-a"]'));
+    const raw = testId("raw-json");
+    expect(raw.textContent).toContain("UpdatePreviousContactParticipantState");
+    expect(raw.textContent).toContain("PreviousContactParticipantState");
+  });
+
+  it("is what makes a neighbour deletable: the prompt is accurate and the delete happens", async () => {
+    // "target" is pointed at by raw-a's next and raw-b's error; both are
+    // unmodeled, so detaching them costs nothing and the delete goes ahead
+    // after the prompt.
+    const { asked } = stubConfirm(true);
+    await renderDoc(
+      detachableDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+        <NoticeBar />
+      </>,
+    );
+    await click(present('[data-testid="node-target"]'));
+    await click(testId("delete-block"));
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain('2 transition(s) point at "target"');
+    expect(asked[0]).toContain("removes those branches");
+    expect(asked[0]).not.toContain("detached");
+    expect(document.querySelector('[data-testid="node-target"]')).toBeNull();
+    expect(document.querySelector('[data-testid="mutation-notice"]')).toBeNull();
+  });
+
+  it("changes nothing when the prompt is declined", async () => {
+    stubConfirm(false);
+    await renderDoc(
+      detachableDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+      </>,
+    );
+    await click(present('[data-testid="node-target"]'));
+    await click(testId("delete-block"));
+    expect(present('[data-testid="node-target"]')).not.toBeNull();
+  });
+});
+
+describe("a view's reference and its version edit one key of ViewResource each", () => {
+  function participantDoc(): FlowDoc {
+    // The studio project runs from its own directory or the repo root.
+    const relative = ["conformance", "roundtrip", "participant", "doc.flowdoc.json"];
+    const candidates = [
+      join(process.cwd(), ...relative),
+      join(process.cwd(), "..", "..", ...relative),
+    ];
+    const file = candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+    return JSON.parse(readFileSync(file, "utf8")) as FlowDoc;
+  }
+  /** The ShowView's ViewResource, straight from the document. */
+  function ViewProbe() {
+    const { state } = useStudio();
+    const a = state.doc?.content.Actions.find((x) => x.Identifier === "show-form");
+    return <span data-testid="view-probe">{JSON.stringify(a?.Parameters.ViewResource)}</span>;
+  }
+
+  it("keeps the other key when either is edited, and reaches the picker's version prompt", async () => {
+    await renderDoc(
+      participantDoc(),
+      <>
+        <Canvas />
+        <Inspector />
+        <ViewProbe />
+      </>,
+    );
+    await click(present('[data-testid="node-show-form"]'));
+    const version = testId<HTMLInputElement>("text-ViewResource.Version");
+    expect(version.value).toBe("1");
+    await typeAndBlur(version, "2");
+    expect(testId("view-probe").textContent).toBe(
+      JSON.stringify({ Id: "${cdref:view:form@1}", Version: "2" }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+
+    // "new reference…" on the view picker asks for a name and a version and
+    // writes the token into ViewResource.Id, leaving Version alone. Before
+    // the field existed, no inspector surface rendered a view picker, so the
+    // version prompt was unreachable.
+    const prompts: string[] = [];
+    const answers = ["wizard", "3"];
+    window.prompt = (message?: string) => {
+      prompts.push(message ?? "");
+      return answers.shift() ?? null;
+    };
+    const picker = [...document.querySelectorAll('[data-testid="inspector"] select')].find((s) =>
+      [...(s as HTMLSelectElement).options].some((o) => o.value === "__new__"),
+    ) as HTMLSelectElement;
+    await selectOption(picker, "__new__");
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain("View version");
+    expect(testId("view-probe").textContent).toBe(
+      JSON.stringify({ Id: "${cdref:view:wizard@3}", Version: "2" }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+});
+
+describe("a Lex bot's alias is picked as one key of LexV2Bot", () => {
+  it("creates a lex reference through the picker and keeps the block typed", async () => {
+    const relative = ["conformance", "roundtrip", "participant", "doc.flowdoc.json"];
+    const candidates = [
+      join(process.cwd(), ...relative),
+      join(process.cwd(), "..", "..", ...relative),
+    ];
+    const file = candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+    const doc = JSON.parse(readFileSync(file, "utf8")) as FlowDoc;
+    function BotProbe() {
+      const { state } = useStudio();
+      const a = state.doc?.content.Actions.find((x) => x.Identifier === "ask-intent");
+      return <span data-testid="bot-probe">{JSON.stringify(a?.Parameters.LexV2Bot)}</span>;
+    }
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <BotProbe />
+      </>,
+    );
+    await click(present('[data-testid="node-ask-intent"]'));
+    window.prompt = () => "support-bot";
+    const picker = [...document.querySelectorAll('[data-testid="inspector"] select')].find((s) =>
+      [...(s as HTMLSelectElement).options].some((o) => o.textContent === "sales-bot"),
+    ) as HTMLSelectElement;
+    expect(picker).toBeDefined();
+    await selectOption(picker, "__new__");
+    expect(testId("bot-probe").textContent).toBe(
+      JSON.stringify({ AliasArn: "${cdref:lex:support-bot}" }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+});
+
+describe("the recording block's two JSON fields replace each other", () => {
+  it("setting screen recording clears voice recording and keeps the block typed", async () => {
+    const relative = ["conformance", "roundtrip", "recording-analytics", "doc.flowdoc.json"];
+    const candidates = [
+      join(process.cwd(), ...relative),
+      join(process.cwd(), "..", "..", ...relative),
+    ];
+    const file = candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+    const doc = JSON.parse(readFileSync(file, "utf8")) as FlowDoc;
+    function RecordProbe() {
+      const { state } = useStudio();
+      const a = state.doc?.content.Actions.find((x) => x.Identifier === "record-voice");
+      return <span data-testid="record-probe">{JSON.stringify(a?.Parameters)}</span>;
+    }
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <RecordProbe />
+      </>,
+    );
+    await click(present('[data-testid="node-record-voice"]'));
+    const label = [...document.querySelectorAll('[data-testid="inspector"] label')].find((l) =>
+      (l.textContent ?? "").startsWith("Screen recording"),
+    )!;
+    const area = label.querySelector("textarea")!;
+    await typeAndBlur(area, JSON.stringify({ ScreenRecordedParticipants: ["Agent"] }));
+    expect(testId("record-probe").textContent).toBe(
+      JSON.stringify({ ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] } }),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+});
+
+describe("the dynamic form of a number or select is shown as text", () => {
+  /** The demo document with a typed Loop whose count is a JSONPath, and a GetMetricData whose channel is one. */
+  function withDynamicBlocks(): FlowDoc {
+    const loop = addBlock(demoDoc(), "Loop", { x: 0, y: 900 });
+    let doc = connectNodes(loop.doc, loop.id, "welcome", "primary")!;
+    doc = connectNodes(doc, loop.id, "hang-up", "primary")!;
+    const metrics = addBlock(doc, "GetMetricData", { x: 0, y: 1000 });
+    doc = connectNodes(metrics.doc, metrics.id, "hang-up", "primary")!;
+    doc = connectNodes(doc, metrics.id, "apologize", "error")!;
+    doc = setParam(doc, loop.id, "LoopCount", "$.Attributes.retries");
+    return setParam(doc, metrics.id, "QueueChannel", "$.Channel");
+  }
+
+  it("shows a Loop's JSONPath count as text and takes a number back through the bounds", async () => {
+    const doc = withDynamicBlocks();
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <NoticeBar />
+      </>,
+    );
+    await click(present('[data-testid="node-loop"]'));
+    expect(document.querySelector('[data-testid="number-LoopCount"]')).toBeNull();
+    const field = testId<HTMLInputElement>("jsonpath-LoopCount");
+    expect(field.value).toBe("$.Attributes.retries");
+    expect(testId("inspector").textContent).toContain("Loop count (JSONPath)");
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+
+    await typeAndBlur(field, "$.Attributes.attempts");
+    expect(testId<HTMLInputElement>("jsonpath-LoopCount").value).toBe("$.Attributes.attempts");
+
+    // Out of range is refused with the number field's message; the refused
+    // text stays on screen to be corrected and the document keeps the
+    // JSONPath, which is why the field is still the text one.
+    await typeAndBlur(testId<HTMLInputElement>("jsonpath-LoopCount"), "101");
+    expect(testId("inspector").textContent).toContain("at most 100");
+    expect(testId<HTMLInputElement>("jsonpath-LoopCount").value).toBe("101");
+
+    // A number in range lands in the static form, the console's string.
+    await typeAndBlur(testId<HTMLInputElement>("jsonpath-LoopCount"), "3");
+    expect(document.querySelector('[data-testid="jsonpath-LoopCount"]')).toBeNull();
+    expect(testId<HTMLInputElement>("number-LoopCount").value).toBe("3");
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+
+  it("shows GetMetricData's JSONPath channel as text and takes a listed name back", async () => {
+    await renderDoc(
+      withDynamicBlocks(),
+      <>
+        <Canvas />
+        <Inspector />
+      </>,
+    );
+    await click(present('[data-testid="node-get-metrics"]'));
+    const field = testId<HTMLInputElement>("jsonpath-QueueChannel");
+    expect(field.value).toBe("$.Channel");
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+    await typeAndBlur(field, "Chat");
+    expect(document.querySelector('[data-testid="jsonpath-QueueChannel"]')).toBeNull();
+    const select = [...document.querySelectorAll('[data-testid="inspector"] select')].find(
+      (s) => (s as HTMLSelectElement).value === "Chat",
+    );
+    expect(select).toBeDefined();
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
   });
 });
 
@@ -440,3 +718,49 @@ describe("a GetParticipantInput menu in the inspector", () => {
     expect(document.querySelector('[data-testid="menu-branch-hint"]')).toBeNull();
   });
 });
+
+describe("inspector fields the review found unguarded", () => {
+  it("shows the guard's refusal when the last routing field is emptied", async () => {
+    const { doc, id } = withRoutingBlock();
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <NoticeBar />
+      </>,
+    );
+    await click(present(`[data-testid="node-${id}"]`));
+    const field = testId<HTMLInputElement>("number-QueuePriority");
+    expect(field.value).toBe("5");
+    await typeAndBlur(field, "");
+    // The refusal reaches the field, and the document keeps the value.
+    expect(testId("inspector").textContent).toContain("That parameter change");
+    expect(present<HTMLInputElement>('[data-testid="number-QueuePriority"]')).toBeDefined();
+  });
+
+  it("deletes an emptied optional text field instead of storing an empty string", async () => {
+    const { doc, id } = withCallbackBlock();
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <Probe id={id} />
+      </>,
+    );
+    await click(present(`[data-testid="node-${id}"]`));
+    const field = testId<HTMLInputElement>("text-CallerId");
+    await typeAndBlur(field, "+15555550100");
+    expect(testId("probe").textContent).toBe('"+15555550100"');
+    await typeAndBlur(testId<HTMLInputElement>("text-CallerId"), "");
+    expect(testId("probe").textContent).toBe("absent");
+  });
+});
+
+/** Renders one parameter of one action straight from the store, for assertions. */
+function Probe({ id }: { id: string }) {
+  const { state } = useStudio();
+  const value = state.doc?.content.Actions.find((a) => a.Identifier === id)?.Parameters.CallerId;
+  return <span data-testid="probe">{value === undefined ? "absent" : JSON.stringify(value)}</span>;
+}

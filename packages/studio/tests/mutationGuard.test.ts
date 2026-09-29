@@ -114,18 +114,27 @@ function demoWithCompare(): FlowDoc {
 }
 
 describe("R2 both ends of rewireEdge are guarded, not just the source end", () => {
-  it("refuses moving a CheckHoursOfOperation branch to a new target", () => {
-    const refusal = refusalFrom(() =>
-      rewireEdge(demoDoc(), "check-hours:condition:1", "check-hours", "hang-up"),
-    );
-    expect(refusal?.blockIds).toEqual(["check-hours"]);
+  // A CheckHoursOfOperation's next edge and its out-of-hours branch are one
+  // path drawn twice (the block class mirrors NextAction onto Equals False),
+  // so moving either end moves both and the block stays typed. Before the
+  // mirror was read from the catalog these two rewires demoted the block and
+  // the guard refused them; the guard is still what would catch a half move.
+  it("moves a CheckHoursOfOperation branch and carries NextAction along", () => {
+    const next = rewireEdge(demoDoc(), "check-hours:condition:1", "check-hours", "hang-up")!;
+    expect(next).toBeDefined();
+    const check = next.content.Actions.find((a) => a.Identifier === "check-hours")!;
+    expect(check.Transitions.NextAction).toBe("hang-up");
+    expect(check.Transitions.Conditions?.[1]?.NextAction).toBe("hang-up");
+    expect(demotedIds(next).has("check-hours")).toBe(false);
   });
 
-  it("refuses moving a CheckHoursOfOperation next edge to a new target", () => {
-    const refusal = refusalFrom(() =>
-      rewireEdge(demoDoc(), "check-hours:next", "check-hours", "hang-up"),
-    );
-    expect(refusal?.blockIds).toEqual(["check-hours"]);
+  it("moves a CheckHoursOfOperation next edge and carries the branch along", () => {
+    const next = rewireEdge(demoDoc(), "check-hours:next", "check-hours", "hang-up")!;
+    expect(next).toBeDefined();
+    const check = next.content.Actions.find((a) => a.Identifier === "check-hours")!;
+    expect(check.Transitions.NextAction).toBe("hang-up");
+    expect(check.Transitions.Conditions?.[1]?.NextAction).toBe("hang-up");
+    expect(demotedIds(next).has("check-hours")).toBe(false);
   });
 
   it("still allows a target-end rewire that keeps the block expressible", () => {
@@ -147,18 +156,24 @@ describe("R3 removing a Compare's last branch", () => {
 });
 
 describe("R4 an error edge moved onto a block whose type cannot hold it", () => {
-  it("refuses a NoMatchingError dropped on a Compare, which would demote both", () => {
-    const refusal = refusalFrom(() =>
-      rewireEdge(demoWithCompare(), "welcome:error:0:NoMatchingError", "compare", "apologize"),
-    );
-    expect(refusal?.blockIds).toEqual(["compare", "welcome"]);
+  // The move is answered before the guard is asked: the landing block's class
+  // does not wire the error, so the gesture has nothing to mean (rewireEdge's
+  // vocabulary check), and neither block changes. The guard used to be the
+  // one to refuse these, which it could only do when the landing block was
+  // typed already.
+  it("refuses a NoMatchingError dropped on a Compare", () => {
+    const doc = demoWithCompare();
+    const before = JSON.stringify(doc);
+    expect(
+      rewireEdge(doc, "welcome:error:0:NoMatchingError", "compare", "apologize"),
+    ).toBeUndefined();
+    expect(JSON.stringify(doc)).toBe(before);
   });
 
   it("refuses a QueueAtCapacity dropped on a MessageParticipant", () => {
-    const refusal = refusalFrom(() =>
+    expect(
       rewireEdge(demoDoc(), "transfer:error:0:QueueAtCapacity", "announce-busy", "apologize"),
-    );
-    expect(refusal?.blockIds).toEqual(["announce-busy", "transfer"]);
+    ).toBeUndefined();
   });
 });
 
@@ -217,7 +232,7 @@ describe("the refused docs really were invisible to the other gates", () => {
     );
     demoted.push(compare);
 
-    expect([...demotedIds(demoted[0]!)].sort()).toEqual(["check-hours", "enable-logging"]);
+    expect([...demotedIds(demoted[0]!)].sort()).toEqual(["check-hours"]);
     expect([...demotedIds(demoted[1]!)]).toEqual(["compare"]);
     for (const doc of demoted) expect(() => assertSaveable(doc)).not.toThrow();
   });

@@ -1,0 +1,49 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "wrap-up",
+  "Actions": [
+    {
+      "Identifier": "wrap-up",
+      "Type": "ShowView",
+      "Parameters": {
+        "ViewResource": {
+          "Id": "arn:aws:connect:us-east-1:aws:view/after-contact-work:1"
+        },
+        "InvocationTimeLimitSeconds": "480",
+        "ViewData": {
+          "CustomerName": "Jane Doe"
+        }
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          },
+          {
+            "ErrorType": "TimeLimitExceeded",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": [
+          {
+            "NextAction": "hang-up",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "Done"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

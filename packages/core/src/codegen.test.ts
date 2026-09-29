@@ -6,17 +6,18 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FlowAction, FlowDoc } from "./index.js";
 import {
+  ActionType,
+  canonicalize,
+  codegen,
   DisconnectParticipant,
+  factoryName,
   Flow,
   GenericBlock,
   GetParticipantInput,
   MessageParticipant,
   Refs,
-  UpdateContactAttributes,
-  canonicalize,
-  codegen,
-  factoryName,
   synth,
+  UpdateContactAttributes,
 } from "./index.js";
 
 const demoDoc = (): FlowDoc =>
@@ -30,7 +31,7 @@ const demoDoc = (): FlowDoc =>
 /** A minimal hand-rolled FlowDoc for shapes the builder cannot produce. */
 function docWith(actions: FlowDoc["content"]["Actions"]): FlowDoc {
   return {
-    flowdoc: "0.1",
+    flowdoc: "0.2",
     kind: "flow",
     name: "hand-rolled",
     connectType: "CONTACT_FLOW",
@@ -614,17 +615,1468 @@ describe("GetParticipantInput inverts only the shape the class emits", () => {
     );
   });
 
-  it("keeps the unknown-actions fixture's GetParticipantInput generic", () => {
-    // That fixture predates the block and carries a numeric timeout, no
-    // StoreInput, and only two of the three errors: none of it is the class's
-    // shape, and the fixture's round-trip test holds it verbatim.
+  it("keeps a menu that predates the class generic: numeric timeout, two errors, no StoreInput", () => {
+    generic(
+      withMenu((a) => {
+        a.Parameters = { InputTimeLimitSeconds: 5, Text: "Press 1 for sales or 2 for support." };
+        a.Transitions.Errors = [
+          { ErrorType: "NoMatchingError", NextAction: "bye" },
+          { ErrorType: "InputTimeLimitExceeded", NextAction: "bye" },
+        ];
+        a.Transitions.NextAction = "bye";
+      }),
+    );
+  });
+});
+
+describe("DequeueContactAndTransferToQueue inverts the three targets the class writes", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "requeue",
+    Type: "DequeueContactAndTransferToQueue",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "QueueAtCapacity", NextAction: "bye" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const doc = docWith([action(parameters), bye]);
+    const out = codegen(doc);
+    expect(out).toContain("new DequeueContactAndTransferToQueue({");
+    expect(out).not.toContain('type: "DequeueContactAndTransferToQueue"');
+    return out;
+  };
+  const generic = (edit: (a: FlowAction) => void) => {
+    const a = action({ QueueId: "${cdref:queue:priority}" });
+    edit(a);
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "DequeueContactAndTransferToQueue"');
+    expect(out).not.toContain("new DequeueContactAndTransferToQueue(");
+  };
+
+  it("emits queue, agent, or no target at all", () => {
+    expect(typed({ QueueId: "${cdref:queue:priority}" })).toContain(
+      'queue: Refs.queue("priority")',
+    );
+    expect(typed({ AgentId: "$.Attributes.agentArn" })).toContain(
+      'agent: jsonPath("$.Attributes.agentArn")',
+    );
+    const bare = typed({});
+    expect(bare).not.toContain("queue:");
+    expect(bare).not.toContain("agent:");
+    expect(bare).toContain('onQueueAtCapacity: "bye"');
+  });
+
+  it("falls back when both targets are set, a token is the wrong type, or an error is missing", () => {
+    generic((a) => {
+      a.Parameters.AgentId = "${cdref:queue:overflow}";
+    });
+    generic((a) => {
+      a.Parameters.QueueId = "${cdref:flow:not-a-queue}";
+    });
+    generic((a) => {
+      a.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    });
+  });
+});
+
+describe("TransferContactToAgent is terminal", () => {
+  const transfer = (): FlowAction => ({
+    Identifier: "hand-off",
+    Type: "TransferContactToAgent",
+    Parameters: {},
+    Transitions: {},
+  });
+
+  it("inverts the bare terminal shape", () => {
+    expect(codegen(docWith([transfer()]))).toContain(
+      'new TransferContactToAgent({ id: "hand-off" })',
+    );
+  });
+
+  it("falls back when the action carries a transition or a parameter", () => {
+    const wired = transfer();
+    wired.Transitions = { NextAction: "hand-off", Errors: [], Conditions: [] };
+    expect(codegen(docWith([wired]))).toContain('type: "TransferContactToAgent"');
+    const withParam = transfer();
+    withParam.Parameters = { AgentId: "${cdref:queue:front-desk}" };
+    expect(codegen(docWith([withParam]))).toContain('type: "TransferContactToAgent"');
+  });
+});
+
+describe("UpdateContactRoutingBehavior inverts one adjustment and no error branch", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "bump",
+    Type: "UpdateContactRoutingBehavior",
+    Parameters: parameters,
+    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([action(parameters), bye]));
+    expect(out).toContain("new UpdateContactRoutingBehavior({");
+    expect(out).not.toContain('type: "UpdateContactRoutingBehavior"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactRoutingBehavior"');
+    expect(out).not.toContain("new UpdateContactRoutingBehavior(");
+  };
+
+  it("reads the console's decimal strings back as numbers", () => {
+    expect(typed({ QueuePriority: "1" })).toContain("queuePriority: 1");
+    expect(typed({ QueueTimeAdjustmentSeconds: "-30" })).toContain(
+      "queueTimeAdjustmentSeconds: -30",
+    );
+    expect(typed({ QueueTimeAdjustmentSeconds: "0" })).toContain("queueTimeAdjustmentSeconds: 0");
+  });
+
+  it("falls back on both, on neither, on a JSON number, a leading zero, a fraction, a priority of 0, or an error branch", () => {
+    generic(action({ QueuePriority: "1", QueueTimeAdjustmentSeconds: "30" }));
+    generic(action({}));
+    generic(action({ QueuePriority: 1 }));
+    generic(action({ QueuePriority: "05" }));
+    generic(action({ QueuePriority: "1.0" }));
+    generic(action({ QueuePriority: "0" }));
+    const withError = action({ QueuePriority: "1" });
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(withError);
+  });
+});
+
+describe("CreateCallbackContact inverts the full and the minimal shape", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "callback",
+    Type: "CreateCallbackContact",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  // The console's spelling, from its export of the Sample interruptible
+  // queue flow with callback.
+  const minimal = {
+    InitialCallDelaySeconds: "60",
+    MaximumConnectionAttempts: "2",
+    RetryDelaySeconds: "600",
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([action(parameters), bye]));
+    expect(out).toContain("new CreateCallbackContact({");
+    expect(out).not.toContain('type: "CreateCallbackContact"');
+    return out;
+  };
+  const generic = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([action(parameters), bye]));
+    expect(out).toContain('type: "CreateCallbackContact"');
+    expect(out).not.toContain("new CreateCallbackContact(");
+  };
+
+  it("emits every optional field it finds, and only those", () => {
+    const full = typed({
+      ...minimal,
+      QueueId: "${cdref:queue:callbacks}",
+      ContactFlowId: "${cdref:flow:callback-greeting}",
+      CallerId: "$.SystemEndpoint.Address",
+    });
+    expect(full).toContain('queue: Refs.queue("callbacks")');
+    expect(full).toContain('flow: Refs.flow("callback-greeting")');
+    expect(full).toContain('callerId: "$.SystemEndpoint.Address"');
+    expect(full).toContain("initialCallDelaySeconds: 60");
+    const bare = typed(minimal);
+    expect(bare).not.toContain("queue:");
+    expect(bare).not.toContain("flow:");
+    expect(bare).not.toContain("callerId:");
+    expect(typed({ ...minimal, AgentId: "$.Attributes.agentArn" })).toContain(
+      'agent: jsonPath("$.Attributes.agentArn")',
+    );
+  });
+
+  it("falls back on both targets, a missing or out-of-range delay, a JSON number, a leading zero, or a wrong token", () => {
+    generic({ ...minimal, QueueId: "${cdref:queue:a}", AgentId: "${cdref:queue:b}" });
+    generic({ MaximumConnectionAttempts: "2", RetryDelaySeconds: "600" });
+    generic({ ...minimal, InitialCallDelaySeconds: "259201" });
+    generic({ ...minimal, MaximumConnectionAttempts: 2 });
+    generic({ ...minimal, RetryDelaySeconds: "0600" });
+    generic({ ...minimal, ContactFlowId: "${cdref:module:not-a-flow@prod}" });
+  });
+});
+
+describe("UpdateContactCallbackNumber inverts a JSONPath number with its two named errors", () => {
+  const action = (): FlowAction => ({
+    Identifier: "set-number",
+    Type: "UpdateContactCallbackNumber",
+    Parameters: { CallbackNumber: "$.StoredCustomerInput" },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "InvalidCallbackNumber", NextAction: "bye" },
+        { ErrorType: "CallbackNumberNotDialable", NextAction: "bye" },
+      ],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (edit: (a: FlowAction) => void) => {
+    const a = action();
+    edit(a);
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactCallbackNumber"');
+    expect(out).not.toContain("new UpdateContactCallbackNumber(");
+  };
+
+  it("emits the class with jsonPath() and imports it", () => {
+    const out = codegen(docWith([action(), bye]));
+    expect(out).toContain('callbackNumber: jsonPath("$.StoredCustomerInput")');
+    expect(out).toContain('onInvalidNumber: "bye"');
+    expect(out).toContain('onNotDialable: "bye"');
+    expect(out).toMatch(/import \{[^}]*jsonPath[^}]*\} from/);
+  });
+
+  it("falls back on a static number, a swapped or missing error, a catch-all, or an extra parameter", () => {
+    generic((a) => {
+      a.Parameters.CallbackNumber = "+15555550100";
+    });
+    generic((a) => {
+      a.Transitions.Errors = [a.Transitions.Errors![1]!, a.Transitions.Errors![0]!];
+    });
+    generic((a) => {
+      a.Transitions.Errors = [a.Transitions.Errors![0]!];
+    });
+    generic((a) => {
+      a.Transitions.Errors!.push({ ErrorType: "NoMatchingError", NextAction: "bye" });
+    });
+    generic((a) => {
+      a.Parameters.Routing = { Depth: 2 };
+    });
+  });
+});
+
+describe("Loop inverts the two fixed conditions with NextAction mirroring the done path", () => {
+  const loop = (count: unknown): FlowAction => ({
+    Identifier: "again",
+    Type: "Loop",
+    Parameters: { LoopCount: count },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [],
+      Conditions: [
+        { NextAction: "again", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
+        { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
+      ],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (edit: (a: FlowAction) => void, count: unknown = "2") => {
+    const a = loop(count);
+    edit(a);
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "Loop"');
+    expect(out).not.toContain("new Loop(");
+  };
+
+  it("reads the console's decimal string back as a number and a dynamic one as jsonPath()", () => {
+    const out = codegen(docWith([loop("2"), bye]));
+    expect(out).toContain("new Loop({");
+    expect(out).toContain("count: 2");
+    expect(out).toContain('onContinue: "again"');
+    expect(out).toContain('onDone: "bye"');
+    expect(out).not.toContain("onError");
+    expect(codegen(docWith([loop("0"), bye]))).toContain("count: 0");
+    expect(codegen(docWith([loop("100"), bye]))).toContain("count: 100");
+    const dynamic = codegen(docWith([loop("$.Attributes.retries"), bye]));
+    expect(dynamic).toContain('count: jsonPath("$.Attributes.retries")');
+    expect(dynamic).toMatch(/import \{[^}]*jsonPath[^}]*\} from/);
+    // The console's Error branch, when an export carries one.
+    const withError = loop("2");
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    expect(codegen(docWith([withError, bye]))).toContain('onError: "bye"');
+  });
+
+  it("falls back on a count out of range, as a JSON number or with a leading zero, another error, swapped conditions, or an unmirrored NextAction", () => {
+    generic(() => {}, "101");
+    generic(() => {}, 2);
+    generic(() => {}, "02");
+    generic((a) => {
+      a.Transitions.Errors = [{ ErrorType: "NoMatchingCondition", NextAction: "bye" }];
+    });
+    generic((a) => {
+      a.Transitions.Conditions = [a.Transitions.Conditions![1]!, a.Transitions.Conditions![0]!];
+    });
+    generic((a) => {
+      a.Transitions.NextAction = "again";
+    });
+  });
+});
+
+describe("Wait inverts the timeout, its events, and the conditional ParticipantNotFound", () => {
+  const wait = (events: string[], withBotError: boolean): FlowAction => ({
+    Identifier: "hold",
+    Type: "Wait",
+    Parameters: { TimeLimitSeconds: "300", ...(events.length > 0 ? { Events: events } : {}) },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        ...(withBotError ? [{ ErrorType: "ParticipantNotFound", NextAction: "bye" }] : []),
+      ],
+      Conditions: [
+        { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["WaitCompleted"] } },
+        ...events.map((e) => ({
+          NextAction: "hold",
+          Condition: { Operator: "Equals" as const, Operands: [e] },
+        })),
+      ],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new Wait({");
+    expect(out).not.toContain('type: "Wait"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "Wait"');
+    expect(out).not.toContain("new Wait(");
+  };
+
+  it("emits the plain timeout, one event, and both events with the bot error", () => {
+    const plain = typed(wait([], false));
+    expect(plain).toContain("timeoutSeconds: 300");
+    expect(plain).not.toContain("onEvent");
+    expect(plain).not.toContain("onParticipantNotFound");
+    expect(typed(wait(["CustomerReturned"], false))).toContain(
+      'onEvent: { CustomerReturned: "hold" }',
+    );
+    const both = typed(wait(["CustomerReturned", "BotParticipantDisconnected"], true));
+    expect(both).toContain('BotParticipantDisconnected: "hold"');
+    expect(both).toContain('onParticipantNotFound: "bye"');
+    const dynamic = wait([], false);
+    dynamic.Parameters.TimeLimitSeconds = "$.Attributes.holdSeconds";
+    expect(typed(dynamic)).toContain('timeoutSeconds: jsonPath("$.Attributes.holdSeconds")');
+  });
+
+  it("falls back when events and conditions disagree, the bot error is unpaired, the order is swapped, or the timeout is out of range", () => {
+    generic(wait(["BotParticipantDisconnected"], false));
+    generic(wait(["CustomerReturned"], true));
+    const listedOnly = wait([], false);
+    listedOnly.Parameters.Events = ["CustomerReturned"];
+    generic(listedOnly);
+    const swapped = wait(["CustomerReturned", "BotParticipantDisconnected"], true);
+    swapped.Parameters.Events = ["BotParticipantDisconnected", "CustomerReturned"];
+    swapped.Transitions.Conditions = [
+      swapped.Transitions.Conditions![0]!,
+      swapped.Transitions.Conditions![2]!,
+      swapped.Transitions.Conditions![1]!,
+    ];
+    generic(swapped);
+    const tooLong = wait([], false);
+    tooLong.Parameters.TimeLimitSeconds = "604801";
+    generic(tooLong);
+    const asNumber = wait([], false);
+    asNumber.Parameters.TimeLimitSeconds = 300;
+    generic(asNumber);
+    const pageKey = wait([], false);
+    delete pageKey.Parameters.TimeLimitSeconds;
+    pageKey.Parameters.TimeoutSeconds = "300";
+    generic(pageKey);
+    const unmirrored = wait([], false);
+    unmirrored.Transitions.NextAction = "hold";
+    generic(unmirrored);
+  });
+});
+
+describe("DistributeByPercentage inverts the console's threshold chain into percentages", () => {
+  const split = (operands: string[]): FlowAction => ({
+    Identifier: "split",
+    Type: "DistributeByPercentage",
+    Parameters: {},
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingCondition", NextAction: "bye" }],
+      Conditions: operands.map((o) => ({
+        NextAction: "bye",
+        Condition: { Operator: "NumberLessThan", Operands: [o] },
+      })),
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "DistributeByPercentage"');
+    expect(out).not.toContain("new DistributeByPercentage(");
+  };
+
+  it("reads the Sample AB test thresholds 4, 10, 18 as 3%, 6%, 8%", () => {
+    const out = codegen(docWith([split(["4", "10", "18"]), bye]));
+    expect(out).toContain("new DistributeByPercentage({");
+    expect(out).toContain('{ percent: 3, target: "bye" }');
+    expect(out).toContain('{ percent: 6, target: "bye" }');
+    expect(out).toContain('{ percent: 8, target: "bye" }');
+    expect(out).toContain('onRemainder: "bye"');
+    expect(codegen(docWith([split(["100"]), bye]))).toContain("percent: 99");
+  });
+
+  it("falls back on a threshold above 100, a non-increasing chain, a non-integer, another operator, an unmirrored NextAction, or a parameter", () => {
+    generic(split(["101"]));
+    generic(split(["10", "10"]));
+    generic(split(["1"]));
+    generic(split(["4.5"]));
+    const other = split(["4"]);
+    other.Transitions.Conditions![0]!.Condition.Operator = "NumberGreaterThan";
+    generic(other);
+    const unmirrored = split(["4"]);
+    unmirrored.Transitions.NextAction = "split";
+    generic(unmirrored);
+    const withParam = split(["4"]);
+    withParam.Parameters = { Seed: 1 };
+    generic(withParam);
+  });
+});
+
+describe("UpdateFlowAttributes inverts the console's { Value } map with its catch-all", () => {
+  const action = (attributes: unknown): FlowAction => ({
+    Identifier: "remember",
+    Type: "UpdateFlowAttributes",
+    Parameters: { FlowAttributes: attributes },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateFlowAttributes"');
+    expect(out).not.toContain("new UpdateFlowAttributes(");
+  };
+
+  it("reads the { Value } wrappers back into a flat string map", () => {
+    const out = codegen(
+      docWith([
+        action({ retries: { Value: "2" }, caller: { Value: "$.CustomerEndpoint.Address" } }),
+        bye,
+      ]),
+    );
+    expect(out).toContain("new UpdateFlowAttributes({");
+    expect(out).toContain('retries: "2"');
+    expect(out).toContain('caller: "$.CustomerEndpoint.Address"');
+    expect(out).toContain('onError: "bye"');
+    expect(codegen(docWith([action({}), bye]))).toContain("attributes: {}");
+  });
+
+  it("falls back on a flat string value, a wrapper with another key, a non-object, a missing key, or a missing catch-all", () => {
+    generic(action({ retries: "2" }));
+    generic(action({ retries: { Value: "2", Type: "string" } }));
+    generic(action({ retries: { Value: 2 } }));
+    generic(action("retries=2"));
+    const missing = action({});
+    missing.Parameters = {};
+    generic(missing);
+    const unwired = action({ retries: { Value: "2" } });
+    unwired.Transitions.Errors = [];
+    generic(unwired);
+  });
+});
+
+describe("CheckMetricData inverts the console's staffing check and a queue-depth chain", () => {
+  const check = (
+    parameters: Record<string, unknown>,
+    conditions: { operator: string; operand: string }[],
+  ): FlowAction => ({
+    Identifier: "staffed",
+    Type: "CheckMetricData",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+      ],
+      Conditions: conditions.map((c) => ({
+        NextAction: "again",
+        Condition: { Operator: c.operator as "Equals", Operands: [c.operand] },
+      })),
+    },
+  });
+  const rest: FlowAction[] = [
+    {
+      Identifier: "again",
+      Type: "MessageParticipant",
+      Parameters: { Text: "Again." },
+      Transitions: {
+        NextAction: "bye",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+        Conditions: [],
+      },
+    },
+    { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+  ];
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, ...rest]));
+    expect(out).toContain("new CheckMetricData({");
+    expect(out).not.toContain('type: "CheckMetricData"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, ...rest]));
+    expect(out).toContain('type: "CheckMetricData"');
+    expect(out).not.toContain("new CheckMetricData(");
+  };
+  const staffed = { operator: "NumberGreaterThan", operand: "0" };
+
+  it("emits the default queue transfer's staffing check as recorded from the console", () => {
+    const out = typed(check({ MetricType: "NumberOfAgentsStaffed" }, [staffed]));
+    expect(out).toContain('metric: "NumberOfAgentsStaffed"');
+    expect(out).toContain('{ operator: "NumberGreaterThan", operand: "0", target: "again" }');
+    expect(out).toContain('onNoMatch: "again"');
+    expect(out).toContain('onError: "bye"');
+    expect(out).not.toContain("queue:");
+  });
+
+  it("emits a queue metric with a token or JSONPath target and several comparisons", () => {
+    const depth = check(
+      { MetricType: "NumberOfContactsInQueue", QueueId: "${cdref:queue:front-desk}" },
+      [
+        { operator: "NumberLessThan", operand: "5" },
+        { operator: "NumberGreaterOrEqualTo", operand: "5" },
+      ],
+    );
+    const out = typed(depth);
+    expect(out).toContain('queue: Refs.queue("front-desk")');
+    expect(out).toContain('{ operator: "NumberLessThan", operand: "5", target: "again" }');
+    expect(
+      typed(
+        check({ MetricType: "OldestContactInQueueAgeSeconds", AgentId: "$.Attributes.agentArn" }, [
+          { operator: "Equals", operand: "0" },
+        ]),
+      ),
+    ).toContain('agent: jsonPath("$.Attributes.agentArn")');
+  });
+
+  it("falls back on an agent metric with any other comparison, an unknown metric, both targets, a missing branch, or an unmirrored NextAction", () => {
+    generic(
+      check({ MetricType: "NumberOfAgentsAvailable" }, [
+        { operator: "NumberLessThan", operand: "5" },
+      ]),
+    );
+    generic(check({ MetricType: "NumberOfAgentsOnline" }, [staffed, staffed]));
+    generic(check({ MetricType: "NumberOfAgentsHappy" }, [staffed]));
+    generic(
+      check(
+        {
+          MetricType: "NumberOfAgentsStaffed",
+          QueueId: "${cdref:queue:a}",
+          AgentId: "${cdref:queue:b}",
+        },
+        [staffed],
+      ),
+    );
+    const noMatchMissing = check({ MetricType: "NumberOfAgentsStaffed" }, [staffed]);
+    noMatchMissing.Transitions.Errors = [noMatchMissing.Transitions.Errors![0]!];
+    generic(noMatchMissing);
+    const unmirrored = check({ MetricType: "NumberOfAgentsStaffed" }, [staffed]);
+    unmirrored.Transitions.NextAction = "again";
+    generic(unmirrored);
+    generic(
+      check({ MetricType: "NumberOfContactsInQueue" }, [
+        { operator: "TextContains", operand: "5" },
+      ]),
+    );
+  });
+});
+
+describe("UpdateFlowLoggingBehavior inverts the demo's logging block", () => {
+  const action = (behavior: unknown): FlowAction => ({
+    Identifier: "enable-logging",
+    Type: "UpdateFlowLoggingBehavior",
+    Parameters: { FlowLoggingBehavior: behavior },
+    Transitions: { NextAction: "bye", Errors: [], Conditions: [] },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateFlowLoggingBehavior"');
+    expect(out).not.toContain("new UpdateFlowLoggingBehavior(");
+  };
+
+  it("emits the class for either behavior, and the demo no longer carries a GenericBlock", () => {
+    const out = codegen(docWith([action("Enabled"), bye]));
+    expect(out).toContain("new UpdateFlowLoggingBehavior({");
+    expect(out).toContain('behavior: "Enabled"');
+    expect(out).toContain('next: "bye"');
+    expect(out).not.toContain("GenericBlock");
+    expect(codegen(docWith([action("Disabled"), bye]))).toContain('behavior: "Disabled"');
+    expect(codegen(demoDoc())).not.toContain("GenericBlock");
+  });
+
+  it("falls back on a third value, a dynamic value, an error branch, a missing next, or an extra key", () => {
+    generic(action("On"));
+    generic(action("$.Attributes.logging"));
+    const withError = action("Enabled");
+    withError.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(withError);
+    const noNext = action("Enabled");
+    noNext.Transitions = { Errors: [], Conditions: [] };
+    generic(noNext);
+    const extra = action("Enabled");
+    extra.Parameters.Retention = "30";
+    generic(extra);
+  });
+});
+
+describe("UpdateContactRecordingAndAnalyticsBehavior inverts its voice or its screen recording form", () => {
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "record",
+    Type: "UpdateContactRecordingAndAnalyticsBehavior",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "ChannelMismatch", NextAction: "bye" },
+      ],
+      Conditions: [],
+    },
+  });
+  const both = () =>
+    action({
+      VoiceBehavior: {
+        VoiceRecordingBehavior: {
+          RecordedParticipants: ["Agent", "Customer"],
+          IVRRecordingBehavior: "Enabled",
+        },
+      },
+      ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] },
+    });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactRecordingAndAnalyticsBehavior"');
+    expect(out).not.toContain("new UpdateContactRecordingAndAnalyticsBehavior(");
+  };
+
+  it("emits voice and IVR recording with the two errors in the page's order, and refuses both forms on one block", () => {
+    const out = codegen(
+      docWith([
+        action({
+          VoiceBehavior: {
+            VoiceRecordingBehavior: {
+              RecordedParticipants: ["Agent", "Customer"],
+              IVRRecordingBehavior: "Enabled",
+            },
+          },
+        }),
+        bye,
+      ]),
+    );
+    expect(out).toContain("new UpdateContactRecordingAndAnalyticsBehavior({");
+    expect(out).toContain('recordedParticipants: ["Agent", "Customer"]');
+    expect(out).toContain('ivrRecordingBehavior: "Enabled"');
+    expect(out).toContain('onChannelMismatch: "bye"');
+    expect(out).toContain('onError: "bye"');
+    // The service refuses two objects on one block, so the class never
+    // writes them and the shape stays generic.
+    generic(both());
+  });
+
+  it("emits either recording form alone", () => {
+    const voice = codegen(
+      docWith([
+        action({
+          VoiceBehavior: { VoiceRecordingBehavior: { RecordedParticipants: ["Customer"] } },
+        }),
+        bye,
+      ]),
+    );
+    expect(voice).toContain('recordedParticipants: ["Customer"]');
+    expect(voice).not.toContain("ivrRecordingBehavior");
+    expect(voice).not.toContain("screenRecordedParticipants");
+    const screen = codegen(
+      docWith([
+        action({ ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Agent"] } }),
+        bye,
+      ]),
+    );
+    expect(screen).toContain("new UpdateContactRecordingAndAnalyticsBehavior({");
+    expect(screen).toContain('screenRecordedParticipants: ["Agent"]');
+    expect(screen).not.toContain("voice:");
+  });
+
+  it("falls back on the chat form, voice analytics, neither form, or an unlisted participant", () => {
+    generic(action({ ChatBehavior: { ChatAnalyticsBehavior: { Enabled: "True" } } }));
+    generic(
+      action({
+        VoiceBehavior: {
+          VoiceRecordingBehavior: { RecordedParticipants: ["Agent", "Customer"] },
+          VoiceAnalyticsBehavior: { Enabled: "True", AnalyticsLanguage: "en-US" },
+        },
+      }),
+    );
+    generic(action({}));
+    generic(
+      action({
+        VoiceBehavior: { VoiceRecordingBehavior: { RecordedParticipants: ["Supervisor"] } },
+      }),
+    );
+    generic(
+      action({
+        VoiceBehavior: {
+          VoiceRecordingBehavior: { RecordedParticipants: ["Agent"], IVRRecordingBehavior: "On" },
+        },
+      }),
+    );
+    generic(action({ ScreenRecordingBehavior: { ScreenRecordedParticipants: ["Customer"] } }));
+  });
+
+  it("falls back on a missing, swapped or extra error", () => {
+    const missing = both();
+    missing.Transitions.Errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }];
+    generic(missing);
+    const swapped = both();
+    swapped.Transitions.Errors = [
+      { ErrorType: "ChannelMismatch", NextAction: "bye" },
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ];
+    generic(swapped);
+    const extra = both();
+    extra.Transitions.Errors!.push({
+      ErrorType: "InFlightRedactionConfigurationFailed",
+      NextAction: "bye",
+    });
+    generic(extra);
+  });
+});
+
+describe("CheckMetricData reads the console's two error orders by type", () => {
+  const queueAge = (
+    errors: { ErrorType: string; NextAction: string }[],
+    next: string,
+  ): FlowAction => ({
+    Identifier: "queue-age",
+    Type: "CheckMetricData",
+    Parameters: { MetricType: "OldestContactInQueueAgeSeconds" },
+    Transitions: {
+      NextAction: next,
+      Errors: errors,
+      Conditions: [
+        { NextAction: "again", Condition: { Operator: "NumberLessThan", Operands: ["300000"] } },
+      ],
+    },
+  });
+  const rest: FlowAction[] = [
+    {
+      Identifier: "again",
+      Type: "MessageParticipant",
+      Parameters: { Text: "Again." },
+      Transitions: {
+        NextAction: "bye",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+        Conditions: [],
+      },
+    },
+    { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+  ];
+
+  it("reads the Sample queue configurations order, NoMatchingCondition first, and re-emits the class's order", () => {
+    // The typed block reproduces the class's order, so the export's own
+    // order is not what codegen(synth) writes back: the inverter still
+    // names the branches right, and the comparison in invertAction decides.
+    const reversed = queueAge(
+      [
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      "bye",
+    );
+    const out = codegen(docWith([reversed, ...rest]));
+    expect(out).toContain('type: "CheckMetricData"');
+    const ordered = queueAge(
+      [
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+      ],
+      "bye",
+    );
+    const typed = codegen(docWith([ordered, ...rest]));
+    expect(typed).toContain("new CheckMetricData({");
+    expect(typed).toContain('onNoMatch: "again"');
+    expect(typed).toContain('onError: "bye"');
+  });
+
+  it("falls back when NextAction mirrors the no-match branch instead of the catch-all", () => {
+    const wrongMirror = queueAge(
+      [
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      "again",
+    );
+    expect(codegen(docWith([wrongMirror, ...rest]))).toContain('type: "CheckMetricData"');
+  });
+});
+
+describe("GetMetricData inverts its optional queue, agent queue and channel", () => {
+  const load = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "load",
+    Type: "GetMetricData",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([load(parameters), bye]));
+    expect(out).toContain("new GetMetricData({");
+    expect(out).not.toContain('type: "GetMetricData"');
+    return out;
+  };
+  const generic = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([load(parameters), bye]));
+    expect(out).toContain('type: "GetMetricData"');
+    expect(out).not.toContain("new GetMetricData(");
+  };
+
+  it("emits nothing, a queue with a static channel, or an agent queue with a dynamic one", () => {
+    const bare = typed({});
+    expect(bare).not.toContain("queue:");
+    expect(bare).not.toContain("channel:");
+    const voice = typed({ QueueId: "${cdref:queue:front-desk}", QueueChannel: "Voice" });
+    expect(voice).toContain('queue: Refs.queue("front-desk")');
+    expect(voice).toContain('channel: "Voice"');
+    const dynamic = typed({ AgentId: "$.Attributes.agentArn", QueueChannel: "$.Channel" });
+    expect(dynamic).toContain('agent: jsonPath("$.Attributes.agentArn")');
+    expect(dynamic).toContain('channel: jsonPath("$.Channel")');
+  });
+
+  it("falls back on both targets, a channel the page does not list, or a wrong token", () => {
+    generic({ QueueId: "${cdref:queue:a}", AgentId: "${cdref:queue:b}" });
+    generic({ QueueChannel: "Email" });
+    generic({ QueueId: "${cdref:hours:not-a-queue}" });
+  });
+});
+
+describe("TagContact inverts a string map of up to six user-defined tags", () => {
+  const tag = (tags: unknown): FlowAction => ({
+    Identifier: "tag",
+    Type: "TagContact",
+    Parameters: { Tags: tags },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "TagContact"');
+    expect(out).not.toContain("new TagContact(");
+  };
+
+  it("emits the tags verbatim, dynamic values included", () => {
+    const out = codegen(docWith([tag({ team: "cx", tier: "$.Attributes.tier" }), bye]));
+    expect(out).toContain("new TagContact({");
+    expect(out).toContain('team: "cx"');
+    expect(out).toContain('tier: "$.Attributes.tier"');
+  });
+
+  it("falls back on no tags, seven tags, a system-tag key, a non-string value, or a missing catch-all", () => {
+    generic(tag({}));
+    generic(tag(Object.fromEntries("abcdefg".split("").map((k) => [k, k]))));
+    generic(tag({ "aws:connect:instanceId": "x" }));
+    generic(tag({ count: 1 }));
+    // The page lists no error; the service refuses the block without one.
+    const unwired = tag({ team: "cx" });
+    unwired.Transitions.Errors = [];
+    generic(unwired);
+  });
+});
+
+describe("UntagContact inverts a list of user-defined tag keys", () => {
+  const untag = (keys: unknown): FlowAction => ({
+    Identifier: "untag",
+    Type: "UntagContact",
+    Parameters: { TagKeys: keys },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UntagContact"');
+    expect(out).not.toContain("new UntagContact(");
+  };
+
+  it("emits the keys as an array", () => {
+    const out = codegen(docWith([untag(["tier", "team"]), bye]));
+    expect(out).toContain("new UntagContact({");
+    expect(out).toContain('tagKeys: ["tier", "team"]');
+  });
+
+  it("falls back on no keys, a system-tag key, a non-string, or a missing catch-all", () => {
+    generic(untag([]));
+    generic(untag(["aws:connect:instanceId"]));
+    generic(untag([1]));
+    const unwired = untag(["tier"]);
+    unwired.Transitions.Errors = [];
+    generic(unwired);
+  });
+});
+
+describe("UpdateContactTextToSpeechVoice inverts the voice with its optional engine and style", () => {
+  const voice = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "voice",
+    Type: "UpdateContactTextToSpeechVoice",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([voice(parameters), bye]));
+    expect(out).toContain("new UpdateContactTextToSpeechVoice({");
+    expect(out).not.toContain('type: "UpdateContactTextToSpeechVoice"');
+    return out;
+  };
+  const generic = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([voice(parameters), bye]));
+    expect(out).toContain('type: "UpdateContactTextToSpeechVoice"');
+    expect(out).not.toContain("new UpdateContactTextToSpeechVoice(");
+  };
+
+  it("emits the voice alone, with a static engine and style, or with dynamic ones", () => {
+    expect(typed({ TextToSpeechVoice: "Joanna" })).toContain('voice: "Joanna"');
+    const full = typed({
+      TextToSpeechVoice: "Matthew",
+      TextToSpeechEngine: "Neural",
+      TextToSpeechStyle: "Conversational",
+    });
+    expect(full).toContain('engine: "Neural"');
+    // The catch-all is optional: the console omits it on many Set voice blocks.
+    const unwired = voice({ TextToSpeechVoice: "Joanna" });
+    unwired.Transitions.Errors = [];
+    const bare = codegen(docWith([unwired, bye]));
+    expect(bare).toContain("new UpdateContactTextToSpeechVoice({");
+    expect(bare).not.toContain("onError");
+    expect(full).toContain('style: "Conversational"');
+    const dynamic = typed({
+      TextToSpeechVoice: "$.Attributes.voice",
+      TextToSpeechEngine: "$.Attributes.engine",
+    });
+    expect(dynamic).toContain('voice: "$.Attributes.voice"');
+    expect(dynamic).toContain('engine: jsonPath("$.Attributes.engine")');
+  });
+
+  it("falls back on an empty voice, an engine or style the pages do not list, or an extra key", () => {
+    generic({ TextToSpeechVoice: "" });
+    generic({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "premium" });
+    // The admin guide's lower-case prose is not the console's spelling.
+    generic({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "neural" });
+    generic({ TextToSpeechVoice: "Joanna", TextToSpeechStyle: "Coversational" });
+    generic({ TextToSpeechVoice: "Joanna", LanguageCode: "en-US" });
+  });
+});
+
+describe("UpdateContactData inverts every optional field in the page's spelling", () => {
+  const data = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "data",
+    Type: "UpdateContactData",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (parameters: Record<string, unknown>) => {
+    const out = codegen(docWith([data(parameters), bye]));
+    expect(out).toContain("new UpdateContactData({");
+    expect(out).not.toContain('type: "UpdateContactData"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactData"');
+    expect(out).not.toContain("new UpdateContactData(");
+  };
+
+  it("emits the target only when present, and the rest as typed fields", () => {
+    const bare = typed({});
+    expect(bare).not.toContain("targetContact");
+    // The page marks the target required; the service does not, so a
+    // block without it is typed, and one with "Current" says so.
+    const current = codegen(docWith([data({ TargetContact: "Current" }), bye]));
+    expect(current).toContain('targetContact: "Current"');
+    const full = typed({
+      Name: "$.Attributes.name",
+      Description: "Priority caller",
+      LanguageCode: "en-US",
+      CustomerId: "c-1",
+      References: { CaseId: "$.Attributes.caseId" },
+      IsVoiceIdStreamingEnabled: "TRUE",
+      IsVoiceAuthenticationEnabled: "TRUE",
+      IsFraudDetectionEnabled: "FALSE",
+      VoiceAuthenticationThreshold: "80",
+      VoiceAuthenticationResponseTime: "7",
+      FraudDetectionThreshold: "50",
+      WatchlistId: "wl-1",
+      WisdomSessionArn: "$.Wisdom.SessionArn",
+      TargetContact: "Related",
+    });
+    expect(full).toContain('targetContact: "Related"');
+    expect(full).toContain('name: "$.Attributes.name"');
+    expect(full).toContain('references: { CaseId: "$.Attributes.caseId" }');
+    expect(full).toContain("voiceIdStreaming: true");
+    expect(full).toContain("fraudDetection: false");
+    expect(full).toContain("voiceAuthenticationThreshold: 80");
+    expect(full).toContain("voiceAuthenticationResponseTime: 7");
+    expect(full).toContain('wisdomSessionArn: "$.Wisdom.SessionArn"');
+  });
+
+  it("falls back on an unlisted target, a lowercase flag, a threshold out of range or as a number, or a non-string reference", () => {
+    generic(data({ TargetContact: "Flow" }));
+    generic(data({ IsFraudDetectionEnabled: "true" }));
+    generic(data({ VoiceAuthenticationThreshold: "101" }));
+    generic(data({ VoiceAuthenticationResponseTime: "4" }));
+    generic(data({ FraudDetectionThreshold: 50 }));
+    generic(data({ References: { CaseId: 1 } }));
+  });
+});
+
+describe("UpdateContactEventHooks inverts the one hook and its flow", () => {
+  const hooks = (map: unknown): FlowAction => ({
+    Identifier: "hook",
+    Type: "UpdateContactEventHooks",
+    Parameters: { EventHooks: map },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactEventHooks"');
+    expect(out).not.toContain("new UpdateContactEventHooks(");
+  };
+
+  it("emits the hook name and a Refs.flow or jsonPath value", () => {
+    const token = codegen(
+      docWith([hooks({ CustomerQueue: "${cdref:flow:queue-experience}" }), bye]),
+    );
+    expect(token).toContain("new UpdateContactEventHooks({");
+    expect(token).toContain('hook: "CustomerQueue"');
+    expect(token).toContain('flow: Refs.flow("queue-experience")');
+    const dynamic = codegen(docWith([hooks({ CustomerWhisper: "$.Attributes.whisperFlow" }), bye]));
+    expect(dynamic).toContain('flow: jsonPath("$.Attributes.whisperFlow")');
+  });
+
+  it("falls back on no hook, two hooks, a hook the page does not list, or a non-flow token", () => {
+    generic(hooks({}));
+    generic(hooks({ CustomerQueue: "${cdref:flow:a}", CustomerHold: "${cdref:flow:b}" }));
+    generic(hooks({ AgentQueue: "${cdref:flow:a}" }));
+    generic(hooks({ CustomerQueue: "${cdref:module:not-a-flow@prod}" }));
+  });
+});
+
+describe("MessageParticipantIteratively inverts the console's hold-loop and interrupt shapes", () => {
+  const loop = (
+    messages: unknown[],
+    extra: { seconds?: string; interrupt?: boolean; error?: boolean } = {},
+  ): FlowAction => ({
+    Identifier: "hold-music",
+    Type: "MessageParticipantIteratively",
+    Parameters: {
+      Messages: messages,
+      ...(extra.seconds === undefined ? {} : { InterruptFrequencySeconds: extra.seconds }),
+    },
+    Transitions: {
+      Errors: extra.error === true ? [{ ErrorType: "NoMatchingError", NextAction: "end" }] : [],
+      Conditions:
+        extra.interrupt === true
+          ? [
+              {
+                NextAction: "end",
+                Condition: { Operator: "Equals", Operands: ["MessagesInterrupted"] },
+              },
+            ]
+          : [],
+    },
+  });
+  const end: FlowAction = {
+    Identifier: "end",
+    Type: "EndFlowExecution",
+    Parameters: {},
+    Transitions: {},
+  };
+  const docOf = (a: FlowAction): FlowDoc => ({
+    ...docWith([a, end]),
+    connectType: "CUSTOMER_QUEUE",
+  });
+  const typed = (a: FlowAction) => {
+    const out = codegen(docOf(a));
+    expect(out).toContain("new MessageParticipantIteratively({");
+    expect(out).not.toContain('type: "MessageParticipantIteratively"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docOf(a));
+    expect(out).toContain('type: "MessageParticipantIteratively"');
+    expect(out).not.toContain("new MessageParticipantIteratively(");
+  };
+  const media = { Media: { Uri: "s3://bucket/hold.wav", SourceType: "S3", MediaType: "Audio" } };
+
+  it("emits the default hold flow's shape: messages, no next, no error", () => {
+    const out = typed(loop([{ SSML: "<speak>You are on hold</speak>" }]));
+    expect(out).toContain('{ ssml: "<speak>You are on hold</speak>" }');
+    expect(out).not.toContain("onError");
+    expect(out).not.toContain("onInterrupt");
+  });
+
+  it("emits every message kind, the interrupt pair, and the optional catch-all", () => {
+    const out = typed(
+      loop(
+        [{ Text: "Thank you for holding." }, { PromptId: "${cdref:prompt:hold-music}" }, media],
+        { seconds: "30", interrupt: true, error: true },
+      ),
+    );
+    expect(out).toContain('{ text: "Thank you for holding." }');
+    expect(out).toContain('{ prompt: Refs.prompt("hold-music") }');
+    expect(out).toContain('{ media: { uri: "s3://bucket/hold.wav" } }');
+    expect(out).toContain("interruptFrequencySeconds: 30");
+    expect(out).toContain('onInterrupt: "end"');
+    expect(out).toContain('onError: "end"');
+  });
+
+  it("falls back on a NextAction, an unpaired interrupt, a two-key message, a non-S3 media, or no messages", () => {
+    const withNext = loop([{ Text: "hi" }]);
+    withNext.Transitions.NextAction = "end";
+    generic(withNext);
+    generic(loop([{ Text: "hi" }], { seconds: "30" }));
+    generic(loop([{ Text: "hi" }], { interrupt: true }));
+    generic(loop([{ Text: "hi", SSML: "<speak>hi</speak>" }]));
+    generic(loop([{ Media: { Uri: "s3://b/x", SourceType: "HTTP", MediaType: "Audio" } }]));
+    generic(loop([]));
+    const asNumber = loop([{ Text: "hi" }], { seconds: "30", interrupt: true });
+    asNumber.Parameters.InterruptFrequencySeconds = 30;
+    generic(asNumber);
+  });
+});
+
+describe("ConnectParticipantWithLexBot inverts the V2 form with its intents", () => {
+  const lex = (parameters: Record<string, unknown>, intents: string[] = ["Sales"]): FlowAction => ({
+    Identifier: "bot",
+    Type: "ConnectParticipantWithLexBot",
+    Parameters: { LexV2Bot: { AliasArn: "${cdref:lex:sales-bot}" }, ...parameters },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [
+        { ErrorType: "InputTimeLimitExceeded", NextAction: "bye" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "NoMatchingCondition", NextAction: "bye" },
+      ],
+      Conditions: intents.map((i) => ({
+        NextAction: "bye",
+        Condition: { Operator: "Equals", Operands: [i] },
+      })),
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new ConnectParticipantWithLexBot({");
+    expect(out).not.toContain('type: "ConnectParticipantWithLexBot"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "ConnectParticipantWithLexBot"');
+    expect(out).not.toContain("new ConnectParticipantWithLexBot(");
+  };
+
+  it("emits the bot alone, and every optional field with intents", () => {
+    const bare = typed(lex({}, []));
+    expect(bare).toContain('bot: Refs.lex("sales-bot")');
+    expect(bare).toContain("intents: []");
+    const full = typed(
+      lex(
+        {
+          Text: "How can I help?",
+          LexSessionAttributes: { channel: "$.Channel" },
+          LexInitializationData: { InitialMessage: "Hi" },
+          LexTimeoutSeconds: { Text: "300" },
+        },
+        ["Sales", "Support"],
+      ),
+    );
+    expect(full).toContain('text: "How can I help?"');
+    expect(full).toContain('sessionAttributes: { channel: "$.Channel" }');
+    expect(full).toContain('initialMessage: "Hi"');
+    expect(full).toContain("timeoutSeconds: 300");
+    expect(full).toContain('{ name: "Support", target: "bye" }');
+    expect(full).toContain('onTimeout: "bye"');
+    const dynamic = typed(lex({ PromptId: "${cdref:prompt:greeting}" }));
+    expect(dynamic).toContain('prompt: Refs.prompt("greeting")');
+    const byPath = lex({});
+    byPath.Parameters.LexV2Bot = { AliasArn: "$.Attributes.botAlias" };
+    expect(typed(byPath)).toContain('bot: jsonPath("$.Attributes.botAlias")');
+  });
+
+  it("falls back on the V1 form, Media, two bodies, a timeout out of range, a swapped error, or an unmirrored NextAction", () => {
+    const v1 = lex({});
+    v1.Parameters = { LexBot: { Name: "sales", Region: "us-east-1", Alias: "prod" } };
+    generic(v1);
+    generic(lex({ Media: { Uri: "s3://b/x", SourceType: "S3", MediaType: "Audio" } }));
+    generic(lex({ Text: "hi", SSML: "<speak>hi</speak>" }));
+    generic(lex({ LexTimeoutSeconds: { Text: "59" } }));
+    generic(lex({ LexTimeoutSeconds: { Text: 300 } }));
+    const swapped = lex({});
+    swapped.Transitions.Errors = [
+      swapped.Transitions.Errors![1]!,
+      swapped.Transitions.Errors![0]!,
+      swapped.Transitions.Errors![2]!,
+    ];
+    generic(swapped);
+    const unmirrored = lex({});
+    unmirrored.Transitions.NextAction = "bot";
+    generic(unmirrored);
+  });
+});
+
+describe("the unknown-actions fixture holds only types the builder does not model", () => {
+  it("emits a GenericBlock for every action, tokens kept verbatim", () => {
     const doc = JSON.parse(
       readFileSync(
         new URL("../../../conformance/roundtrip/unknown-actions/doc.flowdoc.json", import.meta.url),
         "utf8",
       ),
     ) as FlowDoc;
-    generic(doc);
+    for (const a of doc.content.Actions) {
+      expect(Object.values(ActionType) as string[]).not.toContain(a.Type);
+    }
+    const out = codegen(doc);
+    expect(out.match(/new GenericBlock\(/g)).toHaveLength(doc.content.Actions.length);
+    expect(out).toContain('"${cdref:flow:task-flow}"');
+    expect(out).not.toContain("Refs.");
+  });
+});
+
+describe("ShowView inverts the view, its data, and its required time limit", () => {
+  // The admin guide's shape: three errors in its order, the time limit
+  // present, and NextAction a copy of the catch-all's target.
+  const view = (
+    parameters: Record<string, unknown>,
+    extra: { actions?: string[]; next?: string } = {},
+  ): FlowAction => ({
+    Identifier: "guide",
+    Type: "ShowView",
+    Parameters: {
+      ViewResource: { Id: "${cdref:view:form@1}" },
+      InvocationTimeLimitSeconds: "300",
+      ...parameters,
+    },
+    Transitions: {
+      NextAction: extra.next ?? "bye",
+      Errors: [
+        { ErrorType: "NoMatchingCondition", NextAction: "again" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+        { ErrorType: "TimeLimitExceeded", NextAction: "again" },
+      ],
+      Conditions: (extra.actions ?? []).map((v) => ({
+        NextAction: "bye",
+        Condition: { Operator: "Equals", Operands: [v] },
+      })),
+    },
+  });
+  const again: FlowAction = {
+    Identifier: "again",
+    Type: "MessageParticipant",
+    Parameters: { Text: "Again." },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  };
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, again, bye]));
+    expect(out).toContain("new ShowView({");
+    expect(out).not.toContain('type: "ShowView"');
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, again, bye]));
+    expect(out).toContain('type: "ShowView"');
+    expect(out).not.toContain("new ShowView(");
+  };
+
+  it("emits a bare view, and every field, with the three branches and no next of its own", () => {
+    const bare = typed(view({}));
+    expect(bare).toContain('view: Refs.view("form", "1")');
+    expect(bare).toContain("actions: []");
+    expect(bare).toContain("timeoutSeconds: 300");
+    expect(bare).toContain('onNoMatch: "again"');
+    expect(bare).toContain('onTimeout: "again"');
+    expect(bare).toContain('onError: "bye"');
+    const block = bare.slice(
+      bare.indexOf("new ShowView({"),
+      bare.indexOf("new MessageParticipant("),
+    );
+    expect(block).not.toContain("next:");
+    const full = typed(
+      view(
+        {
+          ViewResource: { Id: "$.Attributes.view", Version: "2" },
+          InvocationTimeLimitSeconds: "5",
+          ViewData: { Heading: "$.Customer.LastName", Sections: [{ Title: "Address" }] },
+          SensitiveDataConfiguration: { HideResponseOn: ["TRANSCRIPT"] },
+        },
+        { actions: ["Next", "Back"] },
+      ),
+    );
+    expect(full).toContain('view: jsonPath("$.Attributes.view")');
+    expect(full).toContain('version: "2"');
+    expect(full).toContain("timeoutSeconds: 5");
+    expect(full).toContain('Heading: "$.Customer.LastName"');
+    expect(full).toContain('hideResponseOn: ["TRANSCRIPT"]');
+    expect(full).toContain('{ action: "Back", target: "bye" }');
+  });
+
+  it("falls back on a literal ARN, a missing time limit, a limit as a number, a missing or reordered error, an unmirrored next, or a bad hide list", () => {
+    generic(view({ ViewResource: { Id: "arn:aws:connect:us-west-2:aws:view/form:1" } }));
+    const noLimit = view({});
+    delete noLimit.Parameters.InvocationTimeLimitSeconds;
+    generic(noLimit);
+    generic(view({ InvocationTimeLimitSeconds: 300 }));
+    const twoErrors = view({});
+    twoErrors.Transitions.Errors = twoErrors.Transitions.Errors!.slice(0, 2);
+    generic(twoErrors);
+    // The page's order is accepted by the service but is not the console's,
+    // so the class does not write it and the block stays generic.
+    const pageOrder = view({});
+    pageOrder.Transitions.Errors = [
+      pageOrder.Transitions.Errors![1]!,
+      pageOrder.Transitions.Errors![0]!,
+      pageOrder.Transitions.Errors![2]!,
+    ];
+    generic(pageOrder);
+    generic(view({}, { next: "again" }));
+    generic(view({ SensitiveDataConfiguration: { HideResponseOn: [""] } }));
   });
 });
 

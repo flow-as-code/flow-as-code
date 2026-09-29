@@ -46,6 +46,15 @@ export interface TokenBinder {
   prompt(name: string): string;
   /** ARN of a contact flow not managed by this FlowSet. */
   flow?(name: string): string;
+  /**
+   * ARN of a view, with the version the token pins when it pins one:
+   * `${cdref:view:after-contact-work@1}` calls `view("after-contact-work", "1")`.
+   * The AWS-managed views a flow usually shows have no CloudFormation resource,
+   * so this is typically a literal built from the stack's region,
+   * `arn:aws:connect:<region>:aws:view/<name>:<version>`.
+   * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
+   */
+  view?(name: string, version?: string): string;
 }
 
 /**
@@ -66,7 +75,11 @@ export function bindRef(binder: TokenBinder, ref: RefEntry, docName: string): st
         `Implement ${ref.type}(name) on the binder.`,
     );
   }
-  const value = method.call(binder, ref.name);
+  // Only a view token carries something beside its name: the version it pins.
+  const value =
+    ref.type === "view"
+      ? (method as NonNullable<TokenBinder["view"]>).call(binder, ref.name, ref.alias)
+      : (method as (name: string) => string).call(binder, ref.name);
   if (typeof value !== "string") {
     throw new Error(
       `TokenBinder.${ref.type}("${ref.name}") returned ${String(value)} for ${ref.token} ` +

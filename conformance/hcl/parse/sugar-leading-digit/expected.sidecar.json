@@ -1,0 +1,16 @@
+{
+  "refs": {
+    "queue:2fa": "aws_connect_queue._2fa.arn"
+  },
+  "lint": [],
+  "tags": {},
+  "instanceId": "var.connect_instance_id",
+  "normalized": [
+    {
+      "attribute": "action[set-queue].update_contact_target_queue.queue_id",
+      "from": "aws_connect_queue._2fa.arn",
+      "to": "queue:2fa",
+      "binding": "aws_connect_queue._2fa.arn"
+    }
+  ]
+}

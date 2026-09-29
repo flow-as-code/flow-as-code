@@ -161,7 +161,7 @@ jobs:
           key: tofu-plugins-${{ runner.os }}-tofu${{ matrix.tofu_version }}-aws6.64.0-awscc1.101.0
       - run: npm ci
       - run: npm run build
-      - run: npx vitest run --project @flow-as-code/tf --project @flow-as-code/studio --project repo
+      - run: npx vitest run --project @flow-as-code/tf --project @flow-as-code/hcl --project @flow-as-code/studio --project repo
         env:
           RUN_TOFU_VALIDATE: "1"
 
@@ -183,6 +183,6 @@ jobs:
       - run: npx vitest run --project repo
       - name: Dry-run publish every package
         run: |
-          for p in core cdk cli tf studio; do
+          for p in core cdk cli tf hcl studio; do
             npm publish --dry-run --workspace "@flow-as-code/$p"
           done

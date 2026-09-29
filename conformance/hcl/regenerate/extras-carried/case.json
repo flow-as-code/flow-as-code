@@ -1,0 +1,3 @@
+{
+  "description": "provider, state, tags, lint, lifecycle and depends_on are carried verbatim; the document holds none of them."
+}

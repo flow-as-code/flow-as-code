@@ -1,0 +1,4 @@
+{
+  "code": "NON_LITERAL_VALUE",
+  "path": "action[welcome].message_participant.text"
+}

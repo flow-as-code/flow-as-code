@@ -22,6 +22,7 @@
 
 import type { FlowDoc, RefEntry, RefType } from "@flow-as-code/core";
 import { collectRefs, refKey } from "@flow-as-code/core";
+import { emitFlowascode } from "@flow-as-code/hcl";
 import { emitTf } from "@flow-as-code/tf/emit";
 import { LITERAL_ARN } from "../model/refValues.js";
 
@@ -76,6 +77,8 @@ const ident = (slug: string): string => {
  * Lex V2 is the exception: aws_lexv2models_bot exports only `id`
  * (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lexv2models_bot),
  * so the hint is a variable rather than an attribute that does not exist.
+ * Views are the same case: the AWS-managed ones a flow usually shows have no
+ * resource in hashicorp/aws at all, so the hint is a variable too.
  */
 const ADDRESS_SHAPE: Readonly<Record<RefType, (name: string) => string>> = {
   queue: (n) => `aws_connect_queue.${n}.arn`,
@@ -85,6 +88,7 @@ const ADDRESS_SHAPE: Readonly<Record<RefType, (name: string) => string>> = {
   flow: (n) => `aws_connect_contact_flow.${n}.arn`,
   module: (n) => `aws_connect_contact_flow_module.${n}.arn`,
   lex: (n) => `var.${n}_bot_alias_arn`,
+  view: (n) => `var.${n}_view_arn`,
 };
 
 /**
@@ -127,7 +131,12 @@ export function exportRefs(docs: readonly FlowDoc[]): ExportRef[] {
 const MISSING_MARKER = /TODO: no terraform address for (\S+?)\.$/gm;
 
 /**
- * Tokens the emitter still has no address for, asked of the emitter.
+ * Tokens the emitter still has no address for, asked of the emitter the
+ * target uses. Both write the same TODO line, @flow-as-code/tf in flow_refs.tf
+ * and @flow-as-code/hcl above a null refs value in flows.tf, and they resolve
+ * different references from the set itself (hcl also resolves a module invoked
+ * without an alias), so the question goes to the one that will write the
+ * export. A token used by two documents is one missing address.
  *
  * This computes bytes and throws them away: nothing leaves the studio, so it
  * deliberately does not run the save gate. Emitting the export itself does
@@ -136,9 +145,13 @@ const MISSING_MARKER = /TODO: no terraform address for (\S+?)\.$/gm;
 export function unmappedTokens(
   docs: readonly FlowDoc[],
   addressMap: Record<string, string>,
+  target: "tf" | "flowascode" = "tf",
 ): string[] {
-  const refs = emitTf(docs, { addressMap }).files["flow_refs.tf"] ?? "";
-  return [...refs.matchAll(MISSING_MARKER)].map((m) => m[1] ?? "").sort(byString);
+  const text =
+    target === "flowascode"
+      ? (emitFlowascode(docs, { addressMap }).files["flows.tf"] ?? "")
+      : (emitTf(docs, { addressMap }).files["flow_refs.tf"] ?? "");
+  return [...new Set([...text.matchAll(MISSING_MARKER)].map((m) => m[1] ?? ""))].sort(byString);
 }
 
 export type MapValueCheck = { ok: true; value: string } | { ok: false; error: string };

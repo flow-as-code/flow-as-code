@@ -81,7 +81,12 @@ describe("flow-cli studio", () => {
   });
 
   it("prints one line per bridge event", () => {
-    expect(eventLine({ seq: 1, kind: "synced", name: "demo", doc: {} as never, text: "" }, "/d")) //
+    expect(
+      eventLine(
+        { seq: 1, kind: "synced", name: "demo", doc: {} as never, text: "", sourceKind: "ts" },
+        "/d",
+      ),
+    ) //
       .toBe("synced   demo");
     expect(
       eventLine(

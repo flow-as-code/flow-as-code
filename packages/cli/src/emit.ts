@@ -2,10 +2,13 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-// `flow-cli emit <dir> --target cdk|tf`.
+// `flow-cli emit <dir> --target cdk|flowascode|tf`.
 //
-// The two targets are not symmetric, because the two emitters are not.
+// The targets are not symmetric, because the emitters are not.
 //
+// - flowascode writes the set as flowascode provider resources through
+//   @flow-as-code/hcl's emitFlowascode, byte for byte what it returns: flows.tf,
+//   variables.tf and versions.tf.example, never a per-document companion.
 // - tf is a real code generator: @flow-as-code/tf turns the document set into HCL plus
 //   .tftpl files. This command is a thin wrapper over `writeTf`, deliberately
 //   adding nothing of its own so the bytes it writes are exactly the bytes
@@ -17,13 +20,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+import { EmitFlowascodeError, emitFlowascode } from "@flow-as-code/hcl";
 import { EmitTfError, writeTf } from "@flow-as-code/tf";
 
 import { CDK_SCAFFOLD_FILE, cdkScaffoldForDirs } from "./cdk-scaffold.js";
 import { defaultOutDir, loadDocs, readStringMap } from "./docs.js";
 import { CliError } from "./errors.js";
 
-export type EmitTarget = "cdk" | "tf";
+export type EmitTarget = "cdk" | "flowascode" | "tf";
 
 export interface EmitOptions {
   target: string;
@@ -31,14 +35,16 @@ export interface EmitOptions {
   out?: string;
 }
 
-const TARGETS = new Set<string>(["cdk", "tf"]);
+const TARGETS = new Set<string>(["cdk", "flowascode", "tf"]);
 
 export function runEmit(input: string, options: EmitOptions): string[] {
   if (!TARGETS.has(options.target)) {
-    throw new CliError(`Unknown --target "${options.target}". Use "cdk" or "tf".`);
+    throw new CliError(`Unknown --target "${options.target}". Use "cdk", "flowascode" or "tf".`);
   }
   if (options.target === "cdk" && options.addressMap !== undefined) {
-    throw new CliError("--address-map applies to --target tf only; the cdk target uses a binder.");
+    throw new CliError(
+      "--address-map applies to --target tf and flowascode only; the cdk target uses a binder.",
+    );
   }
 
   const docsDir = defaultOutDir(input);
@@ -46,11 +52,25 @@ export function runEmit(input: string, options: EmitOptions): string[] {
   const outDir = resolve(options.out ?? docsDir);
   mkdirSync(outDir, { recursive: true });
 
+  const addressMap =
+    options.addressMap === undefined ? undefined : readStringMap(options.addressMap, "address map");
+
+  if (options.target === "flowascode") {
+    let files;
+    try {
+      ({ files } = emitFlowascode(docs, addressMap === undefined ? {} : { addressMap }));
+    } catch (error) {
+      if (error instanceof EmitFlowascodeError) throw new CliError(error.message);
+      throw error;
+    }
+    return Object.entries(files).map(([file, text]) => {
+      const path = join(outDir, file);
+      writeFileSync(path, text, "utf8");
+      return path;
+    });
+  }
+
   if (options.target === "tf") {
-    const addressMap =
-      options.addressMap === undefined
-        ? undefined
-        : readStringMap(options.addressMap, "address map");
     let result;
     try {
       result = writeTf(docs, outDir, addressMap === undefined ? {} : { addressMap });

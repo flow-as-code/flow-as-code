@@ -1,0 +1,4 @@
+{
+  "description": "A resource label that is not slugIdentifier(name).",
+  "typescriptOnly": "Terraform does not pass a resource's label to the provider."
+}

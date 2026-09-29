@@ -2,7 +2,7 @@
 
 A static build of `@flow-as-code/studio` with `conformance/demo/appointment-line.flowdoc.json` baked in. It runs from any static host, edits only in memory, makes no network request after its own assets load, and names no npm package. Task: tasks/A14-hosted-demo.md.
 
-It is deployed and serving. https://flow-as-code.dev/ is the landing page and https://flow-as-code.dev/studio/ is this artifact, both from GitHub Pages, both over HTTPS with HTTP redirected to it. A visitor gets the demo appointment line on the canvas with no account and no sign-up: eleven blocks including the unmodeled `UpdateFlowLoggingBehavior` as a generic block, a working inspector, refs sidebar and lint panel, and "Export as..." rendering the Terraform and CDK output into the page. There is no Save and no FlowDoc download, because the store refuses writes. How that deploy is wired, and what any other host would need, are under Deploy below.
+It is deployed and serving. https://flow-as-code.dev/ is the landing page and https://flow-as-code.dev/studio/ is this artifact, both from GitHub Pages, both over HTTPS with HTTP redirected to it. A visitor gets the demo appointment line on the canvas with no account and no sign-up: eleven blocks, every one modeled (the `UpdateFlowLoggingBehavior` block was the generic exemplar until the builder gained the type on 2026-09-11; an unmodeled action still renders as a generic block, which `conformance/roundtrip/unknown-actions` and the studio's canvas tests hold), a working inspector, refs sidebar and lint panel, and "Export as..." rendering the Terraform and CDK output into the page. There is no Save and no FlowDoc download, because the store refuses writes. How that deploy is wired, and what any other host would need, are under Deploy below.
 
 ## Build
 
@@ -163,7 +163,7 @@ npx vitest run --project @flow-as-code/studio tests/demo-bundle.test.ts tests/de
 - no file contains a network primitive: `fetch(`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon`, `importScripts(`, `serviceWorker`;
 - every absolute `http(s)://` string in every file is on the exact-match allow-list in `tests/offlineScan.ts`, and no CSS carries `url(http...)` or `@import` of a URL;
 - no file mentions a published package name or the scope, both read from core's `PACKAGE_NAMES` and `PACKAGE_SCOPE`, while the `@example` placeholder is present;
-- the demo flow (`appointment-line`) and its GenericBlock (`UpdateFlowLoggingBehavior`) are in the bundle, as is the "Read-only demo" badge text and the lint worker chunk.
+- the demo flow (`appointment-line`) and its block types (`UpdateFlowLoggingBehavior` among them) are in the bundle, as is the "Read-only demo" badge text and the lint worker chunk.
 
 The allow-list cannot be XML namespaces only. Bundled libraries carry string constants that are URLs without ever loading them: JSON Schema `$id` and vocabulary identifiers that ajv resolves against its own bundled meta-schemas, the `$id` of the FlowDoc schema, React's error-decoder link, React Flow's attribution link, the rolldown and Tailwind banners, and the AWS and Terraform registry citations that `@flow-as-code/tf` writes as comments into the HCL it emits. Each entry is an exact string; a new URL under a familiar origin does not pass because its prefix is familiar. The same list judges the regular build in `tests/bundle-offline.test.ts`, so the two cannot drift.
 
@@ -180,7 +180,7 @@ Without `dist-demo/`, `demo-bundle.test.ts` fails one test naming `npm run build
 1. Serve `dist-demo/` from a local static server under a subpath, for example `python3 -m http.server` from the directory or a few lines of `node:http`. Do not use `vite preview` for this; its dev client is not the artifact.
 2. Open the page in a browser with DevTools on the Network tab, "Disable cache" checked, and the console visible.
 3. Confirm the canvas shows the eleven nodes of `appointment-line`, the "Read-only demo" badge, only "Export as..." in the toolbar, and a clean lint panel.
-4. Click the `enable-logging` node. The inspector shows it as unmodeled (`UpdateFlowLoggingBehavior`) with its raw JSON.
+4. Click the `enable-logging` node. The inspector shows its logging behavior (`UpdateFlowLoggingBehavior`, Enabled or Disabled); until 2026-09-11 this was the demo's unmodeled block and showed raw JSON instead, and the 2026-09-01 check below was made against that form.
 5. Open "Export as...", export Terraform, then CDK. The dialog reports "Generated N file(s) to this page" and shows each file as text; the CDK preview imports from `@example/cdk`.
 6. Reload. The selection and the dialog are gone and the demo is pristine.
 7. Read the Network tab: every entry is the page's own origin and path (`index.html`, the JS and CSS chunks, and `lint.worker-*.js`; a `favicon.ico` request from the browser itself is a 404 on the same origin). Read the console: no errors. A CSP violation would appear here as a blocked request, so an empty console after the interactions above is the proof.

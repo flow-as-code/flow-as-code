@@ -5,31 +5,27 @@
 // The canonical demo flow: a neutral appointment line.
 //
 // Used by synth (A01), round-trip (A03), emitter goldens (A09), the studio,
-// and the hosted demo. Deliberately includes an unmodeled action so
-// GenericBlock passthrough is exercised by default.
+// and the hosted demo. Every action is modeled (the logging block was the
+// GenericBlock exemplar until 2026-09-11, when the builder gained the type
+// with the same bytes); passthrough is exercised by
+// conformance/roundtrip/unknown-actions instead.
 
 import {
   CheckHoursOfOperation,
   DisconnectParticipant,
   Flow,
-  GenericBlock,
   InvokeLambdaFunction,
   MessageParticipant,
   Refs,
   TransferContactToQueue,
   UpdateContactAttributes,
   UpdateContactTargetQueue,
+  UpdateFlowLoggingBehavior,
 } from "../index.js";
 
 export function appointmentLine(): Flow {
   return new Flow({ name: "appointment-line", connectType: "CONTACT_FLOW" }).add(
-    // UpdateFlowLoggingBehavior is documented but not modeled by the builder.
-    new GenericBlock({
-      id: "enable-logging",
-      type: "UpdateFlowLoggingBehavior",
-      parameters: { FlowLoggingBehavior: "Enabled" },
-      next: "welcome",
-    }),
+    new UpdateFlowLoggingBehavior({ id: "enable-logging", behavior: "Enabled", next: "welcome" }),
     new MessageParticipant({
       id: "welcome",
       text: "Thanks for calling. Let's get you to the right place.",

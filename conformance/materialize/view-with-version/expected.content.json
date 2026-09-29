@@ -1,0 +1,52 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "wrap-up",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "hang-up": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      },
+      "wrap-up": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "wrap-up",
+      "Type": "ShowView",
+      "Parameters": {
+        "InvocationTimeLimitSeconds": "480",
+        "ViewResource": {
+          "Id": "arn:aws:connect:us-east-1:aws:view/after-contact-work:1"
+        }
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

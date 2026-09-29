@@ -1,0 +1,9 @@
+{
+  "description": "A flow invoking a module by alias, that module invoking a second module by alias, and a queue from the address map. The set resolves its own modules through the version and alias resources it writes (rule 27), so the address map's entry for the module is ignored.",
+  "docs": [
+    "../../../emit-tf/module-set/support-line.flowdoc.json",
+    "../../../roundtrip/after-call-survey/doc.flowdoc.json",
+    "../../../emit-tf/module-set/satisfaction-question.flowdoc.json"
+  ],
+  "validate": "skip"
+}

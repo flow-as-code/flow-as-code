@@ -1,0 +1,3 @@
+{
+  "description": "A queue resource address in a reference field and no refs map: the TypeScript parser rewrites it to the key and a binding (address-sugar.json). The provider refuses the same input."
+}

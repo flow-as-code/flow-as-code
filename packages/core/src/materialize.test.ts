@@ -175,6 +175,25 @@ describe("A05 conformance fixtures", () => {
     );
   });
 
+  // A view token carries the view's version in its alias slot, and the map
+  // may be keyed by any of the three forms core accepts; the resolved value is
+  // the versioned ARN the console writes.
+  it("view-with-version matches the committed golden byte for byte", () => {
+    const doc = JSON.parse(
+      fixture("conformance/materialize/view-with-version/doc.flowdoc.json"),
+    ) as FlowDoc;
+    const map = JSON.parse(fixture("conformance/materialize/view-with-version/map.json")) as Record<
+      string,
+      string
+    >;
+    const content = serializeContent(materializeWithMap(doc, map));
+    expect(content).toBe(
+      fixture("conformance/materialize/view-with-version/expected.content.json"),
+    );
+    expect(content).toContain("arn:aws:connect:us-east-1:aws:view/after-contact-work:1");
+    expect(content).not.toContain("cdref");
+  });
+
   it("keeps the demo-with-map doc in sync with the canonical demo", () => {
     expect(fixture("conformance/materialize/demo-with-map/doc.flowdoc.json")).toBe(
       fixture("conformance/demo/appointment-line.flowdoc.json"),

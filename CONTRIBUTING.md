@@ -27,7 +27,8 @@ the `npx flow-cli` lines in the root README work from a checkout. `build` then
 builds the studio and its demo bundle and ends with `scripts/chmod-bins.mjs`,
 which owns the mode of every file a workspace packs out of `dist`.
 
-All five packages are on npm, but inside this repository `@flow-as-code/*`
+The packages are on npm (`@flow-as-code/hcl` from its first release, which is
+published by hand; see Releasing), but inside this repository `@flow-as-code/*`
 resolves through the workspace and nowhere else, so a checkout never reads the
 registry copies. Build first or the imports do not exist. For the version the
 registry currently serves, read the package pages rather than this file:
@@ -133,21 +134,22 @@ bump is a reviewable commit and the publish is a separate, deliberate act.
 release already merged:
 
 ```
-npx changeset version   # consumes .changeset/*.md, bumps all five, writes CHANGELOGs
+npx changeset version   # consumes .changeset/*.md, bumps all six, writes CHANGELOGs
 npm install             # refresh package-lock.json for the new versions
 git commit -am "release: <the version changeset just wrote>"
 git push origin main
 ```
 
 Review the bumped manifests and the generated CHANGELOGs before committing. All
-five packages are `fixed` in `.changeset/config.json`, so they move together:
+six packages are `fixed` in `.changeset/config.json`, so they move together:
 every package takes the new version whether or not a changeset named it. That is
-deliberate, and it is why every published version so far exists for all five.
+deliberate, and it is why every published version so far exists for every
+package published at the time.
 
 `fixed` is not `linked`, which the config carried earlier: `linked` gives the
 packages a common version but bumps only the ones a changeset actually names, so
-a changeset touching the CLI alone leaves the other four behind. If `changeset
-version` ever bumps fewer than five manifests, that is the setting to check
+a changeset touching the CLI alone leaves the others behind. If `changeset
+version` ever bumps fewer than six manifests, that is the setting to check
 before committing.
 
 **Step 2, the operator, on GitHub.** Actions, "Release", "Run workflow", branch
@@ -175,7 +177,7 @@ publish authenticates over OIDC.
    that published without a tag is the one bad end state `changeset publish`
    does not report on its own.
 
-**The filename is fixed.** Each of the five packages has a Trusted Publisher on
+**The filename is fixed.** Each published package has a Trusted Publisher on
 npmjs.com naming this repository and `release.yml`. npm matches that string
 exactly and a configuration cannot be edited, only deleted and recreated
 (https://docs.npmjs.com/trusted-publishers/). Renaming the file breaks every

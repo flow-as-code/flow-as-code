@@ -59,7 +59,9 @@
       "name": "Consent Notice"
     }
   ],
-  "lambdaFunctions": ["arn:aws:lambda:us-east-1:111122223333:function:appointment-lookup"],
+  "lambdaFunctions": [
+    "arn:aws:lambda:us-east-1:111122223333:function:appointment-lookup"
+  ],
   "lexBots": [
     {
       "lexVersion": "V2",
@@ -70,5 +72,6 @@
       "name": "LegacyBot",
       "lexRegion": "us-east-1"
     }
-  ]
+  ],
+  "views": []
 }

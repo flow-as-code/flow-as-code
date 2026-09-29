@@ -55,7 +55,7 @@ function bridgeStore(requests: Request[]): BridgeStore {
     const body: unknown = init?.body === undefined ? undefined : JSON.parse(init.body);
     if (method !== "GET") requests.push({ url, body });
     const reply = url.endsWith("/bridge/docs")
-      ? { docs: [{ name: NAME }] }
+      ? { docs: [{ name: NAME, sourceKind: "ts" }] }
       : method === "GET"
         ? { name: NAME, doc: demoDoc(), text: serialize(demoDoc()) }
         : {
@@ -254,5 +254,15 @@ describe("conflict dialog", () => {
     await mount(bridgeStore([]), conflictFor({ codeSide: demoDoc() }));
     expect(testId("conflict-identical").textContent).toContain("same flow");
     expect(query('[data-testid="conflict-diff"]')).toBeNull();
+  });
+
+  it("names the .flow.tf when the code side is a Terraform companion", async () => {
+    await mount(
+      bridgeStore([]),
+      conflictFor({ sourceKind: "tf", sourcePath: "/tmp/flows/appointment-line.flow.tf" }),
+    );
+    const modal = testId("conflict-modal");
+    expect(modal.textContent).toContain(`Code · ${NAME}.flow.tf`);
+    expect(button("conflict-keep-doc").title).toContain(`regenerate ${NAME}.flow.tf`);
   });
 });

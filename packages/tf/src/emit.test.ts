@@ -24,7 +24,7 @@ const caseNamed = (name: string): (typeof cases)[number] => {
 };
 
 const flow = (name: string, parameters: Record<string, unknown> = {}): FlowDoc => ({
-  flowdoc: "0.1",
+  flowdoc: "0.2",
   kind: "flow",
   name,
   connectType: "CONTACT_FLOW",
@@ -315,7 +315,7 @@ describe("terraform identifiers", () => {
   // rejects a leading-digit resource label with "Invalid resource name".
   it("prefixes a name that would start with a digit", () => {
     const doc: FlowDoc = {
-      flowdoc: "0.1",
+      flowdoc: "0.2",
       kind: "flow",
       name: "2fa-line",
       connectType: "CONTACT_FLOW",
@@ -336,7 +336,7 @@ describe("terraform identifiers", () => {
 
   it("prefixes a reference variable that would start with a digit", () => {
     const doc: FlowDoc = {
-      flowdoc: "0.1",
+      flowdoc: "0.2",
       kind: "flow",
       name: "line",
       connectType: "CONTACT_FLOW",

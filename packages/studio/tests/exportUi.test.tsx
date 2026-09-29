@@ -52,7 +52,7 @@ async function openDialog(doc: FlowDoc = demoDoc()): Promise<void> {
  */
 function unemittableDoc(): FlowDoc {
   return {
-    flowdoc: "0.1",
+    flowdoc: "0.2",
     kind: "flow",
     name: "clash-line",
     connectType: "CONTACT_FLOW",
@@ -277,5 +277,39 @@ describe("running an export from the dialog", () => {
       document.querySelector('[data-testid="export-resource-error-${cdref:queue:appointments}"]'),
     ).toBeNull();
     expect(testId("export-missing").textContent).toContain("2 of 3");
+  });
+});
+
+describe("the flowascode target (B05b)", () => {
+  it("shares the address map with the tf target and says what an unmapped key becomes", async () => {
+    await openDialog();
+    await type(testId<HTMLInputElement>("export-address-queue:appointments"), ADDRESS);
+    await click(testId("export-target-flowascode"));
+    // The map typed under tf is still there: the two targets read one map.
+    expect(testId<HTMLInputElement>("export-address-queue:appointments").value).toBe(ADDRESS);
+    expect(testId("export-missing").textContent).toContain("2 of 3");
+    expect(document.body.textContent).toContain("which the provider refuses at plan time");
+  });
+
+  it("downloads flows.tf, variables.tf and versions.tf.example", async () => {
+    const created: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      created.push(this.download);
+    });
+    Object.assign(URL, {
+      createObjectURL: () => "blob:x",
+      revokeObjectURL: () => undefined,
+    });
+
+    await openDialog();
+    await click(testId("export-target-flowascode"));
+    await click(testId("export-run"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[data-testid="export-error"]')?.textContent).toBeUndefined();
+    expect(created.sort()).toEqual(["flows.tf", "variables.tf", "versions.tf.example"]);
   });
 });

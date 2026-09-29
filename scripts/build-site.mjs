@@ -166,6 +166,14 @@ const PAGES = [
       "How the browser demo is built, what the demo build swaps out, how it is deployed, and the static and runtime checks that prove it makes no network request after its own assets load.",
   },
   {
+    source: "docs/06-terraform-provider.md",
+    slug: "docs/terraform-provider",
+    group: "Format and design",
+    title: "Terraform provider and the HCL view",
+    description:
+      "The flow-as-code/flowascode provider and the .flow.tf companion: what the resources take, how a companion pairs with a document, which versions work together, and when to pick it over the emitter.",
+  },
+  {
     source: "examples/promote-across-environments/README.md",
     slug: "docs/promote-across-environments",
     group: "Worked example",
@@ -204,6 +212,14 @@ const PAGES = [
     title: "@flow-as-code/tf, the HCL emitter",
     description:
       "Calling the emitter, the .tf and .tftpl files it writes, how references become template variables, how escaping works, and what an incomplete address map does to the output.",
+  },
+  {
+    source: "packages/hcl/README.md",
+    slug: "docs/package-hcl",
+    group: "Package references",
+    title: "@flow-as-code/hcl, HCL as a third view",
+    description:
+      "The lossless HCL parser, the formatter that writes exactly what terraform fmt writes, literal evaluation and string quoting, and the flowascode companion format the studio and the CLI read and write.",
   },
   {
     source: "packages/studio/README.md",
@@ -261,6 +277,30 @@ const PAGES = [
     description:
       "The technical difference against the L2 CDK construct library the AWS Contact Center blog described: references that stay ${cdref:type:name} tokens through to deploy time rather than ARNs written in by a centralized mapping table, and a Terraform path alongside the CDK one.",
   },
+  {
+    source: "docs/adr/0005-owned-layout.md",
+    slug: "docs/adr-owned-layout",
+    group: "Decisions",
+    title: "ADR-0005: An owned auto-layout replaces dagre",
+    description:
+      "Why the positions synth assigns to unplaced actions are computed by a small algorithm specified under conformance/ rather than by a layout library: a Terraform companion omits a position exactly when it equals auto-layout, so a second implementation has to reach the same integers.",
+  },
+  {
+    source: "docs/adr/0006-provider-shape.md",
+    slug: "docs/adr-provider-shape",
+    group: "Decisions",
+    title: "ADR-0006: A Terraform provider of managed resources that take action blocks",
+    description:
+      "Why the provider owns the flow's lifecycle through the Connect API rather than feeding hashicorp/aws, why a flow is written as repeated action blocks against the framework's advice, and how its schema is generated from the shared action catalog.",
+  },
+  {
+    source: "docs/adr/0007-hcl-third-view.md",
+    slug: "docs/adr-hcl-third-view",
+    group: "Decisions",
+    title: "ADR-0007: HCL is a third view over FlowDoc, paired by file",
+    description:
+      "Why a .flow.tf is a companion with the same standing as a .flow.ts rather than a rendering target, what a regeneration carries from the previous file, and what does not round-trip.",
+  },
 ];
 
 /** The /docs/ index, which is a page of the site like any other. */
@@ -284,6 +324,10 @@ const PACKAGE_ROLES = [
   ["@flow-as-code/studio", "the visual editor over FlowDoc, served locally by flow-cli studio"],
   ["@flow-as-code/cdk", "CDK token binding (TokenBinder) and the FlowSet construct"],
   ["@flow-as-code/tf", "the Terraform and OpenTofu emitter: FlowDoc to .tf and .tftpl files"],
+  [
+    "@flow-as-code/hcl",
+    "HCL as a third view over FlowDoc: a lossless parser, a terraform fmt-exact formatter, and the .flow.tf companion",
+  ],
 ];
 
 function parseArgs(argv) {
@@ -641,7 +685,7 @@ The problem it solves: an Amazon Connect flow is a JSON document full of literal
 
 Where that claim is held to what the tools do: \`examples/promote-across-environments/\` (published below) is one FlowDoc reaching a dev and a prod environment on both deploy paths, and \`tests/promoteAcrossEnvironments.test.ts\` asserts that the two emitted Terraform trees differ in exactly one file, \`flow_refs.tf\`, and that the CDK path takes no map at all. The Terraform path does take an \`--address-map\`, which is a different object from the ARN table above: its values are Terraform addresses of resources the reader's own configuration manages, and the emitter refuses any value matching \`arn:aws\` outright.
 
-Status: the repository is public and Apache-2.0. The five packages are published to npm under the @flow-as-code scope, versioned together and released as a set, so install them at matching versions. The studio demo below is live and runs entirely in the browser, with no install and no account.
+Status: the repository is public and Apache-2.0. The packages are published to npm under the @flow-as-code scope (@flow-as-code/hcl from its first release), versioned together and released as a set, so install them at matching versions. The studio demo below is live and runs entirely in the browser, with no install and no account.
 
 ## Start here
 
@@ -653,7 +697,7 @@ Status: the repository is public and Apache-2.0. The five packages are published
 
 ## Packages
 
-Five packages, versioned together and released as a set.
+Six packages, versioned together and released as a set.
 
 ${PACKAGE_ROLES.map(([name, role]) => `- ${name}: ${role}.`).join("\n")}
 

@@ -1,0 +1,1 @@
+{ "description": "A number or bool where the provider takes a string, in a scalar parameter and in a map of strings, reads as Terraform converts it." }

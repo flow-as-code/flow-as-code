@@ -1,0 +1,63 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "split",
+      "messageIncludes": "DistributeByPercentage is not allowed in a OUTBOUND_WHISPER flow"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.2",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "OUTBOUND_WHISPER",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "split",
+      "Actions": [
+        {
+          "Identifier": "split",
+          "Type": "DistributeByPercentage",
+          "Parameters": {},
+          "Transitions": {
+            "NextAction": "end",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingCondition",
+                "NextAction": "end"
+              }
+            ],
+            "Conditions": [
+              {
+                "NextAction": "end",
+                "Condition": {
+                  "Operator": "NumberLessThan",
+                  "Operands": [
+                    "51"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Identifier": "end",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "split": {
+        "x": 20,
+        "y": 20
+      },
+      "end": {
+        "x": 280,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

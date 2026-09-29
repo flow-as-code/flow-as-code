@@ -1,0 +1,34 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "agent",
+      "messageIncludes": "TransferContactToAgent is not allowed in a CONTACT_FLOW flow"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.2",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "agent",
+      "Actions": [
+        {
+          "Identifier": "agent",
+          "Type": "TransferContactToAgent",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "agent": {
+        "x": 20,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

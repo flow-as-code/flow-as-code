@@ -27,7 +27,11 @@ export const LINT_DEBOUNCE_MS = 200;
  */
 export const LINT_TIMEOUT_MS = 4000;
 
-export function useLintWorker(doc: FlowDoc | null, dispatch: (action: StudioAction) => void): void {
+export function useLintWorker(
+  doc: FlowDoc | null,
+  dispatch: (action: StudioAction) => void,
+  disable: readonly string[] = NONE,
+): void {
   const workerRef = useRef<Worker | null>(null);
   const triedRef = useRef(false);
   const seqRef = useRef(0);
@@ -70,7 +74,9 @@ export function useLintWorker(doc: FlowDoc | null, dispatch: (action: StudioActi
             worker.terminate();
             workerRef.current = null;
             const latest = docRef.current;
-            if (latest !== null) apply(handleLintRequest({ seq: seqRef.current, doc: latest }));
+            if (latest !== null) {
+              apply(handleLintRequest({ seq: seqRef.current, doc: latest, disable: [...disable] }));
+            }
           };
           workerRef.current = worker;
         } catch {
@@ -78,17 +84,17 @@ export function useLintWorker(doc: FlowDoc | null, dispatch: (action: StudioActi
         }
       }
       if (workerRef.current !== null) {
-        workerRef.current.postMessage({ seq, doc });
+        workerRef.current.postMessage({ seq, doc, disable: [...disable] });
         // A worker that accepted the message and never answers must not leave
         // Save disabled forever: give up on it and lint here instead.
         watchdog = setTimeout(() => {
           if (answered || seq !== seqRef.current) return;
           workerRef.current?.terminate();
           workerRef.current = null;
-          apply(handleLintRequest({ seq, doc }));
+          apply(handleLintRequest({ seq, doc, disable: [...disable] }));
         }, LINT_TIMEOUT_MS);
       } else {
-        apply(handleLintRequest({ seq, doc }));
+        apply(handleLintRequest({ seq, doc, disable: [...disable] }));
       }
     }, LINT_DEBOUNCE_MS);
 
@@ -96,5 +102,7 @@ export function useLintWorker(doc: FlowDoc | null, dispatch: (action: StudioActi
       clearTimeout(timer);
       if (watchdog !== undefined) clearTimeout(watchdog);
     };
-  }, [doc, dispatch]);
+  }, [doc, dispatch, disable]);
 }
+
+const NONE: readonly string[] = [];

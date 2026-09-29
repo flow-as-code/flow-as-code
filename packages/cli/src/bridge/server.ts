@@ -46,15 +46,17 @@ import {
   TOKEN_HEADER,
   TOKEN_PARAM,
   BRIDGE_PROTOCOL,
-  TS_SUFFIX,
   bridgeBootScript,
+  sourceSuffix,
   type BridgeConflict,
+  type BridgeCreateRequest,
   type BridgeDocPayload,
   type BridgeEvent,
   type BridgeEventBatch,
   type BridgeInfo,
   type BridgeResolveRequest,
   type BridgeWriteRequest,
+  type BridgeWriteResult,
   isBridgeDocName,
 } from "./protocol.js";
 import { checkExportRequest, writeExport } from "./exportFiles.js";
@@ -62,13 +64,16 @@ import {
   BridgeError,
   PairConflict,
   adoptCode,
-  ensureBuilderFiles,
-  listDocNames,
+  companionKind,
+  createPair,
+  ensureCompanions,
+  listDocRefs,
   pairPaths,
   readPair,
+  sourcePathOf,
   synthPair,
   writePair,
-  type EnsureBuilderFilesResult,
+  type EnsureCompanionsResult,
 } from "./pair.js";
 
 /**
@@ -124,9 +129,9 @@ export interface StudioServerOptions {
   /** Watch `dir` for builder-file edits. Default true. */
   watch?: boolean;
   /**
-   * Write the missing `<name>.flow.ts` for every document in `dir` before
-   * serving it, so a directory of FlowDocs alone can start the edit-the-code
-   * loop. Default false; `flow-cli studio` turns it on. See ensureBuilderFiles.
+   * Write the missing companion for every document in `dir` before serving
+   * it, so a directory of FlowDocs alone can start the edit-the-code loop.
+   * Default false; `flow-cli studio` turns it on. See ensureCompanions.
    */
   ensurePairs?: boolean;
   /** Shortened in tests; the default is a normal long-poll timeout. */
@@ -145,7 +150,7 @@ export interface StudioServer {
   readonly port: number;
   readonly dir: string;
   /** What `ensurePairs` wrote and what it could not write. Empty when off. */
-  readonly prepared: EnsureBuilderFilesResult;
+  readonly prepared: EnsureCompanionsResult;
   /** The underlying server, for tests that assert the bound address. */
   readonly server: Server;
   close(): Promise<void>;
@@ -174,7 +179,9 @@ class Bridge {
     private readonly watcher: FlowWatcher | undefined,
     private readonly onEvent: ((event: BridgeEvent) => void) | undefined,
   ) {
-    watcher?.on("synced", ({ name }) => this.enqueue(name, () => this.onSynced(name)));
+    watcher?.on("synced", ({ name, warnings }) =>
+      this.enqueue(name, () => this.onSynced(name, warnings)),
+    );
     watcher?.on("conflict", ({ name, reason }) =>
       this.enqueue(name, () => this.onConflict(name, reason)),
     );
@@ -244,12 +251,12 @@ class Bridge {
   // Watcher relay
   // -------------------------------------------------------------------------
 
-  private async onSynced(name: string): Promise<void> {
+  private async onSynced(name: string, warnings?: string[]): Promise<void> {
     // A pair that just synced is no longer in conflict, however it got there:
     // the studio resolved it, or the user fixed the files by hand.
     this.conflicts.delete(name);
     const payload = await readPair(this.dir, name);
-    this.publish({ kind: "synced", ...payload });
+    this.publish({ kind: "synced", ...payload, ...(warnings === undefined ? {} : { warnings }) });
   }
 
   private async onConflict(name: string, reason: string): Promise<void> {
@@ -266,13 +273,15 @@ class Bridge {
    * what origin says and what decides how the choice is applied.
    */
   async raiseConflict(name: string, reason: string, attempted?: FlowDoc): Promise<BridgeConflict> {
-    const { docPath, tsPath } = pairPaths(this.dir, name);
+    const paths = pairPaths(this.dir, name);
+    const sourceKind = companionKind(this.dir, name, attempted);
     const conflict: BridgeConflict = {
       name,
       reason,
       origin: attempted === undefined ? "disk" : "canvas",
-      docPath,
-      tsPath,
+      docPath: paths.docPath,
+      sourcePath: sourcePathOf(paths, sourceKind),
+      sourceKind,
       docSide: attempted ?? null,
       codeSide: null,
     };
@@ -319,9 +328,20 @@ function decodeName(segment: string): string {
 }
 
 /** The document name a watcher path belongs to, when it names one. */
+/** The document half of a write result, as a synced event carries it. */
+function payloadOf(written: BridgeWriteResult): BridgeDocPayload {
+  return {
+    name: written.name,
+    doc: written.doc,
+    text: written.text,
+    sourceKind: written.sourceKind,
+    ...(written.lintDisable === undefined ? {} : { lintDisable: written.lintDisable }),
+  };
+}
+
 function docNameOf(path: string): string | undefined {
   const file = basename(path);
-  for (const suffix of [".flow.ts", ".flowdoc.json"]) {
+  for (const suffix of [".flow.ts", ".flow.tf", ".flowdoc.json"]) {
     if (file.endsWith(suffix)) {
       const name = file.slice(0, -suffix.length);
       return isBridgeDocName(name) ? name : undefined;
@@ -591,7 +611,12 @@ class Router {
     }
 
     if (route === "/docs" && method === "GET") {
-      sendJson(res, 200, { docs: (await listDocNames(this.bridge.dir)).map((name) => ({ name })) });
+      sendJson(res, 200, { docs: await listDocRefs(this.bridge.dir) });
+      return;
+    }
+
+    if (route === "/docs" && method === "POST") {
+      await this.create(req, res);
       return;
     }
 
@@ -644,7 +669,7 @@ class Router {
         // The builder file moved under this document. Freeze the pair and ask.
         const raised = await this.bridge.raiseConflict(name, err.reason, body.doc);
         sendJson(res, 409, {
-          error: `Refusing to overwrite ${name}${TS_SUFFIX}: ${err.reason}.`,
+          error: `Refusing to overwrite ${name}${sourceSuffix(raised.sourceKind ?? "ts")}: ${err.reason}.`,
           conflict: raised,
         });
         return;
@@ -656,13 +681,34 @@ class Router {
     this.bridge.clearConflict(name);
     // Other viewers (a second tab) learn about the save the same way they
     // learn about a builder-file edit.
-    this.bridge.publish({
-      kind: "synced",
-      name: written.name,
-      doc: written.doc,
-      text: written.text,
-    });
+    this.bridge.publish({ kind: "synced", ...payloadOf(written) });
     sendJson(res, 200, written);
+  }
+
+  /** POST /bridge/docs: a new document and its companion, never over an existing one. */
+  private async create(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = (await readJsonBody(req)) as BridgeCreateRequest;
+    if (
+      body === null ||
+      typeof body !== "object" ||
+      typeof body.doc !== "object" ||
+      body.doc === null ||
+      (body.sourceKind !== "ts" && body.sourceKind !== "tf")
+    ) {
+      throw new BridgeError(
+        400,
+        'The body must be a JSON object with a "doc" and a "sourceKind" of "ts" or "tf".',
+      );
+    }
+    if (typeof body.doc.name !== "string" || !isBridgeDocName(body.doc.name)) {
+      throw new BridgeError(
+        400,
+        "The document needs a name: lowercase words separated by single hyphens.",
+      );
+    }
+    const written = await createPair(this.bridge.dir, body.doc, body.sourceKind, this.watcher);
+    this.bridge.publish({ kind: "synced", ...payloadOf(written) });
+    sendJson(res, 201, written);
   }
 
   private async resolveConflict(
@@ -690,8 +736,12 @@ class Router {
   /** The FlowDoc wins: regenerate the builder source from it. */
   private async adoptDoc(name: string): Promise<BridgeDocPayload> {
     const current = await readPair(this.bridge.dir, name);
-    const written = await writePair(this.bridge.dir, name, current.doc, this.watcher);
-    return { name: written.name, doc: written.doc, text: written.text };
+    // The user answered the conflict dialog: the document wins over the
+    // companion that moved, which is what force is for.
+    const written = await writePair(this.bridge.dir, name, current.doc, this.watcher, {
+      force: true,
+    });
+    return payloadOf(written);
   }
 
   private async asset(method: string, url: URL, res: ServerResponse): Promise<void> {
@@ -759,16 +809,16 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
 
   // Before the watcher exists, so its initial scan sees complete pairs rather
   // than a document whose builder file appears underneath it.
-  const prepared: EnsureBuilderFilesResult =
-    options.ensurePairs === true ? await ensureBuilderFiles(dir) : { generated: [], problems: [] };
+  const prepared: EnsureCompanionsResult =
+    options.ensurePairs === true ? await ensureCompanions(dir) : { generated: [], problems: [] };
 
   const watcher = options.watch === false ? undefined : createWatcher(dir);
   // Seed the ledger with the exact bytes just written. The meta.sourceHash
   // stamp would let the watcher recognize the pair as in sync on its own, but
   // only if the initial scan reaches the file before the user's first edit
   // does; telling it outright removes the race.
-  for (const { name, tsText, docText } of prepared.generated) {
-    watcher?.noteWrite(name, { tsContent: tsText, docContent: docText });
+  for (const { name, sourceText, docText } of prepared.generated) {
+    watcher?.noteWrite(name, { sourceContent: sourceText, docContent: docText });
   }
   const bridge = new Bridge(
     dir,

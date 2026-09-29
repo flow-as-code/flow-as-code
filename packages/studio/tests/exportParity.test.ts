@@ -34,7 +34,7 @@ import {
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { exportCdk, exportRaw, exportTf } from "../src/export/targets.js";
+import { exportCdk, exportFlowascode, exportRaw, exportTf } from "../src/export/targets.js";
 import { demoDoc } from "./helpers.js";
 
 const REPO = fileURLToPath(new URL("../../../", import.meta.url));
@@ -151,6 +151,18 @@ describe("CLI parity", () => {
 
     const addressMap = JSON.parse(readFileSync(map, "utf8")) as Record<string, string>;
     expect(exportTf({ target: "tf", docs: [demoDoc()], addressMap }).files).toEqual(tree(out));
+  });
+
+  it.runIf(built)("flowascode: same file map as `emit --target flowascode --address-map`", () => {
+    const dir = demoWorkspace();
+    const out = join(dir, "flowascode");
+    const map = join(TF_CASE, "address-map.json");
+    cli("emit", dir, "--target", "flowascode", "--address-map", map, "--out", out);
+
+    const addressMap = JSON.parse(readFileSync(map, "utf8")) as Record<string, string>;
+    expect(exportFlowascode({ target: "flowascode", docs: [demoDoc()], addressMap }).files).toEqual(
+      tree(out),
+    );
   });
 
   it.runIf(built)("raw: same file map and file names as `render --resources`", () => {

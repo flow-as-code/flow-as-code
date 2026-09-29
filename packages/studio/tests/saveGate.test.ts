@@ -159,10 +159,10 @@ describe("DirectoryStore.write refuses invalid docs", () => {
     expect((await store.read("appointment-line")).doc.name).toBe("appointment-line");
   });
 
-  it("refuses to read a file that is not a FlowDoc 0.1", async () => {
+  it("refuses to read a file that is not a valid FlowDoc", async () => {
     const { store, dir } = directoryStore();
     dir.files.set("bogus.flowdoc.json", JSON.stringify({ flowdoc: "0.2", name: "bogus" }));
-    await expect(store.read("bogus")).rejects.toThrow(/FlowDoc 0\.1/);
+    await expect(store.read("bogus")).rejects.toThrow(/Not a valid FlowDoc 0\.2/);
   });
 
   it("refuses to read a schema-invalid FlowDoc", async () => {
@@ -196,11 +196,20 @@ describe("parseFlowDoc guards every read path", () => {
     expect(parseFlowDoc(serialize(demoDoc())).name).toBe("appointment-line");
   });
 
-  it("rejects non-JSON, the wrong version, and schema violations", () => {
+  it("rejects non-JSON, an unknown version, and schema violations at either version", () => {
     expect(() => parseFlowDoc("{not json")).toThrow(/Not JSON/);
-    expect(() => parseFlowDoc(JSON.stringify({ flowdoc: "0.2" }))).toThrow(/FlowDoc 0\.1/);
-    expect(() => parseFlowDoc(JSON.stringify({ flowdoc: "0.1", name: "x" }))).toThrow(
-      /valid FlowDoc/,
+    expect(() => parseFlowDoc(JSON.stringify({ flowdoc: "0.3" }))).toThrow(/Not a FlowDoc file/);
+    expect(() => parseFlowDoc(JSON.stringify({ flowdoc: "0.2" }))).toThrow(
+      /Not a valid FlowDoc 0\.2/,
     );
+    // A 0.1 file is judged by the 0.1 schema it was written to, then migrated.
+    expect(() => parseFlowDoc(JSON.stringify({ flowdoc: "0.1", name: "x" }))).toThrow(
+      /Not a valid FlowDoc 0\.1/,
+    );
+  });
+
+  it("migrates a valid 0.1 document to the current version", () => {
+    const older = { ...demoDoc(), flowdoc: "0.1" };
+    expect(parseFlowDoc(JSON.stringify(older)).flowdoc).toBe("0.2");
   });
 });

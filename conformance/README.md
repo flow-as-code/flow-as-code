@@ -4,8 +4,16 @@ Cross-language and cross-tool contract. The future Go provider vendors this
 directory and must pass identically.
 
 ```
-schema/flowdoc-0.1.schema.json    machine-readable FlowDoc definition
+schema/flowdoc-0.2.schema.json    machine-readable FlowDoc definition (current version)
+schema/flowdoc-0.1.schema.json    the previous version, frozen; migrate inputs validate against it
+migrate/<case>/input.flowdoc.json a document at an older version
+migrate/<case>/expected.flowdoc.json the exact bytes migrateFlowDoc turns it into
+migrate/invalid.json              versions no build reads, which must be refused
+layout/README.md                  the auto-layout algorithm every implementation assigns to unplaced actions
+layout/<case>/doc.flowdoc.json    a document whose actions the algorithm lays out
+layout/<case>/expected.layout.json the positions it must produce, byte-exact
 flow-language/actions.md          Connect action types, shapes, and cited doc URLs
+flow-language/catalog.json        the same facts as data; a second implementation generates its schema from it
 demo/appointment-line.flowdoc.json  the canonical demo flow
 lint/README.md                    fixture format and the rule for adding one
 lint/<rule-id>/pass-*.json        FlowDoc producing no finding for the rule
@@ -26,6 +34,19 @@ export/<case>/flows/<id>.saved.json      content of a flow that has never been p
 export/<case>/expected/<name>.flowdoc.json  exported FlowDoc golden
 export/<case>/expected/<name>.flow.ts    codegen golden for that FlowDoc
 export/<case>/expected-error.json        {unknownArns, interpolatedArns} for a case that must fail
+hcl/README.md                            the HCL contract: a FlowDoc as a flowascode resource and back
+hcl/address-sugar.json                   resource addresses the TypeScript parser rewrites to a reference key
+hcl/roundtrip/<case>/case.json           description, the document (relative path), options, validate expectation
+hcl/roundtrip/<case>/bindings.json       reference key -> terraform address; a key absent here is unbound
+hcl/roundtrip/<case>/expected.flow.tf    the resource, byte-exact, a `tofu fmt` fixed point
+hcl/regenerate/<case>/doc.flowdoc.json   a document whose companion is rewritten (TypeScript only)
+hcl/regenerate/<case>/previous.flow.tf   the companion before the rewrite
+hcl/regenerate/<case>/expected.flow.tf   the companion after: carried values, kept comments, normalized sugar
+hcl/parse/<case>/input.flow.tf           a hand-written resource, fmt or not
+hcl/parse/<case>/expected.flowdoc.json   the document it reads to
+hcl/parse/<case>/expected.sidecar.json   what the file carried beside the document: refs, lint, tags, instance id, normalizations
+hcl/refuse/<case>/input.flow.tf          a resource both implementations refuse
+hcl/refuse/<case>/expected-error.json    {code, path?, messageIncludes?}; the code is the cross-language field
 schema/scenario-0.1.schema.json          machine-readable simulate scenario definition
 simulate/<case>/scenario.json            authored simulate scenario
 simulate/<case>/expected.testcase.json   compiled CreateTestCase input, tokens still in place
@@ -78,21 +99,91 @@ Actions, `Errors` and `Conditions` arrays present (possibly empty) on every
 non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 `layout` covering every action. A provider generates code from `doc.flowdoc.json`,
 executes it, synthesizes the result, and must get the same document back
-(ignoring `meta`). The seven cases cover the demo flow (`appointment-line`), a
+(ignoring `meta`). The twelve cases cover the demo flow (`appointment-line`), a
 flow of entirely unmodeled action types with tokens inside parameters
 (`unknown-actions`), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
 user of `jsonPath` (`compare-only`, so the import is emitted for it), a flow
 of `GetParticipantInput` menus with Text, SSML and PromptId bodies
 (`dtmf-menu`), a `GetParticipantInput` whose key branches twice, which the
-builder refuses and so must stay GenericBlock (`repeated-key`), and edge cases
+builder refuses and so must stay GenericBlock (`repeated-key`), edge cases
 (SSML, PromptId refs, Compare branches, JSONPath refs, hand-placed
 layout, an explicit start, and a modeled Type that must fall back to
-GenericBlock).
+GenericBlock), a module of the contact-routing actions
+(`contact-routing`: queue-to-queue transfer to a queue token, to an agent
+queue by JSONPath, and with no parameter, a shape the page allows without
+saying where the contact goes, a terminal transfer to an agent, a routing
+priority and a queue time adjustment, a non-terminal action with no error
+branch, a callback number
+set from a JSONPath with its two named errors and no catch-all, and a
+callback contact in its full form, with a queue, a creation flow and a caller
+ID, and in its minimal one), a flow of the flow-control actions
+(`flow-control`: a Loop whose continue path is a back edge, a Wait with both
+events and its conditional ParticipantNotFound branch, a percentage split in
+the console's threshold form, a flow attribute set in the console's `{ Value }`
+form with its catch-all, a
+staffing check and a queue-depth check in the order of the console's default
+queue transfer export, and a
+queue metric load with a static channel and one with a dynamic channel); a
+flow of the contact-data actions (`contact-data`: a tag set with a dynamic
+value, a tag removal, a voice change with a static and a dynamic engine, a
+contact data update with every Voice ID field and a minimal one, and an event
+hook set to a flow token and one set by JSONPath); a customer queue flow of
+the participant actions (`participant`: a loop of prompts in every message
+kind with an interrupt, one that holds the contact with nothing wired, and a
+Lex V2 bot with intents, session attributes and a timeout, plus a bare one,
+and a view shown with data, a hidden transcript and a time limit, plus a bare
+one); and a flow of the recording block (`recording-analytics`: voice
+recording of both participants with IVR recording, a voice-only form, a
+screen-only form (the service takes one form per block), and the chat
+analytics form the builder leaves generic, with its third error).
+
+An HCL case is a companion file and the document it stands for.
+`conformance/hcl/README.md` is the contract both the TypeScript writer and
+the Go provider implement; every `roundtrip` golden is a `tofu fmt` fixed
+point, checked by a gated test, and an ungated test holds each case's
+document, bindings and block names to the rest of `conformance/`.
 
 The demo flow itself is the synth fixture: `packages/core/src/synth.test.ts`
 builds it with the typed builder and compares the result against
 `demo/appointment-line.flowdoc.json`.
+
+## What a second implementation must pass
+
+The Go provider vendors this directory at a pinned commit. Each family below
+is one of two kinds, and `tests/conformanceIndex.test.ts` holds this list to
+the directories that exist, so a new family cannot land without being
+classified here.
+
+Both implementations:
+
+- `schema`: the FlowDoc schemas; the mutation cases in
+  `packages/core/src/conformance.test.ts` are the rejections to reproduce.
+- `flow-language`: `catalog.json` is the source a second implementation
+  generates its schema and lint tables from; `actions.md` is its prose.
+- `lint`: every rule's pass and fail fixtures, findings matched by rule,
+  block and message fragment.
+- `materialize`: deployable content from a document and a reference map.
+- `layout`: the auto-layout positions, byte-exact.
+- `export`: the `expected/*.flowdoc.json` half (the `.flow.ts` goldens are
+  TypeScript only).
+- `roundtrip`: at the FlowDoc level, every document in synth normal form.
+- `hcl`: `roundtrip`, `parse` and `refuse` (its `regenerate` cases and
+  `address-sugar.json` are TypeScript only).
+- `demo`: the canonical document, which the other families borrow.
+
+TypeScript only:
+
+- `emit-tf`: the `@flow-as-code/tf` emitter's goldens.
+- `simulate`: scenario compilation and reporting.
+- `migrate`: 0.1 documents and the bytes `migrateFlowDoc` turns them into.
+
+The round-trip rule for HCL, stated in full in `hcl/README.md` rule 26: for
+every `hcl/roundtrip` case, reading the golden produces the case's document
+(modulo `meta`) and its bindings, writing the document with those bindings
+produces the golden byte for byte, and the golden is a `terraform fmt` fixed
+point. Whether an action was written as a typed sub-block or as `generic` is
+not part of the invariant.
 
 Fixtures are data, not source: they are excluded from ESLint and Prettier so
 that goldens stay byte-stable. The assertions that guard this directory live in

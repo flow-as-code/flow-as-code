@@ -1,0 +1,5 @@
+{
+  "code": "DUPLICATE_ATTRIBUTE",
+  "path": "action[welcome].message_participant.text",
+  "messageIncludes": "already defined at line 17"
+}

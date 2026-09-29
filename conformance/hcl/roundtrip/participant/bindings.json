@@ -1,0 +1,5 @@
+{
+  "lex:sales-bot": "aws_lexv2models_bot_alias.sales_bot.arn",
+  "prompt:greeting": "aws_connect_prompt.greeting.arn",
+  "view:form@1": "data.flowascode_view.form.arn"
+}

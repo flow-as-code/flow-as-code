@@ -26,7 +26,7 @@ import { Fragment, useMemo } from "react";
 import { diffDocs, type DiffRow } from "../model/docDiff.js";
 import { validateDoc } from "../model/validate.js";
 import { resolveConflict, useStudio } from "../state/studio.js";
-import { DOC_SUFFIX, TS_SUFFIX, type ConflictSide } from "../store/bridgeProtocol.js";
+import { DOC_SUFFIX, sourceSuffix, type ConflictSide } from "../store/bridgeProtocol.js";
 
 const ROW_STYLES: Record<DiffRow["kind"], string> = {
   same: "text-neutral-500 dark:text-neutral-400",
@@ -136,7 +136,7 @@ export function ConflictModal() {
           </div>
           <div className="bg-white px-3 py-2 dark:bg-neutral-900">
             Code · {conflict.name}
-            {TS_SUFFIX}
+            {sourceSuffix(conflict.sourceKind ?? "ts")}
             {conflict.codeError !== undefined && (
               <p data-testid="conflict-code-error" className="mt-1 text-red-600 dark:text-red-400">
                 {conflict.codeError}
@@ -191,7 +191,7 @@ export function ConflictModal() {
                 ? "The FlowDoc on disk cannot be read, so it cannot win."
                 : canvasRefusal !== null
                   ? `The canvas version fails the save gate, so it cannot be written: ${canvasRefusal.join("; ")}`
-                  : `Keep the canvas version and regenerate ${conflict.name}${TS_SUFFIX} from it`
+                  : `Keep the canvas version and regenerate ${conflict.name}${sourceSuffix(conflict.sourceKind ?? "ts")} from it`
             }
             onClick={() => choose("doc")}
           >
@@ -204,7 +204,7 @@ export function ConflictModal() {
             className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
             title={
               conflict.codeSide === null
-                ? "The builder file cannot be synthed, so it cannot win."
+                ? `${conflict.name}${sourceSuffix(conflict.sourceKind ?? "ts")} cannot be read, so it cannot win.`
                 : `Keep the code version and rewrite ${conflict.name}${DOC_SUFFIX} from it`
             }
             onClick={() => choose("code")}

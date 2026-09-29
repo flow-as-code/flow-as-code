@@ -13,29 +13,53 @@ import type {
 } from "./index.js";
 import {
   ActionType,
+  canonicalOrder,
+  CheckMetricData,
+  collectRefs,
+  ConnectParticipantWithLexBot,
+  CreateCallbackContact,
+  DequeueContactAndTransferToQueue,
   DisconnectParticipant,
+  DistributeByPercentage,
   EndFlowModuleExecution,
   EXTRA_ERRORS,
   Flow,
   FlowModule,
   GenericBlock,
+  GetMetricData,
   GetParticipantInput,
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
   InvokeLambdaFunction,
-  NO_MATCHING_ERROR,
-  Refs,
-  canonicalOrder,
-  collectRefs,
   jsonPath,
+  Loop,
   materializeWithMap,
+  MessageParticipantIteratively,
+  NO_MATCHING_ERROR,
   parseToken,
+  Refs,
   serialize,
   serializeContent,
+  ShowView,
   synth,
+  TagContact,
+  TransferContactToAgent,
+  UntagContact,
+  UpdateContactCallbackNumber,
+  UpdateContactData,
+  UpdateContactEventHooks,
+  UpdateContactRecordingAndAnalyticsBehavior,
+  UpdateContactRoutingBehavior,
+  UpdateContactTextToSpeechVoice,
+  UpdateFlowAttributes,
+  UpdateFlowLoggingBehavior,
+  Wait,
+  WITHOUT_CATCH_ALL,
 } from "./index.js";
 
 const fixture = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
+
+const cast = <T>(value: unknown): T => value as T;
 
 describe("A01 acceptance: synth of the demo flow", () => {
   it("matches the committed conformance fixture byte for byte", () => {
@@ -114,9 +138,13 @@ describe("error branch wiring", () => {
     const modeled = new Set<string>(Object.values(ActionType));
     // GenericBlock is the escape hatch: we cannot know an unmodeled action's
     // error set, so the author wires it and the `error-branches` lint rule is
-    // the backstop. UpdateFlowLoggingBehavior genuinely documents no errors.
+    // the backstop. A modeled type whose page lists no errors at all
+    // (WITHOUT_CATCH_ALL: the demo's UpdateFlowLoggingBehavior) wires none.
     const subject = doc.content.Actions.filter(
-      (a) => modeled.has(a.Type) && Object.keys(a.Transitions).length > 0,
+      (a) =>
+        modeled.has(a.Type) &&
+        !WITHOUT_CATCH_ALL.includes(a.Type) &&
+        Object.keys(a.Transitions).length > 0,
     );
     expect(subject.length).toBeGreaterThan(0);
     for (const a of subject) {
@@ -136,6 +164,137 @@ describe("error branch wiring", () => {
     ]);
   });
 
+  it("gives DequeueContactAndTransferToQueue the same two errors, with or without a target", () => {
+    const errors = (block: DequeueContactAndTransferToQueue) => block.toAction().Transitions.Errors;
+    const wired = { next: "n", onQueueAtCapacity: "full", onError: "err" };
+    const expected = [
+      { ErrorType: "QueueAtCapacity", NextAction: "full" },
+      { ErrorType: "NoMatchingError", NextAction: "err" },
+    ];
+    const toQueue = new DequeueContactAndTransferToQueue({
+      id: "a",
+      queue: Refs.queue("priority"),
+      ...wired,
+    });
+    expect(errors(toQueue)).toEqual(expected);
+    expect(toQueue.toAction().Parameters).toEqual({ QueueId: "${cdref:queue:priority}" });
+    const bare = new DequeueContactAndTransferToQueue({ id: "b", ...wired });
+    expect(errors(bare)).toEqual(expected);
+    expect(bare.toAction().Parameters).toEqual({});
+  });
+
+  it("writes UpdateFlowLoggingBehavior with the bytes its GenericBlock form wrote", () => {
+    // The demo carried this action as a GenericBlock; modeling it must not
+    // move a byte of any document, so the two forms are held equal here.
+    const typed = new UpdateFlowLoggingBehavior({ id: "log", behavior: "Enabled", next: "n" });
+    const raw = new GenericBlock({
+      id: "log",
+      type: "UpdateFlowLoggingBehavior",
+      parameters: { FlowLoggingBehavior: "Enabled" },
+      next: "n",
+    });
+    expect(typed.toAction()).toEqual(raw.toAction());
+    expect(typed.toAction()).toEqual({
+      Identifier: "log",
+      Type: "UpdateFlowLoggingBehavior",
+      Parameters: { FlowLoggingBehavior: "Enabled" },
+      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
+    expect(
+      () => new UpdateFlowLoggingBehavior({ id: "log", behavior: cast<never>("On"), next: "n" }),
+    ).toThrow(/must be Enabled or Disabled/);
+  });
+
+  it("writes recording and analytics behavior in the page's shapes and takes one form per block", () => {
+    expect(
+      () =>
+        new UpdateContactRecordingAndAnalyticsBehavior({
+          id: "r",
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "m",
+        }),
+    ).toThrow(/exactly one of voice recording and screen recording/);
+    expect(
+      () =>
+        new UpdateContactRecordingAndAnalyticsBehavior({
+          id: "r",
+          voice: { recordedParticipants: ["Agent"] },
+          screenRecordedParticipants: ["Agent"],
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "m",
+        }),
+    ).toThrow(/exactly one of voice recording and screen recording/);
+    const block = new UpdateContactRecordingAndAnalyticsBehavior({
+      id: "r",
+      voice: { recordedParticipants: ["Agent", "Customer"], ivrRecordingBehavior: "Disabled" },
+      next: "n",
+      onError: "e",
+      onChannelMismatch: "m",
+    });
+    expect(block.toAction().Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
+      ...EXTRA_ERRORS[ActionType.UpdateContactRecordingAndAnalyticsBehavior]!,
+    ]);
+    expect(block.toAction()).toEqual({
+      Identifier: "r",
+      Type: "UpdateContactRecordingAndAnalyticsBehavior",
+      Parameters: {
+        VoiceBehavior: {
+          VoiceRecordingBehavior: {
+            RecordedParticipants: ["Agent", "Customer"],
+            IVRRecordingBehavior: "Disabled",
+          },
+        },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "ChannelMismatch", NextAction: "m" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new UpdateContactRecordingAndAnalyticsBehavior({
+        id: "s",
+        screenRecordedParticipants: [],
+        next: "n",
+        onError: "e",
+        onChannelMismatch: "m",
+      }).toAction().Parameters,
+    ).toEqual({ ScreenRecordingBehavior: { ScreenRecordedParticipants: [] } });
+  });
+
+  it("gives UpdateContactCallbackNumber its two named errors and no catch-all", () => {
+    const block = new UpdateContactCallbackNumber({
+      id: "set-number",
+      callbackNumber: jsonPath("$.StoredCustomerInput"),
+      next: "n",
+      onInvalidNumber: "bad",
+      onNotDialable: "blocked",
+    });
+    // The page's order; EXTRA_ERRORS is what the studio wires from, so the
+    // two must agree or a canvas-wired block would not invert.
+    expect(block.toAction().Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
+      ...EXTRA_ERRORS[ActionType.UpdateContactCallbackNumber]!,
+    ]);
+    expect(block.toAction()).toEqual({
+      Identifier: "set-number",
+      Type: "UpdateContactCallbackNumber",
+      Parameters: { CallbackNumber: "$.StoredCustomerInput" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "InvalidCallbackNumber", NextAction: "bad" },
+          { ErrorType: "CallbackNumberNotDialable", NextAction: "blocked" },
+        ],
+        Conditions: [],
+      },
+    });
+  });
+
   it("gives CheckHoursOfOperation exactly the two conditions Connect requires", () => {
     const doc = synth(appointmentLine());
     const check = doc.content.Actions.find((a) => a.Identifier === "check-hours")!;
@@ -149,6 +308,12 @@ describe("error branch wiring", () => {
     const doc = synth(appointmentLine());
     const hangUp = doc.content.Actions.find((a) => a.Identifier === "hang-up")!;
     expect(hangUp.Transitions).toEqual({});
+    expect(new TransferContactToAgent({ id: "agent" }).toAction()).toEqual({
+      Identifier: "agent",
+      Type: "TransferContactToAgent",
+      Parameters: {},
+      Transitions: {},
+    });
   });
 
   it("gives GetParticipantInput every menu-form error, NextAction on the no-match path", () => {
@@ -295,6 +460,471 @@ describe("guardrails", () => {
       /between 1 and 8/,
     );
     expect(() => new InvokeLambdaFunction({ ...config, timeoutSeconds: 8 })).not.toThrow();
+  });
+
+  it("rejects a queue priority below 1, a fractional adjustment, and an empty routing change", () => {
+    expect(
+      () => new UpdateContactRoutingBehavior({ id: "r", queuePriority: 0, next: "x" }),
+    ).toThrow(/at least 1/);
+    expect(
+      () =>
+        new UpdateContactRoutingBehavior({ id: "r", queueTimeAdjustmentSeconds: 1.5, next: "x" }),
+    ).toThrow(/must be an integer/);
+    expect(() => new UpdateContactRoutingBehavior({ id: "r", next: "x" } as never)).toThrow(
+      /needs queuePriority or queueTimeAdjustmentSeconds/,
+    );
+    expect(
+      new UpdateContactRoutingBehavior({
+        id: "r",
+        queueTimeAdjustmentSeconds: -30,
+        next: "x",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "r",
+      Type: "UpdateContactRoutingBehavior",
+      // Written as the console spells it: a decimal string.
+      Parameters: { QueueTimeAdjustmentSeconds: "-30" },
+      Transitions: { NextAction: "x", Errors: [], Conditions: [] },
+    });
+  });
+
+  it("rejects callback delays outside 1 to 259200 seconds and fewer than one attempt", () => {
+    const base = {
+      id: "cb",
+      initialCallDelaySeconds: 60,
+      maximumConnectionAttempts: 1,
+      retryDelaySeconds: 600,
+      next: "x",
+      onError: "x",
+    };
+    expect(() => new CreateCallbackContact({ ...base, initialCallDelaySeconds: 0 })).toThrow(
+      /between 1 and 259200/,
+    );
+    expect(() => new CreateCallbackContact({ ...base, retryDelaySeconds: 259_201 })).toThrow(
+      /between 1 and 259200/,
+    );
+    expect(() => new CreateCallbackContact({ ...base, maximumConnectionAttempts: 0 })).toThrow(
+      /of at least 1/,
+    );
+    expect(() => new CreateCallbackContact({ ...base, retryDelaySeconds: 1.5 })).toThrow(
+      /must be an integer/,
+    );
+    // Written as the console spells them: decimal strings.
+    expect(new CreateCallbackContact(base).toAction().Parameters).toEqual({
+      InitialCallDelaySeconds: "60",
+      MaximumConnectionAttempts: "1",
+      RetryDelaySeconds: "600",
+    });
+  });
+
+  it("rejects a loop count outside 0 to 100 and writes the done path twice", () => {
+    expect(() => new Loop({ id: "l", count: 101, onContinue: "a", onDone: "b" })).toThrow(
+      /between 0 and 100/,
+    );
+    expect(() => new Loop({ id: "l", count: 1.5, onContinue: "a", onDone: "b" })).toThrow(
+      /between 0 and 100/,
+    );
+    // Written as the console spells it: a decimal string.
+    expect(
+      new Loop({ id: "l", count: 0, onContinue: "a", onDone: "b", onError: "e" }).toAction(),
+    ).toEqual({
+      Identifier: "l",
+      Type: "Loop",
+      Parameters: { LoopCount: "0" },
+      Transitions: {
+        NextAction: "b",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [
+          { NextAction: "a", Condition: { Operator: "Equals", Operands: ["ContinueLooping"] } },
+          { NextAction: "b", Condition: { Operator: "Equals", Operands: ["DoneLooping"] } },
+        ],
+      },
+    });
+  });
+
+  it("rejects a Wait timeout outside 1 to 604800 seconds and an unpaired ParticipantNotFound", () => {
+    const base = { id: "w", timeoutSeconds: 30, onTimeout: "t", onError: "e" };
+    expect(() => new Wait({ ...base, timeoutSeconds: 0 })).toThrow(/between 1 and 604800/);
+    expect(() => new Wait({ ...base, timeoutSeconds: 604_801 })).toThrow(/between 1 and 604800/);
+    expect(() => new Wait({ ...base, onParticipantNotFound: "p" })).toThrow(/exactly when/);
+    expect(() => new Wait({ ...base, onEvent: { BotParticipantDisconnected: "b" } })).toThrow(
+      /exactly when/,
+    );
+    expect(
+      new Wait({
+        ...base,
+        onEvent: { BotParticipantDisconnected: "b", CustomerReturned: "c" },
+        onParticipantNotFound: "p",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "w",
+      Type: "Wait",
+      Parameters: {
+        TimeLimitSeconds: "30",
+        Events: ["CustomerReturned", "BotParticipantDisconnected"],
+      },
+      Transitions: {
+        NextAction: "e",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "ParticipantNotFound", NextAction: "p" },
+        ],
+        Conditions: [
+          { NextAction: "t", Condition: { Operator: "Equals", Operands: ["WaitCompleted"] } },
+          { NextAction: "c", Condition: { Operator: "Equals", Operands: ["CustomerReturned"] } },
+          {
+            NextAction: "b",
+            Condition: { Operator: "Equals", Operands: ["BotParticipantDisconnected"] },
+          },
+        ],
+      },
+    });
+  });
+
+  it("rejects a percentage split with no branch, a zero branch, or more than 99% claimed", () => {
+    expect(() => new DistributeByPercentage({ id: "s", branches: [], onRemainder: "r" })).toThrow(
+      /at least one branch/,
+    );
+    expect(
+      () =>
+        new DistributeByPercentage({
+          id: "s",
+          branches: [{ percent: 0, target: "a" }],
+          onRemainder: "r",
+        }),
+    ).toThrow(/at least 1/);
+    expect(
+      () =>
+        new DistributeByPercentage({
+          id: "s",
+          branches: [
+            { percent: 50, target: "a" },
+            { percent: 50, target: "b" },
+          ],
+          onRemainder: "r",
+        }),
+    ).toThrow(/claim 100%/);
+    expect(
+      new DistributeByPercentage({
+        id: "s",
+        branches: [
+          { percent: 3, target: "a" },
+          { percent: 6, target: "b" },
+        ],
+        onRemainder: "r",
+      }).toAction().Transitions,
+    ).toEqual({
+      NextAction: "r",
+      Errors: [{ ErrorType: "NoMatchingCondition", NextAction: "r" }],
+      Conditions: [
+        { NextAction: "a", Condition: { Operator: "NumberLessThan", Operands: ["4"] } },
+        { NextAction: "b", Condition: { Operator: "NumberLessThan", Operands: ["10"] } },
+      ],
+    });
+  });
+
+  it("writes flow attributes in the console's { Value } shape and rejects a non-string", () => {
+    const base = { id: "f", next: "n", onError: "e" };
+    expect(() => new UpdateFlowAttributes({ ...base, attributes: cast<never>(["a"]) })).toThrow(
+      /must be an object/,
+    );
+    expect(
+      () => new UpdateFlowAttributes({ ...base, attributes: cast<never>({ retries: 2 }) }),
+    ).toThrow(/must be a string/);
+    expect(new UpdateFlowAttributes({ ...base, attributes: { retries: "2" } }).toAction()).toEqual({
+      Identifier: "f",
+      Type: "UpdateFlowAttributes",
+      Parameters: { FlowAttributes: { retries: { Value: "2" } } },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("rejects a staffing metric with any comparison but NumberGreaterThan 0, and a non-numeric operand", () => {
+    const base = { id: "m", onNoMatch: "n", onError: "e" };
+    expect(
+      () =>
+        new CheckMetricData({
+          ...base,
+          metric: "NumberOfAgentsAvailable",
+          branches: [{ operator: "NumberLessThan", operand: 3, target: "t" }],
+        }),
+    ).toThrow(/exactly one branch, NumberGreaterThan 0/);
+    expect(
+      () =>
+        new CheckMetricData({
+          ...base,
+          metric: "NumberOfContactsInQueue",
+          branches: [{ operator: "NumberLessThan", operand: "many", target: "t" }],
+        }),
+    ).toThrow(/is not a number/);
+    expect(
+      () => new CheckMetricData({ ...base, metric: "NumberOfContactsInQueue", branches: [] }),
+    ).toThrow(/at least one branch/);
+    expect(
+      new CheckMetricData({
+        ...base,
+        metric: "NumberOfAgentsStaffed",
+        branches: [{ operator: "NumberGreaterThan", operand: 0, target: "t" }],
+      }).toAction(),
+    ).toEqual({
+      Identifier: "m",
+      Type: "CheckMetricData",
+      Parameters: { MetricType: "NumberOfAgentsStaffed" },
+      Transitions: {
+        NextAction: "e",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoMatchingCondition", NextAction: "n" },
+        ],
+        Conditions: [
+          { NextAction: "t", Condition: { Operator: "NumberGreaterThan", Operands: ["0"] } },
+        ],
+      },
+    });
+  });
+
+  it("writes GetMetricData's optional queue and channel and its catch-all", () => {
+    expect(
+      new GetMetricData({
+        id: "g",
+        queue: Refs.queue("front-desk"),
+        channel: "Chat",
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "g",
+      Type: "GetMetricData",
+      Parameters: { QueueId: "${cdref:queue:front-desk}", QueueChannel: "Chat" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    expect(new GetMetricData({ id: "g", next: "n", onError: "e" }).toAction().Parameters).toEqual(
+      {},
+    );
+  });
+
+  it("rejects a tag set that is empty, over six, or uses the system prefix", () => {
+    const base = { id: "t", next: "n", onError: "e" };
+    expect(() => new TagContact({ ...base, tags: {} })).toThrow(/between 1 and 6/);
+    expect(
+      () =>
+        new TagContact({
+          ...base,
+          tags: Object.fromEntries("abcdefg".split("").map((k) => [k, k])),
+        }),
+    ).toThrow(/between 1 and 6/);
+    expect(() => new TagContact({ ...base, tags: { "aws:x": "y" } })).toThrow(
+      /reserved for system tags/,
+    );
+    // The catch-all the service requires, although the page lists none.
+    expect(new TagContact({ ...base, tags: { team: "cx" } }).toAction()).toEqual({
+      Identifier: "t",
+      Type: "TagContact",
+      Parameters: { Tags: { team: "cx" } },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("rejects an untag with no keys or a system-tag key", () => {
+    const base = { id: "u", next: "n", onError: "e" };
+    expect(() => new UntagContact({ ...base, tagKeys: [] })).toThrow(/at least one tag key/);
+    expect(() => new UntagContact({ ...base, tagKeys: ["aws:x"] })).toThrow(/system tag/);
+    expect(new UntagContact({ ...base, tagKeys: ["tier"] }).toAction().Parameters).toEqual({
+      TagKeys: ["tier"],
+    });
+  });
+
+  it("rejects a voice change with no voice name", () => {
+    expect(
+      () => new UpdateContactTextToSpeechVoice({ id: "v", voice: "", next: "n", onError: "e" }),
+    ).toThrow(/needs a voice name/);
+    expect(
+      new UpdateContactTextToSpeechVoice({
+        id: "v",
+        voice: "Joanna",
+        engine: "Neural",
+        next: "n",
+        onError: "e",
+      }).toAction().Parameters,
+    ).toEqual({ TextToSpeechVoice: "Joanna", TextToSpeechEngine: "Neural" });
+    // The catch-all is optional: the console omits it on many Set voice blocks.
+    expect(
+      new UpdateContactTextToSpeechVoice({ id: "v", voice: "Joanna", next: "n" }).toAction()
+        .Transitions,
+    ).toEqual({ NextAction: "n", Errors: [], Conditions: [] });
+  });
+
+  it("rejects Voice ID settings outside the page's bounds and writes the rest as strings", () => {
+    const base = { id: "d", next: "n", onError: "e" };
+    expect(() => new UpdateContactData({ ...base, voiceAuthenticationThreshold: 101 })).toThrow(
+      /between 0 and 100/,
+    );
+    expect(() => new UpdateContactData({ ...base, voiceAuthenticationResponseTime: 4 })).toThrow(
+      /between 5 and 10/,
+    );
+    expect(
+      new UpdateContactData({
+        ...base,
+        voiceAuthentication: true,
+        voiceAuthenticationThreshold: 80,
+        references: { CaseId: "$.Attributes.caseId" },
+      }).toAction().Parameters,
+    ).toEqual({
+      IsVoiceAuthenticationEnabled: "TRUE",
+      VoiceAuthenticationThreshold: "80",
+      References: { CaseId: "$.Attributes.caseId" },
+    });
+    // The target is written only when configured; the service does not
+    // require it, whatever the page marks.
+    expect(
+      new UpdateContactData({ ...base, targetContact: "Current" }).toAction().Parameters,
+    ).toEqual({ TargetContact: "Current" });
+  });
+
+  it("writes one event hook as a single-entry map and rejects an unknown hook", () => {
+    expect(
+      () =>
+        new UpdateContactEventHooks({
+          id: "h",
+          hook: "AgentQueue" as never,
+          flow: Refs.flow("x"),
+          next: "n",
+          onError: "e",
+        }),
+    ).toThrow(/is not an event hook/);
+    expect(
+      new UpdateContactEventHooks({
+        id: "h",
+        hook: "CustomerQueue",
+        flow: Refs.flow("queue-experience"),
+        next: "n",
+        onError: "e",
+      }).toAction().Parameters,
+    ).toEqual({ EventHooks: { CustomerQueue: "${cdref:flow:queue-experience}" } });
+  });
+
+  it("writes a message loop with no next action and pairs the interrupt with its branch", () => {
+    expect(() => new MessageParticipantIteratively({ id: "l", messages: [] })).toThrow(
+      /at least one message/,
+    );
+    expect(
+      () =>
+        new MessageParticipantIteratively({
+          id: "l",
+          messages: [{ text: "hi" }],
+          interruptFrequencySeconds: 30,
+        }),
+    ).toThrow(/exactly when/);
+    expect(
+      new MessageParticipantIteratively({
+        id: "l",
+        messages: [{ text: "hi" }, { media: { uri: "s3://b/x.wav" } }],
+        interruptFrequencySeconds: 30,
+        onInterrupt: "i",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "l",
+      Type: "MessageParticipantIteratively",
+      Parameters: {
+        Messages: [
+          { Text: "hi" },
+          { Media: { Uri: "s3://b/x.wav", SourceType: "S3", MediaType: "Audio" } },
+        ],
+        InterruptFrequencySeconds: "30",
+      },
+      Transitions: {
+        Errors: [],
+        Conditions: [
+          { NextAction: "i", Condition: { Operator: "Equals", Operands: ["MessagesInterrupted"] } },
+        ],
+      },
+    });
+  });
+
+  it("rejects a Lex timeout outside 60 to 604800 seconds and writes the page's shape", () => {
+    const base = {
+      id: "b",
+      bot: Refs.lex("sales-bot"),
+      intents: [{ name: "Sales", target: "s" }],
+      onNoMatch: "n",
+      onError: "e",
+      onTimeout: "t",
+    };
+    expect(() => new ConnectParticipantWithLexBot({ ...base, timeoutSeconds: 59 })).toThrow(
+      /between 60 and 604800/,
+    );
+    expect(
+      new ConnectParticipantWithLexBot({
+        ...base,
+        text: "How can I help?",
+        timeoutSeconds: 300,
+      }).toAction(),
+    ).toEqual({
+      Identifier: "b",
+      Type: "ConnectParticipantWithLexBot",
+      Parameters: {
+        Text: "How can I help?",
+        LexV2Bot: { AliasArn: "${cdref:lex:sales-bot}" },
+        LexTimeoutSeconds: { Text: "300" },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "InputTimeLimitExceeded", NextAction: "t" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoMatchingCondition", NextAction: "n" },
+        ],
+        Conditions: [{ NextAction: "s", Condition: { Operator: "Equals", Operands: ["Sales"] } }],
+      },
+    });
+  });
+
+  it("writes a view with its required time limit, the admin guide's error order, and a mirrored next", () => {
+    const base = {
+      id: "v",
+      view: Refs.view("form", "1"),
+      actions: [{ action: "Next", target: "n" }],
+      onNoMatch: "m",
+      onTimeout: "t",
+      onError: "e",
+    };
+    expect(() => new ShowView({ ...base, timeoutSeconds: 0 })).toThrow(/positive integer/);
+    expect(() => new ShowView({ ...base, timeoutSeconds: cast<never>(undefined) })).toThrow(
+      /positive integer/,
+    );
+    const action = new ShowView({ ...base, timeoutSeconds: 300 }).toAction();
+    expect(action.Transitions.Errors!.map((x) => x.ErrorType)).toEqual([
+      ...EXTRA_ERRORS[ActionType.ShowView]!,
+    ]);
+    expect(action).toEqual({
+      Identifier: "v",
+      Type: "ShowView",
+      Parameters: {
+        ViewResource: { Id: "${cdref:view:form@1}" },
+        InvocationTimeLimitSeconds: "300",
+      },
+      Transitions: {
+        NextAction: "e",
+        Errors: [
+          { ErrorType: "NoMatchingCondition", NextAction: "m" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "TimeLimitExceeded", NextAction: "t" },
+        ],
+        Conditions: [{ NextAction: "n", Condition: { Operator: "Equals", Operands: ["Next"] } }],
+      },
+    });
   });
 
   it("rejects a GetParticipantInput timeout outside the documented 1 to 180 seconds", () => {

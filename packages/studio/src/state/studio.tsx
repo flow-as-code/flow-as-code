@@ -21,17 +21,34 @@ import {
 import { DEMO_BUILD } from "../demoBuild.js";
 import { MutationRefused } from "../model/mutations.js";
 import { syncErrorText } from "../model/syncError.js";
-import type { BridgeConflict, ConflictSide } from "../store/bridgeProtocol.js";
+import {
+  sourceSuffix,
+  type BridgeConflict,
+  type ConflictSide,
+  type SourceKind,
+} from "../store/bridgeProtocol.js";
 import { BridgeConflictError, BridgeStore, createBridgeStore } from "../store/bridgeStore.js";
 import { createDemoStore } from "../store/demoStore.js";
 import { readOnly } from "../store/readOnlyStore.js";
-import type { DocRef, DocStore } from "../store/types.js";
+import type { DocRef, DocStore, StoredDoc } from "../store/types.js";
 
 export interface StudioState {
   store: DocStore;
   docList: DocRef[];
   docName: string | null;
   doc: FlowDoc | null;
+  /**
+   * The open document's companion on disk, `.flow.ts` or `.flow.tf`. Null
+   * outside the flow-cli studio bridge, which is the only store that pairs a
+   * document with source.
+   */
+  sourceKind: SourceKind | null;
+  /**
+   * Lint rules the open document's `.flow.tf` disables in its `lint` block,
+   * passed to lint as LintOptions.disable. Hard rules never appear here: the
+   * reader refuses them.
+   */
+  lintDisable: string[];
   dirty: boolean;
   findings: Finding[];
   /** True while a hard lint rule fails; saving is disabled. */
@@ -57,7 +74,7 @@ export interface StudioState {
   notice: { message: string; nonce: number } | null;
   /**
    * An unresolved dirty-both pair for the OPEN document: the FlowDoc on disk
-   * and the FlowDoc its builder file synths to have both moved since the last
+   * and the FlowDoc its companion reads to have both moved since the last
    * sync. While this is set the studio must not write: the user has to say
    * which side wins, and nothing may merge or pick for them
    * (docs/02-studio-design.md, "No silent merges").
@@ -66,11 +83,11 @@ export interface StudioState {
   /** True while a chosen side is being applied. */
   resolving: boolean;
   /**
-   * The bridge could not turn a builder file into a FlowDoc: the file does not
-   * compile, or synth threw. It is kept until that document syncs again,
-   * because the state it describes lasts that long. It used to be an
-   * eight-second toast, after which nothing on screen said the canvas and the
-   * .flow.ts on disk had stopped agreeing.
+   * The bridge could not turn a companion into a FlowDoc: a .flow.ts does not
+   * compile or synth threw, or a .flow.tf was refused. It is kept until that
+   * document syncs again, because the state it describes lasts that long. It
+   * used to be an eight-second toast, after which nothing on screen said the
+   * canvas and the source on disk had stopped agreeing.
    */
   syncError: { name?: string; path: string; message: string } | null;
   error: string | null;
@@ -87,9 +104,17 @@ function ownsSyncError(
   return syncError.name === undefined || syncError.name === name;
 }
 
+/** What a store says about a document beside the document itself. */
+export interface DocSource {
+  sourceKind?: SourceKind;
+  lintDisable?: string[];
+}
+
 export type StudioAction =
   | { type: "store-opened"; store: DocStore; docList: DocRef[] }
-  | { type: "doc-loaded"; name: string; doc: FlowDoc }
+  | ({ type: "doc-loaded"; name: string; doc: FlowDoc } & DocSource)
+  /** The bridge created a document and its companion; it is listed and opened. */
+  | ({ type: "doc-created"; name: string; doc: FlowDoc } & DocSource)
   | { type: "mutated"; doc: FlowDoc }
   | { type: "saved" }
   /**
@@ -97,7 +122,14 @@ export type StudioAction =
    * user has already been asked (they resolved a conflict), so the unsaved-work
    * guard below is skipped.
    */
-  | { type: "doc-synced"; name: string; doc: FlowDoc; force?: boolean }
+  | ({
+      type: "doc-synced";
+      name: string;
+      doc: FlowDoc;
+      force?: boolean;
+      /** What reading a .flow.tf noticed without refusing it. */
+      warnings?: string[];
+    } & DocSource)
   | { type: "conflict"; conflict: BridgeConflict }
   | { type: "resolving"; value: boolean }
   | { type: "lint"; findings: Finding[]; blocked: boolean }
@@ -120,6 +152,8 @@ export function initialState(store: DocStore): StudioState {
     docList: [],
     docName: null,
     doc: null,
+    sourceKind: null,
+    lintDisable: [],
     dirty: false,
     findings: [],
     blocked: false,
@@ -139,11 +173,26 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
   switch (action.type) {
     case "store-opened":
       return { ...initialState(action.store), docList: action.docList };
+    case "doc-created": {
+      const ref: DocRef =
+        action.sourceKind === undefined
+          ? { name: action.name }
+          : { name: action.name, sourceKind: action.sourceKind };
+      const docList = [...state.docList.filter((d) => d.name !== action.name), ref].sort((a, b) =>
+        a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+      );
+      return reducer({ ...state, docList }, { ...action, type: "doc-loaded" } as Extract<
+        StudioAction,
+        { type: "doc-loaded" }
+      >);
+    }
     case "doc-loaded":
       return {
         ...state,
         docName: action.name,
         doc: action.doc,
+        sourceKind: action.sourceKind ?? null,
+        lintDisable: action.lintDisable ?? [],
         dirty: false,
         findings: [],
         blocked: false,
@@ -157,8 +206,8 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         error: null,
       };
     case "doc-synced": {
-      // A document that synced is a document whose builder file compiles
-      // again, whether or not it is the one on screen.
+      // A document that synced is a document whose companion reads again,
+      // whether or not it is the one on screen.
       const syncError = ownsSyncError(state.syncError, action.name) ? null : state.syncError;
       // A builder-file edit reloading the canvas must not feel like a page
       // reload: the viewport belongs to React Flow and survives because the
@@ -177,14 +226,17 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         state.doc !== null &&
         serialize(state.doc) !== serialize(action.doc)
       ) {
+        const kind = action.sourceKind ?? state.sourceKind ?? undefined;
         return {
           ...state,
           conflict: {
             name: action.name,
             reason:
-              "the builder file changed on disk while this canvas had unsaved edits, so the " +
-              "two no longer describe the same flow",
+              `${action.name}${sourceSuffix(kind ?? "ts")} ` +
+              "changed on disk while this canvas had unsaved edits, so the two no longer " +
+              "describe the same flow",
             origin: "canvas",
+            ...(kind === undefined ? {} : { sourceKind: kind }),
             docSide: state.doc,
             codeSide: action.doc,
           },
@@ -192,9 +244,23 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         };
       }
       const ids = new Set(action.doc.content.Actions.map((a) => a.Identifier));
+      const warnings = action.warnings ?? [];
       return {
         ...state,
         doc: action.doc,
+        sourceKind: action.sourceKind ?? state.sourceKind,
+        // A bridge payload names its companion and carries the whole lint list
+        // (absent means none); a sync the studio dispatched itself names neither.
+        lintDisable:
+          action.sourceKind === undefined ? state.lintDisable : (action.lintDisable ?? []),
+        // A .flow.tf that read with warnings still synced; say what it noticed.
+        notice:
+          warnings.length === 0
+            ? state.notice
+            : {
+                message: `${action.name}${sourceSuffix(action.sourceKind ?? "tf")}: ${warnings.join(" ")}`,
+                nonce: (state.notice?.nonce ?? 0) + 1,
+              },
         dirty: false,
         lintPending: true,
         selected: state.selected !== null && ids.has(state.selected) ? state.selected : null,
@@ -385,8 +451,8 @@ export async function openStore(dispatch: Dispatch<StudioAction>, store: DocStor
     dispatch({ type: "store-opened", store, docList });
     const first = docList[0];
     if (first !== undefined) {
-      const { doc } = await store.read(first.name);
-      dispatch({ type: "doc-loaded", name: first.name, doc });
+      const read = await store.read(first.name);
+      dispatch({ type: "doc-loaded", name: first.name, ...sourceOf(read) });
     }
   } catch (err) {
     dispatch({ type: "error", message: err instanceof Error ? err.message : String(err) });
@@ -399,10 +465,41 @@ export async function loadDoc(
   name: string,
 ): Promise<void> {
   try {
-    const { doc } = await store.read(name);
-    dispatch({ type: "doc-loaded", name, doc });
+    const read = await store.read(name);
+    dispatch({ type: "doc-loaded", name, ...sourceOf(read) });
   } catch (err) {
     dispatch({ type: "error", message: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+/** A stored document as a doc-loaded or doc-created action carries it. */
+function sourceOf(read: StoredDoc): { doc: FlowDoc } & DocSource {
+  return {
+    doc: read.doc,
+    ...(read.sourceKind === undefined ? {} : { sourceKind: read.sourceKind }),
+    ...(read.lintDisable === undefined ? {} : { lintDisable: read.lintDisable }),
+  };
+}
+
+/**
+ * Creates a document with its companion through the bridge and opens it.
+ * Returns an error message for the dialog, or undefined on success.
+ */
+export async function createDoc(
+  dispatch: Dispatch<StudioAction>,
+  store: DocStore,
+  doc: FlowDoc,
+  sourceKind: SourceKind,
+): Promise<string | undefined> {
+  if (!(store instanceof BridgeStore)) {
+    return "Only the flow-cli studio bridge can create a document with a companion.";
+  }
+  try {
+    const created = await store.create(doc, sourceKind);
+    dispatch({ type: "doc-created", name: doc.name, ...sourceOf(created) });
+    return undefined;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
   }
 }
 
@@ -462,7 +559,14 @@ export async function resolveConflict(
       return;
     }
     const payload = await store.resolve(name, side);
-    dispatch({ type: "doc-synced", name, doc: payload.doc, force: true });
+    dispatch({
+      type: "doc-synced",
+      name,
+      doc: payload.doc,
+      force: true,
+      sourceKind: payload.sourceKind,
+      ...(payload.lintDisable === undefined ? {} : { lintDisable: payload.lintDisable }),
+    });
   } catch (err) {
     dispatch({ type: "resolving", value: false });
     dispatch({ type: "error", message: err instanceof Error ? err.message : String(err) });

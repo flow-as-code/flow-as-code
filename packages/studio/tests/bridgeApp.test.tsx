@@ -82,7 +82,7 @@ function serveBridge(): { deliver: (events: BridgeEvent[]) => void; writes: stri
     if (method !== "GET") writes.push(`${method} ${url}`);
     let body: unknown;
     if (url.endsWith("/bridge/docs")) {
-      body = { docs: [{ name: NAME }] };
+      body = { docs: [{ name: NAME, sourceKind: "ts" }] };
     } else if (url.includes("/bridge/events")) {
       if (pending.length > 0) cursor += pending.length;
       body = { cursor, events: pending };
@@ -139,7 +139,9 @@ describe("a page served by the bridge", () => {
     expect(present('[data-testid="node-welcome"]').className).toContain("ring-2");
 
     // The edit arrives on the event stream: no reload, no re-open.
-    bridge.deliver([{ seq: 1, kind: "synced", name: NAME, doc: next, text: serialize(next) }]);
+    bridge.deliver([
+      { seq: 1, kind: "synced", name: NAME, doc: next, text: serialize(next), sourceKind: "ts" },
+    ]);
     await settle(() => expect(query('[data-testid="node-second-hang-up"]')).not.toBeNull());
     // The block the user was inspecting is still selected.
     expect(present('[data-testid="node-welcome"]').className).toContain("ring-2");
@@ -154,7 +156,9 @@ describe("a page served by the bridge", () => {
     await click(present('[data-testid="node-welcome"]'));
     expect(testId<HTMLTextAreaElement>("message-body").value).toContain("Thanks for calling");
 
-    bridge.deliver([{ seq: 1, kind: "synced", name: NAME, doc: next, text: serialize(next) }]);
+    bridge.deliver([
+      { seq: 1, kind: "synced", name: NAME, doc: next, text: serialize(next), sourceKind: "ts" },
+    ]);
     await settle(() =>
       expect(testId<HTMLTextAreaElement>("message-body").value).toBe("Hello from disk edit three."),
     );
@@ -170,7 +174,9 @@ describe("a page served by the bridge", () => {
     await settle(() => expect(query('[data-testid="node-welcome"]')).not.toBeNull());
     await click(present('[data-testid="node-welcome"]'));
 
-    bridge.deliver([{ seq: 1, kind: "synced", name: NAME, doc: next, text: serialize(next) }]);
+    bridge.deliver([
+      { seq: 1, kind: "synced", name: NAME, doc: next, text: serialize(next), sourceKind: "ts" },
+    ]);
     await settle(() =>
       expect(testId<HTMLTextAreaElement>("message-body").value).toBe("Hello from disk edit three."),
     );
@@ -224,7 +230,14 @@ describe("a page served by the bridge", () => {
 
     // Fixing the file is what clears it.
     bridge.deliver([
-      { seq: 2, kind: "synced", name: NAME, doc: demoDoc(), text: serialize(demoDoc()) },
+      {
+        seq: 2,
+        kind: "synced",
+        name: NAME,
+        doc: demoDoc(),
+        text: serialize(demoDoc()),
+        sourceKind: "ts",
+      },
     ]);
     await settle(() => expect(query('[data-testid="sync-error"]')).toBeNull());
   });
