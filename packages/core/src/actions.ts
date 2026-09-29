@@ -179,6 +179,12 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
   // Errors "None."; results "None. No conditions are supported."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
   ActionType.UpdateFlowLoggingBehavior,
+  // The service refuses NoMatchingError on this action ("Invalid Action
+  // error. Error: NoMatchingError") and accepts it with no error branch
+  // (CreateContactFlow, 2026-09-29; conformance/flow-language/actions.md,
+  // rule 37).
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html
+  ActionType.UpdateContactRecordingBehavior,
 ];
 
 /**
@@ -281,6 +287,16 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
   // The page marks neither, but CreateContactFlow refuses the block without
   // either ("Action is missing required error", checked 2026-09-15).
   [ActionType.ShowView]: [NO_MATCHING_CONDITION, TIME_LIMIT_EXCEEDED],
+  // The pages list QueueAtCapacity without saying it is required, but
+  // CreateContactFlow refuses either transfer without it ("Action is missing
+  // required error. Error: QueueAtCapacity", 2026-09-29; conformance/
+  // flow-language/actions.md, rule 37).
+  [ActionType.TransferContactToQueue]: ["QueueAtCapacity"],
+  [ActionType.DequeueContactAndTransferToQueue]: ["QueueAtCapacity"],
+  // The page limits NoMatchingCondition to two of the metrics, but
+  // CreateContactFlow refuses the block without it whatever the metric
+  // (2026-09-29, rule 37).
+  [ActionType.CheckMetricData]: [NO_MATCHING_CONDITION],
 };
 
 // The Restrictions section of an action page names flow types in the console's

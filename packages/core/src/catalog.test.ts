@@ -459,7 +459,20 @@ describe("the action catalog", () => {
   it("requires the catch-all branch of every type modeled with one", () => {
     expect(requiredErrors("Compare")).toEqual(["NoMatchingCondition"]);
     expect(requiredErrors("GetParticipantInput")).toEqual(["NoMatchingError"]);
-    expect(requiredErrors("DequeueContactAndTransferToQueue")).toEqual(["NoMatchingError"]);
+    // QueueAtCapacity, CheckMetricData's NoMatchingCondition and the empty
+    // recording set are what the service enforces (2026-09-29), not what the
+    // pages say.
+    expect(requiredErrors("DequeueContactAndTransferToQueue")).toEqual([
+      "QueueAtCapacity",
+      "NoMatchingError",
+    ]);
+    expect(requiredErrors("TransferContactToQueue")).toEqual([
+      "QueueAtCapacity",
+      "NoMatchingError",
+    ]);
+    expect(requiredErrors("CheckMetricData")).toEqual(["NoMatchingError", "NoMatchingCondition"]);
+    expect(requiredErrors("UpdateContactRecordingBehavior")).toEqual([]);
+    expect(builderErrors("UpdateContactRecordingBehavior")).toEqual([]);
     expect(requiredErrors("DisconnectParticipant")).toEqual([]);
     expect(requiredErrors("TransferContactToAgent")).toEqual([]);
     expect(requiredErrors("UpdateContactRoutingBehavior")).toEqual([]);
@@ -482,7 +495,6 @@ describe("the action catalog", () => {
     ]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
-    expect(requiredErrors("CheckMetricData")).toEqual(["NoMatchingError"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);
     // The page lists none; the service refuses the block without it.
     expect(requiredErrors("TagContact")).toEqual(["NoMatchingError"]);
@@ -599,8 +611,13 @@ describe("catalogProblems is proven able to fail", () => {
   });
   it("on a required error the builder does not force", () => {
     expect(
+      mutate((c) => (modeledAt(c, "GetParticipantInput").transitions.errors[0]!.required = true)),
+    ).toContainEqual(expect.stringContaining("GetParticipantInput: required errors"));
+  });
+  it("on an extra the service requires and the catalog does not", () => {
+    expect(
       mutate(
-        (c) => (modeledAt(c, "TransferContactToQueue").transitions.errors[0]!.required = true),
+        (c) => (modeledAt(c, "TransferContactToQueue").transitions.errors[0]!.required = false),
       ),
     ).toContainEqual(expect.stringContaining("TransferContactToQueue: required errors"));
   });

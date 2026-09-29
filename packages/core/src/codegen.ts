@@ -1811,8 +1811,10 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
 
   [ActionType.UpdateContactRecordingBehavior]: (a) => {
-    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
-    if (w === undefined || !paramKeysAre(a.Parameters, ["RecordingBehavior"])) return undefined;
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    if (!paramKeysAre(a.Parameters, ["RecordingBehavior"])) return undefined;
     const rb = a.Parameters.RecordingBehavior as Record<string, unknown> | null;
     if (rb === null || typeof rb !== "object" || Array.isArray(rb)) return undefined;
     if (
@@ -1842,7 +1844,7 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       if (ivr !== "Enabled" && ivr !== "Disabled") return undefined;
       entries.push(["ivrRecordingBehavior", ivr]);
     }
-    entries.push(["next", w.next], ["onError", w.onError]);
+    entries.push(["next", t.NextAction]);
     return {
       cls: "UpdateContactRecordingBehavior",
       entries,
@@ -1851,8 +1853,7 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         recordedParticipants: cast<never>(recorded),
         ...(screen === undefined ? {} : { screenRecordedParticipants: cast<never>(screen) }),
         ...(ivr === undefined ? {} : { ivrRecordingBehavior: ivr }),
-        next: w.next,
-        onError: w.onError,
+        next: t.NextAction,
       }),
     };
   },

@@ -190,7 +190,7 @@
         "errors": [
           {
             "type": "QueueAtCapacity",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
@@ -333,7 +333,7 @@
         "errors": [
           {
             "type": "QueueAtCapacity",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
@@ -829,13 +829,7 @@
       "transitions": {
         "next": "required",
         "conditions": "none",
-        "errors": [
-          {
-            "type": "NoMatchingError",
-            "required": true,
-            "builder": true
-          }
-        ]
+        "errors": []
       }
     },
     "ResumeContact": {
@@ -1299,7 +1293,7 @@
           "key": "StoreInput",
           "attr": "store_input",
           "kind": "enum",
-          "required": false,
+          "required": true,
           "values": [
             "True",
             "False"
@@ -1449,8 +1443,12 @@
             "notEquals": "True"
           },
           "requires": {
+            "parameters": [
+              "StoreInput"
+            ],
             "errors": [
-              "InputTimeLimitExceeded"
+              "InputTimeLimitExceeded",
+              "NoMatchingCondition"
             ]
           },
           "forbids": {
@@ -1461,7 +1459,7 @@
               "InvalidPhoneNumber"
             ]
           },
-          "source": "The page: InputValidation only with StoreInput True, InvalidPhoneNumber only with StoreInput True. InputTimeLimitExceeded: the service refused the action without it on 2026-09-29 (sandbox), which the page does not say."
+          "source": "The page: InputValidation only with StoreInput True, InvalidPhoneNumber only with StoreInput True. The service, on 2026-09-29 (sandbox, us-west-2), which the page does not say: it refused the action without InputTimeLimitExceeded, without NoMatchingCondition (with or without conditions), and without StoreInput (\"Action is missing required property. Path: Actions[0].Parameters.StoreInput\"), and accepted StoreInput \"False\"."
         }
       ],
       "refs": [
@@ -1494,7 +1492,7 @@
             "type": "NoMatchingCondition",
             "required": false,
             "builder": true,
-            "when": "StoreInput is \"False\" or absent"
+            "when": "StoreInput is \"False\": the service refused the action without it on 2026-09-29 (sandbox, us-west-2), with or without conditions, which the page does not say; with StoreInput \"True\" the page forbids it"
           },
           {
             "type": "NoMatchingError",
@@ -1944,6 +1942,7 @@
       "transitions": {
         "next": "mirrors:error:NoMatchingError",
         "conditions": "numeric",
+        "minConditions": 1,
         "errors": [
           {
             "type": "NoMatchingError",
@@ -1952,9 +1951,8 @@
           },
           {
             "type": "NoMatchingCondition",
-            "required": false,
-            "builder": true,
-            "when": "the block's False or No Match branch; the page limits it to OldestContactInQueueAgeSeconds and NumberOfContactsInQueue, the console's default queue transfer export wires it on NumberOfAgentsStaffed too, and the builder writes it for every metric"
+            "required": true,
+            "builder": true
           }
         ]
       }

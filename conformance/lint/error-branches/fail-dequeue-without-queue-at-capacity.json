@@ -1,0 +1,55 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "move",
+      "messageIncludes": "\"QueueAtCapacity\""
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.2",
+    "kind": "flow",
+    "name": "case",
+    "connectType": "CUSTOMER_QUEUE",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "move",
+      "Actions": [
+        {
+          "Identifier": "move",
+          "Type": "DequeueContactAndTransferToQueue",
+          "Parameters": {
+            "QueueId": "$.Attributes.queueArn"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "bye": {
+        "x": 280,
+        "y": 20
+      },
+      "move": {
+        "x": 20,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

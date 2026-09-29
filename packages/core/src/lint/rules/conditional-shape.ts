@@ -36,7 +36,16 @@ export const conditionalShape: Rule = {
             message: `${action.Type} ${phrase} ${what}.`,
           });
         for (const key of shape.requires?.parameters ?? []) {
-          if (params[key] === undefined) say(`needs ${key}`);
+          if (params[key] !== undefined) continue;
+          // The deciding parameter itself missing: the shape's phrase would
+          // read "without StoreInput "True" needs StoreInput".
+          if (key === shape.when.key) {
+            report({
+              severity: "error",
+              blockId: action.Identifier,
+              message: `${action.Type} needs ${key}.`,
+            });
+          } else say(`needs ${key}`);
         }
         for (const type of shape.requires?.errors ?? []) {
           if (!wired.has(type)) say(`needs its "${type}" branch`);
