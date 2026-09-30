@@ -19,8 +19,10 @@ Status only where it changes what you should do. The work record is `tasks/`.
   history was squashed to a single commit before publication, so there is no
   earlier commit to read; `tasks/` is the record of how anything got the way it
   is, and blame will not tell you.
-- CI runs on GitHub Actions and is green. Check a claim about a run with
-  `gh run list`, not against a note in a doc.
+- CI runs on GitHub Actions. Its run on main for #19 (36742854426,
+  2026-09-30) was red on an intermittent studio test teardown error with every
+  test passing; `tasks/C01-ci-baseline.md` fixes it. Check a claim about a run
+  with `gh run list`, not against a note in a doc.
 - The site is live: https://flow-as-code.dev/ and the read-only studio at
   https://flow-as-code.dev/studio/, deployed by `.github/workflows/pages.yml`
   on push to main. A change under `site/` or in the studio ships on merge.
