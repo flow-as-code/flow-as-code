@@ -88,7 +88,6 @@ export const ADDRESS_SUGAR: readonly { prefix: string; type: string }[] = [
   { prefix: "aws_connect_hours_of_operation", type: "hours" },
   { prefix: "aws_lambda_function", type: "lambda" },
   { prefix: "data.aws_lambda_function", type: "lambda" },
-  { prefix: "aws_connect_prompt", type: "prompt" },
   { prefix: "data.aws_connect_prompt", type: "prompt" },
   { prefix: "aws_connect_contact_flow", type: "flow" },
   { prefix: "flowascode_contact_flow", type: "flow" },

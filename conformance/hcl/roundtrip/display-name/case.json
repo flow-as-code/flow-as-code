@@ -1,5 +1,5 @@
 {
   "description": "A document whose Connect name is not its slug: display_name carries it, quotes and non-ASCII included.",
   "doc": "../../../roundtrip/display-name/doc.flowdoc.json",
-  "validate": "skip"
+  "validate": "pass"
 }

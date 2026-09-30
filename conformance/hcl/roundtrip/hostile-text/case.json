@@ -4,5 +4,5 @@
   "options": {
     "instanceId": "aws_connect_instance.main.id"
   },
-  "validate": "skip"
+  "validate": "pass"
 }

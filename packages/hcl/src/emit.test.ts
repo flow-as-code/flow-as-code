@@ -70,7 +70,8 @@ describe("conformance/hcl/emit", () => {
         expect(text, path).toBe(read(expected, path));
         expect(format(text), `${path} is not a fmt fixed point`).toBe(text);
       }
-      expect(spec.validate).toBe("skip");
+      // validate.test.ts runs it against the published provider (task B03e).
+      expect(spec.validate).toBe("pass");
     });
 
     it(`${name}: each resource in flows.tf reads back to its document`, () => {

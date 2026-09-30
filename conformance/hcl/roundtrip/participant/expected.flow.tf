@@ -8,8 +8,8 @@ resource "flowascode_contact_flow" "participant" {
   description = "Participant actions in a customer queue flow."
 
   refs = {
-    "lex:sales-bot"   = aws_lexv2models_bot_alias.sales_bot.arn
-    "prompt:greeting" = aws_connect_prompt.greeting.arn
+    "lex:sales-bot"   = var.sales_bot_alias_arn
+    "prompt:greeting" = data.aws_connect_prompt.greeting.arn
     # TODO: no terraform address for ${cdref:prompt:hold-music}.
     "prompt:hold-music" = null
     "view:form@1"       = data.flowascode_view.form.arn

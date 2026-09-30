@@ -20,7 +20,10 @@
 // - the cookbook page shows each recipe exactly as its file holds it;
 // - the pipeline pins every action to a commit;
 // - every complete HCL snippet in the tutorials parses, and every resource in
-//   one reads.
+//   one reads;
+// - with RUN_TOFU_VALIDATE=1 and OpenTofu 1.10 or later, every root module
+//   (dev, platform, prod, the cookbook) validates against the published
+//   providers, the flows module included.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +32,13 @@ import { lint, type FlowDoc } from "@flow-as-code/core";
 import { format, fromFlowDoc, parse, toFlowDoc } from "@flow-as-code/hcl";
 import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
+
+import {
+  flowascodeSupported,
+  materializeFiles,
+  providersForMode,
+  tofu,
+} from "../packages/tf/src/__fixtures__/tofu.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const EXAMPLE = join(ROOT, "examples", "terraform-provider");
@@ -229,4 +239,37 @@ describe("the provider tutorials", () => {
       });
     }
   });
+});
+
+describe.skipIf(!flowascodeSupported())("tofu validate (RUN_TOFU_VALIDATE=1)", () => {
+  // The whole example, laid out as committed, so envs/dev's `../../flows`
+  // resolves. Each root's providers.tf goes through the TOFU_PROVIDER_MODE
+  // seam as an example's does: pinned to the adopted versions in the blocking
+  // lanes, its own `~>` ranges in the drift canary.
+  const ROOTS = ["envs/dev", "envs/platform", "envs/prod", "cookbook"];
+  const workspace = (): string =>
+    materializeFiles(
+      Object.fromEntries(
+        files(EXAMPLE, ".tf").map((file) => {
+          const path = relative(EXAMPLE, file);
+          const text = read(file);
+          const root = ROOTS.find((r) => path === `${r}/providers.tf`);
+          return [path, root === undefined ? text : providersForMode(text, "example")];
+        }),
+      ),
+    );
+
+  it.each(ROOTS)(
+    "validates %s against the published providers",
+    (root) => {
+      const dir = join(workspace(), root);
+      const init = tofu(["init", "-backend=false", "-input=false", "-no-color"], dir);
+      expect(init.output).toContain("initialized");
+      expect(init.status).toBe(0);
+      const validate = tofu(["validate", "-no-color"], dir);
+      expect(validate.output).toContain("The configuration is valid");
+      expect(validate.status).toBe(0);
+    },
+    600_000,
+  );
 });

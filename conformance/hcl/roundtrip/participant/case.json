@@ -1,5 +1,5 @@
 {
   "description": "The participant actions in a customer queue flow: a list of message objects, nested objects holding numbers, a view reference with its version in the key, a jsonencode payload holding a list of objects, and one unbound prompt.",
   "doc": "../../../roundtrip/participant/doc.flowdoc.json",
-  "validate": "skip"
+  "validate": "pass"
 }

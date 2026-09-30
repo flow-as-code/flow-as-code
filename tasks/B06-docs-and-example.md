@@ -41,10 +41,10 @@ on both registries.
 
 ## Notes (2026-09-29, tutorials, cookbook and agent skills)
 
-- The provider is on the Terraform Registry (v0.1.0) and its OpenTofu listing
-  is pending, so the public texts now tell a reader to use the provider with
-  Terraform and say the OpenTofu listing is pending. B03e (validating emitted
-  flowascode trees with OpenTofu) still waits for that listing.
+- The provider was on the Terraform Registry (v0.1.0) with its OpenTofu
+  listing pending, so the public texts said so. Both are resolved: OpenTofu
+  listed it on 2026-09-30, the texts now name both registries, and B03e is
+  done (tasks/B03).
 - `examples/terraform-provider/`: a flows module, dev, platform and prod root
   modules, a cookbook of ten recipes and a GitHub Actions promotion pipeline.
   Every file was applied to the sandbox with Terraform 1.8.5 and provider
@@ -65,4 +65,4 @@ on both registries.
   what can be held offline; each was shown red by breaking what it guards.
 - Done from the list above: the README and landing page (provider, packages,
   diagram, tutorials, agent skills), docs/06's compatibility row and
-  publishing section, and `CLAUDE.md`. Still open: ADR-0004, and B03e.
+  publishing section, and `CLAUDE.md`. Still open: ADR-0004.

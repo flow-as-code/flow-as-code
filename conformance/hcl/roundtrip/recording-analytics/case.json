@@ -1,5 +1,5 @@
 {
   "description": "The recording block in each of its forms, one per block: the voice and screen forms, and the chat form the builder leaves generic but the catalog's shape accepts (its ChatBehavior is a json kind), so it is written as the typed sub-block with a jsonencode value and its third error.",
   "doc": "../../../roundtrip/recording-analytics/doc.flowdoc.json",
-  "validate": "skip"
+  "validate": "pass"
 }
