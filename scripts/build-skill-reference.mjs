@@ -67,7 +67,8 @@ function kindOf(p) {
 /**
  * The catalog's next rule, in words. `required` and `mirrors:*` both mean the
  * tooling writes a `next`; Connect refused every such type probed without one,
- * and for the types rule 38 lists as unprobed the refusal is assumed. `none`
+ * and for ConnectParticipantWithLexBot, the one rule 38 lists as unprobed,
+ * the refusal is assumed. `none`
  * on a non-terminal type (MessageParticipantIteratively) means it may be left
  * out (conformance/flow-language/actions.md, rule 38).
  */

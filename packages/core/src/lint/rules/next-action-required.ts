@@ -10,16 +10,17 @@ import type { Rule } from "../types.js";
  * Connect refuses a non-terminal action without Transitions.NextAction
  * ("Action is missing required property. Path:
  * Actions[N].Transitions.NextAction", InvalidContactFlowException), observed
- * on every non-terminal modeled type probed on 2026-09-30 except
- * MessageParticipantIteratively, which the service accepts either way
- * (conformance/flow-language/actions.md, rule 38).
+ * on 2026-09-30 on 29 of the 31 non-terminal modeled types.
+ * MessageParticipantIteratively, which the service accepts either way, is the
+ * thirtieth (conformance/flow-language/actions.md, rule 38).
  * https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateContactFlow.html
  *
  * Which types need it comes from the catalog's `next` rule: `required`, or
  * `mirrors:*` for a type whose builder writes NextAction as a copy of a
- * branch. The fifteen non-terminal modeled types rule 38 lists as unprobed
- * are checked from the catalog alone; that the service refuses them without
- * a NextAction is assumed. Only presence is checked. The service accepted
+ * branch. ConnectParticipantWithLexBot, the one non-terminal modeled type
+ * rule 38 lists as unprobed, is checked from the catalog alone; that the
+ * service refuses it without a NextAction is assumed. Only presence is
+ * checked. The service accepted
  * every target tried, so a NextAction that does not equal the mirrored
  * branch is legal (codegen reads it back as a GenericBlock, which re-emits
  * it unchanged). Terminal types, `none` types and unmodeled actions are not

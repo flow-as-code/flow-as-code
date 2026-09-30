@@ -124,10 +124,11 @@ against the service:
   writes and reads back the copy, as the console does.
 - `next`: write one on every non-terminal action, except
   `message_participant_iteratively`, where it is optional. Connect refused
-  each non-terminal type probed without one (the list is in
-  `conformance/flow-language/actions.md`, rule 38); the rest are assumed to
-  behave the same, and `next-action-required` reports them all. Terminal
-  actions must not have one.
+  every non-terminal type probed without one, 29 of 31 (the list is in
+  `conformance/flow-language/actions.md`, rule 38);
+  `connect_participant_with_lex_bot` was not probed and is assumed to behave
+  the same, and `next-action-required` reports them all. Terminal actions
+  must not have one.
 - `update_contact_callback_number`: `InvalidCallbackNumber` and
   `CallbackNumberNotDialable`, no catch-all.
 - `update_contact_recording_behavior`: no error branch at all.
