@@ -1,7 +1,7 @@
 # C15 CLI and studio gaps from the showcase's first tier
 
 Phase C, cli and studio. Building the showcase's first tier
-(`flow-as-code/hollow-hour-example`, its `tasks/T1-first-night.md`) against
+(`flow-as-code/hollow-hour-example-typescript`, its `tasks/T1-first-night.md`) against
 the published 0.2.0 set turned up a list of gaps. Three tasks already hold
 part of it:
 

@@ -1,7 +1,7 @@
 # C09 Tutorial: a worked example at a tag
 
 Phase C, docs. Gated on C08 (so the page can open the flows), on
-`flow-as-code/hollow-hour-example` being public, and on a tag in it whose commit is the
+`flow-as-code/hollow-hour-example-typescript` being public, and on a tag in it whose commit is the
 one `examples/vendored/hollow-hour-example/COMMIT` pins. A page that links to a private or moving target is not published.
 
 `docs/tutorials/05-worked-example-hollow-hour-example.md`, published under a new
@@ -9,6 +9,12 @@ one `examples/vendored/hollow-hour-example/COMMIT` pins. A page that links to a 
 showcase shows about the tools. It is a tutorial, not an announcement: it
 explains how a set of flows is authored, checked and promoted, and says
 nothing about when anything was or will be released.
+
+The showcase has two approach-specific repositories. The page walks the
+TypeScript-first one, which the snapshot comes from, and links the
+Terraform-first one (`flow-as-code/hollow-hour-example-terraform`, the same
+flows written directly in HCL) as the other way in, pinned to a tag the same
+way.
 
 ## Acceptance criteria
 

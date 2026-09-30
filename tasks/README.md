@@ -103,7 +103,7 @@ its file. What shipped:
 
 Planned 2026-09-30 from the owner's decisions of that date. A fictional
 showcase, Hollow Hour Removal Co. (a dispatch line for haunted households),
-is built in its own repository, `flow-as-code/hollow-hour-example`, against the
+is built in its own repository, `flow-as-code/hollow-hour-example-typescript`, against the
 published packages and provider. This phase does three things in this
 repository: it fixes the tool gaps that building the showcase exposed, it
 vendors a pinned snapshot of the showcase's FlowDocs so the hosted studio can
@@ -120,8 +120,13 @@ and never edited in place, the way the provider vendors `conformance/`.
 
 Settled by the owner on 2026-09-30; do not re-ask them.
 
-1. The satellite repository is `flow-as-code/hollow-hour-example` (renamed
-   from `hollow-hour` on 2026-09-30, before anything was published). It pins the
+1. The satellite repository is `flow-as-code/hollow-hour-example-typescript`
+   (built as `hollow-hour`, then `hollow-hour-example`; renamed on 2026-09-30
+   when the owner split the showcase into approach-specific repositories).
+   Its Terraform-first sibling, `flow-as-code/hollow-hour-example-terraform`,
+   authors the same flows directly in HCL and holds no FlowDocs, so it is
+   linked from C09 but not vendored. The example id and the vendored directory
+   keep `hollow-hour-example`, which names the showcase, not an approach. It pins the
    published npm set and the published provider, and is not a workspace of
    this repository.
 2. This repository integrates it by vendoring a pinned snapshot, not by a

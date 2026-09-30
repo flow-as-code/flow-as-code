@@ -89,7 +89,7 @@ Status only where it changes what you should do. The work record is `tasks/`.
 - Phase C (a vendored showcase and the tool gaps it exposed, tasks C01 to
   C15) was planned on 2026-09-30; the plan is the Phase C section of
   `tasks/README.md`. The showcase itself is built in its own repository,
-  `flow-as-code/hollow-hour-example`; nothing of it is vendored here until C07, and
+  `flow-as-code/hollow-hour-example-typescript`; nothing of it is vendored here until C07, and
   C07 to C09 wait on a commit (and, for C09, a public tag) there.
 
 ## Non-negotiables

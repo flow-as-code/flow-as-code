@@ -1,6 +1,6 @@
 # C07 `scripts/sync-example.mjs` and `examples/vendored/hollow-hour-example/`
 
-Phase C, integration. Gated on a commit in `flow-as-code/hollow-hour-example` whose
+Phase C, integration. Gated on a commit in `flow-as-code/hollow-hour-example-typescript` whose
 FlowDocs lint clean against this repository's current catalog. Not started
 before that commit exists.
 
