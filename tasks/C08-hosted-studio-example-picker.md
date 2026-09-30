@@ -11,7 +11,7 @@ default and without adding anything to the npm package.
 ## Acceptance criteria
 
 - Selection by URL hash: `#example=<id>` picks an example at boot, with ids
-  `appointment-line` and `hollow-hour`. No hash, or an unknown id, opens
+  `appointment-line` and `hollow-hour-example`. No hash, or an unknown id, opens
   `appointment-line`; an unknown id says so in the page rather than failing
   silently. A hash works on any static host and under any subpath, needs no
   server rewrite, and changes no request the page makes.
@@ -38,7 +38,7 @@ default and without adding anything to the npm package.
   mutation (the showcase imported statically, the hash ignored, an unknown id
   throwing).
 - `SOURCE_PATHS` in `scripts/build-site.mjs` names
-  `examples/vendored/hollow-hour/` in the same commit as the import, as C02's
+  `examples/vendored/hollow-hour-example/` in the same commit as the import, as C02's
   test requires.
 - Copy that names the one demo is updated: `DEMO_DESCRIPTION` in
   `packages/studio/vite.config.ts`, `READ_ONLY_MESSAGE` if it names the flow,

@@ -1,10 +1,10 @@
 # C09 Tutorial: a worked example at a tag
 
 Phase C, docs. Gated on C08 (so the page can open the flows), on
-`flow-as-code/hollow-hour` being public, and on a tag in it whose commit is the
-one `examples/vendored/hollow-hour/COMMIT` pins. A page that links to a private or moving target is not published.
+`flow-as-code/hollow-hour-example` being public, and on a tag in it whose commit is the
+one `examples/vendored/hollow-hour-example/COMMIT` pins. A page that links to a private or moving target is not published.
 
-`docs/tutorials/05-worked-example-hollow-hour.md`, published under a new
+`docs/tutorials/05-worked-example-hollow-hour-example.md`, published under a new
 `PAGES` group in `scripts/build-site.mjs`, walks a reader through what the
 showcase shows about the tools. It is a tutorial, not an announcement: it
 explains how a set of flows is authored, checked and promoted, and says
@@ -29,7 +29,7 @@ nothing about when anything was or will be released.
   - what the example does not claim: the scenarios that cannot be simulated
     and why, and that Lex is not part of the baseline.
 - It opens the vendored flows in the hosted studio with a relative link
-  (`../studio/#example=hollow-hour`, or whatever the site's layout makes
+  (`../studio/#example=hollow-hour-example`, or whatever the site's layout makes
   relative), and `tests/site.test.ts`'s internal-link check resolves it.
 - Every link into the satellite is absolute and names the tag, never a
   branch. A test reads the page, collects those links, and fails on any that

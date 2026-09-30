@@ -1,6 +1,6 @@
-# C07 `scripts/sync-example.mjs` and `examples/vendored/hollow-hour/`
+# C07 `scripts/sync-example.mjs` and `examples/vendored/hollow-hour-example/`
 
-Phase C, integration. Gated on a commit in `flow-as-code/hollow-hour` whose
+Phase C, integration. Gated on a commit in `flow-as-code/hollow-hour-example` whose
 FlowDocs lint clean against this repository's current catalog. Not started
 before that commit exists.
 
@@ -18,7 +18,7 @@ other direction.
   a full lowercase 40-character hex sha; fetches the satellite tree at that
   commit (the GitHub tarball through `gh api`, or `git archive` from a local
   clone with `--from`); copies an explicit allow-list of paths written in the
-  script, not a glob; and replaces `examples/vendored/hollow-hour/` wholesale.
+  script, not a glob; and replaces `examples/vendored/hollow-hour-example/` wholesale.
   The subset is the flows the studio opens: `hh-hotline-main`, one generated
   district and its customer queue flow, and the greeting module the flows
   bind to. The script is the only network client added by this phase, runs

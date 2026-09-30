@@ -103,7 +103,7 @@ its file. What shipped:
 
 Planned 2026-09-30 from the owner's decisions of that date. A fictional
 showcase, Hollow Hour Removal Co. (a dispatch line for haunted households),
-is built in its own repository, `flow-as-code/hollow-hour`, against the
+is built in its own repository, `flow-as-code/hollow-hour-example`, against the
 published packages and provider. This phase does three things in this
 repository: it fixes the tool gaps that building the showcase exposed, it
 vendors a pinned snapshot of the showcase's FlowDocs so the hosted studio can
@@ -120,7 +120,8 @@ and never edited in place, the way the provider vendors `conformance/`.
 
 Settled by the owner on 2026-09-30; do not re-ask them.
 
-1. The satellite repository is `flow-as-code/hollow-hour`. It pins the
+1. The satellite repository is `flow-as-code/hollow-hour-example` (renamed
+   from `hollow-hour` on 2026-09-30, before anything was published). It pins the
    published npm set and the published provider, and is not a workspace of
    this repository.
 2. This repository integrates it by vendoring a pinned snapshot, not by a
@@ -142,27 +143,31 @@ Settled by the owner on 2026-09-30; do not re-ask them.
 
 ## Order
 
-| #   | Task                                                            | Group       | Gate                          |
-| --- | --------------------------------------------------------------- | ----------- | ----------------------------- |
-| C01 | CI green on main again (demo-boot teardown)                     | baseline    | none                          |
-| C02 | The site's staleness inputs cover `conformance/demo/`           | baseline    | none                          |
-| C03 | Channel-restricted actions: `Wait` and `ShowView` on voice      | contract    | none                          |
-| C04 | Stored-input `GetParticipantInput` in the typed builder         | engine      | none                          |
-| C05 | Releasing a module nothing in the set references                | emitters    | none                          |
-| C06 | CDK: same-set flow refs in event hooks, out-of-set modules      | emitters    | none                          |
-| C07 | `scripts/sync-example.mjs` and `examples/vendored/hollow-hour/` | integration | a satellite commit            |
-| C08 | Hosted-studio example picker                                    | studio      | C01, C07                      |
-| C09 | Tutorial: a worked example at a tag                             | docs        | C08, satellite public, a tag  |
-| C10 | Simulate: Lex substitution and mock responses                   | live AWS    | Lex enters the showcase scope |
-| C12 | Emit: unbound refs on flowascode, unused map keys, constraint   | emitters    | none                          |
-| C13 | Emit: per-flow outputs for a promotion gate                     | emitters    | none                          |
-| C14 | Simulate: a library entry point and an offline dry run          | simulate    | none                          |
-| C11 | Release and close                                               | release     | C01 to C09, C12 to C14        |
+| #   | Task                                                                    | Group       | Gate                          |
+| --- | ----------------------------------------------------------------------- | ----------- | ----------------------------- |
+| C01 | CI green on main again (demo-boot teardown)                             | baseline    | none                          |
+| C02 | The site's staleness inputs cover `conformance/demo/`                   | baseline    | none                          |
+| C03 | Channel-restricted actions: `Wait` and `ShowView` on voice              | contract    | none                          |
+| C04 | Stored-input `GetParticipantInput` in the typed builder                 | engine      | none                          |
+| C05 | Releasing a module nothing in the set references                        | emitters    | none                          |
+| C06 | CDK: same-set flow refs in event hooks, out-of-set modules              | emitters    | none                          |
+| C07 | `scripts/sync-example.mjs` and `examples/vendored/hollow-hour-example/` | integration | a satellite commit            |
+| C08 | Hosted-studio example picker                                            | studio      | C01, C07                      |
+| C09 | Tutorial: a worked example at a tag                                     | docs        | C08, satellite public, a tag  |
+| C10 | Simulate: Lex substitution and mock responses                           | live AWS    | Lex enters the showcase scope |
+| C12 | Emit: unbound refs on flowascode, unused map keys, constraint           | emitters    | none                          |
+| C13 | Emit: per-flow outputs for a promotion gate                             | emitters    | none                          |
+| C14 | Simulate: a library entry point and an offline dry run                  | simulate    | none                          |
+| C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio | none                          |
+| C11 | Release and close                                                       | release     | C01 to C09, C12 to C15        |
 
-C12 to C14 were added after the plan's first draft, from the showcase's build
+C12 to C15 were added after the plan's first draft, from the showcase's build
 reports, and are numbered after C11 so no earlier number moves; they come
-before it in order. The rest of what those reports found is under "Considered
-and not taken", each with its reason and whether it is deferred or declined.
+before it in order. C15 takes up the smaller gaps the first tier's build
+reported that C12 to C14 do not cover, several of which the first draft had
+deferred or declined; its criteria keep those reasons as constraints. What
+remains under "Considered and not taken" states its reason and whether it is
+deferred or declined.
 
 ## Why the baseline comes first
 
@@ -178,7 +183,7 @@ is an input to the bundle that the list does not name.
 
 ## Why the tool gaps come before the integration
 
-Each gap in C03 to C06 and C12 to C14 is a fact about the tools, not about the showcase, and
+Each gap in C03 to C06 and C12 to C15 is a fact about the tools, not about the showcase, and
 lands on the evidence rule in `CLAUDE.md`: an AWS doc URL for behavior relied
 on, and for a change to the catalog's error branches, conditions or shapes, a
 create the service refuses or accepts, recorded with its date and message.
@@ -222,35 +227,18 @@ for `conformance/`, in the other direction.
   `MessageParticipantIteratively`. Only the admin guide states the order; the
   service creates the flow without it, so it is guidance, not a refusal. The
   satellite follows the guide.
-- Deferred: `flow-cli lint` and `emit` taking more than one directory per
-  run. The showcase lints and emits its two sets (`flows/`, `seasonal/`) in
-  two runs, which is also what keeps each set's cross-document rules scoped
-  to that set. Revisit if a second user needs one run over several sets.
-- Deferred: an `--instance-id-expression` flag, or a way to skip the emitted
-  `variables.tf`. A root that declares `connect_instance_id` itself copies
-  only `flows.tf`, as the showcase and `examples/terraform-provider/` do;
-  the cost is one copy step, not a wrong output.
 - Deferred: a command that builds a simulate resource map from state. The
   showcase's `scenarios/resource-map.mjs` does it from `tofu show -json` in
   sixty lines; C14's dry run needs only an address map. Revisit once C14 has
   shipped and a second user asks.
-- Declined: a lint rule for attribute references in message text
-  (`$.Attributes.x` read where nothing sets `x`). Attributes cross flows
-  (a whisper reads what the main flow set), so a one-document rule would
-  mostly report false positives; the showcase holds its own attribute
-  contract in its tests.
-- Deferred: a generated or read-only marker in the studio for a FlowDoc a
-  generator owns. Codegen's `@keep` banner and `meta.generator` already say
-  so in the files; a studio affordance belongs with C08's example picker if
-  it proves needed there.
-- Declined: making codegen output Prettier-stable. Codegen owns its format
-  and holds it byte-stable across runs (the round-trip invariant), which a
-  second formatter would fight; a consumer lists its FlowDocs and companions
-  in `.prettierignore`, as the showcase does.
-- Deferred, not yet investigated: the esbuild install-script warning a
-  fresh `npm ci` prints under npm's script allowlisting. It comes from the
-  dev toolchain, not from a published `@flow-as-code` package's runtime;
-  C01 or C11 records the cause once someone looks.
+- Taken in C15, after the first draft deferred or declined them: `lint` and
+  `emit` over more than one directory, the instance id expression and
+  `variables.tf` on the CLI, a lint for message-text attribute references,
+  a studio marker for generated FlowDocs, codegen and Prettier, the lint
+  JSON report's shape, and the esbuild install-script warning. The first
+  draft's note on the warning was wrong: `@flow-as-code/cli` depends on
+  `tsx` at run time, and `tsx` on `esbuild`, so a consumer that installs only
+  the CLI gets the warning from it (C15).
 - Flow-type and channel restrictions on unmodeled types
   (`CheckOutboundCallStatus`, `CompleteOutboundCall`, `CreateWisdomSession`,
   `TransferParticipantToThirdParty`). They stay generic blocks; modeling them
@@ -259,10 +247,10 @@ for `conformance/`, in the other direction.
 ## Definition of done for Phase C
 
 The hosted studio opens `appointment-line` by default and a vendored
-showcase flow at `#example=hollow-hour`, with the bundle making no network
+showcase flow at `#example=hollow-hour-example`, with the bundle making no network
 request and the npm studio package carrying none of the showcase; the snapshot
-under `examples/vendored/hollow-hour/` matches its `COMMIT` and `MANIFEST.json`
+under `examples/vendored/hollow-hour-example/` matches its `COMMIT` and `MANIFEST.json`
 and lints clean against the current catalog in CI; the tutorial is on the site
-and links only to the satellite at a tag; C03 to C06 and C12 to C14 are
+and links only to the satellite at a tag; C03 to C06 and C12 to C15 are
 released with fixtures and a provider re-vendor where `conformance/` changed;
 CI is green on main.
