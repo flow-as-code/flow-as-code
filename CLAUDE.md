@@ -11,7 +11,7 @@ You are building the open-source flow tooling described in README.md. The privat
 5. docs/06-terraform-provider.md (Phase B: the provider and HCL as a third view; the contract is conformance/hcl/README.md)
 6. tasks/README.md, then work tasks in order
 
-## Where things stand (2026-09-10)
+## Where things stand (2026-09-29)
 
 Status only where it changes what you should do. The work record is `tasks/`.
 
@@ -53,6 +53,26 @@ Status only where it changes what you should do. The work record is `tasks/`.
   to do in a feature branch.
 - `examples/promote-across-environments/` exists and is typechecked and tested
   like the packages. A change to the emitters or the CLI can break it.
+  `examples/terraform-provider/` (a flows module, per-environment roots, the
+  cookbook, a pipeline) is held by `tests/terraformProviderExample.test.ts`.
+- The Terraform provider is its own public repository,
+  https://github.com/flow-as-code/terraform-provider-flowascode. It vendors
+  `conformance/` at a pinned commit, so a change here to the catalog, lint
+  rules or fixtures needs a re-vendor there (its `scripts/sync-conformance.sh`)
+  and its TypeScript oracles re-recorded. v0.1.0 is on the Terraform Registry;
+  the OpenTofu listing is pending (opentofu/registry#5642), and B03e waits for
+  it.
+- The catalog's error branches, conditions and shapes were checked against the
+  service on 2026-09-29, both ways: each required branch removed alone is
+  refused, and the required set alone is accepted
+  (`conformance/flow-language/actions.md`, rule 37). Change one only on the
+  same kind of evidence, a create the service refuses or accepts, recorded
+  with its date and message.
+- Agent Skills live in `plugins/flow-as-code/skills/`, installable as a Claude
+  Code plugin from `.claude-plugin/marketplace.json` and published on the site
+  under `/skills/`. The action reference there is generated from the catalog
+  (`node scripts/build-skill-reference.mjs`); `tests/skills.test.ts` fails
+  when it is stale, so a catalog change regenerates it in the same commit.
 - Phase A's definition of done below is met, verified from a clean clone.
 
 ## Non-negotiables

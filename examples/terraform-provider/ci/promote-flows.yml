@@ -1,0 +1,123 @@
+# Promotes the flows module through dev and prod. Copy it to
+# .github/workflows/ in the repository that holds your flows/ and envs/.
+#
+# A pull request plans both environments and applies nothing. A merge to main
+# applies dev, then plans prod and refuses to go on unless prod's plan carries
+# the same flow document dev just applied: appointment_line_document_sha256
+# hashes the flow with its references still tokens, so it is equal across
+# environments exactly when the flows are. Prod then waits for a reviewer on
+# the `prod` environment before it applies.
+#
+# What this assumes, and you set up once:
+#   - each root module (envs/dev, envs/prod) has a remote backend; the
+#     example's local state does not survive a CI runner
+#   - an IAM role per environment that trusts GitHub's OIDC provider, its ARN
+#     in the environment variable AWS_ROLE_ARN, the region in AWS_REGION and
+#     the Connect instance id in CONNECT_INSTANCE_ID (GitHub environments
+#     `dev` and `prod`, with a required reviewer on `prod`)
+#   - for plans on pull requests, which run outside those environments,
+#     repository variables: read-only roles in PLAN_ROLE_ARN_DEV and
+#     PLAN_ROLE_ARN_PROD, the instance ids in CONNECT_INSTANCE_ID_DEV and
+#     CONNECT_INSTANCE_ID_PROD, and AWS_REGION
+#
+# Every action is pinned to a commit, with its version in a comment.
+name: promote-flows
+
+on:
+  pull_request:
+    paths: ["flows/**", "envs/**"]
+  push:
+    branches: [main]
+    paths: ["flows/**", "envs/**"]
+
+permissions:
+  contents: read
+  id-token: write
+
+# One promotion at a time, and never one cancelled halfway through an apply.
+concurrency:
+  group: promote-flows
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, prod]
+    defaults:
+      run:
+        working-directory: envs/${{ matrix.env }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ matrix.env == 'dev' && vars.PLAN_ROLE_ARN_DEV || vars.PLAN_ROLE_ARN_PROD }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - run: terraform init -input=false
+      # Lint runs here: a hard rule fails the plan, the rest print warnings.
+      - run: terraform plan -input=false -no-color -lock=false
+        env:
+          TF_VAR_connect_instance_id: ${{ matrix.env == 'dev' && vars.CONNECT_INSTANCE_ID_DEV || vars.CONNECT_INSTANCE_ID_PROD }}
+
+  dev:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      document: ${{ steps.applied.outputs.document }}
+    defaults:
+      run:
+        working-directory: envs/dev
+    env:
+      TF_VAR_connect_instance_id: ${{ vars.CONNECT_INSTANCE_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - run: terraform init -input=false
+      - run: terraform apply -input=false -no-color -auto-approve
+      - id: applied
+        run: echo "document=$(terraform output -raw appointment_line_document_sha256)" >> "$GITHUB_OUTPUT"
+
+  prod:
+    needs: dev
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: envs/prod
+    env:
+      TF_VAR_connect_instance_id: ${{ vars.CONNECT_INSTANCE_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - run: terraform init -input=false
+      - run: terraform plan -input=false -no-color -out=tfplan
+      # The document hash is known at plan time, so a prod plan that would run
+      # anything other than what dev runs stops here, before an apply.
+      - name: prod runs the document dev ran
+        env:
+          DEV_DOCUMENT: ${{ needs.dev.outputs.document }}
+        run: |
+          prod=$(terraform show -json tfplan | jq -r '.planned_values.outputs.appointment_line_document_sha256.value')
+          if [ "$prod" != "$DEV_DOCUMENT" ]; then
+            echo "::error::prod would run flow document $prod; dev ran $DEV_DOCUMENT"
+            exit 1
+          fi
+      - run: terraform apply -input=false -no-color tfplan

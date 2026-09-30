@@ -1,0 +1,23 @@
+{
+  "name": "flow-as-code",
+  "owner": {
+    "name": "The flow-as-code Authors",
+    "url": "https://flow-as-code.dev/"
+  },
+  "description": "Agent skills for authoring, promoting and adopting Amazon Connect contact flows as code with flow-as-code.",
+  "plugins": [
+    {
+      "name": "flow-as-code",
+      "source": "./plugins/flow-as-code",
+      "description": "Skills for Amazon Connect flows as code: HCL for the flowascode Terraform provider, promotion across environments, adopting existing flows, and flow-cli.",
+      "category": "development",
+      "tags": [
+        "amazon-connect",
+        "terraform",
+        "opentofu",
+        "contact-center",
+        "infrastructure-as-code"
+      ]
+    }
+  ]
+}
