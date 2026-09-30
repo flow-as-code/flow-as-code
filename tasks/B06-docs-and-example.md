@@ -65,4 +65,4 @@ on both registries.
   what can be held offline; each was shown red by breaking what it guards.
 - Done from the list above: the README and landing page (provider, packages,
   diagram, tutorials, agent skills), docs/06's compatibility row and
-  publishing section, and `CLAUDE.md`. Still open: ADR-0004.
+  publishing section, and `CLAUDE.md`. ADR-0004 was rechecked on 2026-09-30 and stands (its trigger has not fired); its dated note points at ADR-0006 and ADR-0007.

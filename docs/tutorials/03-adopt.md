@@ -78,13 +78,15 @@ your resources each one is. Three things to tidy before you commit:
    a `data` source, remote state, or a module variable, as
    [the promotion tutorial](02-promote.md) does.
 2. **Replace `instance_id` with a variable** (`var.connect_instance_id`).
-3. **Drop the `null` attributes.** Generated configuration also orders each
-   action's blocks alphabetically rather than as the provider writes them
-   (`id`, `next`, the typed block, conditions, errors, `position`). Terraform
-   does not mind, but the studio and `flow-cli` read only the canonical form,
-   and they refuse a flow with `settings` or an ARN in `refs`. For flows you
-   want to edit there, export them (below), which writes the canonical form
-   directly.
+3. **Leave the rest as it is.** The `null` attributes (`settings = null`,
+   `next = null` and the others) read as unset, in Terraform and in the
+   studio and `flow-cli` alike, and the alphabetical order of the blocks is
+   only order. To edit the flow in the studio too, move its resource into a
+   file of its own named after it, `appointment-line.flow.tf` (one flow per
+   file); with the two edits above made, `npx flow-cli synth
+appointment-line.flow.tf` reads it to its FlowDoc, and a save in the studio
+   rewrites it in the canonical form. Export (below)
+   writes the canonical form directly.
 
 Then plan again. When the configuration describes the flow as it is, the plan
 is empty and nothing in Connect changes.

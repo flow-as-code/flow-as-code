@@ -305,7 +305,9 @@ resource "flowascode_contact_flow" "appointment_line" {
     surrogate (`LONE_SURROGATE`), a `lint.disable` entry that is not a rule
     id or names a hard rule (`UNKNOWN_LINT_RULE`), and an attribute, object
     key, or `lint` or `lifecycle` block given twice (`DUPLICATE_ATTRIBUTE`).
-    A parameter set to `null` is unset, as Terraform reads it, and a value in
+    A parameter, one of the resource's own attributes, or an action's `next`
+    set to `null` is unset, as Terraform reads it (`-generate-config-out`
+    writes all three), and a value in
     parentheses reads as the value inside.
 20. The settable attributes are `instance_id`, `name`, `display_name` (the
     name Connect shows when it is not `name`: the document's `displayName`),

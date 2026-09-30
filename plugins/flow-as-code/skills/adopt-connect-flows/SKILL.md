@@ -38,17 +38,18 @@ values. Before committing:
    it (a resource attribute, data source, remote state output or module
    variable). Leave no ARN.
 2. Replace the literal `instance_id` with `var.connect_instance_id`.
-3. Remove the `null` attributes (`description = null`, `settings = null`, ...).
-4. Plan until the plan is empty: then the configuration describes the flow as
-   it is and applying changes nothing.
+3. Plan until the plan is empty: then the configuration describes the flow as
+   it is and applying changes nothing. The `null` attributes the generator
+   writes (`settings = null`, `next = null`, ...) are unset and can stay.
 
 A Connect name that is not a slug ("Main Line") is kept as
 `display_name = "Main Line"` with `name = "main-line"`; the first apply
 renames nothing.
 
-Generated configuration orders blocks alphabetically and is not the canonical
-form the studio and `flow-cli` read (they refuse `settings` on a flow and ARNs
-in `refs`). For flows that will also be edited in the studio, use export.
+Once its `refs` hold addresses and `instance_id` a variable, generated
+configuration reads through `npx flow-cli synth <name>.flow.tf` and opens in
+the studio, which rewrites it in canonical order on the next save; an ARN left
+in `refs` is refused there. Export writes the canonical form directly.
 
 ## flow-cli export
 
