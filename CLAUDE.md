@@ -87,7 +87,7 @@ Status only where it changes what you should do. The work record is `tasks/`.
   provider is released and on both registries, the npm set is at 0.2.0, and the
   site carries the provider tutorials, the flow cookbook and the agent skills.
 - Phase C (a vendored showcase and the tool gaps it exposed, tasks C01 to
-  C11) was planned on 2026-09-30; the plan is the Phase C section of
+  C14) was planned on 2026-09-30; the plan is the Phase C section of
   `tasks/README.md`. The showcase itself is built in its own repository,
   `flow-as-code/hollow-hour`; nothing of it is vendored here until C07, and
   C07 to C09 wait on a commit (and, for C09, a public tag) there.
@@ -119,7 +119,7 @@ Status only where it changes what you should do. The work record is `tasks/`.
   commit and a hash per file, and never edited in place. It carries no product
   IP, no pricing, no tenant content, and nothing drawn from a real business or
   a real customer; it is no place for launch plans or marketing either, which
-  stay under the rule below. A fix to vendored content is made in its own
+  stay under the rule above. A fix to vendored content is made in its own
   repository and re-synced. The vendored files are held by this repository's
   lint and CI like any other FlowDoc. Nothing else about the showcase (its
   deploys, environments, Lambdas or CI) lives here.

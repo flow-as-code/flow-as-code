@@ -16,8 +16,12 @@ nothing about when anything was or will be released.
   - one FlowDoc set reaching three environments, shown as the static
     three-way diff of the emitted flowascode trees (they differ only in
     `flows.tf`'s `refs` values) rather than on the canvas;
-  - the district generator: one config entry yields exactly two generated
-    flows and no other flow diff;
+  - the district generator: one config entry yields exactly two new
+    generated flows and one more key in the generated `hh-district-menu`,
+    with no other flow diff and no hand edit (the satellite's T1 criterion 5
+    as amended, held by its `tests/generator.test.ts`); the page states it in
+    those words, and is checked against the satellite at the pinned tag
+    before it is published;
   - switching the greeting as a rebinding of one module alias in the address
     map, and rolling it back as the reverse;
   - a lint finding the draft hit and how the flow was changed to clear it
