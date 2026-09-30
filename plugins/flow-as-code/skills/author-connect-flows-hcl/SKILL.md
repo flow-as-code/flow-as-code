@@ -123,8 +123,9 @@ against the service:
   (checked 2026-09-30); it accepted every target tried, but the tooling
   writes and reads back the copy, as the console does.
 - `next`: write one on every non-terminal action, except
-  `message_participant_iteratively`, where it is optional. Connect refused
-  every non-terminal type probed without one, 29 of 31 (the list is in
+  `message_participant_iteratively`, where it is optional. Of the 31
+  non-terminal types, 30 were probed without one and Connect refused 29,
+  accepting only `message_participant_iteratively` (the list is in
   `conformance/flow-language/actions.md`, rule 38);
   `connect_participant_with_lex_bot` was not probed and is assumed to behave
   the same, and `next-action-required` reports them all. Terminal actions

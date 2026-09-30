@@ -859,8 +859,12 @@ SPEC.md lists the current set.
     19:24 with `DescribeContactFlow`. A second sweep (20:30 to 20:32 UTC)
     covered the non-terminal modeled types the first left out, the same way,
     each accepted flow or module deleted at once and its deletion confirmed
-    by a `ResourceNotFoundException` from the matching describe call; a
-    listing at 20:32 found none of the probe flows or modules left. Rule 37 removed error
+    by a `ResourceNotFoundException` from the matching describe call. The
+    sweep's own summary notes a listing at 20:32:42 that found no probe flow
+    or module left, but that listing's raw output was not kept. A later
+    listing, kept, found none either: `ListContactFlows` at 20:43:22 and
+    `ListContactFlowModules` at 20:43:23 returned 30 flows and 2 modules on
+    the development instance, none named `hh-probe-*`. Rule 37 removed error
     branches one at a time and never `NextAction`, and nothing recorded
     shows a `Compare` without one accepted before this. Rule 37 does not
     list `Compare` among the types refused on 2026-09-29, which implies its
@@ -914,7 +918,9 @@ SPEC.md lists the current set.
     - The second sweep probed fourteen more, each as the first action of a
       contact flow with minimal parameters (the development instance's own
       queue, flow module, Lambda function and hold flow for references) and
-      the catalog's required error branches aimed at one action and
+      the builder's error branches (the catalog's required set, plus the
+      optional `NoMatchingError` the builder writes on
+      `UpdateContactTextToSpeechVoice`) aimed at one action and
       `NextAction`, when present, at another: `InvokeFlowModule`,
       `InvokeLambdaFunction`, `TagContact`, `UntagContact`,
       `UpdateContactCallbackNumber`, `UpdateContactData`,
@@ -925,7 +931,7 @@ SPEC.md lists the current set.
       `GetMetricData` and `UpdateFlowAttributes`. Each was refused without
       `NextAction` ("Action is missing required property. Path:
       Actions[0].Transitions.NextAction", `InvalidContactFlowException`) and
-      accepted with one (20:30 to 20:32). None was accepted without one, so
+      accepted with one (20:30 to 20:31). None was accepted without one, so
       no catalog `next` changed.
     - So 29 of the 31 non-terminal modeled types were seen refused without
       `NextAction`, each only in the flow type it was tried in (a contact
