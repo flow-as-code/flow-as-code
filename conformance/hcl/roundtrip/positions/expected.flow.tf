@@ -49,7 +49,8 @@ resource "flowascode_contact_flow" "edge_cases" {
   }
 
   action {
-    id = "compare-tier"
+    id   = "compare-tier"
+    next = "odd-message"
     compare {
       comparison_value = "$.Attributes.tier"
     }

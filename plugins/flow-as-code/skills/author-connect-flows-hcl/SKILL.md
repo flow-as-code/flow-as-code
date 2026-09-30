@@ -118,7 +118,13 @@ against the service:
 - `check_hours_of_operation`: exactly the conditions `Equals ["True"]` and
   `Equals ["False"]`, plus `NoMatchingError`.
 - `compare` and `distribute_by_percentage`: `NoMatchingCondition`, no
-  catch-all.
+  catch-all, and a `next` naming the same action as the
+  `NoMatchingCondition` branch. Connect refuses either without `next`
+  (checked 2026-09-30); it accepts any target, but the tooling writes and
+  reads back the copy, as the console does.
+- `next`: every non-terminal action needs one, except
+  `message_participant_iteratively`, where it is optional. Terminal actions
+  must not have one.
 - `update_contact_callback_number`: `InvalidCallbackNumber` and
   `CallbackNumberNotDialable`, no catch-all.
 - `update_contact_recording_behavior`: no error branch at all.

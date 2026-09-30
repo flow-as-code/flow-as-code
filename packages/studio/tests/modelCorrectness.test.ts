@@ -113,7 +113,11 @@ describe("M2 a drag from a Compare creates a branch, never a NextAction", () => 
 
     const next = connectNodes(doc, "compare-tier", "hang-up")!;
     expect(next).toBeDefined();
-    expect(getAction(next, "compare-tier")?.Transitions.NextAction).toBeUndefined();
+    // NextAction is not the drag's: it stays the mirror of NoMatchingCondition,
+    // which the service requires (actions.md, rule 38).
+    const t = getAction(next, "compare-tier")!.Transitions;
+    expect(t.NextAction).toBe("odd-message");
+    expect(t.NextAction).toBe(t.Errors?.[0]?.NextAction);
     const conditions = getAction(next, "compare-tier")!.Transitions.Conditions!;
     expect(conditions[conditions.length - 1]?.NextAction).toBe("hang-up");
     expectSchemaValid(next);
@@ -127,12 +131,33 @@ describe("M2 a drag from a Compare creates a branch, never a NextAction", () => 
     expect(
       branched.content.Actions.find((a) => a.Identifier === id)?.Transitions.Conditions,
     ).toHaveLength(1);
+    // The primary drag wrote a branch, not a NextAction.
+    expect(getAction(branched, id)?.Transitions.NextAction).toBeUndefined();
     const withCatchAll = connectNodes(branched, id, "apologize", "error")!;
     expect(getAction(withCatchAll, id)?.Transitions.Errors).toEqual([
       { ErrorType: "NoMatchingCondition", NextAction: "apologize" },
     ]);
-    expect(getAction(withCatchAll, id)?.Transitions.NextAction).toBeUndefined();
+    // Wiring the catch-all carries NextAction along (mirrorNext), so the block
+    // is the builder's typed Compare and the service accepts it.
+    expect(getAction(withCatchAll, id)?.Transitions.NextAction).toBe("apologize");
     expectSchemaValid(withCatchAll);
+    expect(emittedClassFor(withCatchAll, id)).toContain("new Compare(");
+  });
+
+  it("moving the no-match edge carries NextAction along, and removing it takes both", () => {
+    const doc = edgeCasesDoc();
+    const edge = errorEdgeId("compare-tier", 0, "NoMatchingCondition");
+    const moved = rewireEdge(doc, edge, "compare-tier", "hang-up")!;
+    expect(moved).toBeDefined();
+    const t = getAction(moved, "compare-tier")!.Transitions;
+    expect(t.NextAction).toBe("hang-up");
+    expect(t.Errors).toEqual([{ ErrorType: "NoMatchingCondition", NextAction: "hang-up" }]);
+    expect(emittedClassFor(moved, "compare-tier")).toContain("new Compare(");
+
+    const retargeted = rewireEdge(doc, nextEdgeId("compare-tier"), "compare-tier", "hang-up")!;
+    expect(getAction(retargeted, "compare-tier")!.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingCondition", NextAction: "hang-up" },
+    ]);
   });
 
   it("capabilities agree with the builder shapes", () => {

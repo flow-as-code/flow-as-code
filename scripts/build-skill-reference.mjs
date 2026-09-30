@@ -64,6 +64,25 @@ function kindOf(p) {
   return KIND[p.kind] ?? p.kind;
 }
 
+/**
+ * The catalog's next rule, in words. `required` and `mirrors:*` both mean
+ * Connect refuses the action without a `next`; `none` on a non-terminal type
+ * (MessageParticipantIteratively) means it may be left out
+ * (conformance/flow-language/actions.md, rule 38).
+ */
+function nextOf(rule) {
+  if (rule === "required") return "required";
+  const error = "mirrors:error:";
+  const condition = "mirrors:condition:";
+  if (rule.startsWith(error)) {
+    return `required; write the \`${rule.slice(error.length)}\` branch's target, as the console does`;
+  }
+  if (rule.startsWith(condition)) {
+    return `required; write the \`${rule.slice(condition.length)}\` condition's target, as the console does`;
+  }
+  return "optional; the console leaves it out";
+}
+
 function rows(params, depth = 0) {
   const out = [];
   for (const p of params ?? []) {
@@ -86,6 +105,7 @@ function section(type, a) {
   if (a.terminal) {
     lines.push("- Terminal: no `next`, no branches.");
   } else {
+    lines.push(`- \`next\`: ${nextOf(t.next)}.`);
     const errors = t.errors.map(
       (e) => `\`${e.type}\`${e.required ? " (required)" : ""}${e.when ? `: ${e.when}` : ""}`,
     );

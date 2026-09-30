@@ -51,6 +51,7 @@ export function compareDoc(): FlowDoc {
           Type: "Compare",
           Parameters: { ComparisonValue: "$.Attributes.tier" },
           Transitions: {
+            NextAction: "say",
             Errors: [{ ErrorType: "NoMatchingCondition", NextAction: "say" }],
             Conditions: [
               { NextAction: "say", Condition: { Operator: "Equals", Operands: ["gold"] } },

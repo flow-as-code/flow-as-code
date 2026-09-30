@@ -47,6 +47,7 @@ generic {
 Block `dequeue_contact_and_transfer_to_queue`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-dequeuecontactandtransfertoqueue.html).
 
 - Legal in: CUSTOMER_QUEUE, MODULE.
+- `next`: required.
 - Error branches: `QueueAtCapacity` (required); `NoMatchingError` (required).
 - Conditions: none.
 - Parameters: at most one of `QueueId`, `AgentId`.
@@ -70,6 +71,7 @@ No parameters: `end_flow_module_execution {}`.
 Block `invoke_flow_module`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html).
 
 - Legal in: CONTACT_FLOW, MODULE.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -82,6 +84,7 @@ Block `invoke_flow_module`. [Action page](https://docs.aws.amazon.com/connect/la
 Block `tag_contact`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-tagcontact.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -103,6 +106,7 @@ No parameters: `transfer_contact_to_agent {}`.
 Block `transfer_contact_to_queue`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-transfercontacttoqueue.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
+- `next`: required.
 - Error branches: `QueueAtCapacity` (required); `NoMatchingError` (required).
 - Conditions: none.
 
@@ -113,6 +117,7 @@ No parameters: `transfer_contact_to_queue {}`.
 Block `untag_contact`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-untagcontact.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -125,6 +130,7 @@ Block `untag_contact`. [Action page](https://docs.aws.amazon.com/connect/latest/
 Block `update_contact_attributes`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactattributes.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -138,6 +144,7 @@ Block `update_contact_attributes`. [Action page](https://docs.aws.amazon.com/con
 Block `update_contact_callback_number`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactcallbacknumber.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
+- `next`: required.
 - Error branches: `InvalidCallbackNumber` (required); `CallbackNumberNotDialable` (required).
 - Conditions: none.
 
@@ -150,6 +157,7 @@ Block `update_contact_callback_number`. [Action page](https://docs.aws.amazon.co
 Block `update_contact_data`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactdata.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -175,6 +183,7 @@ Block `update_contact_data`. [Action page](https://docs.aws.amazon.com/connect/l
 Block `update_contact_event_hooks`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacteventhooks.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -187,6 +196,7 @@ Block `update_contact_event_hooks`. [Action page](https://docs.aws.amazon.com/co
 Block `update_contact_recording_and_analytics_behavior`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required); `ChannelMismatch` (required); `InFlightRedactionConfigurationFailed`: ChatBehavior is defined (the service refuses the chat form without it); the builder does not write that form.
 - Conditions: none.
 - Parameters: exactly one of `ChatBehavior`, `VoiceBehavior`, `ScreenRecordingBehavior`.
@@ -207,6 +217,7 @@ Block `update_contact_recording_and_analytics_behavior`. [Action page](https://d
 Block `update_contact_recording_behavior`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, OUTBOUND_WHISPER, CUSTOMER_QUEUE, MODULE.
+- `next`: required.
 - Error branches: none; the service refuses any.
 - Conditions: none.
 
@@ -223,6 +234,7 @@ Block `update_contact_recording_behavior`. [Action page](https://docs.aws.amazon
 Block `update_contact_routing_behavior`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactroutingbehavior.html).
 
 - Legal in: CONTACT_FLOW, MODULE.
+- `next`: required.
 - Error branches: none; the service refuses any.
 - Conditions: none.
 - Parameters: never both of `QueuePriority`, `QueueTimeAdjustmentSeconds`.
@@ -237,6 +249,7 @@ Block `update_contact_routing_behavior`. [Action page](https://docs.aws.amazon.c
 Block `update_contact_target_queue`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttargetqueue.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 - Parameters: at most one of `QueueId`, `AgentId`.
@@ -251,6 +264,7 @@ Block `update_contact_target_queue`. [Action page](https://docs.aws.amazon.com/c
 Block `update_contact_text_to_speech_voice`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontacttexttospeechvoice.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError`.
 - Conditions: none.
 
@@ -265,6 +279,7 @@ Block `update_contact_text_to_speech_voice`. [Action page](https://docs.aws.amaz
 Block `connect_participant_with_lex_bot`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-connectparticipantwithlexbot.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
+- `next`: required; write the `NoMatchingCondition` branch's target, as the console does.
 - Error branches: `InputTimeLimitExceeded`; `NoMatchingError` (required); `NoMatchingCondition`.
 - Conditions: Equals on values the action defines.
 - Parameters: at most one of `PromptId`, `Text`, `SSML`.
@@ -305,6 +320,7 @@ No parameters: `disconnect_participant {}`.
 Block `get_participant_input`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
+- `next`: required; write the `NoMatchingCondition` branch's target, as the console does.
 - Error branches: `InputTimeLimitExceeded`: StoreInput is "False" or absent, where the service refuses the action without it; with StoreInput "True" it refuses the branch (sandbox, 2026-09-29; the page does not say); `NoMatchingCondition`: StoreInput is "False": the service refused the action without it on 2026-09-29 (sandbox, us-west-2), with or without conditions, which the page does not say; with StoreInput "True" the page forbids it; `NoMatchingError` (required); `InvalidPhoneNumber`: StoreInput is "True" and PhoneNumberValidation is specified.
 - Conditions: Equals on one key each (0 to 9, * or #).
 - Parameters: at most one of `PromptId`, `Text`, `SSML`.
@@ -341,6 +357,7 @@ Block `get_participant_input`. [Action page](https://docs.aws.amazon.com/connect
 Block `message_participant`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipant.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_WHISPER, AGENT_WHISPER, OUTBOUND_WHISPER, CUSTOMER_QUEUE, MODULE.
+- `next`: required.
 - Error branches: `NoMatchingError`.
 - Conditions: none.
 - Parameters: exactly one of `PromptId`, `Text`, `SSML`.
@@ -360,6 +377,7 @@ Block `message_participant`. [Action page](https://docs.aws.amazon.com/connect/l
 Block `message_participant_iteratively`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-messageparticipantiteratively.html).
 
 - Legal in: CUSTOMER_QUEUE, CUSTOMER_HOLD, AGENT_HOLD, MODULE.
+- `next`: optional; the console leaves it out.
 - Error branches: `NoMatchingError`.
 - Conditions: Equals on values the action defines.
 
@@ -380,6 +398,7 @@ Block `message_participant_iteratively`. [Action page](https://docs.aws.amazon.c
 Block `show_view`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html).
 
 - Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, MODULE.
+- `next`: required; write the `NoMatchingError` branch's target, as the console does.
 - Error branches: `NoMatchingCondition` (required); `NoMatchingError` (required); `TimeLimitExceeded` (required).
 - Conditions: Equals on values the action defines.
 
@@ -398,6 +417,7 @@ Block `show_view`. [Action page](https://docs.aws.amazon.com/connect/latest/devg
 Block `check_hours_of_operation`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkhoursofoperation.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
+- `next`: required; write the `False` condition's target, as the console does.
 - Error branches: `NoMatchingError` (required).
 - Conditions: exactly the Equals conditions listed.
 
@@ -410,6 +430,7 @@ Block `check_hours_of_operation`. [Action page](https://docs.aws.amazon.com/conn
 Block `check_metric_data`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
+- `next`: required; write the `NoMatchingError` branch's target, as the console does.
 - Error branches: `NoMatchingError` (required); `NoMatchingCondition` (required).
 - Conditions: Number* operators on the value the action produces; at least 1.
 - Parameters: at most one of `QueueId`, `AgentId`.
@@ -425,6 +446,7 @@ Block `check_metric_data`. [Action page](https://docs.aws.amazon.com/connect/lat
 Block `compare`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html).
 
 - Legal in: every flow type.
+- `next`: required; write the `NoMatchingCondition` branch's target, as the console does.
 - Error branches: `NoMatchingCondition` (required).
 - Conditions: any operator, any operand.
 
@@ -437,6 +459,7 @@ Block `compare`. [Action page](https://docs.aws.amazon.com/connect/latest/devgui
 Block `distribute_by_percentage`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-distributebypercentage.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
+- `next`: required; write the `NoMatchingCondition` branch's target, as the console does.
 - Error branches: `NoMatchingCondition` (required).
 - Conditions: Number* operators on the value the action produces.
 
@@ -456,6 +479,7 @@ No parameters: `end_flow_execution {}`.
 Block `get_metric_data`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-getmetricdata.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 - Parameters: at most one of `QueueId`, `AgentId`.
@@ -471,6 +495,7 @@ Block `get_metric_data`. [Action page](https://docs.aws.amazon.com/connect/lates
 Block `loop`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-loop.html).
 
 - Legal in: every flow type.
+- `next`: required; write the `DoneLooping` condition's target, as the console does.
 - Error branches: `NoMatchingError`.
 - Conditions: exactly the Equals conditions listed.
 
@@ -483,6 +508,7 @@ Block `loop`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/
 Block `transfer_to_flow`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-transfertoflow.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -495,6 +521,7 @@ Block `transfer_to_flow`. [Action page](https://docs.aws.amazon.com/connect/late
 Block `update_flow_attributes`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowattributes.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
@@ -508,6 +535,7 @@ Block `update_flow_attributes`. [Action page](https://docs.aws.amazon.com/connec
 Block `update_flow_logging_behavior`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: none; the service refuses any.
 - Conditions: none.
 
@@ -520,6 +548,7 @@ Block `update_flow_logging_behavior`. [Action page](https://docs.aws.amazon.com/
 Block `wait`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html).
 
 - Legal in: every flow type.
+- `next`: required; write the `NoMatchingError` branch's target, as the console does.
 - Error branches: `NoMatchingError` (required); `ParticipantNotFound`: Events includes BotParticipantDisconnected.
 - Conditions: Equals on values the action defines.
 
@@ -533,6 +562,7 @@ Block `wait`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/
 Block `create_callback_contact`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcallbackcontact.html).
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 - Parameters: at most one of `QueueId`, `AgentId`.
@@ -552,6 +582,7 @@ Block `create_callback_contact`. [Action page](https://docs.aws.amazon.com/conne
 Block `invoke_lambda_function`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html).
 
 - Legal in: every flow type.
+- `next`: required.
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
