@@ -120,11 +120,14 @@ against the service:
 - `compare` and `distribute_by_percentage`: `NoMatchingCondition`, no
   catch-all, and a `next` naming the same action as the
   `NoMatchingCondition` branch. Connect refuses either without `next`
-  (checked 2026-09-30); it accepts any target, but the tooling writes and
-  reads back the copy, as the console does.
-- `next`: every non-terminal action needs one, except
-  `message_participant_iteratively`, where it is optional. Terminal actions
-  must not have one.
+  (checked 2026-09-30); it accepted every target tried, but the tooling
+  writes and reads back the copy, as the console does.
+- `next`: write one on every non-terminal action, except
+  `message_participant_iteratively`, where it is optional. Connect refused
+  each non-terminal type probed without one (the list is in
+  `conformance/flow-language/actions.md`, rule 38); the rest are assumed to
+  behave the same, and `next-action-required` reports them all. Terminal
+  actions must not have one.
 - `update_contact_callback_number`: `InvalidCallbackNumber` and
   `CallbackNumberNotDialable`, no catch-all.
 - `update_contact_recording_behavior`: no error branch at all.

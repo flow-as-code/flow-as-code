@@ -1102,8 +1102,8 @@ describe("DistributeByPercentage inverts the console's threshold chain into perc
   });
 });
 
-// The service refuses a Compare without Transitions.NextAction and accepts
-// any target (CreateContactFlow, 2026-09-30); the console's sample flows
+// The service refuses a Compare without Transitions.NextAction and accepted
+// every target tried (CreateContactFlow, 2026-09-30); the console's sample flows
 // mirror the NoMatchingCondition target, and so does the class
 // (conformance/flow-language/actions.md, rule 38).
 describe("Compare mirrors NextAction onto the no-match branch", () => {
