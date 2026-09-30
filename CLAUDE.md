@@ -1,6 +1,6 @@
 # CLAUDE.md (OSS repo)
 
-You are building the open-source flow tooling described in README.md. The private product repo consumes these packages from npm; nothing tenant-specific, no pricing, no vertical flow content, and no multi-tenant orchestration may enter this repo.
+You are building the open-source flow tooling described in README.md. The private product repo consumes these packages from npm; nothing tenant-specific, no pricing, no vertical flow content, and no multi-tenant orchestration may enter this repo. One exception, set out under Non-negotiables: a fictional showcase maintained in its own repository may be vendored here at a pinned commit.
 
 ## Read first
 
@@ -11,7 +11,7 @@ You are building the open-source flow tooling described in README.md. The privat
 5. docs/06-terraform-provider.md (Phase B: the provider and HCL as a third view; the contract is conformance/hcl/README.md)
 6. tasks/README.md, then work tasks in order
 
-## Where things stand (2026-09-29)
+## Where things stand (2026-09-30)
 
 Status only where it changes what you should do. The work record is `tasks/`.
 
@@ -84,7 +84,11 @@ Status only where it changes what you should do. The work record is `tasks/`.
   2026-09-30: every task's criteria are met and recorded in its task file, the
   provider is released and on both registries, the npm set is at 0.2.0, and the
   site carries the provider tutorials, the flow cookbook and the agent skills.
-  There is no Phase C plan yet; new work starts with one.
+- Phase C (a vendored showcase and the tool gaps it exposed, tasks C01 to
+  C11) was planned on 2026-09-30; the plan is the Phase C section of
+  `tasks/README.md`. The showcase itself is built in its own repository,
+  `flow-as-code/hollow-hour`; nothing of it is vendored here until C07, and
+  C07 to C09 wait on a commit (and, for C09, a public tag) there.
 
 ## Non-negotiables
 
@@ -107,6 +111,16 @@ Status only where it changes what you should do. The work record is `tasks/`.
   comparison that stayed, `docs/adr/0004-prior-art-aws-l2-cdk-library.md`, is
   the shape a public version of that argument takes: a technical difference, no
   timing, no marketing directive, no pointer to a private decision record.
+- Showcase examples (amended 2026-09-30): a fictional, non-commercial
+  showcase maintained in its own repository may be vendored here, and only as
+  a snapshot written by a script from one pinned commit, recorded with that
+  commit and a hash per file, and never edited in place. It carries no product
+  IP, no pricing, no tenant content, and nothing drawn from a real business or
+  a real customer; it is no place for launch plans or marketing either, which
+  stay under the rule below. A fix to vendored content is made in its own
+  repository and re-synced. The vendored files are held by this repository's
+  lint and CI like any other FlowDoc. Nothing else about the showcase (its
+  deploys, environments, Lambdas or CI) lives here.
 - License headers: Apache-2.0, applied by `npm run headers:fix`. The copyright holder is entity-neutral ("The flow-as-code Authors") and lives in one constant in scripts/license-headers.mjs. Never write a legal entity name into individual files; the name is expected to change.
 
 ## Stack
