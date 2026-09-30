@@ -21,6 +21,8 @@ hcl/roundtrip/<case>/case.json         description, the document (a path relativ
 hcl/roundtrip/<case>/bindings.json     reference key -> terraform address expression; a key absent here is unbound
 hcl/roundtrip/<case>/expected.flow.tf  the resource, byte-exact, a `terraform fmt` fixed point
 hcl/roundtrip/<case>/*.flowdoc.json    optional; a document the case does not borrow from elsewhere in conformance/
+hcl/roundtrip/<case>/validate/stubs.tf what the golden's refs and instance_id refer to, declared minimally
+hcl/roundtrip/<case>/validate/providers.tf the providers at exact versions, for `tofu validate`
 hcl/regenerate/<case>/case.json        what the case shows (TypeScript only)
 hcl/regenerate/<case>/doc.flowdoc.json the document being written
 hcl/regenerate/<case>/previous.flow.tf the companion on disk before regeneration
@@ -36,6 +38,7 @@ hcl/emit/<case>/case.json              the documents (paths relative to the case
 hcl/emit/<case>/address-map.json       reference -> terraform address, keyed as emit-tf's maps are
 hcl/emit/<case>/expected/              flows.tf, variables.tf, versions.tf.example, byte-exact
 hcl/emit/<case>/validate/stubs.tf      the resources the address map points at
+hcl/emit/<case>/validate/providers.tf  the providers at exact versions, for `tofu validate`
 ```
 
 Both implementations pass `roundtrip`, `parse` and `refuse`, and `emit` in
@@ -61,8 +64,10 @@ the key written (`to`) and, for sugar, the address bound (`binding`); `keep`
 lists the kept comment lines, for the resource and by action id. `options` in a `case.json` may carry
 `instanceId` (the expression written for `instance_id`), `tags` and
 `lintDisable`: the values a companion carries that the document does not. A
-case marked `validate: "skip"` has no provider to resolve yet; the mark flips
-to `pass` or `fail` once the provider is on both registries (task B03e).
+case's `validate` says what `tofu validate` does with it against the published
+provider, with the stubs in its `validate/` directory (`stubs.tf` for what its
+refs bind, `providers.tf` pinning exact versions); every case is `pass`, and
+packages/hcl/src/validate.test.ts runs them from OpenTofu 1.10 (task B03e).
 
 ## The resource
 

@@ -67,3 +67,30 @@ A review workflow (five dimensions, each finding reproduced by an adversarial ve
 - Bridge and watcher: resolving a disk conflict toward the document works (it was a 500: the write was not forced); the code side of a conflict over a `.flow.tf` naming another flow is an error, not a document to adopt; a document already restamped for the companion's current content is in sync; removing one of two companions syncs from the survivor; the README counts eight routes.
 - Studio: a conflict the studio raises itself carries `sourceKind`, so the dialog names the `.flow.tf`.
 - New conformance cases: `refuse/duplicate-attribute`, `refuse/refuse-sugar-conflicts-refs`, `refuse/refuse-sugar-two-addresses`, `parse/sugar-null-binding`, `parse/null-parameter`, `parse/parenthesized-values`, `regenerate/refs-after-actions`, `regenerate/keep-under-banner`.
+
+## Notes (2026-09-30, B03e)
+
+- The provider resolved from both registries on 2026-09-30, so every
+  `conformance/hcl/roundtrip` and `conformance/hcl/emit` case now carries
+  `validate/providers.tf` (hashicorp/aws 6.64.0, flow-as-code/flowascode 0.1.1,
+  exact) and `validate/stubs.tf`, and is marked `validate: "pass"`.
+  `packages/hcl/src/validate.test.ts` runs `tofu init` and `tofu validate` on
+  each against the published provider; a stub removed turns its case red.
+- The first run found two goldens binding addresses no configuration can
+  hold: `aws_connect_prompt` exists in hashicorp/aws only as a data source,
+  and there is no `aws_lexv2models_bot_alias` at all. The `positions` and
+  `participant` goldens now bind `data.aws_connect_prompt...` and a variable,
+  and the address sugar no longer rewrites the resource form of
+  `aws_connect_prompt`. The provider repository's own runner could not catch
+  this: it replaces refs values with literals before planning.
+- The harness (`packages/tf/src/__fixtures__/tofu.ts`) finds the HCL cases'
+  and every example's `providers.tf` (the promotion example's flowascode
+  halves, the provider example's environments and cookbook), floats the
+  provider under the range `@flow-as-code/hcl` writes, and leaves the
+  provider's sites out below `FLOWASCODE_TOFU_FLOOR` (1.10.0): the emit-tf
+  job's 1.7.0 lane skips every test that needs the provider, a new 1.10.10
+  lane runs them at the floor, and 1.12.6 runs them current. The CI cache key
+  names `flowascode0.1.1`, and the drift canary now floats the hcl project too.
+- Also validated now: the promotion example's step 2b trees (its `it.todo`
+  is gone), the provider example's four root modules, and the studio's
+  flowascode export.

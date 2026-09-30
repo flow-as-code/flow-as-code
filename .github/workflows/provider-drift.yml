@@ -168,10 +168,11 @@ jobs:
           TOFU_RESOLVED_REPORT: ${{ env.DRIFT_REPORT }}
         run: |
           set -euo pipefail
-          # The same three projects the blocking emit-tf job runs, so the only
+          # The same four projects the blocking emit-tf job runs, so the only
           # difference between the two lanes is the constraint.
           npx vitest run \
             --project @flow-as-code/tf \
+            --project @flow-as-code/hcl \
             --project @flow-as-code/studio \
             --project repo 2>&1 | tee "$DRIFT_LOG"
 

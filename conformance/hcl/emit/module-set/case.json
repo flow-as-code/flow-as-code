@@ -5,5 +5,5 @@
     "../../../roundtrip/after-call-survey/doc.flowdoc.json",
     "../../../emit-tf/module-set/satisfaction-question.flowdoc.json"
   ],
-  "validate": "skip"
+  "validate": "pass"
 }

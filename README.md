@@ -26,7 +26,7 @@ All packages Apache-2.0, published on npm under the `@flow-as-code` scope; see
 [tf](https://www.npmjs.com/package/@flow-as-code/tf),
 [hcl](https://www.npmjs.com/package/@flow-as-code/hcl). The Terraform provider
 is [`flow-as-code/flowascode`](https://registry.terraform.io/providers/flow-as-code/flowascode)
-on the Terraform Registry.
+on the Terraform Registry and the OpenTofu registry.
 
 ## Try it in a browser
 

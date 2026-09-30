@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import { type EmitCase, loadCases } from "./__fixtures__/cases.js";
 import { renderHclTemplate } from "./__fixtures__/hcl-template.js";
 import {
+  FLOWASCODE_EMITTED_CONSTRAINT,
   PROVIDER_MODE,
   TOFU_ENABLED,
   coveredProviderSets,
@@ -120,15 +121,29 @@ describe("the provider drift canary", () => {
   // A filter that matched nothing would make the assertions below vacuous, and
   // both halves of the design need a surface of each kind to say anything.
   it("knows about both kinds of surface", () => {
-    expect(fixtureSites.map((s) => s.path)).toEqual(
+    // The tf emitter's cases first, then the HCL contract's (task B03e).
+    const emitTfSites = fixtureSites.filter((s) => s.path.startsWith("conformance/emit-tf/"));
+    expect(emitTfSites.map((s) => s.path)).toEqual(
       cases
         .filter((c) => c.support["providers.tf"] !== undefined)
         .map((c) => `conformance/emit-tf/${c.name}/validate/providers.tf`),
     );
+    const hclSites = fixtureSites.filter((s) => s.path.startsWith("conformance/hcl/"));
+    expect(hclSites.length).toBeGreaterThan(0);
+    for (const site of hclSites) {
+      expect(site.path).toMatch(
+        /^conformance\/hcl\/(roundtrip|emit)\/[^/]+\/validate\/providers\.tf$/,
+      );
+    }
+    expect(emitTfSites.length + hclSites.length).toBe(fixtureSites.length);
     expect(exampleSites.length).toBeGreaterThan(0);
     for (const site of exampleSites) {
-      expect(site.path).toMatch(/^examples\/[^/]+\/terraform\/[^/]+\/providers\.tf$/);
+      expect(site.path).toMatch(/^examples\/.+\/providers\.tf$/);
     }
+    // The promotion example's terraform environments are still among them.
+    expect(exampleSites.map((s) => s.path)).toContain(
+      "examples/promote-across-environments/terraform/dev/providers.tf",
+    );
   });
 
   // The distinction the whole design rests on. "What a user actually gets" is
@@ -224,7 +239,8 @@ describe("the provider drift canary", () => {
   // about a version that does not exist yet.
   it("resolves fixtures under a constraint that crosses a major", () => {
     const crossings = pinnedProviders().filter((pin) => {
-      const constraint = EMITTED_PROVIDER_CONSTRAINTS[pin.source] ?? "";
+      const constraint =
+        EMITTED_PROVIDER_CONSTRAINTS[pin.source] ?? FLOWASCODE_EMITTED_CONSTRAINT[pin.source] ?? "";
       expect(constraint, pin.source).toMatch(/^>=/);
       return major(constraint.replace(">=", "").trim()) < major(pin.version);
     });

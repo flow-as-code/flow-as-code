@@ -415,9 +415,10 @@ new UpdateContactTargetQueue({
 
       <h2>Or write the flow in Terraform</h2>
       <p>
-        The <b>flow-as-code/flowascode</b> provider, on the Terraform Registry, takes a flow as HCL
-        action blocks and manages it through the Amazon Connect API. The actions name what they use
-        by key; one <code>refs</code> map says which queue that is in this environment:
+        The <b>flow-as-code/flowascode</b> provider, on the Terraform and OpenTofu registries, takes
+        a flow as HCL action blocks and manages it through the Amazon Connect API. The actions name
+        what they use by key; one <code>refs</code> map says which queue that is in this
+        environment:
       </p>
       <pre>
 resource "flowascode_contact_flow" "support_line" {
@@ -535,8 +536,8 @@ live instance --export--&gt; FlowDoc (+ codegen to TS or HCL)</pre>
         <li>
           <b>flow-as-code/flowascode</b>
           <span
-            >The Terraform provider, on the Terraform Registry: flows as HCL action blocks, linted
-            at plan time.</span
+            >The Terraform provider, on the Terraform and OpenTofu registries: flows as HCL action
+            blocks, linted at plan time.</span
           >
         </li>
       </ul>

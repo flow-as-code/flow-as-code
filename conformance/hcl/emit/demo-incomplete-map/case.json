@@ -1,5 +1,5 @@
 {
   "description": "The demo flow with an address map covering one reference of three. The two unmapped keys are written null under the TODO comment, which the provider refuses at plan time naming the key.",
   "docs": ["../../../demo/appointment-line.flowdoc.json"],
-  "validate": "skip"
+  "validate": "pass"
 }

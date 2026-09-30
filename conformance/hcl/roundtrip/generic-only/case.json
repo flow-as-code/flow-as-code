@@ -1,5 +1,5 @@
 {
   "description": "Only unmodeled action types: every action is a generic block whose parameters are jsonencode with the reference tokens escaped, and one with no parameters carries only its type.",
   "doc": "../../../roundtrip/unknown-actions/doc.flowdoc.json",
-  "validate": "skip"
+  "validate": "pass"
 }

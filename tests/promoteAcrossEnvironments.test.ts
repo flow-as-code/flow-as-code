@@ -19,8 +19,8 @@
 // The flowascode path (examples/promote-across-environments/flowascode/) is held
 // the same way: its two trees differ in exactly flows.tf, and only inside the
 // refs block. Mutation-verified: emitting the prod tree with the dev map turns
-// the difference set empty and red. Its `tofu validate` half waits for the
-// provider to resolve from a registry (B03e).
+// the difference set empty and red. Its `tofu validate` half runs against the
+// published provider (B03e), from OpenTofu 1.10.
 //
 // The `tofu validate` half is gated on RUN_TOFU_VALIDATE=1 like every other
 // test that runs the real tool, and it uses the same harness and provider
@@ -37,6 +37,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   TOFU_ENABLED,
+  flowascodeSupported,
   emitTfCiJob,
   materializeFiles,
   providerSites,
@@ -293,7 +294,34 @@ describe("one FlowDoc, two flowascode trees", () => {
     },
   );
 
-  it.todo("validates each tree once flow-as-code/flowascode resolves from a registry (B03e)");
+  // Step 2b's validation: the emitted tree beside the environment's own
+  // configuration, against the published provider (B03e). The provider's
+  // OpenTofu floor is 1.10, so the emit-tf job's 1.7.0 lane skips it.
+  describe.skipIf(!flowascodeSupported())("tofu (RUN_TOFU_VALIDATE=1)", () => {
+    it.each(["dev", "prod"] as const)(
+      "validates the %s flowascode tree against that environment's own configuration",
+      (name) => {
+        const { "versions.tf.example": _example, ...tree } = name === "dev" ? dev : prod;
+        const workspace = materializeFiles({
+          ...tree,
+          "providers.tf": providersForMode(
+            readExample(`flowascode/${name}/providers.tf`),
+            "example",
+          ),
+          "resources.tf": readExample(`flowascode/${name}/resources.tf`),
+        });
+
+        const init = tofu(["init", "-backend=false", "-input=false", "-no-color"], workspace);
+        expect(init.output).toContain("initialized");
+        expect(init.status).toBe(0);
+
+        const validate = tofu(["validate", "-no-color"], workspace);
+        expect(validate.output).toContain("The configuration is valid");
+        expect(validate.status).toBe(0);
+      },
+      600_000,
+    );
+  });
 });
 
 /** The Content property is a plain string or an `Fn::Join` of strings and intrinsics. */

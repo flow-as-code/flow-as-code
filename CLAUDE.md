@@ -59,9 +59,11 @@ Status only where it changes what you should do. The work record is `tasks/`.
   https://github.com/flow-as-code/terraform-provider-flowascode. It vendors
   `conformance/` at a pinned commit, so a change here to the catalog, lint
   rules or fixtures needs a re-vendor there (its `scripts/sync-conformance.sh`)
-  and its TypeScript oracles re-recorded. v0.1.0 is on the Terraform Registry;
-  the OpenTofu listing is pending (opentofu/registry#5642), and B03e waits for
-  it.
+  and its TypeScript oracles re-recorded. It is on the Terraform and OpenTofu
+  registries; read the version a registry serves rather than one written
+  here. The emit-tf job validates provider-shaped output against the published
+  provider from OpenTofu 1.10 (B03e), so a provider release that stops
+  accepting it turns that lane red.
 - The catalog's error branches, conditions and shapes were checked against the
   service on 2026-09-29, both ways: each required branch removed alone is
   refused, and the required set alone is accepted

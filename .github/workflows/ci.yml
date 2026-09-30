@@ -119,9 +119,12 @@ jobs:
         # emitted versions.tf.example tells users they may run; a test asserts
         # this list still contains it. The upper entry is a current release,
         # pinned rather than `latest` so a run is reproducible and the provider
-        # cache key means something. The two run in parallel, so wall time is
-        # unchanged and only runner minutes double.
-        tofu_version: ["1.7.0", "1.12.6"]
+        # cache key means something. The middle entry is the flowascode
+        # provider's OpenTofu floor (FLOWASCODE_TOFU_FLOOR in
+        # packages/tf/src/__fixtures__/tofu.ts; docs/06): the tests that need
+        # the provider skip on 1.7.0, so this is the oldest lane that runs them.
+        # The three run in parallel, so wall time is unchanged.
+        tofu_version: ["1.7.0", "1.10.10", "1.12.6"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -158,7 +161,7 @@ jobs:
           # inside the parallel suite is what broke the 1.7.0 lane on
           # 2026-09-10. A test in packages/tf/src/validate.test.ts asserts these
           # versions are the ones the fixtures pin, so the two cannot drift.
-          key: tofu-plugins-${{ runner.os }}-tofu${{ matrix.tofu_version }}-aws6.64.0-awscc1.101.0
+          key: tofu-plugins-${{ runner.os }}-tofu${{ matrix.tofu_version }}-aws6.64.0-awscc1.101.0-flowascode0.1.1
       - run: npm ci
       - run: npm run build
       - run: npx vitest run --project @flow-as-code/tf --project @flow-as-code/hcl --project @flow-as-code/studio --project repo

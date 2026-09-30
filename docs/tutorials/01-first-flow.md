@@ -11,8 +11,8 @@ provider v0.1.0, with account and instance identifiers masked.
 
 ## What you need
 
-- Terraform 1.8 or later. OpenTofu 1.10 or later works the same way once the
-  provider is listed on the OpenTofu registry, which is pending.
+- Terraform 1.8 or later, or OpenTofu 1.10 or later: the provider is on both
+  registries, and every `terraform` command below is the same with `tofu`.
 - Credentials for an AWS account with an Amazon Connect instance, and the
   instance's id (the last segment of its ARN).
 - A clone of the repository, for the example's files.

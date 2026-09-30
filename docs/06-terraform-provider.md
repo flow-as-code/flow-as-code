@@ -154,12 +154,12 @@ there. Every pull request also runs live acceptance tests against a sandbox
 Connect instance on both floors (Terraform 1.8, OpenTofu 1.10), and an
 unreachable sandbox blocks the merge.
 
-v0.1.0 was published on 2026-09-29 and is served by the Terraform Registry at
-https://registry.terraform.io/providers/flow-as-code/flowascode, where
-`terraform init` installs it with its signature checked. The same key is
-registered with the OpenTofu registry; the provider's own OpenTofu listing is
-pending, and until it lands `tofu init` cannot resolve
-`flow-as-code/flowascode`.
+v0.1.0 was published on 2026-09-29. The Terraform Registry serves it at
+https://registry.terraform.io/providers/flow-as-code/flowascode, and the
+OpenTofu registry has listed it since 2026-09-30; `terraform init` and
+`tofu init` both install it with its signature checked. This repository's
+emit-tf job validates the provider-shaped output against the published
+provider on OpenTofu 1.10 and a current release (task B03e).
 
 ## Considered and not used
 
