@@ -871,7 +871,7 @@ describe("the quick start the on-ramps print", () => {
   });
 
   it.each(ON_RAMPS)("installs the CLI and nothing else, in $name", ({ name, path }) => {
-    // @flow-as-code/cli depends on the other four, so naming all five installs
+    // @flow-as-code/cli depends on the other five, so naming all six installs
     // the same 25 MB tree and only gives a reader more to get wrong. Both
     // on-ramps said both things at once before this rule existed.
     const install = codeBlocks(readFileSync(path, "utf8")).find((text) =>

@@ -35,10 +35,14 @@ Status only where it changes what you should do. The work record is `tasks/`.
   than per version, so `core`, `cdk`, `tf` and `studio` keep 0.1.0 and 0.1.1
   for as long as the CLI depends on them. That is settled, not pending. Treat
   all of them as history and never point a reader at one as something to
-  install; the CLI pins its four siblings at an exact version, so nothing
+  install; the CLI pins its five siblings at an exact version, so nothing
   resolves onto them by accident. Inside the repo the workspace still resolves
   `@flow-as-code/*`, and `npm run build` before `npm test` is what makes that
   true, so a registry install is never the path a contributor takes here.
+  0.2.0 (2026-09-29) is the first release with `@flow-as-code/hcl`; its
+  `0.0.0` (and a `0.0.0-stage` the registry made itself) is a deprecated,
+  code-free placeholder published by hand so its Trusted Publisher could be
+  configured. Treat it as history too.
 - Releases go through `.github/workflows/release.yml`, dispatched by hand,
   publishing over OIDC with no npm token anywhere. The filename is fixed by the
   Trusted Publisher configured for each package on npmjs.com. CONTRIBUTING.md,
@@ -76,6 +80,11 @@ Status only where it changes what you should do. The work record is `tasks/`.
   (`node scripts/build-skill-reference.mjs`); `tests/skills.test.ts` fails
   when it is stale, so a catalog change regenerates it in the same commit.
 - Phase A's definition of done below is met, verified from a clean clone.
+- Phase B (the provider and HCL as a third view, tasks B01 to B06) closed on
+  2026-09-30: every task's criteria are met and recorded in its task file, the
+  provider is released and on both registries, the npm set is at 0.2.0, and the
+  site carries the provider tutorials, the flow cookbook and the agent skills.
+  There is no Phase C plan yet; new work starts with one.
 
 ## Non-negotiables
 

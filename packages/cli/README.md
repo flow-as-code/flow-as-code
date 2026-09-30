@@ -3,7 +3,7 @@
 # @flow-as-code/cli
 
 Install with `npm i -D @flow-as-code/cli`. Apache-2.0, Node 22.12 or newer.
-Installing it brings the other four, so `npx flow-cli` works straight away.
+Installing it brings the other five, so `npx flow-cli` works straight away.
 `npx flow-cli init flows` writes a document to open, and `npx flow-cli studio flows`
 opens it. [`examples/promote-across-environments/`](https://github.com/flow-as-code/flow-as-code/tree/main/examples/promote-across-environments)
 is a worked run of `lint` and `emit` against one document and two environments.

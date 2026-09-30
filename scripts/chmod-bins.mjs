@@ -31,7 +31,7 @@
 //
 // Wired into the root `build` (last, so it sees every package's finished dist)
 // and into cli's `prepack`, so a pack or publish of the package that has a
-// bin gets these modes even with no preceding root build. The other four
+// bin gets these modes even with no preceding root build. The other five
 // workspaces ship no bin and are released from a root build, so the build's run
 // is what owns their dist modes.
 

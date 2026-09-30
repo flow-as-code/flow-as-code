@@ -49,7 +49,7 @@ The private product repo's Phase 0 resumes after A08 (its tenant-stack consumes 
   private product repo. Nothing under `docs/` is a marketing document now. A13
   records what went and what stayed.
 
-# Phase B: Terraform provider and HCL as a third view
+# Phase B: Terraform provider and HCL as a third view (closed 2026-09-30)
 
 Approved 2026-09-11. A Go provider (`flow-as-code/flowascode`, its own
 repository) whose resources take action blocks and call the Connect API, a
@@ -80,3 +80,21 @@ must agree with the TypeScript side on (the action set, the HCL shape, the
 layout algorithm, the lint findings) is written down as fixtures both sides
 run before either side implements it, so a disagreement is a red test rather
 than a support ticket.
+
+## Where it ended
+
+Closed on 2026-09-30, with every task's acceptance criteria met and recorded in
+its file. What shipped:
+
+- `flow-as-code/flowascode`, in its own public repository, on the Terraform
+  Registry (from 2026-09-29) and the OpenTofu registry (from 2026-09-30),
+  signed with the project's release key; v0.1.1 is current.
+- The npm set at 0.2.0 (2026-09-29), `@flow-as-code/hcl` among it, with FlowDoc
+  0.2, the 21 newly modeled action types and the `.flow.tf` companion.
+- The action catalog checked against the service on 2026-09-29, both ways
+  (`conformance/flow-language/actions.md`, rule 37): lint now requires what
+  Connect requires at create and nothing more.
+- Provider-shaped output validated against the published provider in CI from
+  OpenTofu 1.10 (B03e).
+- On the site: four provider tutorials, the flow cookbook, agent skills (also a
+  Claude Code plugin), and the landing page's provider section.
