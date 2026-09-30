@@ -7,8 +7,9 @@ name: Release
 # the OIDC token's workflow claim against that string: "first verify that the
 # workflow filename matches exactly what you configured on npmjs.com, including
 # the .yml extension. All fields are case-sensitive and must be exact."
-# (@flow-as-code/hcl gets its configuration after its first, hand-made
-# publish: trusted publishing cannot create a package; tasks/B03-hcl-package-and-cli.md.)
+# (@flow-as-code/hcl got its configuration after a hand-published 0.0.0
+# placeholder on 2026-09-29, deprecated: trusted publishing cannot create a
+# package; tasks/B03-hcl-package-and-cli.md.)
 # Renaming this file breaks every publish until all the configurations are
 # recreated, and "existing trusted publisher connections cannot be changed".
 # https://docs.npmjs.com/trusted-publishers/

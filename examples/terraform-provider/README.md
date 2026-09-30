@@ -92,8 +92,8 @@ there.
 
 ## Running it
 
-You need Terraform 1.8 or later (or OpenTofu 1.10 or later once the provider
-is listed on the OpenTofu registry), credentials for an AWS account, and the
+You need Terraform 1.8 or later or OpenTofu 1.10 or later (the provider is on
+both registries), credentials for an AWS account, and the
 id of an Amazon Connect instance in it. The dev and platform roots also need an
 `appointment-lookup.zip` for the function, which is yours to supply; any
 Node.js handler returning a string map will do.
