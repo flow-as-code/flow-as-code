@@ -3,7 +3,7 @@
     {
       "rule": "next-action-required",
       "blockId": "hours",
-      "messageIncludes": "CheckHoursOfOperation has no NextAction"
+      "messageIncludes": "CheckHoursOfOperation has no NextAction; Connect refuses the action without one. Set it to \"bye\", the False condition's target, as the builder does."
     }
   ],
   "doc": {

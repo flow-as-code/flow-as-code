@@ -3,7 +3,7 @@
     {
       "rule": "next-action-required",
       "blockId": "route-tier",
-      "messageIncludes": "Compare has no NextAction"
+      "messageIncludes": "Compare has no NextAction; Connect refuses the action without one. Set it to \"greet-standard\", the NoMatchingCondition branch's target, as the builder does."
     }
   ],
   "doc": {

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { modeledEntry } from "../../catalog.js";
+import type { FlowAction } from "../../flowdoc.js";
 import type { Rule } from "../types.js";
 
 /**
@@ -16,10 +17,18 @@ import type { Rule } from "../types.js";
  *
  * Which types need it comes from the catalog's `next` rule: `required`, or
  * `mirrors:*` for a type whose builder writes NextAction as a copy of a
- * branch. Only presence is checked. The service accepts any target, so a
- * NextAction that does not equal the mirrored branch is legal (codegen reads
- * it back as a GenericBlock, which re-emits it unchanged). Terminal types,
- * `none` types and unmodeled actions are not checked.
+ * branch. The fifteen non-terminal modeled types rule 38 lists as unprobed
+ * are checked from the catalog alone; that the service refuses them without
+ * a NextAction is assumed. Only presence is checked. The service accepted
+ * every target tried, so a NextAction that does not equal the mirrored
+ * branch is legal (codegen reads it back as a GenericBlock, which re-emits
+ * it unchanged). Terminal types, `none` types and unmodeled actions are not
+ * checked; a NextAction on a terminal type, which the service refuses, is
+ * left unchecked (SPEC.md).
+ *
+ * For a `mirrors:*` type whose mirrored branch is wired to a string target,
+ * the message names that target, the value the builder writes, so a
+ * document written before Compare carried one can be fixed by copying it.
  */
 export const nextActionRequired: Rule = {
   id: "next-action-required",
@@ -35,8 +44,45 @@ export const nextActionRequired: Rule = {
       report({
         severity: "error",
         blockId: action.Identifier,
-        message: `${action.Type} has no NextAction; Connect refuses the action without one.`,
+        message: `${action.Type} has no NextAction; Connect refuses the action without one.${hint(action, rule)}`,
       });
     }
   },
 };
+
+/** The mirrored branch's target, in words, or "" when there is none to copy. */
+function hint(action: FlowAction, rule: string): string {
+  const error = "mirrors:error:";
+  const condition = "mirrors:condition:";
+  const t = action.Transitions as unknown as Record<string, unknown>;
+  if (rule.startsWith(error)) {
+    const type = rule.slice(error.length);
+    const branch = list(t["Errors"]).find((e) => e["ErrorType"] === type);
+    const target = branch?.["NextAction"];
+    return typeof target === "string"
+      ? ` Set it to "${target}", the ${type} branch's target, as the builder does.`
+      : "";
+  }
+  if (rule.startsWith(condition)) {
+    const operand = rule.slice(condition.length);
+    const branch = list(t["Conditions"]).find((c) => {
+      const cond = c["Condition"];
+      if (cond === null || typeof cond !== "object" || Array.isArray(cond)) return false;
+      const operands = (cond as Record<string, unknown>)["Operands"];
+      return Array.isArray(operands) && operands[0] === operand;
+    });
+    const target = branch?.["NextAction"];
+    return typeof target === "string"
+      ? ` Set it to "${target}", the ${operand} condition's target, as the builder does.`
+      : "";
+  }
+  return "";
+}
+
+/** The plain-object elements of a value meant to be an array. */
+function list(v: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter(
+    (e): e is Record<string, unknown> => e !== null && typeof e === "object" && !Array.isArray(e),
+  );
+}
