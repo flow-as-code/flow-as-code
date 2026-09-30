@@ -98,3 +98,131 @@ its file. What shipped:
   OpenTofu 1.10 (B03e).
 - On the site: four provider tutorials, the flow cookbook, agent skills (also a
   Claude Code plugin), and the landing page's provider section.
+
+# Phase C: a vendored showcase and the gaps it exposed (planned 2026-09-30)
+
+Planned 2026-09-30 from the owner's decisions of that date. A fictional
+showcase, Hollow Hour Removal Co. (a dispatch line for haunted households),
+is built in its own repository, `flow-as-code/hollow-hour`, against the
+published packages and provider. This phase does three things in this
+repository: it fixes the tool gaps that building the showcase exposed, it
+vendors a pinned snapshot of the showcase's FlowDocs so the hosted studio can
+open them, and it publishes a tutorial page that walks through the showcase at
+a tag. Everything else about the showcase (its flows, generator, environments,
+Lambdas, scenarios, CI, deploys and copy) lives and is tracked in the
+satellite repository, not here.
+
+FlowDoc stays the single interchange format. No task here writes showcase
+content by hand: the snapshot is produced by a script from a satellite commit
+and never edited in place, the way the provider vendors `conformance/`.
+
+## Decisions this phase builds on
+
+Settled by the owner on 2026-09-30; do not re-ask them.
+
+1. The satellite repository is `flow-as-code/hollow-hour`. It pins the
+   published npm set and the published provider, and is not a workspace of
+   this repository.
+2. This repository integrates it by vendoring a pinned snapshot, not by a
+   submodule, a build-time fetch, or an in-tree example. `CLAUDE.md` is
+   amended to allow that (see its Non-negotiables).
+3. The showcase's dev, qa and prod environments are each deployed to their own
+   Connect instance, parameterized by instance id through `TF_VAR_`. That work
+   is the satellite's; nothing here deploys anything.
+4. The showcase deploys through `flow-cli emit --target flowascode` and the
+   published `flowascode` provider. CDK is not a path for this example.
+5. Flow and module names carry a constant `hh-` prefix, identical in every
+   environment. No emitter prefix option is needed for it (see "Considered
+   and not taken").
+6. The keypad interview is the baseline; Lex is a stretch in the satellite
+   and nothing in this phase depends on it (C10 is gated on it).
+7. Two names from the draft are replaced with original ones: the grade for
+   several entities at once is "Chorus", and the queue for grades 4 and 5 is
+   `lantern-crew`. Neither echoes existing ghost-removal fiction.
+
+## Order
+
+| #   | Task                                                            | Group       | Gate                          |
+| --- | --------------------------------------------------------------- | ----------- | ----------------------------- |
+| C01 | CI green on main again (demo-boot teardown)                     | baseline    | none                          |
+| C02 | The site's staleness inputs cover `conformance/demo/`           | baseline    | none                          |
+| C03 | Channel-restricted actions: `Wait` and `ShowView` on voice      | contract    | none                          |
+| C04 | Stored-input `GetParticipantInput` in the typed builder         | engine      | none                          |
+| C05 | Releasing a module nothing in the set references                | emitters    | none                          |
+| C06 | CDK: same-set flow refs in event hooks, out-of-set modules      | emitters    | none                          |
+| C07 | `scripts/sync-example.mjs` and `examples/vendored/hollow-hour/` | integration | a satellite commit            |
+| C08 | Hosted-studio example picker                                    | studio      | C01, C07                      |
+| C09 | Tutorial: a worked example at a tag                             | docs        | C08, satellite public, a tag  |
+| C10 | Simulate: Lex substitution and mock responses                   | live AWS    | Lex enters the showcase scope |
+| C11 | Release and close                                               | release     | C01 to C09                    |
+
+## Why the baseline comes first
+
+The last CI run on main (36742854426, 2026-09-30) is red on an unhandled
+`ReferenceError: window is not defined` raised after
+`packages/studio/tests/demo-boot.test.tsx` finished, with every test passing.
+The run before it on the same test file was green, so it is intermittent. C08
+changes exactly the tests that boot the demo, and an integration PR cannot be
+judged against a red baseline. C02 is a gap older than this phase that C07 and
+C08 would otherwise widen: the site assembler decides whether the built demo
+is stale from `SOURCE_PATHS`, and the demo FlowDoc under `conformance/demo/`
+is an input to the bundle that the list does not name.
+
+## Why the tool gaps come before the integration
+
+Each gap in C03 to C06 is a fact about the tools, not about the showcase, and
+lands on the evidence rule in `CLAUDE.md`: an AWS doc URL for behavior relied
+on, and for a change to the catalog's error branches, conditions or shapes, a
+create the service refuses or accepts, recorded with its date and message.
+The showcase found them; it is never the evidence for them. They need no
+satellite commit, so they are not blocked on one, and once released the
+satellite can use the typed forms instead of generic blocks.
+
+A change under `conformance/` needs a re-vendor in the provider repository
+(`scripts/sync-conformance.sh`) and its oracles re-recorded; a catalog change
+regenerates the skill reference in the same commit. Each task that touches
+either says so in its criteria.
+
+## Why a vendored snapshot
+
+The hosted studio runs under CSP `connect-src 'none'` and must work from a
+clean clone offline, so it cannot fetch the showcase at run time or at build
+time. A git submodule breaks `npm run build:site` from a plain clone. An
+in-tree example is the vertical content `CLAUDE.md` keeps out. A snapshot
+written by a script from one satellite commit, recorded with that commit and a
+hash per file, keeps the build offline and lets this repository's CI lint the
+snapshot against the current catalog, so a catalog change that would break
+the showcase is red here first. It is the pattern the provider already uses
+for `conformance/`, in the other direction.
+
+## Considered and not taken
+
+- An emitter name-prefix option. The owner chose a constant `hh-` prefix in
+  the FlowDocs themselves, which needs nothing from the emitters.
+- A non-zero exit when an address map lacks an entry. The emitter's
+  `TODO_MISSING_ADDRESS_*` placeholder is an undeclared reference by design,
+  so `tofu validate` fails on it (`packages/tf/README.md`); the satellite
+  tests for the string as well.
+- Counting `InvokeFlowModule` as an announcement in
+  `recording-consent-before-record`. The rule walks one FlowDoc and cannot
+  see what a module plays; treating the call as an announcement would pass a
+  flow whose module says nothing. The showcase plays its notice in the flow.
+- A lint rule for `DequeueContactAndTransferToQueue` without a preceding
+  `MessageParticipantIteratively`. Only the admin guide states the order; the
+  service creates the flow without it, so it is guidance, not a refusal. The
+  satellite follows the guide.
+- Flow-type and channel restrictions on unmodeled types
+  (`CheckOutboundCallStatus`, `CompleteOutboundCall`, `CreateWisdomSession`,
+  `TransferParticipantToThirdParty`). They stay generic blocks; modeling them
+  is its own task when a user needs more than the passthrough.
+
+## Definition of done for Phase C
+
+The hosted studio opens `appointment-line` by default and a vendored
+showcase flow at `#example=hollow-hour`, with the bundle making no network
+request and the npm studio package carrying none of the showcase; the snapshot
+under `examples/vendored/hollow-hour/` matches its `COMMIT` and `MANIFEST.json`
+and lints clean against the current catalog in CI; the tutorial is on the site
+and links only to the satellite at a tag; C03 to C06 are released with
+fixtures and a provider re-vendor where `conformance/` changed; CI is green on
+main.
