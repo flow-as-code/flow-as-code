@@ -47,6 +47,7 @@ describe("A02 acceptance: every rule has fixtures", () => {
       "conditional-shape",
       "error-branches",
       "module-depth-5",
+      "next-action-required",
       "no-literal-arn",
       "no-unresolved-token",
       "prompt-length-3000",

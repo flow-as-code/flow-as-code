@@ -897,6 +897,9 @@ SPEC.md lists the current set.
       `NextAction` are each refused ("Action does not support transitions.
       Path: Actions[0]", 19:15 to 19:16); the first three are accepted with
       `Transitions: {}`.
+    The `next-action-required` lint rule reports a non-terminal action whose
+    catalog `next` is `required` or `mirrors:*` and that carries no
+    `NextAction`. It checks presence only: the service accepts any target.
     https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateContactFlow.html
     https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html
 
