@@ -1,0 +1,3 @@
+{
+  "description": "The resource's optional attributes set to null are unset, as Terraform reads them: `-generate-config-out` writes every one, `settings = null` on a flow and `next = null` on a terminal action included, and the document is the one the file would read to without them."
+}

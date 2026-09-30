@@ -171,6 +171,7 @@ class Reader {
     const isModule = type === MODULE_RESOURCE;
     const body = resource.body;
     const attrs = new Map<string, Attribute>();
+    const written = new Map<string, Attribute>();
     for (const item of body.items) {
       if (item.kind !== "attribute") continue;
       if (item.name === "count" || item.name === "for_each") {
@@ -189,8 +190,13 @@ class Reader {
           `${item.name} is not an attribute of ${type}.`,
         );
       }
-      if (attrs.has(item.name)) this.duplicate(item, item.name, attrs.get(item.name)!);
-      attrs.set(item.name, item);
+      const earlier = written.get(item.name);
+      if (earlier !== undefined) this.duplicate(item, item.name, earlier);
+      written.set(item.name, item);
+      // Terraform reads an attribute set to null as unset (rule 19), and so
+      // does the provider: `-generate-config-out` writes every optional
+      // attribute, `settings = null` on a flow among them.
+      if (!isNull(item.expr)) attrs.set(item.name, item);
     }
     if (isModule && attrs.has("type")) {
       this.fail("MODULE_WITH_TYPE", attrs.get("type")!, "type", "A module resource has no type.");
@@ -512,7 +518,13 @@ class Reader {
     if (typed === undefined)
       this.fail("NO_TYPE_BLOCK", block, at, `${at} has no action type block.`);
 
-    const next = attrs.has("next") ? this.string(attrs.get("next")!.expr, `${at}.next`) : undefined;
+    // `next = null` is unset (rule 19): generated configuration writes it on
+    // terminal actions.
+    const nextAttr = attrs.get("next");
+    const next =
+      nextAttr === undefined || isNull(nextAttr.expr)
+        ? undefined
+        : this.string(nextAttr.expr, `${at}.next`);
     // Rule 18: nothing wired reads as {} on a type the catalog marks terminal
     // or does not model, and as empty lists on any other, as synth writes it.
     const bare = modeledEntry(typed.type);

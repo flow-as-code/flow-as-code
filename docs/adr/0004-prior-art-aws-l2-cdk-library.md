@@ -52,3 +52,17 @@ paths in `examples/promote-across-environments/` and the invariants in
 `tests/promoteAcrossEnvironments.test.ts`. If the library ships and resolves
 references the same way this one does, the first bullet stops being a
 difference and this ADR should be superseded rather than quietly edited.
+
+## Rechecked 2026-09-30
+
+The trigger in Consequences has not fired. The post is unchanged: it still
+says the library may be made available as an open-source repository, and
+still describes a centralized mapping of environment-specific ARNs. No
+repository, npm package or Construct Hub entry for it has been published. So
+both differences above still hold, and this record stands.
+
+What has changed is on this side, and has its own records: the Terraform path
+is no longer only the emitter. A provider manages flows written as HCL action
+blocks ([ADR-0006](0006-provider-shape.md)), and HCL is a third view over the
+same document beside TypeScript and the canvas ([ADR-0007](0007-hcl-third-view.md)).
+The Scope paragraph understates that; it is not wrong.
