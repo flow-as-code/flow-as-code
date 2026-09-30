@@ -1,6 +1,6 @@
 {
   "name": "@flow-as-code/studio",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Local-first visual editor for Amazon Connect FlowDocs with live code round-trip. Served by `flow-cli studio`.",
   "keywords": [
     "amazon-connect",
@@ -48,10 +48,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@flow-as-code/cdk": "0.1.2",
-    "@flow-as-code/core": "0.1.2",
-    "@flow-as-code/hcl": "0.1.2",
-    "@flow-as-code/tf": "0.1.2",
+    "@flow-as-code/cdk": "0.2.0",
+    "@flow-as-code/core": "0.2.0",
+    "@flow-as-code/hcl": "0.2.0",
+    "@flow-as-code/tf": "0.2.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
