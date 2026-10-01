@@ -1,6 +1,6 @@
 {
   "name": "@flow-as-code/hcl",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "HCL as a third view over FlowDoc: a lossless parser, a terraform fmt-exact formatter, and the flowascode resource companion.",
   "keywords": [
     "amazon-connect",
@@ -51,7 +51,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@flow-as-code/core": "0.2.0"
+    "@flow-as-code/core": "0.2.1"
   },
   "repository": {
     "type": "git",

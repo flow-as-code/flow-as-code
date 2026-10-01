@@ -1,6 +1,6 @@
 {
   "name": "@flow-as-code/tf",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Terraform/OpenTofu emitter: FlowDoc to aws_connect_* resources, .tftpl content, and an awscc version/alias scaffold. One-way in v1.",
   "keywords": [
     "amazon-connect",
@@ -54,7 +54,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@flow-as-code/core": "0.2.0"
+    "@flow-as-code/core": "0.2.1"
   },
   "repository": {
     "type": "git",

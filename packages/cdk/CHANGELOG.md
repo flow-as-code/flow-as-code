@@ -1,5 +1,13 @@
 # @flow-as-code/cdk
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [7c63c5c]
+- Updated dependencies [953b5ad]
+  - @flow-as-code/core@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
