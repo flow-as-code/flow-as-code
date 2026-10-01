@@ -18,7 +18,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { installDomStubs, unmount } from "./appHarness.js";
+import { discardBuiltPage, installDomStubs, unmount } from "./appHarness.js";
 
 // happy-dom rewrites import.meta.url to an http URL, so the path comes from
 // the working directory instead: vitest runs this project from either the
@@ -50,6 +50,9 @@ describe("the built bundle boots", () => {
       expect(text).toContain("MessageParticipant");
       expect(text).toContain("References");
     } finally {
+      // Unmounts the bundle's own React root and waits for it to go idle, so
+      // no render of it outlives the environment (see discardBuiltPage).
+      await discardBuiltPage(root);
       root.remove();
     }
   });

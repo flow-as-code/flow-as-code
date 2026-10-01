@@ -186,3 +186,45 @@ export function present<T extends Element = Element>(selector: string): T {
   expect(el, `expected ${selector}`).not.toBeNull();
   return el!;
 }
+
+/**
+ * Discards the page a built bundle mounted into `container`, the way a browser
+ * does when the tab navigates away, and waits for its React to go idle.
+ *
+ * The bundle boot tests import dist/ or dist-demo/, which carry their own copy
+ * of React and mount their own root. `unmount` above cannot reach that root,
+ * and detaching the container stops nothing. Timers here are node's (vitest
+ * does not swap them for happy-dom's), so the app's lint debounce could fire
+ * after the test and schedule a render that committed once the environment had
+ * deleted `window`: "ReferenceError: window is not defined" from react-dom,
+ * reported against the file after its test had passed. src/main.tsx unmounts
+ * on pagehide; this fires it, then waits until the root has no pending lanes
+ * and no scheduled callback, so nothing of the app runs after the test.
+ *
+ * The idle check reads React 18's FiberRoot through the container's
+ * `__reactContainer$` key (react-dom's markContainerAsRoot). That is internal,
+ * but it is the only view of "no work left" from outside the bundle, and a
+ * React upgrade that moves it fails here loudly rather than going quiet.
+ */
+export async function discardBuiltPage(container: Element): Promise<void> {
+  const key = Object.keys(container).find((k) => k.startsWith("__reactContainer$"));
+  expect(key, "the bundle mounted a React root on the container").toBeDefined();
+  const fiberRoot = (container as unknown as Record<string, { stateNode: FiberRootView }>)[key!]!
+    .stateNode;
+  window.dispatchEvent(new Event("pagehide"));
+  expect(container.childNodes.length, "pagehide unmounted the app").toBe(0);
+  // Bounded: once unmounted there is at most a render of nothing left to run.
+  for (let turn = 0; turn < 50 && !isIdle(fiberRoot); turn++) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  expect(isIdle(fiberRoot), "React work still pending after the unmount").toBe(true);
+}
+
+interface FiberRootView {
+  pendingLanes: number;
+  callbackNode: unknown;
+}
+
+function isIdle(root: FiberRootView): boolean {
+  return root.pendingLanes === 0 && root.callbackNode === null;
+}
