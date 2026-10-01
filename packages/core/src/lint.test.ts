@@ -47,6 +47,7 @@ describe("A02 acceptance: every rule has fixtures", () => {
       "conditional-shape",
       "error-branches",
       "module-depth-5",
+      "next-action-required",
       "no-literal-arn",
       "no-unresolved-token",
       "prompt-length-3000",
@@ -155,6 +156,52 @@ describe("engine", () => {
   it("flags a hard rule as blocking a studio save", () => {
     expect(hasBlockingFindings(lint(dirty()))).toBe(true);
     expect(hasBlockingFindings(lint(synth(appointmentLine())))).toBe(false);
+  });
+});
+
+// A fixture elsewhere in conformance/ (layout, roundtrip, hcl, another rule's
+// fixtures) must not carry a shape the service refuses for want of a
+// NextAction (actions.md, rule 38); only this rule's own fail fixtures may.
+describe("every committed conformance FlowDoc carries its NextActions", () => {
+  const rules = allRules.filter((r) => r.id === "next-action-required");
+  const found: { file: string; doc: FlowDoc }[] = [];
+  const walk = (dir: string) => {
+    for (const e of dirs(dir)) {
+      const p = `${dir}/${e.name}`;
+      if (e.isDirectory()) walk(p);
+      else if (
+        e.name.endsWith(".json") &&
+        !p.startsWith("conformance/lint/next-action-required/fail-")
+      ) {
+        const parsed = JSON.parse(read(p)) as Record<string, unknown>;
+        const candidates =
+          (parsed.docs as FlowDoc[] | undefined) ??
+          (parsed.doc !== undefined ? [parsed.doc as FlowDoc] : [parsed as unknown as FlowDoc]);
+        for (const doc of candidates) {
+          if (doc?.flowdoc !== undefined && Array.isArray(doc.content?.Actions)) {
+            found.push({ file: p, doc });
+          }
+        }
+      }
+    }
+  };
+  walk("conformance");
+
+  it("finds the documents to check", () => {
+    expect(found.length).toBeGreaterThan(100);
+  });
+
+  it("reports nothing on any of them", () => {
+    const flagged = found.flatMap(({ file, doc }) => {
+      let findings;
+      try {
+        findings = lint(doc, { rules });
+      } catch {
+        return []; // a deliberately malformed document, which other tests own
+      }
+      return findings.map((f) => `${file} ${f.blockId}: ${f.message}`);
+    });
+    expect(flagged).toEqual([]);
   });
 });
 

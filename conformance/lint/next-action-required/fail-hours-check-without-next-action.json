@@ -1,9 +1,9 @@
 {
   "expect": [
     {
-      "rule": "no-unresolved-token",
-      "blockId": "cmp",
-      "messageIncludes": "must be the entire value"
+      "rule": "next-action-required",
+      "blockId": "hours",
+      "messageIncludes": "CheckHoursOfOperation has no NextAction; Connect refuses the action without one. Set it to \"bye\", the False condition's target, as the builder does."
     }
   ],
   "doc": {
@@ -13,19 +13,16 @@
     "connectType": "CONTACT_FLOW",
     "content": {
       "Version": "2019-10-30",
-      "StartAction": "cmp",
+      "StartAction": "hours",
       "Actions": [
         {
-          "Identifier": "cmp",
-          "Type": "Compare",
-          "Parameters": {
-            "ComparisonValue": "$.Attributes.tier"
-          },
+          "Identifier": "hours",
+          "Type": "CheckHoursOfOperation",
+          "Parameters": {},
           "Transitions": {
-            "NextAction": "bye",
             "Errors": [
               {
-                "ErrorType": "NoMatchingCondition",
+                "ErrorType": "NoMatchingError",
                 "NextAction": "bye"
               }
             ],
@@ -35,7 +32,16 @@
                 "Condition": {
                   "Operator": "Equals",
                   "Operands": [
-                    "prefix-${cdref:queue:appointments}"
+                    "True"
+                  ]
+                }
+              },
+              {
+                "NextAction": "bye",
+                "Condition": {
+                  "Operator": "Equals",
+                  "Operands": [
+                    "False"
                   ]
                 }
               }
@@ -51,13 +57,13 @@
       ]
     },
     "layout": {
-      "cmp": {
-        "x": 0,
-        "y": 0
+      "hours": {
+        "x": 20,
+        "y": 20
       },
       "bye": {
-        "x": 200,
-        "y": 0
+        "x": 280,
+        "y": 20
       }
     },
     "refs": []

@@ -1281,9 +1281,11 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
 
   [ActionType.Compare]: (a, ctx) => {
     const t = a.Transitions;
-    if (t.NextAction !== undefined) return undefined;
     const errors = t.Errors ?? [];
     if (errors.length !== 1 || errors[0]!.ErrorType !== NO_MATCHING_CONDITION) return undefined;
+    // The console mirrors NextAction onto the no-match branch, and so does the
+    // class. The service accepts any NextAction; another one stays generic.
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
     const conditions = t.Conditions ?? [];
     if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
     if (!paramKeysAre(a.Parameters, ["ComparisonValue"])) return undefined;

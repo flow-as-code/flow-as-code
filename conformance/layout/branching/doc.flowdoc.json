@@ -12,6 +12,7 @@
         "Type": "CheckHoursOfOperation",
         "Parameters": {},
         "Transitions": {
+          "NextAction": "closed",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",

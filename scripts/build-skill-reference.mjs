@@ -64,6 +64,40 @@ function kindOf(p) {
   return KIND[p.kind] ?? p.kind;
 }
 
+/**
+ * The catalog's next rule, in words. `required` and `mirrors:*` both mean the
+ * tooling writes a `next`; Connect refused every such type probed without one,
+ * and for ConnectParticipantWithLexBot, the one rule 38 lists as unprobed,
+ * the refusal is assumed. `none`
+ * on a non-terminal type (MessageParticipantIteratively) means it may be left
+ * out (conformance/flow-language/actions.md, rule 38).
+ */
+function nextOf(rule, shapes) {
+  if (rule === "required") return "required";
+  const error = "mirrors:error:";
+  const condition = "mirrors:condition:";
+  if (rule.startsWith(error)) {
+    const branch = rule.slice(error.length);
+    const text = `required; write the \`${branch}\` branch's target, as the console does`;
+    // A shape that forbids the mirrored branch (GetParticipantInput with
+    // StoreInput "True") has no target to copy.
+    const without = (shapes ?? []).filter((s) => s.forbids?.errors?.includes(branch));
+    if (without.length === 0) return text;
+    const where = without.map((s) => whenOf(s.when)).join(" or ");
+    return `${text}; ${where}, which has no \`${branch}\` branch, name the action that should follow`;
+  }
+  if (rule.startsWith(condition)) {
+    return `required; write the \`${rule.slice(condition.length)}\` condition's target, as the console does`;
+  }
+  return "optional; the console leaves it out";
+}
+
+function whenOf(when) {
+  return when.equals !== undefined
+    ? `with \`${when.key}\` "${when.equals}"`
+    : `with \`${when.key}\` not "${when.notEquals}"`;
+}
+
 function rows(params, depth = 0) {
   const out = [];
   for (const p of params ?? []) {
@@ -86,6 +120,7 @@ function section(type, a) {
   if (a.terminal) {
     lines.push("- Terminal: no `next`, no branches.");
   } else {
+    lines.push(`- \`next\`: ${nextOf(t.next, a.shapes)}.`);
     const errors = t.errors.map(
       (e) => `\`${e.type}\`${e.required ? " (required)" : ""}${e.when ? `: ${e.when}` : ""}`,
     );
@@ -105,10 +140,7 @@ function section(type, a) {
     lines.push(`- Parameters: ${rule ?? c.rule} ${c.keys.map((k) => `\`${k}\``).join(", ")}.`);
   }
   for (const s of a.shapes ?? []) {
-    const when =
-      s.when.equals !== undefined
-        ? `with \`${s.when.key}\` "${s.when.equals}"`
-        : `with \`${s.when.key}\` not "${s.when.notEquals}"`;
+    const when = whenOf(s.when);
     const parts = [];
     if (s.requires?.parameters)
       parts.push(`needs ${s.requires.parameters.map((k) => `\`${k}\``).join(", ")}`);

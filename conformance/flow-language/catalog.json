@@ -1984,7 +1984,7 @@
       ],
       "refs": [],
       "transitions": {
-        "next": "none",
+        "next": "mirrors:error:NoMatchingCondition",
         "conditions": "custom",
         "errors": [
           {

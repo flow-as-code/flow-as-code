@@ -118,7 +118,18 @@ against the service:
 - `check_hours_of_operation`: exactly the conditions `Equals ["True"]` and
   `Equals ["False"]`, plus `NoMatchingError`.
 - `compare` and `distribute_by_percentage`: `NoMatchingCondition`, no
-  catch-all.
+  catch-all, and a `next` naming the same action as the
+  `NoMatchingCondition` branch. Connect refuses either without `next`
+  (checked 2026-09-30); it accepted every target tried, but the tooling
+  writes and reads back the copy, as the console does.
+- `next`: write one on every non-terminal action, except
+  `message_participant_iteratively`, where it is optional. Of the 31
+  non-terminal types, 30 were probed without one and Connect refused 29,
+  accepting only `message_participant_iteratively` (the list is in
+  `conformance/flow-language/actions.md`, rule 38);
+  `connect_participant_with_lex_bot` was not probed and is assumed to behave
+  the same, and `next-action-required` reports them all. Terminal actions
+  must not have one.
 - `update_contact_callback_number`: `InvalidCallbackNumber` and
   `CallbackNumberNotDialable`, no catch-all.
 - `update_contact_recording_behavior`: no error branch at all.
@@ -135,10 +146,13 @@ Every `next` and branch target must name an action in the same resource.
 The provider runs the flow-as-code lint rules on every plan. `no-literal-arn`
 and `no-unresolved-token` are hard: they fail the plan and cannot be disabled.
 The rest (`action-allowed-in-flow-type`, `action-count`, `conditional-shape`,
-`error-branches`, `module-depth-5`, `prompt-length-3000`, `reachable-blocks`,
-`recording-consent-before-record`, `terminal-blocks`, `unique-names`) print
-warnings keyed by rule id. Treat `error-branches` and `conditional-shape`
-warnings as failures: Connect will refuse the flow. A rule that genuinely does
+`error-branches`, `module-depth-5`, `next-action-required`,
+`prompt-length-3000`, `reachable-blocks`, `recording-consent-before-record`,
+`terminal-blocks`, `unique-names`) print warnings keyed by rule id. Treat
+`error-branches`, `conditional-shape` and `next-action-required` warnings as
+failures: Connect will refuse the flow. (`next-action-required` was added on
+2026-09-30; a provider or `flow-cli` release older than that does not run
+it.) A rule that genuinely does
 not apply to one flow can be switched off for that resource only:
 
 ```hcl

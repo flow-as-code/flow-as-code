@@ -50,6 +50,7 @@
           "ComparisonValue": "$.Attributes.tier"
         },
         "Transitions": {
+          "NextAction": "odd-message",
           "Errors": [
             {
               "ErrorType": "NoMatchingCondition",

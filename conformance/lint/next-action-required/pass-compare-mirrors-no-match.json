@@ -1,7 +1,7 @@
 {
   "flowdoc": "0.2",
   "kind": "flow",
-  "name": "compare-only",
+  "name": "case",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",

@@ -99,11 +99,14 @@ Actions, `Errors` and `Conditions` arrays present (possibly empty) on every
 non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 `layout` covering every action. A provider generates code from `doc.flowdoc.json`,
 executes it, synthesizes the result, and must get the same document back
-(ignoring `meta`). The twelve cases cover the demo flow (`appointment-line`), a
+(ignoring `meta`). The cases cover the demo flow (`appointment-line`), a
 flow of entirely unmodeled action types with tokens inside parameters
 (`unknown-actions`), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
-user of `jsonPath` (`compare-only`, so the import is emitted for it), a flow
+user of `jsonPath` (`compare-only`, so the import is emitted for it), the
+same Compare with a `NextAction` that is a condition's target rather than
+the `NoMatchingCondition` copy the class writes, which the service accepts
+and which must stay GenericBlock (`compare-unmirrored-next`), a flow
 of `GetParticipantInput` menus with Text, SSML and PromptId bodies
 (`dtmf-menu`), a `GetParticipantInput` whose key branches twice, which the
 builder refuses and so must stay GenericBlock (`repeated-key`), edge cases

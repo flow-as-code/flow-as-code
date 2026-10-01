@@ -26,7 +26,7 @@ https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions.html
 | `Identifier` | Unique within the flow. Up to 50 characters. Any characters including unicode and spaces, **except** `% : ( \ / ) = $ , ; [ ] { }`. Also forbidden: `__proto__`, `constructor`, `__defineGetter__`, `__defineSetter__`, `toString`, `hasOwnProperty`, `isPrototypeOf`, `propertyIsEnumerable`, `toLocaleString`, `valueOf`. |
 | `Type` | One of the allowable types. See the table below. |
 | `Parameters` | Shape differs per Type. |
-| `Transitions` | `NextAction`, `Errors: [{ErrorType, NextAction}]`, `Conditions: [{NextAction, Condition}]`. Terminal actions use `{}`. |
+| `Transitions` | `NextAction`, `Errors: [{ErrorType, NextAction}]`, `Conditions: [{NextAction, Condition}]`. Terminal actions use `{}` and the service refuses a `NextAction` on them. The builder writes one on every other modeled type but `MessageParticipantIteratively`; every such type probed was refused without one, and the rest are assumed to be (rule 38). |
 
 `Condition` is `{ Operator, Operands }`. Operators: `Equals`, `TextStartsWith`,
 `TextEndsWith`, `TextContains`, `NumberGreaterThan`, `NumberGreaterOrEqualTo`,
@@ -146,7 +146,12 @@ individual action pages linked above.
 5. `MessageParticipant` accepts exactly one of `PromptId`, `Text`, or `SSML`.
    `PromptId` and `SSML` are voice only; other channels support only `Text`.
 6. `Compare` and `DistributeByPercentage` fail with `NoMatchingCondition`,
-   not `NoMatchingError` (`CONDITION_CATCH_ALL` in actions.ts).
+   not `NoMatchingError` (`CONDITION_CATCH_ALL` in actions.ts). Both also
+   need a `NextAction`, which the builder writes as a copy of the
+   `NoMatchingCondition` target, as the console does: the service refuses
+   either type without one (rule 38). Until 2026-09-30 this entry and the
+   catalog said `Compare` carries no `NextAction`, and every `Compare` the
+   builder wrote was refused at create.
    `UpdateContactRoutingBehavior`, `UpdateContactCallbackNumber` and
    `UpdateFlowLoggingBehavior` list no catch-all at all (rules 18, 20 and
    36; `TagContact`'s page lists none either, but the service requires one,
@@ -158,7 +163,8 @@ individual action pages linked above.
    service and the console's exports do not (rule 29).
 7. `DisconnectParticipant`, `EndFlowExecution`, `EndFlowModuleExecution` and
    `TransferContactToAgent` have **no** errors and are terminal
-   (`Transitions: {}`).
+   (`Transitions: {}`). The service refuses a `NextAction` on any of them
+   ("Action does not support transitions", rule 38).
 8. `EndFlowExecution` is available only in whisper and customer queue flows.
    `EndFlowModuleExecution` only in modules. `InvokeFlowModule` in inbound
    flows and, since modules can invoke modules ("up to five levels of
@@ -640,7 +646,9 @@ individual action pages linked above.
     `Conditions` empty and no `NextAction`; its Sample interruptible queue
     flow adds `"InterruptFrequencySeconds": "30"` and the `MessagesInterrupted`
     condition, still with no `NextAction` and no error. So `next` is `none`,
-    the catch-all is optional (`OPTIONAL_CATCH_ALL` in actions.ts, so
+    which here means the builder omits it, not that it is forbidden: the
+    service accepts the action with or without a `NextAction` (rule 38),
+    where it refuses one on a terminal type. The catch-all is optional (`OPTIONAL_CATCH_ALL` in actions.ts, so
     error-branches does not report it), the seconds are an `integerString`
     paired with the branch (a studio drag that adds the branch writes the
     console's `"30"`, and removing it removes the seconds), and the catalog
@@ -832,6 +840,10 @@ SPEC.md lists the current set.
     `QueueAtCapacity`, each `CheckMetricData` wires `NoMatchingCondition`
     and a condition, every `UpdateContactRecordingBehavior` has `Errors`
     empty, and every `GetParticipantInput` carries `StoreInput`.
+    The probes' inputs were not kept. `Compare` is not among the refused
+    types, although the catalog then wrote it no `NextAction` and the
+    service refuses it without one (rule 38), so its probe presumably
+    carried one; the record does not show which.
     Two refusals were the fixtures' parameters, not the catalog: the
     `contact-data` fixture's `UpdateContactData` (Voice ID fields on an
     instance without Voice ID) and the `contact-routing` fixture's first
@@ -840,6 +852,124 @@ SPEC.md lists the current set.
     `flow-control` fixture's `Events` and conditions was refused ("Invalid
     Action property value") and stays as the page describes it until a
     console export shows the shape.
+38. `NextAction` sweeps (2026-09-30, a development instance, us-west-2).
+    The first sweep (19:12 to 19:16 UTC) called `CreateContactFlow` and
+    deleted each accepted flow at once; a recheck at 19:20 also read accepted
+    flows back with `DescribeContactFlow`, and the sample flows were read at
+    19:24 with `DescribeContactFlow`. A second sweep (20:30 to 20:32 UTC)
+    covered the non-terminal modeled types the first left out, the same way,
+    each accepted flow or module deleted at once and its deletion confirmed
+    by a `ResourceNotFoundException` from the matching describe call. The
+    sweep's own summary notes a listing at 20:32:42 that found no probe flow
+    or module left, but that listing's raw output was not kept. A later
+    listing, kept, found none either: `ListContactFlows` at 20:43:22 and
+    `ListContactFlowModules` at 20:43:23 returned 30 flows and 2 modules on
+    the development instance, none named `hh-probe-*`. Rule 37 removed error
+    branches one at a time and never `NextAction`, and nothing recorded
+    shows a `Compare` without one accepted before this. Rule 37 does not
+    list `Compare` among the types refused on 2026-09-29, which implies its
+    probe carried a `NextAction` the catalog did not ask for; that probe's
+    inputs were not kept, so the record cannot settle it. That the gap is
+    long-standing rather than a service change is an inference (the sample
+    flows all carry one, and nothing in the record shows the service
+    accepting a `Compare` without one), not something observed.
+    - `Compare` without `NextAction` is refused ("Action is missing
+      required property. Path: Actions[0].Transitions.NextAction",
+      `InvalidContactFlowException`) in a contact flow (19:12 UTC) and a
+      customer queue flow (19:13 and 19:20), and mid-flow in a customer
+      whisper flow ("Path: Actions[1].Transitions.NextAction", 19:20). The
+      `compare-only` roundtrip fixture as it stood was refused the same way
+      (19:20) and accepted once it carried `"NextAction": "greet-standard"`,
+      its `NoMatchingCondition` target (19:20).
+    - The service accepted every target tried: the `NoMatchingCondition`
+      target, a condition's target, or an action neither branch names (19:12 to
+      19:13, and again at 19:20). `DescribeContactFlow` on the 19:20
+      recheck returned the `NextAction` as sent, for the
+      `NoMatchingCondition` target, for an action neither branch names, and
+      for the `compare-only` fixture's `greet-standard`. A
+      `Compare` with `NextAction` but `Errors` empty is refused for the
+      branch alone ("Action is missing required error. Error:
+      NoMatchingCondition, Path: Actions[0]", 19:13).
+    - Every one of the 14 `Compare` actions in the instance's AWS default
+      and sample flows (Sample queue customer, Sample queue configurations
+      flow, Sample disconnect flow, Sample inbound flow (first contact
+      experience), Sample Lambda integration, Sample recording behavior;
+      read 19:24) carries a `NextAction` equal to its `NoMatchingCondition`
+      target, as Sample AB test's `DistributeByPercentage` does. So the
+      catalog's `next` for `Compare` is `mirrors:error:NoMatchingCondition`,
+      and the builder and codegen treat it as they treat
+      `DistributeByPercentage`: the class writes the copy, and codegen reads
+      back only that shape, leaving any other `NextAction` a GenericBlock.
+    - Fourteen other non-terminal modeled types were probed in the first
+      sweep, and each was refused the same way without `NextAction` (19:12
+      to 19:15). What was tried with one differs by type:
+      - `DistributeByPercentage`, `CheckHoursOfOperation`,
+        `CheckMetricData`, `GetParticipantInput`, `ShowView` and `Loop` were
+        accepted both with the builder's mirrored target and with another
+        action (an unrelated action for `DistributeByPercentage`, another
+        error branch's target for the rest).
+      - `MessageParticipant`, `Wait`, `TransferContactToQueue`,
+        `DequeueContactAndTransferToQueue`, `TransferToFlow` and
+        `CreateCallbackContact` were accepted with `NextAction` set to the
+        catch-all's target, the only target tried.
+      - `UpdateContactAttributes` and `UpdateFlowLoggingBehavior` were only
+        seen refused in the first sweep; the second accepted each with a
+        `NextAction` (20:32).
+    - The second sweep probed fourteen more, each as the first action of a
+      contact flow with minimal parameters (the development instance's own
+      queue, flow module, Lambda function and hold flow for references) and
+      the builder's error branches (the catalog's required set, plus the
+      optional `NoMatchingError` the builder writes on
+      `UpdateContactTextToSpeechVoice`) aimed at one action and
+      `NextAction`, when present, at another: `InvokeFlowModule`,
+      `InvokeLambdaFunction`, `TagContact`, `UntagContact`,
+      `UpdateContactCallbackNumber`, `UpdateContactData`,
+      `UpdateContactEventHooks`,
+      `UpdateContactRecordingAndAnalyticsBehavior`,
+      `UpdateContactRecordingBehavior`, `UpdateContactRoutingBehavior`,
+      `UpdateContactTargetQueue`, `UpdateContactTextToSpeechVoice`,
+      `GetMetricData` and `UpdateFlowAttributes`. Each was refused without
+      `NextAction` ("Action is missing required property. Path:
+      Actions[0].Transitions.NextAction", `InvalidContactFlowException`) and
+      accepted with one (20:30 to 20:31). None was accepted without one, so
+      no catalog `next` changed.
+    - So 29 of the 31 non-terminal modeled types were seen refused without
+      `NextAction`, each only in the flow type it was tried in (a contact
+      flow, except `DequeueContactAndTransferToQueue` in a customer queue
+      flow and `Compare` in three, above), and `MessageParticipantIteratively`
+      was seen accepted either way. `ConnectParticipantWithLexBot` was not
+      probed: the development instance has no Lex bot to reference, so no
+      legal minimal action could be built. Its catalog `next`
+      (`mirrors:error:NoMatchingCondition`) follows the builder, and that the
+      service refuses it without one is an unchecked assumption.
+    - `MessageParticipantIteratively` in a customer queue flow is accepted
+      with and without `NextAction`, with `Errors` and `Conditions` empty
+      and with the interrupt condition and catch-all (19:14 to 19:15, and
+      again at 19:20), and in a customer hold flow with and without one,
+      `Errors` and `Conditions` empty (20:32). Its `none` is the builder's
+      choice, matching the console's default flows, which carry none.
+    - The terminal types refuse one: `DisconnectParticipant` (contact flow),
+      `EndFlowExecution` (customer whisper), `TransferContactToAgent`
+      (queue transfer) and `EndFlowModuleExecution` (module) with a
+      `NextAction` are each refused ("Action does not support transitions.
+      Path: Actions[0]", 19:15 to 19:16); the first three are accepted with
+      `Transitions: {}`. The first sweep's module without a `NextAction` was
+      refused for its content's missing `Settings` ("JSON field is missing
+      or null for field name: settings"). In the second, a module carrying
+      `Settings` was accepted with `EndFlowModuleExecution` and
+      `Transitions: {}`, and refused with a `NextAction` ("Action does not
+      support transitions. Path: Actions[0]",
+      `InvalidContactFlowModuleException`, 20:32).
+    The `next-action-required` lint rule reports a non-terminal action whose
+    catalog `next` is `required` or `mirrors:*` and that carries no
+    `NextAction`, on the probed types from the evidence above and on
+    `ConnectParticipantWithLexBot` from the catalog alone. It checks
+    presence only: where more than one target was tried, the service
+    accepted each, and no probe tested a target's effect at run time. No rule
+    reports a `NextAction` on a terminal type, which the service refuses;
+    that is left unchecked (SPEC.md).
+    https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateContactFlow.html
+    https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html
 
 ## Per-action parameter shapes
 
@@ -935,7 +1065,13 @@ commit; the test says which one is behind.
 Each modeled entry's `transitions` records what the action's Transitions may
 hold: `next` (`required`, `none`, or `mirrors:error:<type>` and
 `mirrors:condition:<operand>` when the builder writes NextAction as a copy of
-another branch), `conditions` (`none`, `fixed` with `conditionOperands`,
+another branch; `required` and `mirrors:*` both mean the builder writes a
+NextAction, and every such type probed was refused without one, while for
+`ConnectParticipantWithLexBot`, the one rule 38 lists as unprobed, the
+refusal is assumed, not checked;
+`none` means the builder writes none, which on a terminal type is the only
+form the service accepts and on `MessageParticipantIteratively` is one of
+two it accepts, rule 38), `conditions` (`none`, `fixed` with `conditionOperands`,
 `dtmf`, `enum`, `numeric`, or `custom`), and `errors` in the builder's order,
 each marked `required` (the error-branches rule reports it missing) and
 `builder` (the builder's modeled form wires it; the studio offers exactly those

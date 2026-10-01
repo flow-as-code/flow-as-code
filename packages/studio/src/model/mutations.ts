@@ -513,8 +513,9 @@ export type SourceHandle = "primary" | "error";
 
 /**
  * Some types' NextAction mirrors another branch (capabilities.ts mirrorRule):
- * a DTMF menu's NoMatchingCondition error, a CheckHoursOfOperation's
- * out-of-hours condition, a Loop's done condition. The console writes both
+ * a DTMF menu's or a Compare's NoMatchingCondition error, a
+ * CheckHoursOfOperation's out-of-hours condition, a Loop's done condition.
+ * The console writes both
  * for the one path and the block class emits both (@flow-as-code/core
  * blocks.ts), so the canvas treats them as one path: wiring or retargeting
  * either side carries the other along. Without this, wiring the mirrored
@@ -969,10 +970,10 @@ export const rewireEdge = guard(
     // NoMatchingCondition error, so a no-match target wired elsewhere counts
     // as an existing next edge: the mirror below would otherwise replace the
     // dropped target with it. And a block whose NextAction is never its own
-    // path (a Compare, or a mirroring type whose branch is not wired yet) has
-    // nowhere to put a bare next edge: on an unfinished Loop or menu the
-    // block is generic already, so the guard would not have seen the edge
-    // land where no drag could ever have put it.
+    // path (a mirroring type whose branch is not wired yet) has nowhere to
+    // put a bare next edge: on an unfinished Compare, Loop or menu the block
+    // is generic already, so the guard would not have seen the edge land
+    // where no drag could ever have put it.
     if (parsed.kind === "next") {
       if (source.Transitions.NextAction !== undefined) return undefined;
       const mirrored = mirrorTarget(source);
