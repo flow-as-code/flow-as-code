@@ -1,6 +1,6 @@
 {
   "name": "@flow-as-code/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLI over @flow-as-code/core: lint, codegen, synth, render, emit, the local studio server, and export, simulate, and diff against a live Amazon Connect instance.",
   "keywords": [
     "amazon-connect",
@@ -66,11 +66,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@flow-as-code/cdk": "0.2.0",
-    "@flow-as-code/core": "0.2.0",
-    "@flow-as-code/hcl": "0.2.0",
-    "@flow-as-code/studio": "0.2.0",
-    "@flow-as-code/tf": "0.2.0",
+    "@flow-as-code/cdk": "0.2.1",
+    "@flow-as-code/core": "0.2.1",
+    "@flow-as-code/hcl": "0.2.1",
+    "@flow-as-code/studio": "0.2.1",
+    "@flow-as-code/tf": "0.2.1",
     "ajv": "^8.20.0",
     "chokidar": "^5.0.0",
     "commander": "^14.0.3",

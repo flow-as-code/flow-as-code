@@ -1,5 +1,12 @@
 # @flow-as-code/core
 
+## 0.2.1
+
+### Patch Changes
+
+- 7c63c5c: `Compare` now writes `Transitions.NextAction`, a copy of its `NoMatchingCondition` target, as the Connect console does. Connect refuses a `Compare` without one ("Action is missing required property. Path: Actions[0].Transitions.NextAction"), so every `Compare` the builder or the studio wrote before this was refused at create (checked live on 2026-09-30; `conformance/flow-language/actions.md`, rule 38). Codegen reads a `Compare` back as the typed class only when its `NextAction` equals the `NoMatchingCondition` target; a document without one, or with another target, round-trips as a `GenericBlock`. A `.flow.ts` synthesizes the fixed document as it stands; a FlowDoc or `.flow.tf` that holds a `Compare` needs the `NextAction` (`next` in HCL) added. In the studio, wiring a `Compare`'s no-match branch now draws its next path with it, as on a DTMF menu or a percentage split.
+- 953b5ad: New lint rule `next-action-required` (error): a non-terminal modeled action whose catalog `next` is `required` or `mirrors:*` must carry a `NextAction`. Connect's refusal is "Action is missing required property. Path: Actions[N].Transitions.NextAction" (checked 2026-09-30 on 29 of the 31 non-terminal modeled types; `conformance/flow-language/actions.md`, rule 38, lists them). For `ConnectParticipantWithLexBot`, the one not probed, the rule follows the catalog, which marks `next` `mirrors:error:NoMatchingCondition` because the builder writes one; that Connect refuses it without one is assumed, not checked. The rule checks presence only, since Connect accepted every target tried. For a `Compare` or another type whose builder mirrors a branch, the message names that branch's target to copy. It does not report `MessageParticipantIteratively`, which Connect accepts either way. `flow-cli lint` and the studio's lint panel report it.
+
 ## 0.2.0
 
 ### Minor Changes

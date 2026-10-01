@@ -1,6 +1,6 @@
 {
   "name": "@flow-as-code/cdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CDK binding for @flow-as-code/core: materialize FlowDoc refs as CloudFormation tokens; FlowSet construct with module version/alias publishing; a CDK stack scaffold generator on the /scaffold subpath.",
   "keywords": [
     "amazon-connect",
@@ -53,7 +53,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@flow-as-code/core": "0.2.0"
+    "@flow-as-code/core": "0.2.1"
   },
   "peerDependencies": {
     "aws-cdk-lib": "^2.267.0",
