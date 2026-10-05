@@ -530,6 +530,8 @@ describe("GetParticipantInput stored-input form", () => {
     refuse({ ...base, store: { phoneNumber: { format: "E164" } } }, "onInvalidNumber");
     refuse({ ...base, store: { maxLength: 5 }, onInvalidNumber: "y" }, "onInvalidNumber");
     refuse({ ...base, store: { maxLength: 5 }, branches: [] }, "branches");
+    refuse({ ...base, store: { maxLength: 5 }, onTimeout: "y" }, "onTimeout");
+    refuse({ ...base, store: { maxLength: 5 }, onNoMatch: "y" }, "onNoMatch");
     refuse({ ...base, store: { maxLength: 5 }, timeoutSeconds: 0 }, "timeoutSeconds");
     // Neither form: no store and no branches.
     refuse({ id: "ask", timeoutSeconds: 5, onError: "z" }, "store");

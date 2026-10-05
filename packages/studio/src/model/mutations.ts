@@ -985,9 +985,10 @@ export const rewireEdge = guard(
     // stored-input form cannot carry the error at all; a block that already
     // has one has nowhere to put a second; and one whose NextAction goes
     // elsewhere would have it overwritten, the same clobber as the next-edge
-    // check above. The guard cannot stand in for these checks: the
-    // stored-input form and an unfinished menu are generic already, so there
-    // is nothing for it to see demoted.
+    // check above. The guard cannot stand in for these checks: an unfinished
+    // menu is generic already, so there is nothing for it to see demoted.
+    // (The stored-input form is typed, and the guard holds it as it holds a
+    // message; the vocabulary check above is what refuses the drop there.)
     // An error or a branch lands only where a fresh drag could have authored
     // it: an error the landing block's class wires and it lacks, a condition
     // its kind admits and it does not already hold. Otherwise the landing

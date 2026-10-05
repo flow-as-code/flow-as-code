@@ -1498,7 +1498,7 @@
             "type": "InvalidPhoneNumber",
             "required": false,
             "builder": true,
-            "when": "StoreInput is \"True\" and PhoneNumberValidation is specified (the page); the builder wires it on every phone number validation, before the catch-all"
+            "when": "StoreInput is \"True\" and PhoneNumberValidation is specified"
           },
           {
             "type": "NoMatchingError",

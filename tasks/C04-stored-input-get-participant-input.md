@@ -138,6 +138,24 @@ pending (below).
   `maximum_length` and the studio's gestures moved).
 - Pending, next batch: `conformance/` changed (the catalog's `MaximumLength`
   kind and `InvalidPhoneNumber` flag and order, two new fixtures), so the
-  provider re-vendors it (`scripts/sync-conformance.sh`), re-records its
-  oracles, and reads `maximum_length` by the new kind. Its commit is to be
-  recorded here when it lands.
+  provider re-vendors it (`scripts/sync-conformance.sh`) and re-records its
+  oracles. Its commit is to be recorded here when it lands. What the
+  reviewer of PR #27 listed for that batch:
+  - `integerString` is a kind the provider already knows (its `schema.go`
+    maps it to a string attribute and its `read.go` accepts a number
+    literal), so `maximum_length` needs no new kind handling.
+  - `maximum_length` moves from a Terraform Number to a String attribute,
+    and the provider has no state upgraders. Check that a 0.1.x state
+    holding a stored-input block still plans; the showcase repos carry only
+    `StoreInput "False"` blocks, so neither is affected.
+  - The generated provider docs say `maximum_length (Number)`, and the
+    "generated code is current" lane will require `go generate`.
+  - Oracles to re-record: the catalog oracle (`builderErrors` for
+    `GetParticipantInput` becomes four, with `InvalidPhoneNumber` before
+    `NoMatchingError`), and the lint, export and materialize oracles for the
+    two new fixtures.
+  - `builderErrorsFor` has no Go port yet; the provider does not need one
+    for conformance, so porting it is optional and recorded here only.
+  - The conformance canary goes red after this merges until the re-vendor
+    lands. Provider pull requests trigger the sandbox acceptance lane: ask
+    before opening one.

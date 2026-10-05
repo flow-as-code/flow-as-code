@@ -88,7 +88,8 @@ export interface CatalogError {
    * branch to create. False for an error that exists only in a form the
    * builder does not model. A type with more than one modeled form
    * (GetParticipantInput) flags the union; builderErrorsFor narrows it to the
-   * form an action is in.
+   * form an action is in. The stored form wires InvalidPhoneNumber on every
+   * phone number validation, before the catch-all (actions.md, rule 13).
    */
   builder: boolean;
   /** Free text from the action page, when the error exists only in some forms. */
