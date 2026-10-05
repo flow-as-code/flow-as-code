@@ -100,6 +100,11 @@ The flow binds `"module:greeting@live" = flowascode_contact_flow_module_alias.gr
 `create_before_destroy` is required: Connect refuses to delete a version an
 alias points at, so the new version must exist before the alias moves. Keep
 these resources in the flows module so they promote with the flows.
+`flow-cli emit` writes them for a module a flow in the set invokes by alias;
+for a module released in a root of its own, which nothing in that set
+invokes, pass `--module-alias module:greeting@live` and bind
+`module:greeting@live` from the flows' root through its address map, to the
+`greeting_live_arn` output the module root emits.
 
 ## Without the provider
 

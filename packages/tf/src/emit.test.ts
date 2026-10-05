@@ -139,6 +139,35 @@ describe("reference resolution", () => {
     expect(unusedMapKeys).toEqual([]);
   });
 
+  // Task C05: a module released on its own, bound from another root by alias.
+  it("writes a version and no alias for a module nothing invokes and nothing declares", () => {
+    const flows = emitTf([module("greeting")]).files["flows.tf"]!;
+    expect(flows).toContain('resource "awscc_connect_contact_flow_module_version" "greeting"');
+    expect(flows).not.toContain("awscc_connect_contact_flow_module_alias");
+  });
+
+  it("publishes a declared alias in exactly the shape an invoked alias takes", () => {
+    const after = (text: string): string =>
+      text.slice(text.indexOf('resource "aws_connect_contact_flow_module" "greeting"'));
+    const released = emitTf([module("greeting")], { moduleAliases: { greeting: ["live"] } }).files;
+    const invoked = emitTf([
+      flow("caller", { FlowModuleId: "${cdref:module:greeting@live}" }),
+      module("greeting"),
+    ]).files;
+    expect(after(released["flows.tf"]!)).toBe(after(invoked["flows.tf"]!));
+    expect(released["flows.tf"]).toContain(
+      'resource "awscc_connect_contact_flow_module_alias" "greeting_live"',
+    );
+  });
+
+  it("refuses a declared alias for a module the set does not emit, or that is not a slug", () => {
+    expect(() =>
+      emitTf([module("greeting"), flow("farewell")], {
+        moduleAliases: { farewell: ["live"], greeting: ["Live Now"] },
+      }),
+    ).toThrow(/names module "farewell"[\s\S]*"Live Now" for module "greeting" is not a slug/);
+  });
+
   it("counts a map entry an in-set resource shadows as used", () => {
     const { unusedMapKeys } = emitTf(
       [flow("caller", { FlowModuleId: "${cdref:module:survey@prod}" }), module("survey")],

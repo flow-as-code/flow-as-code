@@ -34,6 +34,7 @@ describe("conformance/emit-tf", () => {
       "demo-complete-map",
       "demo-incomplete-map",
       "hostile-text",
+      "module-release",
       "module-set",
     ]);
   });

@@ -21,7 +21,7 @@ flow-cli render <dir-or-file> --resources map.json      standalone materializati
 flow-cli codegen <doc.flowdoc.json> [--to ts|tf] [--out <file>]  FlowDoc -> companion (.flow.ts or .flow.tf)
 flow-cli synth <file.flow.ts|file.flow.tf> [--out <dir>] companion -> FlowDoc (TS in a sandboxed child)
 flow-cli convert <doc.flowdoc.json> --to ts|tf [--address-map <file>] [--keep-old] [--force]
-flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json] [--allow-unbound] [--strict]
+flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json] [--allow-unbound] [--strict] [--module-alias module:name@alias]...
 flow-cli diff <dir> --instance <arn>                     local FlowDocs vs the live instance
 flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]
 flow-cli simulate <scenarios> --instance <arn> [--resource-map <file>] [--format junit|json] [--out <file>]
@@ -247,6 +247,18 @@ stopped using it, is otherwise silent. `--strict` makes it an error, exiting
 module the set emits) is not unused; the emitter ignores its value and, on
 the flat target, says so in `flow_refs.tf`. Both flags are refused on
 `--target cdk`, which binds through a `TokenBinder` and takes no map.
+
+On either target, a module gets a version and an alias resource for each
+alias a flow in the set invokes it through, and a module nothing in the set
+references gets none (on `tf`, a version and no alias): the emitter cannot
+know what a root elsewhere will bind. `--module-alias module:greeting@live`,
+repeatable, declares an alias the module publishes anyway, written exactly as
+for an invoked module, so a module released in a root of its own can be
+bound as `module:greeting@live` from another root's address map; on
+`flowascode`, `outputs.tf` adds `greeting_live_arn` for that root to read.
+The value is the key a flow binds, `module:<name>@<alias>`, slugs on both
+sides; a module the set does not emit is refused. The flag is refused on
+`--target cdk`.
 
 `--target cdk` is not a code generator, because `@flow-as-code/cdk` is a
 library: `FlowSet` reads the FlowDoc directory itself at synth time. What the

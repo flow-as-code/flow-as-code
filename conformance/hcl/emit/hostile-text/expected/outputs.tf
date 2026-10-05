@@ -5,7 +5,8 @@
 # SHA-256 of the document with its references still tokens, equal across
 # environments that apply the same document and known at plan time. A
 # promotion gate compares the hash one environment applied with the one
-# the next plans (docs/tutorials/02-promote.md).
+# the next plans (docs/tutorials/02-promote.md). A module that publishes
+# aliases adds the ARN of each, the value a flow binds for module:<name>@<alias>.
 
 output "hostile_text_arn" {
   description = "ARN of flow hostile-text."

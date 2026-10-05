@@ -47,6 +47,12 @@ export interface EmitOptions {
   allowUnbound?: boolean;
   /** tf and flowascode: an address map key no reference uses is an error, not a warning. */
   strict?: boolean;
+  /**
+   * tf and flowascode: `module:<name>@<alias>` keys, one per --module-alias,
+   * naming an alias a module in the set publishes though no flow in the set
+   * invokes it (task C05).
+   */
+  moduleAlias?: readonly string[];
 }
 
 export interface EmitOutcome {
@@ -57,6 +63,27 @@ export interface EmitOutcome {
 }
 
 const TARGETS = new Set<string>(["cdk", "flowascode", "tf"]);
+
+/** `module:<name>@<alias>`, the key a flow in another root binds the alias by. */
+const MODULE_ALIAS_KEY = /^module:([a-z0-9]+(?:-[a-z0-9]+)*)@([a-z0-9]+(?:-[a-z0-9]+)*)$/;
+
+/** The --module-alias keys as the emitters take them, by module name. */
+function moduleAliasesFrom(keys: readonly string[]): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const key of keys) {
+    const match = MODULE_ALIAS_KEY.exec(key);
+    if (match === null) {
+      throw new CliError(
+        `--module-alias "${key}" is not a module:<name>@<alias> key (slugs on both sides, ` +
+          `as a flow binds it: module:greeting@live).`,
+      );
+    }
+    const [, module, alias] = match as unknown as [string, string, string];
+    const aliases = (out[module] ??= []);
+    if (!aliases.includes(alias)) aliases.push(alias);
+  }
+  return out;
+}
 
 const unboundLines = (unbound: readonly UnboundRef[]): string[] =>
   unbound.map((u) => `  - ${u.key} (referenced by ${u.documents.join(", ")})`);
@@ -84,6 +111,7 @@ export function runEmit(input: string, options: EmitOptions): EmitOutcome {
       ["--address-map", options.addressMap !== undefined],
       ["--allow-unbound", options.allowUnbound === true],
       ["--strict", options.strict === true],
+      ["--module-alias", (options.moduleAlias ?? []).length > 0],
     ] as const) {
       if (set) {
         throw new CliError(
@@ -99,7 +127,11 @@ export function runEmit(input: string, options: EmitOptions): EmitOutcome {
 
   const addressMap =
     options.addressMap === undefined ? undefined : readStringMap(options.addressMap, "address map");
-  const emitOptions = addressMap === undefined ? {} : { addressMap };
+  const moduleAliases = moduleAliasesFrom(options.moduleAlias ?? []);
+  const emitOptions = {
+    ...(addressMap === undefined ? {} : { addressMap }),
+    ...(Object.keys(moduleAliases).length > 0 ? { moduleAliases } : {}),
+  };
 
   if (options.target === "cdk") {
     const written = writeFiles(outDir, {
