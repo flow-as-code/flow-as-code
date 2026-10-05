@@ -38,3 +38,31 @@ on both registries.
   gained `TestLayoutIsNotDrift` for it.
 - Still to do after B03e: the README quick start and diagram, the site's
   packages list, docs/06's compatibility row, ADR-0004, and `CLAUDE.md`.
+
+## Notes (2026-09-29, tutorials, cookbook and agent skills)
+
+- The provider was on the Terraform Registry (v0.1.0) with its OpenTofu
+  listing pending, so the public texts said so. Both are resolved: OpenTofu
+  listed it on 2026-09-30, the texts now name both registries, and B03e is
+  done (tasks/B03).
+- `examples/terraform-provider/`: a flows module, dev, platform and prod root
+  modules, a cookbook of ten recipes and a GitHub Actions promotion pipeline.
+  Every file was applied to the sandbox with Terraform 1.8.5 and provider
+  v0.1.0, planned again clean, and destroyed; prod's plan carried dev's
+  document hash (`3d12a6cd...`). Building the cookbook found the catalog
+  errors fixed in #13 and #14 (actions.md rule 37): four recipes that linted
+  clean were refused by Connect.
+- Four tutorials (`docs/tutorials/`), the cookbook page and
+  `docs/07-agent-skills.md` are published; every transcript in them is from
+  the sandbox runs, identifiers masked.
+- Agent Skills under `plugins/flow-as-code/skills/` (authoring HCL,
+  promotion, adoption, flow-cli), installable as a Claude Code plugin from
+  `.claude-plugin/marketplace.json`, validated with `claude plugin validate`
+  and installed into a throwaway config. The action reference is generated
+  from the catalog by `scripts/build-skill-reference.mjs`. The site publishes
+  the skills under `/skills/` and lists them in `llms.txt`.
+- `tests/terraformProviderExample.test.ts` and `tests/skills.test.ts` hold
+  what can be held offline; each was shown red by breaking what it guards.
+- Done from the list above: the README and landing page (provider, packages,
+  diagram, tutorials, agent skills), docs/06's compatibility row and
+  publishing section, and `CLAUDE.md`. ADR-0004 was rechecked on 2026-09-30 and stands (its trigger has not fired); its dated note points at ADR-0006 and ADR-0007.

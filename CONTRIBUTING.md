@@ -27,8 +27,9 @@ the `npx flow-cli` lines in the root README work from a checkout. `build` then
 builds the studio and its demo bundle and ends with `scripts/chmod-bins.mjs`,
 which owns the mode of every file a workspace packs out of `dist`.
 
-The packages are on npm (`@flow-as-code/hcl` from its first release, which is
-published by hand; see Releasing), but inside this repository `@flow-as-code/*`
+The packages are on npm (all six from 0.2.0; `@flow-as-code/hcl@0.0.0` is a
+deprecated placeholder that was published by hand so trusted publishing could be
+configured for it), but inside this repository `@flow-as-code/*`
 resolves through the workspace and nowhere else, so a checkout never reads the
 registry copies. Build first or the imports do not exist. For the version the
 registry currently serves, read the package pages rather than this file:
@@ -40,12 +41,16 @@ registry currently serves, read the package pages rather than this file:
 
 - `build / node 22`, `24` and `26`: `npm ci`, then lint, typecheck, build,
   `build:site`, test. `lint` includes the header check.
-- `emit-tf goldens / tofu 1.7.0` and `1.12.6`: the emitted HCL has to be
-  `tofu validate`-clean against a real OpenTofu, on the floor and the current
-  release. It asks for exact provider versions, pinned in
-  `conformance/emit-tf/*/validate/providers.tf`, so a blocking lane never turns
-  red because a third party published that morning. The canary below is what
-  watches the newest ones instead.
+- `emit-tf goldens / tofu 1.7.0`, `1.10.10` and `1.12.6`: the emitted HCL has
+  to be `tofu validate`-clean against a real OpenTofu, on the emitter's floor,
+  the flowascode provider's floor and the current release. The provider-shaped
+  output (the `conformance/hcl` cases, the promotion example's flowascode trees,
+  the provider example, the studio's flowascode export) is validated against the
+  published `flow-as-code/flowascode` from 1.10.10; the 1.7.0 lane skips it. It
+  asks for exact provider versions, pinned in
+  `conformance/{emit-tf,hcl/*}/*/validate/providers.tf`, so a blocking lane
+  never turns red because a third party published that morning. The canary
+  below is what watches the newest ones instead.
 - `publish dry-run`: `npm publish --dry-run` once per package, which is what
   catches a packaging defect before a release does.
 

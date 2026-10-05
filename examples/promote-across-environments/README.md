@@ -196,9 +196,12 @@ environment. Neither tree holds an ARN.
 `flowascode/dev/` and `flowascode/prod/` are the environment halves for this
 path. Their `resources.tf` files are the Terraform path's, byte for byte (the
 test holds them equal); their `providers.tf` adds the flowascode provider
-beside hashicorp/aws. Validating the assembled trees needs the provider on a
-registry, which it is not yet, so that step is not shown here and the test
-marks it pending.
+beside hashicorp/aws. The provider is on the Terraform and OpenTofu
+registries, and the test validates both assembled trees against it (from
+OpenTofu 1.10, its floor). The
+[Terraform provider example](../terraform-provider/README.md) goes further
+with the same flow: it is authored as HCL in a module and applied to both
+environments.
 
 ## Step 3: the CDK path
 
@@ -270,18 +273,18 @@ npx vitest run --project repo tests/promoteAcrossEnvironments.test.ts
 
 ```
 Test Files  1 passed (1)
-     Tests  23 passed | 2 skipped | 1 todo (26)
+     Tests  23 passed | 4 skipped (27)
 ```
 
 It reads the files in this directory, emits both Terraform trees, asserts the
 difference set is exactly `["flow_refs.tf"]`, asserts each `flow_refs.tf` holds
 its own environment's addresses and no ARN, does the same for the two
 flowascode trees (difference set `["flows.tf"]`, and only inside `refs`), and
-synthesizes the CDK app to compare the two stacks. The todo is step 2b's
-validation, pending the provider's registry release.
+synthesizes the CDK app to compare the two stacks.
 
-The two skipped tests are step 2's `tofu validate`, which needs a real `tofu` and
-a provider download. They are gated on `RUN_TOFU_VALIDATE=1`, like every other
+The four skipped tests are `tofu validate` of step 2's two trees and step 2b's
+two, which need a real `tofu` and provider downloads (step 2b's from OpenTofu
+1.10, the flowascode provider's floor). They are gated on `RUN_TOFU_VALIDATE=1`, like every other
 test in this repository that runs the real tool, and the `emit-tf` CI job sets it:
 
 ```
@@ -290,7 +293,7 @@ RUN_TOFU_VALIDATE=1 npx vitest run --project repo tests/promoteAcrossEnvironment
 
 ```
 Test Files  1 passed (1)
-     Tests  25 passed | 1 todo (26)
+     Tests  27 passed (27)
 ```
 
 ## What this example does not do

@@ -16,6 +16,8 @@ import { loadCases } from "../../tf/src/__fixtures__/cases.js";
 import {
   TOFU_ENABLED,
   emitTfCiJob,
+  flowascodeSupported,
+  hclValidateSupport,
   materializeFiles,
   supportFor,
   tofu,
@@ -78,9 +80,7 @@ describe.skipIf(!TOFU_ENABLED)("the studio's terraform export (RUN_TOFU_VALIDATE
 });
 
 describe.skipIf(!TOFU_ENABLED)("the studio's flowascode export (RUN_TOFU_VALIDATE=1)", () => {
-  // `tofu validate` needs the provider on a registry, which is task B03e; until
-  // then the export is held to what needs no provider: every file is exactly
-  // what `tofu fmt` would write.
+  // Every file is exactly what `tofu fmt` would write, on every lane.
   it.each(["demo-complete-map", "demo-incomplete-map", "module-set"])(
     "%s is a tofu fmt fixed point",
     (name) => {
@@ -103,3 +103,29 @@ describe.skipIf(!TOFU_ENABLED)("the studio's flowascode export (RUN_TOFU_VALIDAT
     120_000,
   );
 });
+
+describe.skipIf(!flowascodeSupported())(
+  "the studio's flowascode export, validated (RUN_TOFU_VALIDATE=1)",
+  () => {
+    // The export the studio hands a user, beside the stubs the HCL contract's
+    // demo-complete-map case declares, against the published provider (B03e).
+    // From OpenTofu 1.10, the provider's floor.
+    it("validates clean with a complete address map", () => {
+      const testCase = demoCase("demo-complete-map");
+      const bundle = exportFlowascode({
+        target: "flowascode",
+        docs: testCase.docs,
+        addressMap: testCase.options.addressMap ?? {},
+      });
+      const tf = Object.fromEntries(
+        Object.entries(bundle.files).filter(([path]) => path.endsWith(".tf")),
+      );
+      const dir = materializeFiles({ ...tf, ...hclValidateSupport("emit", "demo-complete-map") });
+      const init = tofu(["init", "-backend=false", "-input=false", "-no-color"], dir);
+      expect(init.status).toBe(0);
+      const validate = tofu(["validate", "-no-color"], dir);
+      expect(validate.output).toContain("The configuration is valid");
+      expect(validate.status).toBe(0);
+    }, 600_000);
+  },
+);

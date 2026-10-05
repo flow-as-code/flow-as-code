@@ -66,7 +66,8 @@ export function isDtmfMenu(action: FlowAction): boolean {
 
 /**
  * What a type's NextAction mirrors, from the catalog's next rule: an error
- * branch (a DTMF menu's NoMatchingCondition, a percentage split's default) or
+ * branch (a DTMF menu's or a Compare's NoMatchingCondition, a percentage
+ * split's default) or
  * a condition branch (CheckHoursOfOperation's out-of-hours path, Loop's done
  * path). The block class writes NextAction as a copy of that branch, the way
  * the console does, and the mutations keep the two together (mirrorNext in
@@ -88,15 +89,17 @@ export function mirrorRule(type: string): MirrorRule | undefined {
 }
 
 /**
- * Whether a drag can author a NextAction on this action. Compare is modeled
- * with wire(undefined, ...): its paths are all conditions, and codegen rejects
- * the block outright when a NextAction is present
- * (`if (t.NextAction !== undefined) return undefined;`). A DTMF menu carries
- * one, but it is not authored: it mirrors the NoMatchingCondition branch
- * (mirrorRule), so a drag from its primary handle means a key branch, never a
- * bare NextAction; the same holds for every type whose NextAction mirrors a
- * branch. The stored-input form of GetParticipantInput has no branches, so
- * there the drag means the next action as it does on any other block.
+ * Whether a drag can author a NextAction on this action. A Compare and a DTMF
+ * menu carry one, but it is not authored: it mirrors the NoMatchingCondition
+ * branch (mirrorRule), so a drag from the primary handle means a branch, never
+ * a bare NextAction; the same holds for every type whose NextAction mirrors a
+ * branch. The service refuses a Compare without the NextAction
+ * (conformance/flow-language/actions.md, rule 38), and wiring its
+ * NoMatchingCondition writes it (mirrorNext in mutations.ts). The
+ * stored-input form of GetParticipantInput has no branches, so there the
+ * drag means the next action as it does on any other block. A `none` rule
+ * (MessageParticipantIteratively) means the builder omits NextAction, so no
+ * drag authors one either.
  */
 export function acceptsNextAction(action: FlowAction): boolean {
   if (isTerminalType(action.Type)) return false;

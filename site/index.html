@@ -338,6 +338,7 @@
       <p class="cta">
         <a class="button" href="./studio/">Open the studio demo</a>
         <a href="./docs/promote-across-environments/">See it promote across environments</a>
+        <a href="./docs/tutorial-first-flow/">Use it from Terraform</a>
         <a href="./docs/">Read the docs</a>
         <small
           >The demo needs a desktop-width screen. It is read-only, in your browser, no account and
@@ -412,6 +413,75 @@ new UpdateContactTargetQueue({
         path takes a map and the other takes none.
       </p>
 
+      <h2>Or write the flow in Terraform</h2>
+      <p>
+        The <b>flow-as-code/flowascode</b> provider, on the Terraform and OpenTofu registries, takes
+        a flow as HCL action blocks and manages it through the Amazon Connect API. The actions name
+        what they use by key; one <code>refs</code> map says which queue that is in this
+        environment:
+      </p>
+      <pre>
+resource "flowascode_contact_flow" "support_line" {
+  instance_id = var.connect_instance_id
+  name        = "support-line"
+  type        = "CONTACT_FLOW"
+
+  refs = {
+    "queue:support" = aws_connect_queue.support.arn
+  }
+
+  action {
+    id   = "set-queue"
+    next = "transfer"
+    update_contact_target_queue {
+      queue_id = "queue:support"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "hang-up"
+    }
+  }
+  ...
+}</pre>
+      <ul class="proof">
+        <li>
+          The plan lints the flow before anything reaches Connect: a pasted ARN fails it, a missing
+          error branch is flagged, and the branch rules match what Connect checks when it creates a
+          flow.
+        </li>
+        <li>
+          A change made in the Connect console shows in the next plan as a change to one action, not
+          as a replaced blob of JSON.
+        </li>
+        <li>
+          Promotion is one flows module applied by each environment's root module, and a pipeline
+          can prove prod runs the document dev ran: its hash, with references still tokens, is known
+          at plan time.
+        </li>
+        <li>
+          Existing flows are adopted with <code>import</code> or <code>moved</code> blocks, not
+          recreated, and <code>flow-cli export --author tf</code> writes a whole instance as
+          <code>.flow.tf</code> files.
+        </li>
+      </ul>
+      <p>
+        <a href="./docs/tutorial-first-flow/">Your first flow with the provider</a>,
+        <a href="./docs/tutorial-promote/">promoting it from dev to prod</a>,
+        <a href="./docs/tutorial-adopt/">bringing existing flows under Terraform</a>, and
+        <a href="./docs/example-terraform-provider-cookbook/">the flow cookbook</a> walk through it
+        with output from a live instance. The studio edits a <code>.flow.tf</code> the way it edits
+        TypeScript, in both directions.
+      </p>
+
+      <h2>For AI coding agents</h2>
+      <p>
+        The repository ships <a href="./docs/agent-skills/">Agent Skills</a> that teach a coding
+        agent the rules Connect enforces, how to promote flows and how to adopt existing ones, with
+        a reference to every action type generated from the same catalog lint reads. In Claude Code:
+        <code>/plugin marketplace add flow-as-code/flow-as-code</code>. Any other agent can read
+        them as plain markdown from <a href="./llms.txt">llms.txt</a>.
+      </p>
+
       <h2>What it is</h2>
       <p>
         Open-source tooling for Amazon Connect flows: typed flow authoring, lint, simulate-based
@@ -427,9 +497,10 @@ new UpdateContactTargetQueue({
       <pre>
 typed TS builder --synth--&gt; FlowDoc --codegen--&gt; typed TS builder
 studio canvas   &lt;--edit--&gt; FlowDoc
+FlowDoc &lt;--codegen/synth--&gt; .flow.tf (flowascode provider resource)
 FlowDoc --cdk--&gt; CDK stacks (CloudFormation tokens)
 FlowDoc --tf--&gt;  .tf + .tftpl files (resource references)
-live instance --export--&gt; FlowDoc (+ codegen to TS)</pre>
+live instance --export--&gt; FlowDoc (+ codegen to TS or HCL)</pre>
 
       <h2>Packages</h2>
       <ul class="packages">
@@ -458,6 +529,17 @@ live instance --export--&gt; FlowDoc (+ codegen to TS)</pre>
           <b>@flow-as-code/tf</b>
           <span>Terraform/OpenTofu emitter: FlowDoc to .tf and .tftpl files.</span>
         </li>
+        <li>
+          <b>@flow-as-code/hcl</b>
+          <span>HCL as a third view: the .flow.tf companion, read and written losslessly.</span>
+        </li>
+        <li>
+          <b>flow-as-code/flowascode</b>
+          <span
+            >The Terraform provider, on the Terraform and OpenTofu registries: flows as HCL action
+            blocks, linted at plan time.</span
+          >
+        </li>
       </ul>
 
       <h2>Try it</h2>
@@ -480,8 +562,10 @@ npx flow-cli emit flows/ --target tf  # or --target cdk</pre>
         either way. Edit either side and the studio keeps them in step.
       </p>
       <p>
-        <code>@flow-as-code/cli</code> depends on the other four, so installing it alone is enough
-        for the CLI. The studio demo above needs no install at all, and
+        <code>@flow-as-code/cli</code> depends on the other five packages, so installing it alone is
+        enough for the CLI. For the Terraform provider, declare
+        <code>flow-as-code/flowascode</code> in <code>required_providers</code>; there is nothing to
+        install from npm. The studio demo above needs no install at all, and
         <a href="./docs/promote-across-environments/">the promotion example</a> runs from a clone of
         the repository.
       </p>
@@ -489,6 +573,8 @@ npx flow-cli emit flows/ --target tf  # or --target cdk</pre>
       <footer>
         <a href="./studio/">Studio demo</a>
         <a href="./docs/promote-across-environments/">Promotion example</a>
+        <a href="./docs/tutorial-first-flow/">Terraform tutorials</a>
+        <a href="./docs/agent-skills/">Agent skills</a>
         <a href="./docs/">Docs</a>
         <a href="https://github.com/flow-as-code/flow-as-code">Source on GitHub</a>
         <a href="./llms.txt">llms.txt</a>

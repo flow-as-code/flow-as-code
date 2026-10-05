@@ -616,7 +616,15 @@ export interface CompareBranch {
   target: Target;
 }
 
-/** Compare fails with NoMatchingCondition, the only modeled action that does. */
+/**
+ * Compare fails with NoMatchingCondition, and NextAction mirrors onNoMatch.
+ * The service refuses a Compare without a NextAction ("Action is missing
+ * required property. Path: Actions[0].Transitions.NextAction",
+ * CreateContactFlow, 2026-09-30), and every Compare in the console's default
+ * and sample flows points it at the NoMatchingCondition target
+ * (conformance/flow-language/actions.md, rule 38).
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html
+ */
 export interface CompareConfig {
   id: string;
   value: JsonPath;
@@ -640,7 +648,7 @@ export class Compare extends Block {
 
   protected transitions(): Transitions {
     return wire(
-      undefined,
+      this.config.onNoMatch,
       [[NO_MATCHING_CONDITION, this.config.onNoMatch]],
       this.config.branches.map((b) => ({
         target: b.target,

@@ -6,5 +6,5 @@
       "prompt-length-3000"
     ]
   },
-  "validate": "skip"
+  "validate": "pass"
 }

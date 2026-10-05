@@ -9,11 +9,13 @@ import {
   ActionType,
   canonicalize,
   codegen,
+  Compare,
   DisconnectParticipant,
   factoryName,
   Flow,
   GenericBlock,
   GetParticipantInput,
+  jsonPath,
   MessageParticipant,
   Refs,
   synth,
@@ -1097,6 +1099,65 @@ describe("DistributeByPercentage inverts the console's threshold chain into perc
     const withParam = split(["4"]);
     withParam.Parameters = { Seed: 1 };
     generic(withParam);
+  });
+});
+
+// The service refuses a Compare without Transitions.NextAction and accepted
+// every target tried (CreateContactFlow, 2026-09-30); the console's sample flows
+// mirror the NoMatchingCondition target, and so does the class
+// (conformance/flow-language/actions.md, rule 38).
+describe("Compare mirrors NextAction onto the no-match branch", () => {
+  const compare = (next: string | undefined): FlowAction => ({
+    Identifier: "tier",
+    Type: "Compare",
+    Parameters: { ComparisonValue: "$.Attributes.tier" },
+    Transitions: {
+      ...(next === undefined ? {} : { NextAction: next }),
+      Errors: [{ ErrorType: "NoMatchingCondition", NextAction: "bye" }],
+      Conditions: [{ NextAction: "bye", Condition: { Operator: "Equals", Operands: ["gold"] } }],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+
+  it("emits the class for the mirrored shape, and the class writes NextAction", () => {
+    const doc = docWith([compare("bye"), bye]);
+    const out = codegen(doc);
+    expect(out).toContain("new Compare({");
+    expect(out).not.toContain("GenericBlock");
+    const built = new Compare({
+      id: "tier",
+      value: jsonPath("$.Attributes.tier"),
+      branches: [{ operator: "Equals", operands: ["gold"], target: "bye" }],
+      onNoMatch: "bye",
+    }).toAction();
+    expect(built).toEqual(compare("bye"));
+  });
+
+  it("falls back without a NextAction, which the service refuses, or with another one, which it accepts", () => {
+    for (const next of [undefined, "tier"]) {
+      const out = codegen(docWith([compare(next), bye]));
+      expect(out).toContain('type: "Compare"');
+      expect(out).not.toContain("new Compare(");
+    }
+    // The conformance case pins the unmirrored shape for the other
+    // implementations; roundtrip.test.ts holds it byte-for-byte.
+    const fixture = JSON.parse(
+      readFileSync(
+        new URL(
+          "../../../conformance/roundtrip/compare-unmirrored-next/doc.flowdoc.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ) as FlowDoc;
+    const out = codegen(fixture);
+    expect(out).toContain('type: "Compare"');
+    expect(out).not.toContain("new Compare(");
   });
 });
 

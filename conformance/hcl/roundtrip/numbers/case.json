@@ -1,5 +1,5 @@
 {
   "description": "The flow-control actions: integerString parameters written as HCL numbers, their JSONPath forms as strings, condition operands always strings, a map of objects, and a back edge.",
   "doc": "../../../roundtrip/flow-control/doc.flowdoc.json",
-  "validate": "skip"
+  "validate": "pass"
 }

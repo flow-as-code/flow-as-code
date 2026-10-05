@@ -14,6 +14,7 @@
           "ComparisonValue": "$.Attributes.tier"
         },
         "Transitions": {
+          "NextAction": "greet-standard",
           "Errors": [
             {
               "ErrorType": "NoMatchingCondition",

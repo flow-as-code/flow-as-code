@@ -1,5 +1,5 @@
 {
   "description": "The canonical demo flow with an address for every reference: every refs value bound, no TODO comment.",
   "docs": ["../../../demo/appointment-line.flowdoc.json"],
-  "validate": "skip"
+  "validate": "pass"
 }

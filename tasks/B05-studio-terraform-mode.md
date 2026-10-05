@@ -23,3 +23,9 @@ Phase B, the approved plan (settled decisions 5, 12 and 19).
 - Parity: `tests/exportParity.test.ts` runs the built CLI's `emit --target flowascode` and compares file maps. `tests/exportTofu.test.ts` holds the export to `tofu fmt -check` under `RUN_TOFU_VALIDATE=1`; `tofu validate` waits for the provider on a registry (B03e).
 - `DirectoryStore` (File System Access) still writes the document only; regenerating a companion in the browser is not in this plan.
 - Neutered and watched red, then restored: the scan's choice of emitter, the shared address editor, `buildExport`'s route (red in the dialog's download test; the direct-call tests do not go through it), and the `format()` call that makes the emitted files fmt fixed points (red in the gated `tofu fmt` test).
+
+## Notes (2026-09-30)
+
+- The `tofu validate` this task left to B03e now runs: `tests/exportTofu.test.ts`
+  validates the studio's flowascode export of the demo against the published
+  provider, from OpenTofu 1.10, beside the `fmt` check it already had.

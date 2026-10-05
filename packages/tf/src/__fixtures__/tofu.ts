@@ -103,6 +103,38 @@ import { type EmitCase, REPO_ROOT, loadCases } from "./cases.js";
 export const TOFU_ENABLED = process.env.RUN_TOFU_VALIDATE === "1";
 
 /**
+ * The oldest OpenTofu the flowascode provider supports (docs/06, its
+ * compatibility table). The emit-tf matrix also runs 1.7.0, the emitter's own
+ * floor, where nothing that needs the provider can run; those tests skip there
+ * and the prewarm leaves the provider's sites out.
+ */
+export const FLOWASCODE_TOFU_FLOOR = "1.10.0";
+
+let installedTofu: string | undefined;
+
+/** The installed `tofu`'s version, read once from `tofu version -json`. */
+export function tofuVersion(): string {
+  if (installedTofu !== undefined) return installedTofu;
+  const run = spawnSync("tofu", ["version", "-json"], { encoding: "utf8" });
+  if (run.error !== undefined) throw run.error;
+  const version = (JSON.parse(run.stdout) as { terraform_version?: string }).terraform_version;
+  if (version === undefined)
+    throw new Error(`tofu version -json said nothing usable:\n${run.stdout}`);
+  installedTofu = version;
+  return version;
+}
+
+/** Whether this run can exercise the flowascode provider at all. */
+export function flowascodeSupported(): boolean {
+  return TOFU_ENABLED && compareExactVersions(tofuVersion(), FLOWASCODE_TOFU_FLOOR) >= 0;
+}
+
+/** Whether a committed providers.tf asks for the flowascode provider. */
+function needsFlowascode(text: string): boolean {
+  return providerRequirements(text).some((r) => r.source === "flow-as-code/flowascode");
+}
+
+/**
  * How a run constrains the providers a `providers.tf` asks for.
  *
  * `pinned` narrows every surface to the exact versions this repository has
@@ -390,6 +422,19 @@ export interface ProviderSite {
 }
 
 const EXAMPLES_ROOT = new URL("examples/", REPO_ROOT);
+const HCL_CASES_ROOT = new URL("conformance/hcl/", REPO_ROOT);
+
+/** Every `providers.tf` under a directory, depth first, in name order. */
+function providersFilesUnder(dir: URL): URL[] {
+  const found: URL[] = [];
+  for (const name of subdirectories(dir)) {
+    const child = new URL(`${name}/`, dir);
+    const file = new URL("providers.tf", child);
+    if (existsSync(file)) found.push(file);
+    found.push(...providersFilesUnder(child));
+  }
+  return found;
+}
 
 const subdirectories = (dir: URL): string[] =>
   existsSync(dir)
@@ -419,20 +464,34 @@ export function providerSites(): ProviderSite[] {
       committed: providers,
     });
   }
-  for (const example of subdirectories(EXAMPLES_ROOT)) {
-    const environments = new URL(`${example}/terraform/`, EXAMPLES_ROOT);
-    for (const environment of subdirectories(environments)) {
-      const file = new URL(`${environment}/providers.tf`, environments);
+  // The HCL contract's cases (task B03e): the round-trip goldens and the
+  // flowascode emitter's output, each validated against the provider with the
+  // stubs beside it.
+  for (const family of ["roundtrip", "emit"]) {
+    for (const name of subdirectories(new URL(`${family}/`, HCL_CASES_ROOT))) {
+      const file = new URL(`${family}/${name}/validate/providers.tf`, HCL_CASES_ROOT);
       if (!existsSync(file)) continue;
       sites.push({
-        path: `examples/${example}/terraform/${environment}/providers.tf`,
-        surface: "example",
+        path: `conformance/hcl/${family}/${name}/validate/providers.tf`,
+        surface: "fixture",
         committed: readFileSync(file, "utf8"),
       });
     }
   }
+  // Every root module an example ships, wherever it sits: the Terraform and
+  // flowascode halves of the promotion example, and the provider example's
+  // environments and cookbook.
+  for (const file of providersFilesUnder(EXAMPLES_ROOT)) {
+    sites.push({
+      path: fileURLToPath(file).slice(fileURLToPath(REPO_ROOT).length),
+      surface: "example",
+      committed: readFileSync(file, "utf8"),
+    });
+  }
   if (sites.length === 0) {
-    throw new Error("no committed providers.tf found under conformance/emit-tf or examples/");
+    throw new Error(
+      "no committed providers.tf found under conformance/emit-tf, conformance/hcl or examples/",
+    );
   }
   return sites;
 }
@@ -454,14 +513,17 @@ export function pinnedProviders(): PinnedProvider[] {
   const pins: PinnedProvider[] = [];
   for (const site of providerSites()) {
     if (site.surface !== "fixture") continue;
-    const name = site.path.split("/")[2] ?? "";
+    // The directory holding validate/: conformance/emit-tf/<case>/validate or
+    // conformance/hcl/<family>/<case>/validate.
+    const parts = site.path.split("/");
+    const name = parts[parts.indexOf("validate") - 1] ?? "";
     for (const requirement of providerRequirements(site.committed)) {
       pins.push({ case: name, ...requirement });
     }
   }
   if (pins.length === 0) {
     throw new Error(
-      "no required_providers entries found in conformance/emit-tf/*/validate/providers.tf",
+      "no required_providers entries found in conformance/{emit-tf,hcl/*}/*/validate/providers.tf",
     );
   }
   return pins;
@@ -496,14 +558,24 @@ function adoptedPin(source: string): string {
   return newest;
 }
 
+/**
+ * The range @flow-as-code/hcl's emitted `versions.tf.example` gives users for
+ * the provider. Written here rather than imported, because this package's
+ * build does not reference the hcl package; packages/hcl/src/validate.test.ts
+ * holds it equal to FLOWASCODE_PROVIDER_CONSTRAINT.
+ */
+export const FLOWASCODE_EMITTED_CONSTRAINT: Readonly<Record<string, string>> = {
+  "flow-as-code/flowascode": ">= 0.1",
+};
+
 /** The range every emitted `versions.tf.example` gives users for `source`. */
 function emittedConstraint(source: string): string {
-  const constraint = EMITTED_PROVIDER_CONSTRAINTS[source];
+  const constraint = EMITTED_PROVIDER_CONSTRAINTS[source] ?? FLOWASCODE_EMITTED_CONSTRAINT[source];
   if (constraint === undefined) {
     throw new Error(
       `the emitter never writes a constraint for ${source}, so float mode has no user-facing ` +
         `range to resolve it under. EMITTED_PROVIDER_CONSTRAINTS in packages/tf/src/emit.ts is ` +
-        `the list.`,
+        `the list, and FLOWASCODE_EMITTED_CONSTRAINT above for the flowascode provider.`,
     );
   }
   return constraint;
@@ -550,6 +622,23 @@ export function providersForMode(
     if (mode === "pinned") return surface === "fixture" ? version : adoptedPin(source);
     return surface === "fixture" ? emittedConstraint(source) : version;
   });
+}
+
+/**
+ * An HCL contract case's validate files (conformance/hcl/<family>/<name>/
+ * validate/), with `providers.tf` put through the mode as a fixture's is.
+ */
+export function hclValidateSupport(
+  family: "roundtrip" | "emit",
+  name: string,
+): Record<string, string> {
+  const dir = new URL(`${family}/${name}/validate/`, HCL_CASES_ROOT);
+  const files: Record<string, string> = {};
+  for (const entry of readdirSync(dir).sort()) {
+    const text = readFileSync(new URL(entry, dir), "utf8");
+    files[entry] = entry === "providers.tf" ? providersForMode(text, "fixture") : text;
+  }
+  return files;
 }
 
 /** A case's validate support files, with `providers.tf` put through the mode. */
@@ -741,6 +830,8 @@ export function prewarmTofuCache(): void {
   const seen = new Set<string>();
   const resolved: ResolvedProvider[] = [];
   for (const site of providerSites()) {
+    // Not on a lane older than the provider's floor, where no test inits it.
+    if (needsFlowascode(site.committed) && !flowascodeSupported()) continue;
     const providers = providersForMode(site.committed, site.surface);
     const key = providerSetKey(providerRequirements(providers));
     if (key === "" || seen.has(key)) continue;

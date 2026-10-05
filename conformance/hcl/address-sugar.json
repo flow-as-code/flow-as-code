@@ -5,7 +5,6 @@
     { "address": "aws_connect_hours_of_operation.<label>.arn", "type": "hours" },
     { "address": "aws_lambda_function.<label>.arn", "type": "lambda" },
     { "address": "data.aws_lambda_function.<label>.arn", "type": "lambda" },
-    { "address": "aws_connect_prompt.<label>.arn", "type": "prompt" },
     { "address": "data.aws_connect_prompt.<label>.arn", "type": "prompt" },
     { "address": "aws_connect_contact_flow.<label>.arn", "type": "flow" },
     { "address": "flowascode_contact_flow.<label>.arn", "type": "flow" },

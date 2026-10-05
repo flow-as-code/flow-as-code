@@ -9,7 +9,7 @@ resource "flowascode_contact_flow" "edge_cases" {
   start       = "ssml-greeting"
 
   refs = {
-    "prompt:welcome-prompt" = aws_connect_prompt.welcome_prompt.arn
+    "prompt:welcome-prompt" = data.aws_connect_prompt.welcome_prompt.arn
   }
 
   action {
@@ -49,7 +49,8 @@ resource "flowascode_contact_flow" "edge_cases" {
   }
 
   action {
-    id = "compare-tier"
+    id   = "compare-tier"
+    next = "odd-message"
     compare {
       comparison_value = "$.Attributes.tier"
     }

@@ -104,6 +104,7 @@ function demoWithCompare(): FlowDoc {
     Type: "Compare",
     Parameters: { ComparisonValue: "$.Attributes.tier" },
     Transitions: {
+      NextAction: "hang-up",
       Errors: [{ ErrorType: "NoMatchingCondition", NextAction: "hang-up" }],
       Conditions: [{ NextAction: "hang-up", Condition: { Operator: "Equals", Operands: ["x"] } }],
     },

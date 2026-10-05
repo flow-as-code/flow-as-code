@@ -23,7 +23,10 @@ All packages Apache-2.0, published on npm under the `@flow-as-code` scope; see
 [cli](https://www.npmjs.com/package/@flow-as-code/cli),
 [studio](https://www.npmjs.com/package/@flow-as-code/studio),
 [cdk](https://www.npmjs.com/package/@flow-as-code/cdk),
-[tf](https://www.npmjs.com/package/@flow-as-code/tf).
+[tf](https://www.npmjs.com/package/@flow-as-code/tf),
+[hcl](https://www.npmjs.com/package/@flow-as-code/hcl). The Terraform provider
+is [`flow-as-code/flowascode`](https://registry.terraform.io/providers/flow-as-code/flowascode)
+on the Terraform Registry and the OpenTofu registry.
 
 ## Try it in a browser
 
@@ -45,7 +48,7 @@ how it is deployed, and how the "loads nothing else" claim is tested.
 
 ## Install
 
-Node 22.12 or newer. `@flow-as-code/cli` depends on the other four, so
+Node 22.12 or newer. `@flow-as-code/cli` depends on the other five, so
 installing it alone brings the whole set:
 
 ```
@@ -103,6 +106,31 @@ Everything but `export`, `simulate`, and `diff` works offline and makes no
 network calls. See `packages/cli/README.md` for the exit codes and the
 per-command detail.
 
+## The Terraform provider
+
+`flow-as-code/flowascode` manages a flow as a `flowascode_contact_flow`
+resource of HCL action blocks. Actions name what they use by key
+(`"queue:support"`), and one `refs` map binds each key to a Terraform address
+in each environment. The plan lints the flow, a console edit shows as a change
+to one action, and existing flows are adopted with `import` or `moved` blocks
+rather than recreated. Its source is
+[flow-as-code/terraform-provider-flowascode](https://github.com/flow-as-code/terraform-provider-flowascode).
+
+- [Your first flow with the provider](docs/tutorials/01-first-flow.md)
+- [Promote a flow from dev to prod](docs/tutorials/02-promote.md)
+- [Bring existing flows under Terraform](docs/tutorials/03-adopt.md)
+- [Edit a .flow.tf in the studio](docs/tutorials/04-studio.md)
+- [The flow cookbook](examples/terraform-provider/cookbook/README.md)
+
+## For AI coding agents
+
+[`plugins/flow-as-code/skills/`](plugins/flow-as-code/skills/) holds Agent
+Skills for writing flows as HCL, promoting them, adopting existing ones, and
+`flow-cli`, with an action reference generated from the catalog lint reads.
+In Claude Code, `/plugin marketplace add flow-as-code/flow-as-code` then
+`/plugin install flow-as-code@flow-as-code`.
+[docs/07-agent-skills.md](docs/07-agent-skills.md) covers other agents.
+
 ## Packages
 
 ```
@@ -111,6 +139,8 @@ packages/cdk      CDK token binding (TokenBinder), FlowSet construct, and a `/sc
 packages/cli      Thin CLI: lint, codegen, synth, render, emit, studio, and the live commands export, simulate, diff
 packages/tf       Terraform/OpenTofu emitter: FlowDoc -> .tf + .tftpl files
 packages/studio   Visual editor (@xyflow/react) over FlowDoc; served by `flow-cli studio`
+packages/hcl      HCL as a third view: the lossless parser and writer behind the .flow.tf companion
+plugins/               Agent Skills, and the Claude Code plugin that installs them
 conformance/           Cross-language fixtures: the contract for schema, flow language, lint, roundtrip, materialize, emit-tf, export, and simulate
 docs/                  FlowDoc spec, studio design, TF emitter design, hosted demo, ADRs
 examples/              Runnable walkthroughs, inputs only; the tools generate the rest
@@ -131,8 +161,9 @@ FlowDoc (a JSON document: Flow-language content with `${cdref:type:name}` tokens
 typed TS builder --synth--> FlowDoc --codegen--> typed TS builder   (bidirectional)
 studio canvas <--edit--> FlowDoc                                     (direct)
 FlowDoc --cdk--> CDK stacks (CloudFormation tokens)                  (deploy path 1)
-FlowDoc --tf--> .tf + .tftpl files (resource references)             (deploy path 2, one-way in v1)
-live instance --export--> FlowDoc (+ codegen to TS)                  (adoption path)
+FlowDoc <--codegen/synth--> .flow.tf (flowascode provider resource) (bidirectional; deploy path 3)
+FlowDoc --tf--> .tf + .tftpl files (resource references)             (deploy path 2, one-way)
+live instance --export--> FlowDoc (+ codegen to TS or HCL)           (adoption path)
 ```
 
 So "move between visual building and code" is: the studio edits FlowDoc; `codegen` turns FlowDoc into idiomatic builder TypeScript; `synth` turns builder TypeScript back into FlowDoc. Watch mode keeps both live.

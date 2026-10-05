@@ -10,6 +10,7 @@ import { actionCount } from "./action-count.js";
 import { conditionalShape } from "./conditional-shape.js";
 import { errorBranches } from "./error-branches.js";
 import { moduleDepth5 } from "./module-depth-5.js";
+import { nextActionRequired } from "./next-action-required.js";
 import { noLiteralArn } from "./no-literal-arn.js";
 import { noUnresolvedToken } from "./no-unresolved-token.js";
 import { promptLength3000 } from "./prompt-length-3000.js";
@@ -32,6 +33,7 @@ export const allRules: readonly Rule[] = [
   actionAllowedInFlowType,
   actionCount,
   conditionalShape,
+  nextActionRequired,
 ];
 
 export function ruleById(id: string): Rule | undefined {
@@ -46,6 +48,7 @@ export {
   conditionalShape,
   errorBranches,
   moduleDepth5,
+  nextActionRequired,
   noLiteralArn,
   noUnresolvedToken,
   promptLength3000,
