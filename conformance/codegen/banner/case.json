@@ -1,0 +1,7 @@
+{
+  "description": "codegen with a banner option and no previous source: the line is written as a third comment after the two fixed ones, before the blank line that ends the header.",
+  "doc": "../../demo/appointment-line.flowdoc.json",
+  "options": {
+    "banner": "Written by generators/districts.ts from districts.config.json; edit the config, not this file."
+  }
+}

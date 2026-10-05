@@ -1,0 +1,51 @@
+{
+  "flowdoc": "0.2",
+  "kind": "module",
+  "name": "long-description",
+  "connectType": "MODULE",
+  "description": "A module whose description runs past the print width, so the config object breaks and the one block after it stays on the closing line.",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "note",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "note",
+        "Type": "UpdateContactAttributes",
+        "Parameters": {
+          "Attributes": {
+            "Instructions": "Read the long description above, then read this value, which is also longer than the print width allows."
+          },
+          "TargetContact": "Current"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "refs": [],
+  "layout": {
+    "note": {
+      "x": 20,
+      "y": 20
+    },
+    "done": {
+      "x": 280,
+      "y": 20
+    }
+  }
+}

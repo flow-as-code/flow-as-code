@@ -1,0 +1,8 @@
+{
+  "description": "A banner option wins over the banner the previous source carried.",
+  "doc": "../../demo/appointment-line.flowdoc.json",
+  "previous": "previous.flow.ts",
+  "options": {
+    "banner": "Owned by generate.mjs; the next run overwrites this file."
+  }
+}
