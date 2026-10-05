@@ -61,3 +61,50 @@ clean. That is how the gap was found; it is not the evidence for the fix.
 - Unmodeled types with channel restrictions (for example
   `CreateWisdomSession`, voice only) are out of scope: their catalog entries
   carry `modeled: false` and nothing else to hang the field on.
+
+## Record (2026-10-05)
+
+- The catalog's `channels` field is on `Wait` and `ShowView`, both
+  `["CHAT"]`, in the service's Channel vocabulary (`VOICE`, `CHAT`, `TASK`,
+  `EMAIL`); its meaning is written in actions.md, "Machine-readable form":
+  absent means the page states no channel restriction, and it is never an
+  empty list. Both Restrictions sections were re-read on 2026-10-05 and say
+  what the task quotes. `packages/core/src/actions.ts` carries the same two
+  rows as `CHANNEL_RESTRICTIONS`, cited, `actions.test.ts` spells the table
+  out literally, and `catalog.test.ts` holds the catalog to it with three
+  mutations shown to fail (the field dropped from `Wait`, widened on
+  `ShowView`, and added to `Compare`).
+- The rule is a new id, `channel-restricted-action`, not an extension of
+  `action-allowed-in-flow-type`: that rule is an error and the provider keys
+  severity off the id, so a warning needs its own. It reads the catalog, not
+  the table. Severity `warning`; the message names the channels and the
+  page URL. Fixtures: `pass-contact-flow`, `fail-wait-in-customer-queue-flow`
+  (the showcase's shape), `fail-show-view-in-contact-flow`,
+  `fail-wait-in-module`. Shown to fail: with the rule unregistered, the three
+  fail fixtures and the severity test in `lint.test.ts` go red (four
+  failures, "expected 1 finding(s), got []"). The fixture format carries no
+  severity, so `lint.test.ts` holds it to `warning` beside the fixtures.
+- Decision, whether a document may declare its channel: not in this task.
+  FlowDoc 0.2 gains no field, the rule stays a warning, and an author with a
+  chat-only flow disables the rule for that resource (the HCL `lint {
+disable }` block, which the provider, the CLI's bridge and the studio honor
+  for a `.flow.tf`, or `lint()`'s `disable` option). A `channels` field on the
+  document is a FlowDoc version change (`docs/01-flowdoc-spec.md`,
+  "Versioning": a schema version and a migration on every read path) and
+  is a 0.3 item under Phase D's D01, which is gated on this task and extends
+  the same vocabulary to unmodeled entries. The reason for deferring: D01
+  bumps the format once for every addition at the same time, and a field that
+  only quiets one warning does not justify a bump on its own.
+- No service evidence was gathered: the severity stays `warning`, nothing is
+  added to rule 37, and no simulate run was made. Rules 22 and 34 record the
+  catalog field and that nothing recorded shows what the service does with a
+  voice contact reaching either action.
+- The skill reference is regenerated (a "Channels" line on the two sections)
+  and `SKILL.md` names the rule with its date. The studio shows the finding
+  through its lint panel like any other; no studio code changed and no test
+  needed one. Changeset: `.changeset/channel-restricted-action-lint.md`
+  (`@flow-as-code/core`, patch).
+- Pending: the provider repository re-vendors `conformance/` at the merge
+  commit, implements `channel-restricted-action` (severity warning, same
+  message shape) and re-records its oracles. That is the Phase C release
+  batch; the provider commit is recorded here when it lands.
