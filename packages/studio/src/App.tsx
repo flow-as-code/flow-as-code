@@ -9,6 +9,7 @@ import { Canvas } from "./components/Canvas.js";
 import { ConflictModal } from "./components/ConflictModal.js";
 import { DanglingPanel } from "./components/DanglingPanel.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
+import { GeneratedModal } from "./components/GeneratedModal.js";
 import { Inspector } from "./components/Inspector.js";
 import { LintPanel } from "./components/LintPanel.js";
 import { NarrowNotice } from "./components/NarrowNotice.js";
@@ -44,6 +45,7 @@ function Shell() {
           <DanglingPanel />
           <LintPanel />
           <ConflictModal />
+          <GeneratedModal />
         </main>
         <Inspector />
       </div>
