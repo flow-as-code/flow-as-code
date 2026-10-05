@@ -146,14 +146,20 @@ Every `next` and branch target must name an action in the same resource.
 The provider runs the flow-as-code lint rules on every plan. `no-literal-arn`
 and `no-unresolved-token` are hard: they fail the plan and cannot be disabled.
 The rest (`action-allowed-in-flow-type`, `action-count`,
-`channel-restricted-action`, `conditional-shape`, `error-branches`,
-`module-depth-5`, `next-action-required`, `prompt-length-3000`,
-`reachable-blocks`, `recording-consent-before-record`, `terminal-blocks`,
-`unique-names`) print warnings keyed by rule id. Treat `error-branches`,
+`attribute-set-before-read`, `channel-restricted-action`, `conditional-shape`,
+`error-branches`, `module-depth-5`, `next-action-required`,
+`prompt-length-3000`, `reachable-blocks`, `recording-consent-before-record`,
+`terminal-blocks`, `unique-names`) print warnings keyed by rule id. Treat `error-branches`,
 `conditional-shape` and `next-action-required` warnings as failures: Connect
-will refuse the flow. (`next-action-required` was added on 2026-09-30 and
-`channel-restricted-action` on 2026-10-05; a provider or `flow-cli` release
-older than that does not run them.) `channel-restricted-action` warns on every
+will refuse the flow. (`next-action-required` was added on 2026-09-30,
+`channel-restricted-action` and `attribute-set-before-read` on 2026-10-05; a
+provider or `flow-cli` release older than that does not run them.)
+`attribute-set-before-read` warns on a `$.Attributes.<name>` read in message
+text that no document in the linted set writes through
+`update_contact_attributes`; it reports nothing on a single document, since
+attributes cross flows, and is the rule to disable on a flow whose attributes
+arrive from outside any flow (set by the API that started the contact, a chat
+widget, or an agent). `channel-restricted-action` warns on every
 `wait` and `show_view`, which their pages support on chat only: leave it on a
 flow that voice contacts reach, and disable it for a flow that serves chat
 alone, since the document cannot say which. A rule that genuinely does
