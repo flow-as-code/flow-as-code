@@ -20,9 +20,13 @@ Status only where it changes what you should do. The work record is `tasks/`.
   earlier commit to read; `tasks/` is the record of how anything got the way it
   is, and blame will not tell you.
 - CI runs on GitHub Actions and is green on main again since the C01 fix
-  (#21, merged 2026-09-30); its run on main for #19 (36742854426) had been red
-  on an intermittent studio test teardown error. Check a claim about a run with
-  `gh run list`, not against a note in a doc.
+  (#21, merged 2026-10-01 UTC): the two completed runs since it, 36794827383
+  (#22) and 36795832942 (#23), passed, and the runs for #20 and #21 themselves
+  were cancelled by the merges that followed them. The run for #19
+  (36742854426) had been red on an intermittent studio test teardown error.
+  C01 asks for three consecutive green runs and has two; it closes on the
+  next. Check a claim about a run with `gh run list`, not against a note in a
+  doc.
 - The site is live: https://flow-as-code.dev/ and the read-only studio at
   https://flow-as-code.dev/studio/, deployed by `.github/workflows/pages.yml`
   on push to main. A change under `site/` or in the studio ships on merge.
