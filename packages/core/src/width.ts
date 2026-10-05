@@ -10,8 +10,15 @@
 // Prettier 3's `getStringWidth` (src/utilities/get-string-width.js, MIT),
 // with its East Asian Width tables from `get-east-asian-width` (MIT) copied
 // as data, and its emoji regex approximated by Unicode's own
-// Extended_Pictographic property; src/width.test.ts holds the two equal over
-// a corpus of the scripts a Connect prompt carries.
+// Extended_Pictographic property rather than a dependency; src/width.test.ts
+// holds the two equal over a corpus of the scripts a Connect prompt carries.
+// Three classes are known to diverge from Prettier's `emoji-regex` and are
+// pinned there as such: a tag-sequence flag (England, Scotland, Wales: eight
+// columns here, two for Prettier), a ZWJ pair that is not an RGI sequence
+// (two here, each pictograph on its own for Prettier), and a skin-tone
+// modifier after a base that takes none (two here, base plus modifier for
+// Prettier). A prompt with one of those is not a Prettier fixed point when it
+// sits at the print width; everything else in the corpus agrees.
 
 const NOT_ASCII = /[^\x20-\x7F]/;
 

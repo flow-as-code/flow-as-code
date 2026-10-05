@@ -834,7 +834,7 @@ describe("emit over several sets", () => {
     const warned = cli("emit", flows, seasonal, "--target", "flowascode", "--address-map", typo);
     expect(warned.status).toBe(0);
     expect(warned.stderr).toBe(
-      'warning: address map key "queue:apointments" matches no reference in the set\n',
+      'warning: address map key "queue:apointments" matches no reference in any set\n',
     );
 
     rmSync(join(flows, "flows.tf"));

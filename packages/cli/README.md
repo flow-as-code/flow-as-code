@@ -426,7 +426,12 @@ width 100, `arrowParens: always`), so a consumer on those settings need not
 list the companions in `.prettierignore`. Lines are measured as Prettier
 measures them (`packages/core/src/width.ts`, a port of its display width:
 CJK and fullwidth text two columns, combining marks none), so a Japanese or
-Korean prompt is a fixed point too. `packages/core/src/roundtrip.test.ts`
+Korean prompt is a fixed point too. Three emoji classes are known exceptions,
+measured differently from Prettier: a tag-sequence flag (England, Scotland,
+Wales), a ZWJ pair that is not a registered sequence, and a skin-tone
+modifier after a base that takes none; a prompt carrying one of those at the
+print width is reformatted by Prettier, and `.prettierignore` is the answer
+there. `packages/core/src/roundtrip.test.ts`
 formats every roundtrip case's output and asserts it comes back byte-identical,
 and `src/codegen.test.ts` does the same for every export golden. A consumer on
 other settings (a print width of 80, single quotes) formats the companions

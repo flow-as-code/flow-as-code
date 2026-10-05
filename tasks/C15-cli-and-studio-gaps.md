@@ -266,10 +266,14 @@ found it and is never the evidence for it.
   `codegen/` and `schema/lint-report-0.1.schema.json` need nothing on the Go
   side.
 - Pending, showcase: the break-after-key shape changes codegen output for
-  its generated district and queue-experience flows, so its first upgrade
-  past this change regenerates 14 files (`npm run generate`: seven
-  `.flow.ts` and their documents' `meta.sourceHash`); the stale-check failure
-  there is expected and not a regression.
+  every companion whose one-line description runs past the width, so its
+  first upgrade past this change rewrites 36 files: the 7 generated pairs
+  through `npm run generate` and the 11 hand-authored pairs through
+  `flow-cli codegen --to ts`, each companion plus its document's
+  `meta.sourceHash`. Its `tests/flows.test.ts` moves to the
+  `flow-lint-report/0.1` shape (`toMatchObject` on `findings` and `summary`).
+  The stale-check failure there is expected and not a regression;
+  hollow-hour-example-typescript#7 carries the same note.
 - Not taken: framing hcl's raw parser line for a syntactically invalid
   `--instance-id-expression` (`<input>:159:1: Unexpected "}".`) with the
   option's name; the check belongs in `@flow-as-code/hcl`'s

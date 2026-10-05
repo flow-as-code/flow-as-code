@@ -50,3 +50,39 @@ describe("displayWidth", () => {
     expect(displayWidth("\u0007")).toBe(0);
   });
 });
+
+describe("displayWidth, known divergences from Prettier", () => {
+  // The emoji regex Prettier uses is approximated by Extended_Pictographic
+  // (src/width.ts); these three classes are where that approximation and
+  // Prettier part, pinned so a change on either side shows.
+  const CASES: [string, string, number, number][] = [
+    [
+      "a tag-sequence flag (England)",
+      "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
+      2,
+      8,
+    ],
+    [
+      "a tag-sequence flag (Scotland)",
+      "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",
+      2,
+      8,
+    ],
+    [
+      "a tag-sequence flag (Wales)",
+      "\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}",
+      2,
+      8,
+    ],
+    ["a ZWJ pair that is not an RGI sequence", "\u{1F436}\u200D\u{1F431}", 5, 2],
+    ["a skin tone after a base that takes none", "\u2615\u{1F3FD}", 4, 2],
+  ];
+
+  it.each(CASES)("%s: Prettier %i, displayWidth %i", async (_name, text, theirs, ours) => {
+    const prettier = (await import("prettier")) as unknown as {
+      util: { getStringWidth(text: string): number };
+    };
+    expect(prettier.util.getStringWidth(text)).toBe(theirs);
+    expect(displayWidth(text)).toBe(ours);
+  });
+});

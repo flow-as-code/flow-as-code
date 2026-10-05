@@ -109,8 +109,11 @@ function moduleAliasesFrom(keys: readonly string[]): Record<string, string[]> {
 const unboundLines = (unbound: readonly UnboundRef[]): string[] =>
   unbound.map((u) => `  - ${u.key} (referenced by ${u.documents.join(", ")})`);
 
-const unusedWarnings = (keys: readonly string[]): string[] =>
-  keys.map((key) => `warning: address map key "${key}" matches no reference in the set`);
+const unusedWarnings = (keys: readonly string[], sets: number): string[] =>
+  keys.map(
+    (key) =>
+      `warning: address map key "${key}" matches no reference in ${sets > 1 ? "any set" : "the set"}`,
+  );
 
 /** Writes the files under `outDir`, creating it then: a refused run touches nothing. */
 function writeFiles(outDir: string, files: Record<string, string>): string[] {
@@ -257,7 +260,7 @@ export function runEmit(inputs: string | readonly string[], options: EmitOptions
   // Phase two: every set, in argument order.
   return {
     written: emitted.flatMap((set) => writeFiles(set.outDir, set.files)),
-    warnings: unusedWarnings(unused),
+    warnings: unusedWarnings(unused, sets.length),
   };
 }
 
