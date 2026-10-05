@@ -1,0 +1,278 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "keypad-line",
+  "connectType": "CONTACT_FLOW",
+  "description": "A keypad menu line for the simulate dry run: a greeting, a caller lookup, a prompt that reads an attribute, a two-key menu, an hours check and a queue transfer, plus a module call.",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "welcome",
+    "Actions": [
+      {
+        "Identifier": "welcome",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Thanks for calling the keypad line."
+        },
+        "Transitions": {
+          "NextAction": "lookup",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "lookup",
+        "Type": "InvokeLambdaFunction",
+        "Parameters": {
+          "LambdaFunctionARN": "${cdref:lambda:caller-lookup}",
+          "InvocationTimeLimitSeconds": 8,
+          "InvocationType": "SYNCHRONOUS",
+          "ResponseValidation": {
+            "ResponseType": "STRING_MAP"
+          }
+        },
+        "Transitions": {
+          "NextAction": "record-caller",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "menu"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "record-caller",
+        "Type": "UpdateContactAttributes",
+        "Parameters": {
+          "Attributes": {
+            "callerName": "$.External.callerName"
+          },
+          "TargetContact": "Current"
+        },
+        "Transitions": {
+          "NextAction": "greet-back",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "menu"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "greet-back",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Welcome back, $.Attributes.callerName."
+        },
+        "Transitions": {
+          "NextAction": "menu",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "menu",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "Text": "For appointments, press 1. For billing, press 2.",
+          "InputTimeLimitSeconds": "5",
+          "StoreInput": "False"
+        },
+        "Transitions": {
+          "NextAction": "no-match",
+          "Errors": [
+            {
+              "ErrorType": "InputTimeLimitExceeded",
+              "NextAction": "no-match"
+            },
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "no-match"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "set-queue",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": ["1"]
+              }
+            },
+            {
+              "NextAction": "billing",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": ["2"]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "no-match",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "That is not a valid option."
+        },
+        "Transitions": {
+          "NextAction": "menu",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "set-queue",
+        "Type": "UpdateContactTargetQueue",
+        "Parameters": {
+          "QueueId": "${cdref:queue:appointments}"
+        },
+        "Transitions": {
+          "NextAction": "check-hours",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "check-hours",
+        "Type": "CheckHoursOfOperation",
+        "Parameters": {
+          "HoursOfOperationId": "${cdref:hours:main-line}"
+        },
+        "Transitions": {
+          "NextAction": "closed",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "transfer",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": ["True"]
+              }
+            },
+            {
+              "NextAction": "closed",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": ["False"]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "closed",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "SSML": "<speak>We are closed right now. <break time=\"500ms\"/>Please call back during business hours.</speak>"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "transfer",
+        "Type": "TransferContactToQueue",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "QueueAtCapacity",
+              "NextAction": "hang-up"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "billing",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:billing-menu}"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "refs": [
+    {
+      "token": "${cdref:hours:main-line}",
+      "type": "hours",
+      "name": "main-line"
+    },
+    {
+      "token": "${cdref:lambda:caller-lookup}",
+      "type": "lambda",
+      "name": "caller-lookup"
+    },
+    {
+      "token": "${cdref:module:billing-menu}",
+      "type": "module",
+      "name": "billing-menu"
+    },
+    {
+      "token": "${cdref:queue:appointments}",
+      "type": "queue",
+      "name": "appointments"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "_comment": "Only keys are read by the dry run. Each of the three key forms once, so the fixture also shows them; the values are placeholders a live run would replace with the deployed resources.",
+  "${cdref:hours:always-open}": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/operating-hours/bbbb2222-0000-4000-8000-000000000003",
+  "queue:overflow": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/queue/aaaa1111-0000-4000-8000-000000000002",
+  "lambda_stub_lookup_arn": "arn:aws:lambda:us-east-1:111122223333:function:stub-lookup"
+}

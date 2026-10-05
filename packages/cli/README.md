@@ -25,6 +25,7 @@ flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json] [
 flow-cli diff <dir> --instance <arn>                     local FlowDocs vs the live instance
 flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]
 flow-cli simulate <scenarios> --instance <arn> [--resource-map <file>] [--format junit|json] [--out <file>]
+         simulate --dry-run <scenarios> <flows...> [--resource-map <file> | --address-map <file>]  offline checks, no instance
 flow-cli studio [dir] [--port <port>]                    local visual editor, live sync both ways
 ```
 
@@ -58,19 +59,31 @@ from "could not tell".
 
 The command lives in `dist/bin.js` and nothing else loads it, so importing the
 package never parses argv or exits the host process. The package root is a
-library entry, the union of the three subpaths:
+library entry, the union of the four subpaths:
 
 ```ts
-import { synthFile, createWatcher, startStudioServer } from "@flow-as-code/cli";
+import { synthFile, createWatcher, startStudioServer, scenarioProblems } from "@flow-as-code/cli";
 // or, narrower:
 import { synthFile } from "@flow-as-code/cli/synth";
 import { createWatcher } from "@flow-as-code/cli/watch";
 import { startStudioServer } from "@flow-as-code/cli/bridge";
+import { scenarioProblems, dryRunSimulate } from "@flow-as-code/cli/simulate";
 ```
+
+`@flow-as-code/cli/simulate` is what a consumer's own tests reach for to check
+a scenario suite without an instance: `scenarioProblems(value)` is the schema
+plus cross-field validation the command runs on every scenario file, as a list
+of strings, empty when the value is a valid scenario; `loadScenarios(path)`
+reads and validates a file or directory the way the command does;
+`dryRunSimulate(scenarios, flows, { resourceMap | addressMap })` is the
+whole dry run below, throwing a `CliError` that lists every problem. The
+set-level check itself, `dryRunScenario(scenario, docs, { resourceMap })`, is
+`@flow-as-code/core`'s and takes parsed objects, for a test that already has
+them in hand.
 
 `src/index.test.ts` imports the built root in a child process and fails if it
 writes anything or exits, and holds the root's exports equal to the union of
-the three subpaths.
+the four subpaths.
 
 ## Connecting to an instance
 
@@ -458,6 +471,67 @@ Exit 0 only when every scenario `PASSED`. `FAILED`, `TIMED_OUT` (the harness
 stops the execution when the 5 minutes are up), `STOPPED`, and `ERRORED` (an
 API error for that scenario) each exit 1, and the summary line says how many
 of the suite did not pass.
+
+### Dry run
+
+`flow-cli simulate --dry-run <scenarios> <flows...> [--resource-map <file> | --address-map <file>]`
+checks the same suite against a set of FlowDocs (directories or files, read
+together as one set: a scenario runs across a flow and the modules it calls,
+wherever those live, so `flows/ seasonal/` is one set here where `lint` and
+`emit` would keep them apart) with no instance, no credentials and no SDK: it is what a unit test or a CI job
+without an AWS account runs, and what to run before paying for a live run.
+Exit 0 means nothing offline says a scenario cannot pass; any problem exits 1
+with every problem listed, one line per problem as
+`<scenario file>: <path in the scenario>: <what is wrong>`.
+
+What it checks, after the validation the live run also does:
+
+- The entry point's `${cdref:flow:...}` names a flow in the set.
+- Every token resolves. A resource an `expect-lambda`, `expect-transfer`,
+  `expect-hours-check` or `expect-lex` waits on, and the production resource
+  a substitution replaces, must be referenced by some document in the set,
+  or the event can never fire. Any other token (a substitute, a queue named by
+  `expect-queue`) must be referenced by the set or keyed in the map. Only keys
+  are read, so `--address-map` (the file `emit` takes) serves as well as
+  `--resource-map`, in the same three key forms; a scenario whose tokens the
+  set itself references needs no map at all.
+- Every `expect-prompt` is a text some block in the set plays: `Text`, the
+  spoken words of `SSML`, and the messages of a loop, in any document of the
+  set, a module included. `contains` is a case-insensitive substring match.
+  `similarTo` is loose, since the service's similarity threshold is not
+  published: half the expectation's words must appear in one text. A prompt
+  that reads `$.Attributes.<name>` is heard with the value the scenario
+  starts the contact with or asserts with `Equals`, so "Welcome back, Mrs.
+  Alder" matches `Welcome back, $.Attributes.callerName.` when the scenario
+  asserts that name; an attribute the scenario says nothing about splits the
+  prompt, and the expectation has to fit one literal part.
+- Every `send-dtmf` answers the nearest `expect-prompt` before it, which must
+  be played by a `GetParticipantInput` (then the key must be one its
+  conditions branch on) or a `StoreUserInput` (any key). A key sent after a
+  prompt no keypad block plays, or before any prompt, is a problem.
+
+What it does not do, so a clean dry run is not a passed scenario: it does not
+execute Lambdas, evaluate conditions on attribute values, follow the contact
+through branches (every text in the set counts, whichever branch plays it),
+read recorded prompts (a `PromptId` plays audio whose words are not in the
+document, and a miss says how many there are), or model the speech-to-text
+transcript a voice `MessageReceived` is matched against, which drops
+punctuation and may spell numbers out. `--format`, `--out` and `--instance`
+belong to the live run and are refused with `--dry-run`, `--format junit`
+included: the dry run has no report to format. Two paths holding a document
+of the same kind and name are refused rather than silently merged.
+
+`conformance/simulate/dry-run/` is the contract: a two-document set, a map,
+and one case per thing the check can say, each with the exact problems it
+must report. docs/08-simulate.md puts the two runs side by side.
+
+A scenario's `expect-queue` takes the queue's token (`queue`) as well as its
+console name (`name`). The token form compiles to an Assert on `$.Queue.ARN`,
+resolved through the resource map like every other token, so the map must
+hold the queue's ARN rather than a bare id for it. It has not yet been
+executed against an instance: the `name` form was, on 2026-09-01, and
+`tasks/C14-simulate-offline-checks.md` records the live run the token form
+waits on.
 
 ## watch (library)
 

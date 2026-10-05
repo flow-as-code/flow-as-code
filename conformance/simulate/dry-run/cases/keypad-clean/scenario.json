@@ -1,0 +1,66 @@
+{
+  "scenario": "0.1",
+  "name": "keypad-clean",
+  "description": "Every check passes: the entry flow is in the set, every token is referenced or mapped, each prompt is one a block says (one through the attribute the scenario asserts), the key answers a menu that takes it, and the queue reached is named by token.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:keypad-line}",
+    "sourcePhoneNumber": "+14135550142"
+  },
+  "substitutions": [
+    {
+      "actionType": "TransferContactToQueue",
+      "actionParameters": {
+        "QueueId": "${cdref:queue:appointments}"
+      },
+      "substitute": "${cdref:queue:overflow}"
+    },
+    {
+      "actionType": "CheckHoursOfOperation",
+      "actionParameters": {
+        "HoursOfOperationId": "${cdref:hours:main-line}"
+      },
+      "substitute": "${cdref:hours:always-open}"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "expect-prompt",
+      "contains": "Thanks for calling the keypad line"
+    },
+    {
+      "kind": "expect-lambda",
+      "lambda": "${cdref:lambda:caller-lookup}"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "Welcome back, Mrs. Alder"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "press 1"
+    },
+    {
+      "kind": "send-dtmf",
+      "value": "1"
+    },
+    {
+      "kind": "expect-hours-check",
+      "hours": "${cdref:hours:main-line}"
+    },
+    {
+      "kind": "expect-transfer",
+      "queue": "${cdref:queue:appointments}"
+    },
+    {
+      "kind": "assert",
+      "path": "$.Attributes.callerName",
+      "operator": "Equals",
+      "value": "Mrs. Alder"
+    },
+    {
+      "kind": "expect-queue",
+      "queue": "${cdref:queue:appointments}"
+    }
+  ]
+}

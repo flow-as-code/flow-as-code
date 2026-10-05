@@ -223,6 +223,14 @@ const PAGES = [
       "The flow-as-code/flowascode provider and the .flow.tf companion: what the resources take, how a companion pairs with a document, which versions work together, and when to pick it over the emitter.",
   },
   {
+    source: "docs/08-simulate.md",
+    slug: "docs/simulate",
+    group: "Format and design",
+    title: "Simulate: the live run and the dry run",
+    description:
+      "How a scenario suite is checked offline against the FlowDocs it will run through, and how it is executed on a live instance through the TestCase operations, with what each run can and cannot tell you.",
+  },
+  {
     source: "examples/promote-across-environments/README.md",
     slug: "docs/promote-across-environments",
     group: "Worked example",

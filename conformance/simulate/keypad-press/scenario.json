@@ -1,0 +1,48 @@
+{
+  "scenario": "0.1",
+  "name": "keypad-press",
+  "description": "A caller answers the keypad menu of the dry-run flow set's keypad-line with 1, is routed to the appointments queue through the hours check, and the test ends there. The one canonical case that presses a key, so the compiled DtmfInput SendInstruction has a golden; the dry run checks it clean against conformance/simulate/dry-run/flows.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:keypad-line}",
+    "sourcePhoneNumber": "+14135550142"
+  },
+  "substitutions": [
+    {
+      "actionType": "TransferContactToQueue",
+      "actionParameters": {
+        "QueueId": "${cdref:queue:appointments}"
+      },
+      "substitute": "${cdref:queue:overflow}"
+    },
+    {
+      "actionType": "CheckHoursOfOperation",
+      "actionParameters": {
+        "HoursOfOperationId": "${cdref:hours:main-line}"
+      },
+      "substitute": "${cdref:hours:always-open}"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "expect-prompt",
+      "contains": "Thanks for calling the keypad line"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "press 1"
+    },
+    {
+      "kind": "send-dtmf",
+      "value": "1"
+    },
+    {
+      "kind": "expect-hours-check",
+      "hours": "${cdref:hours:main-line}"
+    },
+    {
+      "kind": "expect-transfer",
+      "queue": "${cdref:queue:appointments}"
+    }
+  ]
+}

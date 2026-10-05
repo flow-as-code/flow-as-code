@@ -1,0 +1,15 @@
+{
+  "scenario": "0.1",
+  "name": "unknown-flow",
+  "description": "The entry point names a flow the set does not hold.",
+  "entryPoint": {
+    "channel": "chat",
+    "flow": "${cdref:flow:night-line}"
+  },
+  "steps": [
+    {
+      "kind": "expect-prompt",
+      "contains": "Thanks for calling"
+    }
+  ]
+}

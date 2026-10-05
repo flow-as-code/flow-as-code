@@ -1,0 +1,43 @@
+{
+  "scenario": "0.1",
+  "name": "prompt-never-said",
+  "description": "An expectation no block in the set says, by containment and by similarity; the attribute-reading prompt is heard with the scenario's initial attribute value, so the rendered greeting is found.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:keypad-line}",
+    "sourcePhoneNumber": "+14135550142"
+  },
+  "attributes": {
+    "callerName": "Mr. Birch"
+  },
+  "substitutions": [
+    {
+      "actionType": "TransferContactToQueue",
+      "actionParameters": {
+        "QueueId": "${cdref:queue:appointments}"
+      },
+      "substitute": "${cdref:queue:overflow}"
+    },
+    {
+      "actionType": "CheckHoursOfOperation",
+      "actionParameters": {
+        "HoursOfOperationId": "${cdref:hours:main-line}"
+      },
+      "substitute": "${cdref:hours:always-open}"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "expect-prompt",
+      "contains": "Welcome back, Mr. Birch"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "Press 9 to speak to a person"
+    },
+    {
+      "kind": "expect-prompt",
+      "similarTo": "Your call is very important to us, please hold"
+    }
+  ]
+}

@@ -20,7 +20,7 @@ const MANIFEST_VERSION = (
     version: string;
   }
 ).version;
-const SUBPATHS = ["synth.js", "watch.js", "bridge/server.js"];
+const SUBPATHS = ["synth.js", "watch.js", "bridge/server.js", "simulate.js"];
 
 describe("package root entry", () => {
   it("imports without running the CLI, writing output, or exiting", () => {
@@ -57,7 +57,7 @@ describe("package root entry", () => {
     expect(result.status).toBe(1);
   });
 
-  it("re-exports exactly what the three subpath entries expose", async () => {
+  it("re-exports exactly what the four subpath entries expose", async () => {
     const root: object = await import(new URL("index.js", DIST).href);
     const subpaths: object[] = await Promise.all(
       SUBPATHS.map((file) => import(new URL(file, DIST).href)),

@@ -39,4 +39,5 @@ export {
 export * from "./aws.js";
 export * from "./export.js";
 export * from "./simulate.js";
+export * from "./scenario-check.js";
 export * from "./lint/index.js";

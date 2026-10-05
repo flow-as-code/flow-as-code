@@ -155,8 +155,13 @@ export type ScenarioStep =
   | { kind: "expect-hours-check"; hours: string }
   /** FlowActionStarted / ConnectParticipantWithLexBot. */
   | { kind: "expect-lex"; lex: string }
-  /** Assert on $.Queue.Name, the documented namespace example. */
-  | { kind: "expect-queue"; name: string }
+  /**
+   * Assert on which queue the contact reached: `name` against $.Queue.Name,
+   * the documented namespace example, or `queue` (a token, resolved with the
+   * rest) against $.Queue.ARN. Exactly one of the two.
+   */
+  | { kind: "expect-queue"; name: string; queue?: undefined }
+  | { kind: "expect-queue"; name?: undefined; queue: string }
   /** Assert on any namespace. "attribute set" from SPEC.md lands here. */
   | { kind: "assert"; path: string; operator: AssertOperator; value: string }
   /** Voice only: CreateTestCase rejects DtmfInput under a CHAT entry point. */
@@ -400,11 +405,18 @@ export function validateScenario(value: unknown): ScenarioFinding[] {
             bad(`${at}.lex`, "must be a ${cdref:lex:...} token");
           }
           break;
-        case "expect-queue":
-          if (typeof step.name !== "string" || step.name === "") {
-            bad(`${at}.name`, "must be the queue name the flow reports in $.Queue.Name");
+        case "expect-queue": {
+          const hasName = typeof step.name === "string" && step.name !== "";
+          if (step.queue !== undefined && !tokenOfType(step.queue, "queue")) {
+            bad(`${at}.queue`, "must be a ${cdref:queue:...} token");
+          } else if (hasName === (step.queue !== undefined)) {
+            bad(
+              at,
+              "needs exactly one of name (the queue name the flow reports in $.Queue.Name) or queue (a ${cdref:queue:...} token, asserted against $.Queue.ARN)",
+            );
           }
           break;
+        }
         case "assert": {
           if (typeof step.path !== "string" || !JSONPATH_PATTERN.test(step.path)) {
             bad(`${at}.path`, "must be a single JSONPath identifier such as $.Attributes.locale");
@@ -710,7 +722,16 @@ function actionFor(step: ScenarioStep, identifier: string): TestAction | undefin
       // The documented Disconnect example carries no Properties member at all.
       return sendInstruction({ Type: "Disconnect" });
     case "expect-queue":
-      return assert({ Namespace: "$.Queue.Name", Operator: "Equals", Operand: step.name });
+      // $.Queue.Name and $.Queue.ARN are both system attributes of the contact
+      // (https://docs.aws.amazon.com/connect/latest/adminguide/connect-attrib-list.html).
+      // The Name form was executed live on 2026-09-01; the ARN form compiles
+      // the token where the Operand goes and resolveScenario swaps in the
+      // map's value, so the map must hold the queue's ARN rather than its
+      // bare id for this step. tasks/C14-simulate-offline-checks.md records
+      // the live run the ARN form still waits on.
+      return step.queue === undefined
+        ? assert({ Namespace: "$.Queue.Name", Operator: "Equals", Operand: step.name })
+        : assert({ Namespace: "$.Queue.ARN", Operator: "Equals", Operand: step.queue });
     case "assert":
       return assert({ Namespace: step.path, Operator: step.operator, Operand: step.value });
     default:

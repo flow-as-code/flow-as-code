@@ -42,6 +42,8 @@ export const RESOURCE_MAP: Record<string, string> = {
   "${cdref:flow:appointment-line}": `${INSTANCE}/contact-flow/cccc3333-0000-4000-8000-000000000001`,
   "${cdref:hours:main-line}": `${INSTANCE}/operating-hours/bbbb2222-0000-4000-8000-000000000001`,
   "${cdref:hours:closed}": `${INSTANCE}/operating-hours/bbbb2222-0000-4000-8000-000000000002`,
+  "${cdref:hours:always-open}": `${INSTANCE}/operating-hours/bbbb2222-0000-4000-8000-000000000003`,
+  "${cdref:flow:keypad-line}": `${INSTANCE}/contact-flow/cccc3333-0000-4000-8000-000000000002`,
   "${cdref:lambda:appointment-lookup}":
     "arn:aws:lambda:us-east-1:111122223333:function:appointment-lookup",
   "${cdref:queue:appointments}": `${INSTANCE}/queue/aaaa1111-0000-4000-8000-000000000001`,

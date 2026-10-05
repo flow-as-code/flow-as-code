@@ -1,0 +1,18 @@
+[
+  {
+    "path": "substitutions[1].actionParameters.HoursOfOperationId",
+    "message": "${cdref:hours:weekend} is referenced by no document in the set, so there is nothing to substitute"
+  },
+  {
+    "path": "substitutions[1].substitute",
+    "message": "${cdref:hours:nowhere} resolves nowhere: not in the resource map and referenced by no document in the set"
+  },
+  {
+    "path": "steps[0].lambda",
+    "message": "${cdref:lambda:never-invoked} is referenced by no document in the set, so the event cannot be observed"
+  },
+  {
+    "path": "steps[2].queue",
+    "message": "${cdref:queue:nowhere} resolves nowhere: not in the resource map and referenced by no document in the set"
+  }
+]

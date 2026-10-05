@@ -1,0 +1,10 @@
+[
+  {
+    "path": "steps[0]",
+    "message": "send-dtmf \"1\" follows no expect-prompt, so the dry run cannot tell which keypad prompt it answers"
+  },
+  {
+    "path": "steps[2]",
+    "message": "send-dtmf \"1\" answers the prompt that contains \"Thanks for calling the keypad line\", which no GetParticipantInput or StoreUserInput in the set plays (played by keypad-line/welcome)"
+  }
+]

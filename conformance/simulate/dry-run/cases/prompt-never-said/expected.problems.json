@@ -1,0 +1,10 @@
+[
+  {
+    "path": "steps[1]",
+    "message": "no prompt in the set contains \"Press 9 to speak to a person\""
+  },
+  {
+    "path": "steps[2]",
+    "message": "no prompt in the set resembles \"Your call is very important to us, please hold\""
+  }
+]

@@ -31,6 +31,10 @@
     "./bridge": {
       "types": "./dist/bridge/server.d.ts",
       "import": "./dist/bridge/server.js"
+    },
+    "./simulate": {
+      "types": "./dist/simulate.d.ts",
+      "import": "./dist/simulate.js"
     }
   },
   "bin": {

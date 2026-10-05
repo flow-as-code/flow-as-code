@@ -53,6 +53,10 @@ schema/scenario-0.1.schema.json          machine-readable simulate scenario defi
 simulate/<case>/scenario.json            authored simulate scenario
 simulate/<case>/expected.testcase.json   compiled CreateTestCase input, tokens still in place
 simulate/invalid/scenarios.json          scenarios that must be rejected, with finding paths
+simulate/dry-run/flows/*.flowdoc.json    the flow set the offline dry run checks scenarios against
+simulate/dry-run/resource-map.json       the map it resolves tokens the set lacks through (keys only)
+simulate/dry-run/cases/<case>/scenario.json  a valid scenario held against that set
+simulate/dry-run/cases/<case>/expected.problems.json  the [{path, message}] dryRunScenario must report, [] for a clean case
 simulate/report/run.json                 a simulation run
 simulate/report/expected.junit.xml       JUnit reporter golden, byte-compared
 simulate/report/expected.report.json     JSON reporter golden, byte-compared
@@ -69,6 +73,16 @@ A simulate `expected.testcase.json` keeps `${cdref:...}` tokens: compilation and
 token resolution are separate steps, so the golden never carries an ARN. The
 compiled `Content` shape is the one artifact here that no offline test can
 confirm, because CreateTestCase validates it server-side.
+
+The canonical simulate cases target `demo/appointment-line.flowdoc.json`,
+except `keypad-press`, written for `simulate/dry-run/flows/` (the one flow
+set here with a keypad block), which is the golden for a compiled DtmfInput
+SendInstruction; every canonical case dry-runs clean against the set it is
+written for. A simulate dry-run case is a scenario the schema and
+`validateScenario` both accept, held against `dry-run/flows/` with `dry-run/resource-map.json`: the
+findings must equal `expected.problems.json` exactly, path and message. The
+map's values are never read, only its keys, which is why the fixture shows
+each of the three key forms once.
 
 An emit-tf case is a whole emitter run. `case.json` carries a `description`, a
 `docs` array of FlowDoc paths relative to the case directory (a case may point
