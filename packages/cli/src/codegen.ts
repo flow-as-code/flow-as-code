@@ -26,12 +26,17 @@ import { serializeWithMeta, sha256Hex } from "./synth.js";
 export interface CodegenOptions {
   out?: string;
   to?: string;
+  /** TypeScript only: one extra banner line after the fixed two; kept across runs that omit it. */
+  banner?: string;
 }
 
 export function runCodegen(file: string, options: CodegenOptions): string {
   const { path, doc } = loadOneDoc(file, "codegen");
   const kind =
     options.to === undefined ? (doc.meta?.sourceKind ?? "ts") : parseKind(options.to, "--to");
+  if (options.banner !== undefined && kind === "tf") {
+    throw new CliError("--banner applies to the TypeScript companion; a .flow.tf carries none.");
+  }
   const paired = join(dirname(path), `${doc.name}${suffixOf(kind)}`);
   const target = resolve(options.out ?? paired);
   const other = join(dirname(path), `${doc.name}${suffixOf(kind === "ts" ? "tf" : "ts")}`);
@@ -43,11 +48,10 @@ export function runCodegen(file: string, options: CodegenOptions): string {
   }
 
   const previous = existsSync(target) ? readFileSync(target, "utf8") : undefined;
-  const source = generateCompanion(
-    doc,
-    kind,
-    previous === undefined ? {} : { previous, previousPath: target },
-  );
+  const source = generateCompanion(doc, kind, {
+    ...(previous === undefined ? {} : { previous, previousPath: target }),
+    ...(options.banner === undefined ? {} : { banner: options.banner }),
+  });
 
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, source, "utf8");

@@ -1,0 +1,73 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "unicode-text",
+  "connectType": "CONTACT_FLOW",
+  "description": "お電話ありがとうございます。この説明文は印字幅を超えるので、キーの後で改行されます。",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "greet",
+    "Actions": [
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "お電話ありがとうございます。担当者におつなぎしますので、そのままお待ちください。"
+        },
+        "Transitions": {
+          "NextAction": "note",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "note",
+        "Type": "UpdateContactAttributes",
+        "Parameters": {
+          "Attributes": {
+            "café": "résumé with decomposed accents, long enough that code units and columns disagree about the fit",
+            "a-b": "3",
+            "안내": "한국어"
+          },
+          "TargetContact": "Current"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "greet": {
+      "x": 20,
+      "y": 20
+    },
+    "note": {
+      "x": 280,
+      "y": 20
+    },
+    "bye": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": []
+}

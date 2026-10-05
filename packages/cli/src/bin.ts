@@ -57,12 +57,16 @@ program
   .command("lint")
   .description(
     `Check every FlowDoc in a directory (or one file) against the ${PACKAGE_NAMES.core} rule set. ` +
-      "The whole set is linted in one pass so cross-document rules can follow module " +
-      "references. Exits 1 when any finding has error severity; warnings alone exit 0.",
+      "Each argument is a set, linted whole in one pass so cross-document rules can follow " +
+      "module references, and never merged with the next: findings name their set. Exits 1 " +
+      "when any finding in any set has error severity; warnings alone exit 0.",
   )
-  .argument("<dir-or-file>", "directory of *.flowdoc.json files, or one FlowDoc file")
+  .argument(
+    "<dir-or-file...>",
+    "directories of *.flowdoc.json files, or FlowDoc files, one set each",
+  )
   .option("--format <format>", "report format: text or json", "text")
-  .action(action((target: string, opts: { format?: string }) => runLint(target, opts)));
+  .action(action((targets: string[], opts: { format?: string }) => runLint(targets, opts)));
 
 program
   .command("codegen")
@@ -76,8 +80,13 @@ program
   .argument("<file>", "path to a .flowdoc.json file")
   .option("--to <kind>", "ts or tf (default: the document's meta.sourceKind, else ts)")
   .option("--out <file>", "output file (default: <doc name>.flow.<kind> beside the input)")
+  .option(
+    "--banner <text>",
+    "ts only: one extra comment line after the fixed banner, for a generator that owns the " +
+      "document to say so; kept by later runs that omit it, removed by an empty one",
+  )
   .action(
-    action((file: string, opts: { out?: string; to?: string }) => {
+    action((file: string, opts: { out?: string; to?: string; banner?: string }) => {
       console.log(runCodegen(file, opts));
     }),
   );
@@ -127,13 +136,24 @@ program
       "--target cdk writes a flow-stack.ts scaffold that constructs a " +
       `${PACKAGE_NAMES.cdk} FlowSet over the directory.`,
   )
-  .argument("<dir-or-file>", "directory of *.flowdoc.json files, or one FlowDoc file")
+  .argument(
+    "<dir-or-file...>",
+    "directories of *.flowdoc.json files, or FlowDoc files; each is emitted as its own set",
+  )
   .requiredOption("--target <target>", "cdk, flowascode or tf")
   .option(
     "--address-map <refs.tfmap.json>",
     "tf and flowascode: reference to terraform address expressions",
   )
-  .option("--out <dir>", "output directory (default: the input directory)")
+  .option(
+    "--instance-id-expression <expr>",
+    "flowascode: the HCL expression for every resource's instance_id (default: " +
+      "var.connect_instance_id, declared in variables.tf; with this flag no variables.tf is written)",
+  )
+  .option(
+    "--out <dir>",
+    "output directory (default: each set's own directory; refused with several sets)",
+  )
   .option(
     "--allow-unbound",
     "flowascode: write a reference the address map does not cover as null under a TODO " +
@@ -153,7 +173,7 @@ program
   .action(
     action(
       (
-        input: string,
+        inputs: string[],
         opts: {
           target: string;
           addressMap?: string;
@@ -161,9 +181,10 @@ program
           allowUnbound?: boolean;
           strict?: boolean;
           moduleAlias?: string[];
+          instanceIdExpression?: string;
         },
       ) => {
-        const { written, warnings } = runEmit(input, opts);
+        const { written, warnings } = runEmit(inputs, opts);
         for (const path of written) console.log(path);
         for (const line of warnings) console.error(line);
       },

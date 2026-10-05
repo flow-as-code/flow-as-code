@@ -16,18 +16,44 @@ Site and docs: <https://flow-as-code.dev/>. This package on npm:
 
 ```
 flow-cli init [dir] [--author ts|tf]                     scaffold a directory to open
-flow-cli lint <dir-or-file> [--format text|json]        rule set over the whole document set
+flow-cli lint <dir-or-file...> [--format text|json]     rule set over each document set
 flow-cli render <dir-or-file> --resources map.json      standalone materialization
-flow-cli codegen <doc.flowdoc.json> [--to ts|tf] [--out <file>]  FlowDoc -> companion (.flow.ts or .flow.tf)
+flow-cli codegen <doc.flowdoc.json> [--to ts|tf] [--out <file>] [--banner <text>]  FlowDoc -> companion
 flow-cli synth <file.flow.ts|file.flow.tf> [--out <dir>] companion -> FlowDoc (TS in a sandboxed child)
 flow-cli convert <doc.flowdoc.json> --to ts|tf [--address-map <file>] [--keep-old] [--force]
-flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json] [--allow-unbound] [--strict] [--module-alias module:name@alias]...
+flow-cli emit <dir-or-file...> --target cdk|flowascode|tf [--address-map refs.tfmap.json] [--instance-id-expression <expr>] [--allow-unbound] [--strict] [--module-alias module:name@alias]...
 flow-cli diff <dir> --instance <arn>                     local FlowDocs vs the live instance
 flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]
 flow-cli simulate <scenarios> --instance <arn> [--resource-map <file>] [--format junit|json] [--out <file>]
          simulate --dry-run <scenarios> <flows...> [--resource-map <file> | --address-map <file>]  offline checks, no instance
 flow-cli studio [dir] [--port <port>]                    local visual editor, live sync both ways
 ```
+
+## Install-script warning for esbuild
+
+A fresh `npm install` on npm 11 prints
+
+```
+npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn install-scripts   esbuild@0.28.2 (postinstall: node install.js)
+```
+
+The chain is `@flow-as-code/cli -> tsx -> esbuild`: `flow-cli synth` runs a
+`.flow.ts` builder file in a child process with `tsx` registered through
+`--import`, and `tsx` is built on esbuild, whose postinstall fetches its
+platform binary. The dependency stays a regular one, because every `synth`,
+`convert --to ts` and studio save of a `.flow.ts` needs it and an optional
+dependency would turn the first `synth` into a run-time error about a missing
+loader. The warning is npm 11's script allowlisting
+(https://docs.npmjs.com/cli/v11/commands/npm-install-scripts) and it is
+answered once per project:
+
+```
+npm install-scripts approve esbuild
+```
+
+which records the approval in `package.json` and runs the script. Checked
+against npm 11.19.1 on 2026-10-05.
 
 ## Availability
 
@@ -171,15 +197,46 @@ writes.
 
 ## lint
 
-The whole document set goes to `@flow-as-code/core`'s lint in one call. Rules
-receive the other documents alongside their own, and the ones that follow module
-references cannot answer without them: `module-depth-5` on a single file reports
-nothing, correctly, because depth is not computable from one document.
+Each argument is a set, and the whole set goes to `@flow-as-code/core`'s lint
+in one call. Rules receive the other documents alongside their own, and the
+ones that follow module references or attribute writes cannot answer without
+them: `module-depth-5` and `attribute-set-before-read` on a single file report
+nothing, correctly, because neither is computable from one document.
 
-`--format json` prints the stable machine-readable report (a `summary` plus
-`findings`) on stdout; the failure line goes to stderr, so the JSON stays clean
-for a pipe. Exit status follows severity, not count: any `error` exits 1,
-warnings alone exit 0.
+Several arguments are several sets, never one merged set. `flow-cli lint
+flows/ seasonal/` lints exactly as two runs would, in one process: a module in
+`seasonal/` does not resolve a reference in `flows/`, an attribute set in one
+does not cover a read in the other, and every finding names the set it came
+from. With one set the text report is `@flow-as-code/core`'s; with more, each
+set's report follows its path and a line across sets closes it. Exit status
+follows severity, not count, and the worst across sets: any `error` exits 1,
+warnings alone exit 0; the failure line names the sets with errors.
+
+`--format json` prints `flow-lint-report/0.1` on stdout; the failure line goes
+to stderr, so the JSON stays clean for a pipe. Its schema is
+`conformance/schema/lint-report-0.1.schema.json`, and `src/lint.test.ts` holds
+the command's output to it. A change to the shape is a new id and a new
+schema; this one is:
+
+| Field                 | What it holds                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `format`              | `"flow-lint-report/0.1"`                                                                    |
+| `summary`             | `{ total, errors, warnings }` across every set                                              |
+| `sets[]`              | One per argument, in argument order                                                         |
+| `sets[].set`          | The argument, resolved to an absolute path                                                  |
+| `sets[].documents`    | The names of the FlowDocs in that set, in file order                                        |
+| `sets[].summary`      | `{ total, errors, warnings }` for that set                                                  |
+| `findings[]`          | Every finding, set by set in argument order; within a set by document, rule, block, message |
+| `findings[].set`      | The set it came from, as `sets[].set` spells it                                             |
+| `findings[].rule`     | The rule id, stable and never renamed                                                       |
+| `findings[].severity` | `"error"` or `"warning"`                                                                    |
+| `findings[].doc`      | The name of the FlowDoc                                                                     |
+| `findings[].blockId`  | The action Identifier, present when the finding is about one action                         |
+| `findings[].message`  | The finding's sentence                                                                      |
+
+A script that read `summary` and `findings` from the report before it had a
+`format` still reads them: those fields are where they were, and `findings[]`
+gained `set`.
 
 Every document is schema-checked before any rule runs, so a document the schema
 rejects never reaches the report. A literal ARN is the one violation that is
@@ -223,6 +280,27 @@ is the thing this tooling exists to stop. So a `render` map and an `emit` map ar
 two files with the same keys.
 
 ## emit
+
+Each argument is a set and is emitted on its own, into its own directory, so
+module aliasing and reference resolution never reach across sets, exactly as
+`lint` keeps them apart: `flow-cli emit flows/ seasonal/ --target flowascode`
+writes `flows/flows.tf` and `seasonal/flows.tf` from their own documents, as
+two runs would. `--out` names one directory, so with more than one set it is
+refused rather than letting the second set overwrite the first; so are two
+sets that would resolve to the same directory. The paths printed are every
+set's, in argument order.
+
+A run over several sets is two-phase: every set goes through its emitter
+first, and nothing is written unless every set passed, so an unbound reference
+or a refused `--strict` in the second set leaves the first set's directory as
+it was; the message names the set. One address map serves every set, so a key
+is unused only when no set uses it: a key `flows/` binds and `seasonal/` never
+mentions is not warned about, and `--strict` refuses only a key no set uses,
+once. `--allow-unbound` and `--instance-id-expression` apply to every set.
+`--module-alias module:<name>@<alias>` goes to the set(s) whose documents
+hold that module and is refused, once, naming the sets searched, when none
+does; with one set it is handed to the emitter as given, whose refusal names
+the module. `outputs.tf` is written per set, for that set's flows.
 
 `--target tf` is a thin wrapper over `@flow-as-code/tf`, writing exactly
 the bytes the emitter returns and nothing of its own. `--address-map` is passed
@@ -277,6 +355,21 @@ root moving from a hand-written pair with descriptions (the cookbook's
 in-place update; keep the hand-written resources if the descriptions
 matter, or accept the change.
 
+`--instance-id-expression <expr>` is the emitter's `instanceIdExpression`:
+the HCL expression every resource's `instance_id` takes. Without it the
+expression is `var.connect_instance_id` and `variables.tf` declares that
+variable; with it no `variables.tf` is written, so a root that declares
+`connect_instance_id` itself (or reads the instance from a data source or a
+remote state) takes the whole emitted tree instead of copying `flows.tf` out
+of it. The expression is checked the way an address map value is: not
+empty, not a literal ARN, one line, no comment marker.
+
+```
+flow-cli emit flows/ --target flowascode --instance-id-expression local.connect_instance_id
+flows/flows.tf
+flows/versions.tf.example
+```
+
 `--target cdk` is not a code generator, because `@flow-as-code/cdk` is a
 library: `FlowSet` reads the FlowDoc directory itself at synth time. What the
 command writes is `flow-stack.ts`, a compiling scaffold that constructs a
@@ -299,7 +392,7 @@ not only from the directory the scaffold was written to.
 
 ## codegen and convert
 
-`flow-cli codegen <doc> [--to ts|tf]` writes the document's companion:
+`flow-cli codegen <doc> [--to ts|tf] [--banner <text>]` writes the document's companion:
 `<name>.flow.ts` (builder TypeScript) or `<name>.flow.tf` (a
 `flowascode_contact_flow` resource, `@flow-as-code/hcl`'s `fromFlowDoc`).
 Without `--to` it writes the kind the document's `meta.sourceKind` names, and
@@ -311,6 +404,41 @@ its `meta.sourceKind` names) also restamps the document's `meta.sourceHash`
 with the hash of what was written, so the pair stays in sync for the watcher.
 It refuses to write a companion beside one of the other kind; that is
 `convert`'s job.
+
+`--banner <text>` (TypeScript only) writes one extra comment line after the
+two fixed ones, for a generator that owns the document to say so:
+
+```
+// Generated by @flow-as-code/core codegen from main-line.flowdoc.json.
+// Edits to structure regenerate; comments marked @keep survive.
+// Written by generators/districts.ts from districts.config.json; edit the config, not this file.
+```
+
+A later run that omits the flag keeps the line, as it keeps `@keep` comments,
+so the generator stamps it once; `--banner ""` removes it. The same option is
+`banner` on `@flow-as-code/core`'s `codegen()`, and `conformance/codegen/`
+holds the cases. A `.flow.tf` carries no banner, and the flag is refused with
+`--to tf`.
+
+The TypeScript codegen writes is left unchanged by Prettier 3 at this
+repository's settings (`.prettierrc`: double quotes, trailing commas, print
+width 100, `arrowParens: always`), so a consumer on those settings need not
+list the companions in `.prettierignore`. Lines are measured as Prettier
+measures them (`packages/core/src/width.ts`, a port of its display width:
+CJK and fullwidth text two columns, combining marks none), so a Japanese or
+Korean prompt is a fixed point too. Three emoji classes are known exceptions,
+measured differently from Prettier: a tag-sequence flag (England, Scotland,
+Wales), a ZWJ pair that is not a registered sequence, and a skin-tone
+modifier after a base that takes none; a prompt carrying one of those at the
+print width is reformatted by Prettier, and `.prettierignore` is the answer
+there. `packages/core/src/roundtrip.test.ts`
+formats every roundtrip case's output and asserts it comes back byte-identical,
+and `src/codegen.test.ts` does the same for every export golden. A consumer on
+other settings (a print width of 80, single quotes) formats the companions
+like any other file and the next `codegen` writes them back; the round trip
+through `synth` does not read formatting, so nothing is lost either way, but
+the diff is noise, and `.prettierignore` with `**/*.flow.ts` is the quiet
+option there.
 
 `flow-cli convert <doc> --to ts|tf` switches which companion a document has.
 It writes the new one from the document, carrying `@keep` comments across (as

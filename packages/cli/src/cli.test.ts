@@ -29,7 +29,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { canonicalize, type FlowDoc } from "@flow-as-code/core";
+import { canonicalize, codegen, type FlowDoc } from "@flow-as-code/core";
 import { emitFlowascode, fromFlowDoc } from "@flow-as-code/hcl";
 import { emitTf } from "@flow-as-code/tf";
 
@@ -721,6 +721,302 @@ describe("emit --target flowascode", () => {
   });
 });
 
+describe("emit over several sets", () => {
+  /** Two sets: the demo flow, and a module it could call but does not. */
+  function twoSets(): { flows: string; seasonal: string; map: string } {
+    const dir = workspace();
+    const flows = join(dir, "flows");
+    const seasonal = join(dir, "seasonal");
+    mkdirSync(flows);
+    mkdirSync(seasonal);
+    cpSync(DEMO, join(flows, "appointment-line.flowdoc.json"));
+    cpSync(
+      join(REPO, "conformance", "roundtrip", "after-call-survey", "doc.flowdoc.json"),
+      join(seasonal, "after-call-survey.flowdoc.json"),
+    );
+    // Binds everything the demo flow references, and the module's own
+    // reference; a key used by one set only is what the map tests add.
+    const map = join(dir, "both.tfmap.json");
+    const demoMap = JSON.parse(
+      readFileSync(join(EMIT_TF_CASE, "address-map.json"), "utf8"),
+    ) as Record<string, string>;
+    writeFileSync(
+      map,
+      JSON.stringify({
+        ...demoMap,
+        "module:satisfaction-question@prod":
+          "flowascode_contact_flow_module.satisfaction_question.arn",
+      }),
+    );
+    return { flows, seasonal, map };
+  }
+
+  it("writes each set into its own directory, as two runs would", () => {
+    const { flows, seasonal, map } = twoSets();
+    const run = cli("emit", flows, seasonal, "--target", "flowascode", "--address-map", map);
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    // Every file of the tree, outputs.tf included, per set.
+    expect(run.stdout.trim().split("\n")).toEqual([
+      join(flows, "flows.tf"),
+      join(flows, "outputs.tf"),
+      join(flows, "variables.tf"),
+      join(flows, "versions.tf.example"),
+      join(seasonal, "flows.tf"),
+      join(seasonal, "outputs.tf"),
+      join(seasonal, "variables.tf"),
+      join(seasonal, "versions.tf.example"),
+    ]);
+    expect(readFileSync(join(seasonal, "outputs.tf"), "utf8")).toContain("after_call_survey");
+    expect(readFileSync(join(flows, "outputs.tf"), "utf8")).not.toContain("after_call_survey");
+    // Each set resolves only its own documents: the module is a resource in
+    // its set and nothing in the other set's tree.
+    expect(readFileSync(join(flows, "flows.tf"), "utf8")).not.toContain("after_call_survey");
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toContain("after_call_survey");
+    const addressMap = JSON.parse(readFileSync(map, "utf8")) as Record<string, string>;
+    expect(readFileSync(join(flows, "flows.tf"), "utf8")).toBe(
+      emitFlowascode([readDoc(DEMO)], { addressMap }).files["flows.tf"],
+    );
+  });
+
+  it("refuses the whole run when any set has an unbound reference, writing nothing", () => {
+    const { flows, seasonal } = twoSets();
+    const demoOnly = join(EMIT_TF_CASE, "address-map.json");
+    const run = cli("emit", flows, seasonal, "--target", "flowascode", "--address-map", demoOnly);
+    expect(run.status).toBe(1);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toContain(`  ${seasonal}:`);
+    expect(run.stderr).toContain("module:satisfaction-question@prod");
+    expect(run.stderr).toContain("Nothing was written for any set.");
+    // The first set passed on its own and is still not written.
+    expect(existsSync(join(flows, "flows.tf"))).toBe(false);
+    expect(existsSync(join(seasonal, "flows.tf"))).toBe(false);
+
+    const allowed = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--address-map",
+      demoOnly,
+      "--allow-unbound",
+    );
+    expect(allowed.status).toBe(0);
+    expect(existsSync(join(flows, "flows.tf"))).toBe(true);
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toContain("TODO");
+  });
+
+  it("reads the address map across sets: a key one set uses is not unused", () => {
+    const { flows, seasonal, map } = twoSets();
+    // Every key in the map is used by exactly one of the two sets.
+    for (const strict of [[], ["--strict"]]) {
+      const run = cli(
+        "emit",
+        flows,
+        seasonal,
+        "--target",
+        "flowascode",
+        "--address-map",
+        map,
+        ...strict,
+      );
+      expect(run.stderr, strict.join(" ")).toBe("");
+      expect(run.status, strict.join(" ")).toBe(0);
+    }
+
+    const typo = join(flows, "..", "typo.tfmap.json");
+    const addressMap = JSON.parse(readFileSync(map, "utf8")) as Record<string, string>;
+    writeFileSync(
+      typo,
+      JSON.stringify({ ...addressMap, "queue:apointments": "aws_connect_queue.apointments.arn" }),
+    );
+    const warned = cli("emit", flows, seasonal, "--target", "flowascode", "--address-map", typo);
+    expect(warned.status).toBe(0);
+    expect(warned.stderr).toBe(
+      'warning: address map key "queue:apointments" matches no reference in any set\n',
+    );
+
+    rmSync(join(flows, "flows.tf"));
+    rmSync(join(seasonal, "flows.tf"));
+    const strict = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--address-map",
+      typo,
+      "--strict",
+    );
+    expect(strict.status).toBe(1);
+    expect(strict.stderr).toContain("match no reference in any set");
+    expect(strict.stderr).toContain("queue:apointments");
+    expect(existsSync(join(flows, "flows.tf"))).toBe(false);
+    expect(existsSync(join(seasonal, "flows.tf"))).toBe(false);
+  });
+
+  it("routes --module-alias to the set that emits the module, and refuses one no set emits", () => {
+    const { flows, seasonal, map } = twoSets();
+    // The module lives in seasonal/; flows/ must not refuse an alias it has
+    // nothing to say about.
+    const run = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+      "--module-alias",
+      "module:after-call-survey@live",
+    );
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    const alias = /resource "flowascode_contact_flow_module_alias"/;
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toMatch(alias);
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toContain("live");
+    expect(readFileSync(join(flows, "flows.tf"), "utf8")).not.toMatch(alias);
+    // Both sets written: the same bytes the library gives each on its own.
+    const addressMap = JSON.parse(readFileSync(map, "utf8")) as Record<string, string>;
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toBe(
+      emitFlowascode(
+        [readDoc(join(REPO, "conformance", "roundtrip", "after-call-survey", "doc.flowdoc.json"))],
+        { addressMap, moduleAliases: { "after-call-survey": ["live"] } },
+      ).files["flows.tf"],
+    );
+
+    rmSync(join(flows, "flows.tf"));
+    rmSync(join(seasonal, "flows.tf"));
+    const orphan = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+      "--module-alias",
+      "module:nowhere@live",
+    );
+    expect(orphan.status).toBe(1);
+    expect(orphan.stdout).toBe("");
+    expect(orphan.stderr).toContain('--module-alias names a module no set emits: "nowhere"');
+    expect(orphan.stderr).toContain(`searched ${flows}, ${seasonal}`);
+    expect(existsSync(join(flows, "flows.tf"))).toBe(false);
+    expect(existsSync(join(seasonal, "flows.tf"))).toBe(false);
+  });
+
+  it("refuses --out with more than one set, and two sets that would share a directory", () => {
+    const { flows, seasonal, map } = twoSets();
+    const merged = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+      "--out",
+      join(flows, "x"),
+    );
+    expect(merged.status).toBe(1);
+    expect(merged.stderr).toContain("--out names one directory and 2 sets were given");
+    expect(existsSync(join(flows, "x"))).toBe(false);
+
+    const same = cli(
+      "emit",
+      join(flows, "appointment-line.flowdoc.json"),
+      flows,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+    );
+    expect(same.status).toBe(1);
+    expect(same.stderr).toContain(`would both write to ${flows}`);
+    expect(existsSync(join(flows, "flows.tf"))).toBe(false);
+  });
+});
+
+describe("emit --target flowascode --instance-id-expression", () => {
+  it("writes no variables.tf and uses the expression, matching the library", () => {
+    const { dir } = demoWorkspace();
+    const addressMapPath = join(EMIT_TF_CASE, "address-map.json");
+    const addressMap = JSON.parse(readFileSync(addressMapPath, "utf8")) as Record<string, string>;
+    const run = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--address-map",
+      addressMapPath,
+      "--instance-id-expression",
+      "local.connect_instance_id",
+    );
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    expect(run.stdout.trim().split("\n")).toEqual([
+      join(dir, "flows.tf"),
+      join(dir, "outputs.tf"),
+      join(dir, "versions.tf.example"),
+    ]);
+    expect(existsSync(join(dir, "variables.tf"))).toBe(false);
+    const expected = emitFlowascode([readDoc(DEMO)], {
+      addressMap,
+      instanceIdExpression: "local.connect_instance_id",
+    }).files;
+    expect(Object.keys(expected).sort()).toEqual(["flows.tf", "outputs.tf", "versions.tf.example"]);
+    expect(readFileSync(join(dir, "flows.tf"), "utf8")).toBe(expected["flows.tf"]);
+    expect(readFileSync(join(dir, "flows.tf"), "utf8")).toContain(
+      "instance_id = local.connect_instance_id",
+    );
+    expect(readFileSync(join(dir, "flows.tf"), "utf8")).not.toContain("var.connect_instance_id");
+  });
+
+  it("is checked by the emitter and refused on the other targets", () => {
+    const { dir } = demoWorkspace();
+    const arn = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--allow-unbound",
+      "--instance-id-expression",
+      "arn:aws:connect:us-east-1:111122223333:instance/i",
+    );
+    expect(arn.status).toBe(1);
+    expect(arn.stderr).toContain("instanceIdExpression is a literal ARN");
+    expect(existsSync(join(dir, "flows.tf"))).toBe(false);
+
+    const tf = cli("emit", dir, "--target", "tf", "--instance-id-expression", "local.id");
+    expect(tf.status).toBe(1);
+    expect(tf.stderr).toContain("--instance-id-expression applies to --target flowascode only");
+  });
+});
+
+describe("codegen --banner", () => {
+  it("writes the line after the fixed banner, keeps it when omitted, and refuses it for tf", () => {
+    const { dir, doc } = demoWorkspace();
+    const banner = "Written by generate.mjs from config.json; edit the config, not this file.";
+    expect(cli("codegen", doc, "--banner", banner).status).toBe(0);
+    const generated = join(dir, "appointment-line.flow.ts");
+    const stamped = readFileSync(generated, "utf8");
+    expect(stamped.split("\n")[2]).toBe(`// ${banner}`);
+    expect(stamped.split("\n")[3]).toBe("");
+
+    expect(cli("codegen", doc).status).toBe(0);
+    expect(readFileSync(generated, "utf8")).toBe(stamped);
+
+    expect(cli("codegen", doc, "--banner", "").status).toBe(0);
+    expect(readFileSync(generated, "utf8")).toBe(codegen(readDoc(DEMO)));
+
+    const tf = cli("codegen", doc, "--to", "tf", "--banner", banner);
+    expect(tf.status).toBe(1);
+    expect(tf.stderr).toContain("--banner applies to the TypeScript companion");
+  });
+});
+
 describe("codegen --to tf, synth, convert", () => {
   it("codegen --to tf writes the golden companion, and synth reads it back", () => {
     const { dir, doc } = demoWorkspace();
@@ -945,17 +1241,16 @@ describe("broken input", () => {
 
   it("refuses the Terraform-only emit flags on --target cdk, naming the flag", () => {
     const { dir } = demoWorkspace();
-    for (const flag of ["--allow-unbound", "--strict", "--module-alias"]) {
-      const run = cli(
-        "emit",
-        dir,
-        "--target",
-        "cdk",
-        flag,
-        ...(flag === "--module-alias" ? ["module:x@y"] : []),
-      );
+    for (const flag of [
+      "--address-map map.json",
+      "--allow-unbound",
+      "--strict",
+      "--module-alias module:x@y",
+      "--instance-id-expression local.id",
+    ]) {
+      const run = cli("emit", dir, "--target", "cdk", ...flag.split(" "));
+      expect(run.stderr).toContain(flag.split(" ")[0]!);
       expect(run.status, flag).toBe(1);
-      expect(run.stderr).toContain(flag);
       expect(run.stderr).toContain("binder");
     }
   });

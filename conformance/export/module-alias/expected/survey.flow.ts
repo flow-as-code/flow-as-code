@@ -8,7 +8,5 @@ export function survey(): FlowModule {
     name: "survey",
     displayName: "Survey",
     settings: { InputParameters: [], OutputParameters: [], Transitions: [] },
-  }).add(
-    new EndFlowModuleExecution({ id: "end" }),
-  );
+  }).add(new EndFlowModuleExecution({ id: "end" }));
 }

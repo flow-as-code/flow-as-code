@@ -22,27 +22,30 @@ npm i -D @flow-as-code/cli
 
 ## Pick the command
 
-| Task                                       | Command                                                                                          |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Start a directory with a demo flow         | `npx flow-cli init flows/ --author tf` (or `--author ts`)                                        |
-| Check flows against the rule set           | `npx flow-cli lint flows/` (`--format json` for machine output)                                  |
-| Write the companion for a FlowDoc          | `npx flow-cli codegen flows/x.flowdoc.json --to tf` (or `--to ts`)                               |
-| Write the FlowDoc from a companion         | `npx flow-cli synth flows/x.flow.tf` (or `x.flow.ts`)                                            |
-| Switch a document's companion              | `npx flow-cli convert flows/x.flowdoc.json --to tf`                                              |
-| Terraform for the flowascode provider      | `npx flow-cli emit flows/ --target flowascode --address-map refs.dev.tfmap.json --out build/dev` |
-| Terraform for hashicorp/aws                | `npx flow-cli emit flows/ --target tf --address-map refs.dev.tfmap.json --out build/dev`         |
-| A CDK scaffold                             | `npx flow-cli emit flows/ --target cdk`                                                          |
-| Flow language JSON with values filled in   | `npx flow-cli render flows/ --resources map.json`                                                |
-| Every flow in a live instance as files     | `npx flow-cli export --instance <ARN> --out flows/ --author tf`                                  |
-| Compare files with a live instance         | `npx flow-cli diff flows/ --instance <ARN>`                                                      |
-| Run test scenarios against a live instance | `npx flow-cli simulate <scenarios> --instance <ARN>`                                             |
-| Edit visually                              | `npx flow-cli studio flows/`                                                                     |
+| Task                                       | Command                                                                                                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Start a directory with a demo flow         | `npx flow-cli init flows/ --author tf` (or `--author ts`)                                                                                                                                        |
+| Check flows against the rule set           | `npx flow-cli lint flows/ seasonal/` (one set per argument; `--format json` is `flow-lint-report/0.1`)                                                                                           |
+| Write the companion for a FlowDoc          | `npx flow-cli codegen flows/x.flowdoc.json --to tf` (or `--to ts`; `--banner <text>` for a generator that owns it)                                                                               |
+| Write the FlowDoc from a companion         | `npx flow-cli synth flows/x.flow.tf` (or `x.flow.ts`)                                                                                                                                            |
+| Switch a document's companion              | `npx flow-cli convert flows/x.flowdoc.json --to tf`                                                                                                                                              |
+| Terraform for the flowascode provider      | `npx flow-cli emit flows/ --target flowascode --address-map refs.dev.tfmap.json --out build/dev` (`--instance-id-expression <expr>` when the root declares the instance; no `variables.tf` then) |
+| Terraform for hashicorp/aws                | `npx flow-cli emit flows/ --target tf --address-map refs.dev.tfmap.json --out build/dev`                                                                                                         |
+| A CDK scaffold                             | `npx flow-cli emit flows/ --target cdk`                                                                                                                                                          |
+| Flow language JSON with values filled in   | `npx flow-cli render flows/ --resources map.json`                                                                                                                                                |
+| Every flow in a live instance as files     | `npx flow-cli export --instance <ARN> --out flows/ --author tf`                                                                                                                                  |
+| Compare files with a live instance         | `npx flow-cli diff flows/ --instance <ARN>`                                                                                                                                                      |
+| Run test scenarios against a live instance | `npx flow-cli simulate <scenarios> --instance <ARN>`                                                                                                                                             |
+| Edit visually                              | `npx flow-cli studio flows/`                                                                                                                                                                     |
 
 ## Behaviour worth knowing
 
 - `lint` exits 1 on any error-severity finding, 0 on warnings alone, and lints
-  a directory as one set so rules can follow module references. The provider
-  runs the same rules at `terraform plan`.
+  each argument as one set so rules can follow module references; several
+  arguments are several sets, never merged, and every finding names its set.
+  `emit` reads its arguments the same way, one set per argument into its own
+  directory, and writes nothing unless every set passed. The provider runs
+  the same rules at `terraform plan`.
 - `codegen` re-reads an existing companion first: comments marked `@keep`,
   and a `.flow.tf`'s `refs` bindings, `instance_id`, `tags` and `lint` block,
   survive. Output is stable: the same document gives byte-identical code.

@@ -1,0 +1,6 @@
+{
+  "description": "Regeneration without a banner option keeps the banner the previous source carried, exactly as it keeps @keep comments: a generator that stamps its line once does not have to repeat it on every run.",
+  "doc": "../../demo/appointment-line.flowdoc.json",
+  "previous": "previous.flow.ts",
+  "options": {}
+}

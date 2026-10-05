@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flow-as-code.dev/schema/lint-report-0.1.schema.json",
+  "title": "flow-cli lint report 0.1",
+  "description": "The document `flow-cli lint --format json` prints. `format` names this shape; a change to the shape is a new id and a new schema. Each argument to the command is a set linted on its own, and every finding names the set it came from, so a run over several directories can be read set by set. packages/cli/src/lint.test.ts holds the command's output to this schema.",
+  "type": "object",
+  "required": ["format", "summary", "sets", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "flow-lint-report/0.1"
+    },
+    "summary": {
+      "description": "Counts across every set.",
+      "$ref": "#/$defs/summary"
+    },
+    "sets": {
+      "description": "One entry per argument, in argument order.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["set", "documents", "summary"],
+        "additionalProperties": false,
+        "properties": {
+          "set": {
+            "description": "The argument that named the set, resolved to an absolute path.",
+            "type": "string",
+            "minLength": 1
+          },
+          "documents": {
+            "description": "The names of the FlowDocs linted in this set, in file order.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "summary": {
+            "$ref": "#/$defs/summary"
+          }
+        }
+      }
+    },
+    "findings": {
+      "description": "Every finding, set by set in argument order; within a set, sorted by document, rule, block and message.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "required": ["total", "errors", "warnings"],
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warnings": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["set", "rule", "severity", "doc", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "set": {
+          "description": "The set the finding came from, as `sets[].set` spells it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "rule": {
+          "description": "Stable rule id, never renamed.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "severity": {
+          "enum": ["error", "warning"]
+        },
+        "doc": {
+          "description": "Name of the FlowDoc the finding belongs to.",
+          "type": "string",
+          "minLength": 1
+        },
+        "blockId": {
+          "description": "Action Identifier, present when the finding is about one action.",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

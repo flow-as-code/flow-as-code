@@ -44,6 +44,7 @@ describe("A02 acceptance: every rule has fixtures", () => {
     expect([...allRules.map((r) => r.id)].sort()).toEqual([
       "action-allowed-in-flow-type",
       "action-count",
+      "attribute-set-before-read",
       "channel-restricted-action",
       "conditional-shape",
       "error-branches",

@@ -1,0 +1,77 @@
+{
+  "docs": [
+    {
+      "flowdoc": "0.2",
+      "kind": "flow",
+      "name": "main-line",
+      "connectType": "CONTACT_FLOW",
+      "content": {
+        "Version": "2019-10-30",
+        "StartAction": "record",
+        "Actions": [
+          {
+            "Identifier": "record",
+            "Type": "UpdateContactAttributes",
+            "Parameters": {
+              "Attributes": {
+                "callerName": "$.External.callerName"
+              },
+              "TargetContact": "Current"
+            },
+            "Transitions": {
+              "NextAction": "bye",
+              "Errors": [
+                {
+                  "ErrorType": "NoMatchingError",
+                  "NextAction": "bye"
+                }
+              ],
+              "Conditions": []
+            }
+          },
+          {
+            "Identifier": "bye",
+            "Type": "DisconnectParticipant",
+            "Parameters": {},
+            "Transitions": {}
+          }
+        ]
+      }
+    },
+    {
+      "flowdoc": "0.2",
+      "kind": "flow",
+      "name": "agent-whisper",
+      "connectType": "CONTACT_FLOW",
+      "content": {
+        "Version": "2019-10-30",
+        "StartAction": "whisper",
+        "Actions": [
+          {
+            "Identifier": "whisper",
+            "Type": "MessageParticipant",
+            "Parameters": {
+              "Text": "Caller is $.Attributes.callerName."
+            },
+            "Transitions": {
+              "NextAction": "bye",
+              "Errors": [
+                {
+                  "ErrorType": "NoMatchingError",
+                  "NextAction": "bye"
+                }
+              ],
+              "Conditions": []
+            }
+          },
+          {
+            "Identifier": "bye",
+            "Type": "DisconnectParticipant",
+            "Parameters": {},
+            "Transitions": {}
+          }
+        ]
+      }
+    }
+  ]
+}

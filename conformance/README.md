@@ -21,6 +21,9 @@ lint/README.md                    fixture format and the rule for adding one
 lint/<rule-id>/pass-*.json        FlowDoc producing no finding for the rule
 lint/<rule-id>/fail-*.json        FlowDoc plus expected findings [{rule, blockId, messageIncludes}]
 roundtrip/<case>/doc.flowdoc.json codegen->synth must reproduce the doc (modulo meta)
+codegen/<case>/case.json          description, the document (relative path), codegen options, an optional previous source
+codegen/<case>/previous.flow.ts   optional; the source on disk whose banner and @keep comments survive the regeneration
+codegen/<case>/expected.flow.ts   the generated source, byte-exact
 emit-tf/<case>/case.json          emitter case description, inputs, and validate expectation
 emit-tf/<case>/<name>.flowdoc.json  optional; input documents a case does not borrow from demo/ or roundtrip/
 emit-tf/<case>/address-map.json   optional; reference key -> terraform address expression
@@ -129,7 +132,10 @@ the `NoMatchingCondition` copy the class writes, which the service accepts
 and which must stay GenericBlock (`compare-unmirrored-next`), a flow
 of `GetParticipantInput` menus with Text, SSML and PromptId bodies
 (`dtmf-menu`), a `GetParticipantInput` whose key branches twice, which the
-builder refuses and so must stay GenericBlock (`repeated-key`), edge cases
+builder refuses and so must stay GenericBlock (`repeated-key`), a module whose description runs past the print width
+and a value under a key wide enough for Prettier to break after it
+(`long-description`, which pins the two shapes that escaped the fixed-point
+test until 2026-10-05), edge cases
 (SSML, PromptId refs, Compare branches, JSONPath refs, hand-placed
 layout, an explicit start, and a modeled Type that must fall back to
 GenericBlock), a module of the contact-routing actions
@@ -204,6 +210,8 @@ Both implementations:
 TypeScript only:
 
 - `emit-tf`: the `@flow-as-code/tf` emitter's goldens.
+- `codegen`: the TypeScript companion's text for options a round trip does
+  not reach (the banner line, what a previous source carries).
 - `simulate`: scenario compilation and reporting.
 - `migrate`: 0.1 documents and the bytes `migrateFlowDoc` turns them into.
 

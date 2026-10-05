@@ -45,6 +45,8 @@ export interface GenerateOptions {
   bindings?: Record<string, string | null>;
   /** Kept comments from the other kind, used when there is no `previous`. */
   keep?: KeptComments;
+  /** ts only: codegen's banner line (packages/core/src/codegen.ts). */
+  banner?: string;
 }
 
 /** The companion source for `doc`, of the given kind. */
@@ -82,6 +84,7 @@ export function generateCompanion(
   return codegen(doc, {
     ...(options.previous === undefined ? {} : { previous: options.previous }),
     ...(keep === undefined ? {} : { keep }),
+    ...(options.banner === undefined ? {} : { banner: options.banner }),
   });
 }
 

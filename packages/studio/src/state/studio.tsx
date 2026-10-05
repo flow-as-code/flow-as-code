@@ -29,6 +29,7 @@ import {
 } from "../store/bridgeProtocol.js";
 import { BridgeConflictError, BridgeStore, createBridgeStore } from "../store/bridgeStore.js";
 import { createDemoStore } from "../store/demoStore.js";
+import { foreignGenerator } from "../model/generated.js";
 import { readOnly } from "../store/readOnlyStore.js";
 import type { DocRef, DocStore, StoredDoc } from "../store/types.js";
 
@@ -91,6 +92,15 @@ export interface StudioState {
    */
   syncError: { name?: string; path: string; message: string } | null;
   error: string | null;
+  /**
+   * The generator the open document says wrote it, when that is not this
+   * toolchain (model/generated.ts); null otherwise. Shown as a badge, and the
+   * first edit is held in `pendingEdit` until the user says the next run may
+   * overwrite it. `generatedAck` remembers the answer for this document.
+   */
+  generator: string | null;
+  generatedAck: boolean;
+  pendingEdit: FlowDoc | null;
 }
 
 /** Does a synth failure belong to the document that just synced? */
@@ -139,7 +149,9 @@ export type StudioAction =
   | { type: "notice"; message: string | null }
   /** A synth failure from the bridge: `message` is already one readable line. */
   | { type: "sync-error"; name?: string; path: string; message: string }
-  | { type: "error"; message: string | null };
+  | { type: "error"; message: string | null }
+  /** The answer to the generated-document question: apply the held edit, or drop it. */
+  | { type: "generated-edit"; apply: boolean };
 
 /** Why an edit was refused while the conflict dialog is up. */
 export const CONFLICT_LOCKED =
@@ -166,6 +178,9 @@ export function initialState(store: DocStore): StudioState {
     resolving: false,
     syncError: null,
     error: null,
+    generator: null,
+    generatedAck: false,
+    pendingEdit: null,
   };
 }
 
@@ -204,6 +219,9 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         conflict: null,
         resolving: false,
         error: null,
+        generator: foreignGenerator(action.doc) ?? null,
+        generatedAck: false,
+        pendingEdit: null,
       };
     case "doc-synced": {
       // A document that synced is a document whose companion reads again,
@@ -271,6 +289,12 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         resolving: false,
         syncError,
         error: null,
+        // The document on screen was replaced: the badge follows its
+        // meta.generator, and an edit held for the question is dropped rather
+        // than applied over a document it was not made on. The answer already
+        // given for this document stands.
+        generator: foreignGenerator(action.doc) ?? null,
+        pendingEdit: null,
       };
     }
     case "conflict":
@@ -298,6 +322,12 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
       // will lint that doc again, so Save would stay disabled behind
       // "Checking..." for the rest of the session.
       if (action.doc === state.doc) return state;
+      // A document another generator owns: the first edit waits for the user
+      // to say the next run may overwrite it (components/GeneratedModal.tsx).
+      // The edit is held, not applied, so a "no" costs nothing.
+      if (state.generator !== null && !state.generatedAck) {
+        return { ...state, pendingEdit: action.doc };
+      }
       // findings and blocked still describe the PREVIOUS doc, so mark the
       // result unchecked until lint catches up. Reporting "clean" here is what
       // let a doc failing a hard rule reach store.write inside the debounce.
@@ -314,6 +344,18 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         notice: null,
         error: null,
       };
+    case "generated-edit": {
+      const pending = state.pendingEdit;
+      if (pending === null) return state;
+      if (!action.apply) return { ...state, pendingEdit: null };
+      return reducer(
+        { ...state, pendingEdit: null, generatedAck: true },
+        {
+          type: "mutated",
+          doc: pending,
+        },
+      );
+    }
     case "saved":
       return { ...state, dirty: false, error: null };
     case "lint":
