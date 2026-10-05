@@ -29,7 +29,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { canonicalize, type FlowDoc } from "@flow-as-code/core";
+import { canonicalize, codegen, type FlowDoc } from "@flow-as-code/core";
 import { emitFlowascode, fromFlowDoc } from "@flow-as-code/hcl";
 import { emitTf } from "@flow-as-code/tf";
 
@@ -718,6 +718,143 @@ describe("emit --target flowascode", () => {
     expect(strict.status).toBe(1);
     expect(strict.stderr).toContain("  - queue:left-behind");
     expect(existsSync(fresh)).toBe(false);
+  });
+});
+
+describe("emit over several sets", () => {
+  /** Two sets: the demo flow, and a module it could call but does not. */
+  function twoSets(): { flows: string; seasonal: string } {
+    const dir = workspace();
+    const flows = join(dir, "flows");
+    const seasonal = join(dir, "seasonal");
+    mkdirSync(flows);
+    mkdirSync(seasonal);
+    cpSync(DEMO, join(flows, "appointment-line.flowdoc.json"));
+    cpSync(
+      join(REPO, "conformance", "roundtrip", "after-call-survey", "doc.flowdoc.json"),
+      join(seasonal, "after-call-survey.flowdoc.json"),
+    );
+    return { flows, seasonal };
+  }
+
+  it("writes each set into its own directory, as two runs would", () => {
+    const { flows, seasonal } = twoSets();
+    const run = cli("emit", flows, seasonal, "--target", "flowascode");
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    expect(run.stdout.trim().split("\n")).toEqual([
+      join(flows, "flows.tf"),
+      join(flows, "variables.tf"),
+      join(flows, "versions.tf.example"),
+      join(seasonal, "flows.tf"),
+      join(seasonal, "variables.tf"),
+      join(seasonal, "versions.tf.example"),
+    ]);
+    // Each set resolves only its own documents: the module is a resource in
+    // its set and nothing in the other set's tree.
+    expect(readFileSync(join(flows, "flows.tf"), "utf8")).not.toContain("after_call_survey");
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toContain("after_call_survey");
+    expect(readFileSync(join(flows, "flows.tf"), "utf8")).toBe(
+      emitFlowascode([readDoc(DEMO)]).files["flows.tf"],
+    );
+  });
+
+  it("refuses --out with more than one set, and two sets that would share a directory", () => {
+    const { flows, seasonal } = twoSets();
+    const merged = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--out",
+      join(flows, "x"),
+    );
+    expect(merged.status).toBe(1);
+    expect(merged.stderr).toContain("--out names one directory and 2 sets were given");
+    expect(existsSync(join(flows, "x"))).toBe(false);
+
+    const same = cli(
+      "emit",
+      join(flows, "appointment-line.flowdoc.json"),
+      flows,
+      "--target",
+      "flowascode",
+    );
+    expect(same.status).toBe(1);
+    expect(same.stderr).toContain(`would both write to ${flows}`);
+    expect(existsSync(join(flows, "flows.tf"))).toBe(false);
+  });
+});
+
+describe("emit --target flowascode --instance-id-expression", () => {
+  it("writes no variables.tf and uses the expression, matching the library", () => {
+    const { dir } = demoWorkspace();
+    const run = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--instance-id-expression",
+      "local.connect_instance_id",
+    );
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    expect(run.stdout.trim().split("\n")).toEqual([
+      join(dir, "flows.tf"),
+      join(dir, "versions.tf.example"),
+    ]);
+    expect(existsSync(join(dir, "variables.tf"))).toBe(false);
+    const expected = emitFlowascode([readDoc(DEMO)], {
+      instanceIdExpression: "local.connect_instance_id",
+    }).files;
+    expect(Object.keys(expected).sort()).toEqual(["flows.tf", "versions.tf.example"]);
+    expect(readFileSync(join(dir, "flows.tf"), "utf8")).toBe(expected["flows.tf"]);
+    expect(readFileSync(join(dir, "flows.tf"), "utf8")).toContain(
+      "instance_id = local.connect_instance_id",
+    );
+    expect(readFileSync(join(dir, "flows.tf"), "utf8")).not.toContain("var.connect_instance_id");
+  });
+
+  it("is checked by the emitter and refused on the other targets", () => {
+    const { dir } = demoWorkspace();
+    const arn = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--instance-id-expression",
+      "arn:aws:connect:us-east-1:111122223333:instance/i",
+    );
+    expect(arn.status).toBe(1);
+    expect(arn.stderr).toContain("instanceIdExpression is a literal ARN");
+    expect(existsSync(join(dir, "flows.tf"))).toBe(false);
+
+    const tf = cli("emit", dir, "--target", "tf", "--instance-id-expression", "local.id");
+    expect(tf.status).toBe(1);
+    expect(tf.stderr).toContain("--instance-id-expression applies to --target flowascode only");
+  });
+});
+
+describe("codegen --banner", () => {
+  it("writes the line after the fixed banner, keeps it when omitted, and refuses it for tf", () => {
+    const { dir, doc } = demoWorkspace();
+    const banner = "Written by generate.mjs from config.json; edit the config, not this file.";
+    expect(cli("codegen", doc, "--banner", banner).status).toBe(0);
+    const generated = join(dir, "appointment-line.flow.ts");
+    const stamped = readFileSync(generated, "utf8");
+    expect(stamped.split("\n")[2]).toBe(`// ${banner}`);
+    expect(stamped.split("\n")[3]).toBe("");
+
+    expect(cli("codegen", doc).status).toBe(0);
+    expect(readFileSync(generated, "utf8")).toBe(stamped);
+
+    expect(cli("codegen", doc, "--banner", "").status).toBe(0);
+    expect(readFileSync(generated, "utf8")).toBe(codegen(readDoc(DEMO)));
+
+    const tf = cli("codegen", doc, "--to", "tf", "--banner", banner);
+    expect(tf.status).toBe(1);
+    expect(tf.stderr).toContain("--banner applies to the TypeScript companion");
   });
 });
 
