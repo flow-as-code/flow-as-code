@@ -1,0 +1,67 @@
+[
+  {
+    "probe": "AuthenticateParticipant",
+    "description": "Rule 40 probe: Authenticate Customer in an inbound flow, Parameters empty so the refusal names the first required key (the page names none); may be refused for want of customer authentication or a Cognito pool, which moves it to D09.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T17:34:32Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Customer Profiles domain, no Cases domain and no Lex bot; the flows were named hh-probe-40-<Type>",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: TimeLimitExceeded, Path: Actions[0]",
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions",
+      "Action is missing required property. Path: Actions[0].Parameters.CognitoConfiguration",
+      "Action is missing required property. Path: Actions[0].Parameters.CustomerProfilesConfiguration",
+      "Action is missing required property. Path: Actions[0].Parameters.TimeLimitMinutes"
+    ]
+  },
+  {
+    "probe": "CheckSegmentMembership",
+    "description": "Rule 40 probe: Customer profiles, Check segment membership, Parameters empty so the refusal names the first required key (the page names none).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T17:34:34Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Customer Profiles domain, no Cases domain and no Lex bot; the flows were named hh-probe-40-<Type>",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: CheckSegmentMembership, Path: Actions[0].Type",
+      "Invalid Action type. Type: CheckSegmentMembership, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "LoadContactContent",
+    "description": "Rule 40 probe: Get stored content with the page's Flow language example; email need not be enabled for a create to be judged, and a refusal naming it is recorded as such.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T17:34:36Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Customer Profiles domain, no Cases domain and no Lex bot; the flows were named hh-probe-40-<Type>",
+    "result": "accepted",
+    "cleanup": "deleted at once; a later ListContactFlows showed no hh-probe-* flow"
+  },
+  {
+    "probe": "RouteContactToAgent",
+    "description": "Rule 40 probe: Interrupt agent in a customer queue flow, Parameters empty so the refusal names the first required key (the page names none).",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-east-1",
+    "at": "2026-10-05T17:34:40Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Customer Profiles domain, no Cases domain and no Lex bot; the flows were named hh-probe-40-<Type>",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: RouteContactToAgent, Path: Actions[0].Type",
+      "Invalid Action type. Type: RouteContactToAgent, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "TransferParticipantToThirdParty",
+    "description": "Rule 40 probe: Transfer to phone number in the shape of the console export conformance/roundtrip/unknown-actions, the number dynamic so no real number is written.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T17:34:42Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Customer Profiles domain, no Cases domain and no Lex bot; the flows were named hh-probe-40-<Type>",
+    "result": "accepted",
+    "cleanup": "deleted at once; a later ListContactFlows showed no hh-probe-* flow"
+  }
+]

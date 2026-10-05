@@ -1,10 +1,7 @@
 {
-  "InstanceId": "{{INSTANCE_ID}}",
-  "Name": "fac-probe-40-LoadContactContent",
-  "Type": "CONTACT_FLOW",
-  "Status": "PUBLISHED",
-  "Description": "Rule 40 probe: Get stored content with the page's Flow language example; email need not be enabled for a create to be judged, and a refusal naming it is recorded as such.",
-  "Content": {
+  "description": "Rule 40 probe: Get stored content with the page's Flow language example; email need not be enabled for a create to be judged, and a refusal naming it is recorded as such.",
+  "type": "CONTACT_FLOW",
+  "content": {
     "Version": "2019-10-30",
     "StartAction": "probe",
     "Metadata": {},

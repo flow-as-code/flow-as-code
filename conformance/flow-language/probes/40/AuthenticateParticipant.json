@@ -1,10 +1,7 @@
 {
-  "InstanceId": "{{INSTANCE_ID}}",
-  "Name": "fac-probe-40-AuthenticateParticipant",
-  "Type": "CONTACT_FLOW",
-  "Status": "PUBLISHED",
-  "Description": "Rule 40 probe: Authenticate Customer in an inbound flow, Parameters empty so the refusal names the first required key (the page names none); may be refused for want of customer authentication or a Cognito pool, which moves it to D09.",
-  "Content": {
+  "description": "Rule 40 probe: Authenticate Customer in an inbound flow, Parameters empty so the refusal names the first required key (the page names none); may be refused for want of customer authentication or a Cognito pool, which moves it to D09.",
+  "type": "CONTACT_FLOW",
+  "content": {
     "Version": "2019-10-30",
     "StartAction": "probe",
     "Metadata": {},
