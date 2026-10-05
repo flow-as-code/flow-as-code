@@ -41,6 +41,16 @@ Contact actions need a contact. Participant actions need a participant. Flow
 control actions have no side effects. Interactions have side effects but need
 neither a contact nor a participant.
 
+Those four are the Developer Guide's category pages, and the catalog's first
+four categories list exactly what each page lists. A fifth, `other`, holds
+the Types no category page lists (added 2026-10-05): an Administrator Guide
+block page names them, or only a console export does. Its `doc` is the
+admin guide's block list,
+https://docs.aws.amazon.com/connect/latest/adminguide/contact-block-definitions.html,
+and each entry's own `doc` and `source` say where that Type is documented
+(see "Machine-readable form"). The category says nothing about what the
+action needs at run time; the Developer Guide has not classified these.
+
 ## Modeled set
 
 Identifier naming below is the flow-language `Type`, not the console block name.
@@ -1020,6 +1030,158 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
     https://docs.aws.amazon.com/connect/latest/APIReference/API_DescribeContactFlow.html
     https://docs.aws.amazon.com/connect/latest/adminguide/sample-secure-input-with-noagent.html
 
+40. Catalog census outside the Developer Guide (2026-10-05, pages read
+    that day). Five Types no category page lists are recorded as
+    `modeled: false` entries in category `other`, with a `source`. The
+    pages were read on 2026-10-05, and each Type was put to the service the
+    same day (the create probes, below).
+    - `RouteContactToAgent`: "The **Interrupt agent** block is represented
+      as the `RouteContactToAgent` action in the Connect Customer Flow
+      language." "This block can only be used in a **Customer queue
+      flow**." Supported channels: voice, chat, task and email all "Yes".
+      Branches Success and Error; "After the **Success** branch is taken,
+      the caller remains in the queue flow while the agent decides whether
+      to accept or reject the contact." The agent is set manually from the
+      user list or dynamically as "User ARN", "User ID" or "Username"; the
+      page names no parameter keys.
+      https://docs.aws.amazon.com/connect/latest/adminguide/interrupt-agent.html
+    - `LoadContactContent`: "You can configure the **Get stored content**
+      block by using the Connect Customer admin website or by using the
+      `LoadContactContent` in the Connect Customer Flow language." The
+      page's Flow language example carries `"ContentType": enum
+      "EmailMessage"` and one error, `NoMatchingError`. Contact types:
+      voice, chat and task "No", email "Yes". Flow types: inbound, customer
+      queue, customer hold, customer whisper, outbound whisper, agent hold,
+      agent whisper, transfer to agent, transfer to queue and disconnect.
+      "Make sure to Enable email for your Connect Customer instance before
+      using this option."
+      https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+    - `AuthenticateParticipant`: "You can configure the **Authenticate
+      Customer** block by using the Connect Customer admin website or by
+      using the AuthenticateParticipant action in the Connect Customer
+      Flow language." The linked action page,
+      https://docs.aws.amazon.com/connect/latest/APIReference/participant-actions-authenticateparticipant.html,
+      renders only its title (read 2026-10-05). Contact types: chat "Yes";
+      voice, task and email "No - **Error** branch". Flow types: inbound
+      "Yes", every other listed type "No". Properties: an Amazon Cognito
+      user pool and app client, a Customer Profiles default template or
+      object type mapping name, and a timeout, "Minimum (default): 3
+      minutes", "Maximum: 15 minutes". Branches Success, Timeout, Opted
+      out and Error. "The customer authentication capability must be
+      enabled for your Connect Customer instance", and "Customer Profiles
+      must be enabled".
+      https://docs.aws.amazon.com/connect/latest/adminguide/authenticate-customer.html
+    - `CheckSegmentMembership`: "You can configure the **Customer
+      profiles** block in the admin website or using the
+      CheckSegmentMembership action." Properties: "Action: Select check
+      segment membership action", "Segment name: Select the segment to
+      check." The Customer profiles block page adds, for Check segment
+      membership, "A Profile ID is required for this block to function",
+      "You must provide a value for segment", set manually or
+      dynamically by "the customer segment's identifier", which is the
+      "SegmentDefinitionName in the ListSegmentDefinitions operation";
+      branches In segment, Not in segment and Error; the block's channels
+      are voice, chat, task and email "Yes" and its flow types "All flow
+      types". Neither page names a parameter key.
+      https://docs.aws.amazon.com/connect/latest/adminguide/journey-flow-block-customer-profiles.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+    - `TransferParticipantToThirdParty`: no AWS page documents it. The
+      API Reference page,
+      https://docs.aws.amazon.com/connect/latest/APIReference/participant-actions-transferparticipanttothirdparty.html,
+      renders only its title (read 2026-10-05). The Type and its shape
+      (`ThirdPartyPhoneNumber`, `ThirdPartyConnectionTimeLimitSeconds`,
+      `ContinueFlowExecution`; errors `CallFailed`,
+      `ConnectionTimeLimitExceeded`, `NoMatchingError`) come from the
+      console export kept as `conformance/roundtrip/unknown-actions`,
+      which is the entry's `doc`. The Transfer to phone number block page
+      states channels voice "Yes" and chat, task and email "No - Error
+      branch"; flow types inbound, customer queue, transfer to agent and
+      transfer to queue; branches Success, Call Failed, Timeout and Error;
+      and properties Resume flow after disconnect, Send DTMF, Caller ID
+      number and Caller ID name, none with a key.
+      https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+    - The Set Touchtone Buffer Behavior block (read the same day) is not a
+      new Type: "The **Set Touchtone Buffer Behavior** block is
+      represented as a `GetParticipantInput` action in the Connect
+      Customer flow language, using the `EnableDTMFBuffer` parameter."
+      Its examples carry `"EnableDTMFBuffer": "true"` alone, and
+      `"EnableDTMFBuffer": "false"` with `"StoreInput": "true"` and
+      `InputEncryption` (`EncryptionKeyId`, `Key`), each with one error,
+      `NoMatchingError`; channels voice "Yes" and chat, task and email
+      "No"; flow types inbound, customer queue, outbound whisper, transfer
+      to agent and transfer to queue. The catalog records `StoreInput`
+      (as `True`/`False`, the capitalisation its own page uses) and
+      `InputEncryption` and lacks `EnableDTMFBuffer`; D09 adds it, after
+      C04, and settles the `true`/`True` question against the service.
+      https://docs.aws.amazon.com/connect/latest/adminguide/set-touchtone-buffer-behavior.html
+    - The admin guide's block list (read 2026-10-05) names five blocks
+      with no documented Type, listed under "Unmodeled actions"; their
+      pages name none either.
+      https://docs.aws.amazon.com/connect/latest/adminguide/contact-block-definitions.html
+    - The sandbox's 20 default and sample flows, read with
+      `DescribeContactFlow` on 2026-10-05 (17:24 UTC, us-west-2), carry
+      none of the five Types and none of the console-only blocks, so no
+      export was obtained that way.
+    - Create probes. One probe input per Type is kept under
+      `conformance/flow-language/probes/40/`, each a `CreateContactFlow`
+      input with `Content` as JSON rather than a string (the runner
+      serializes it), `Status` `PUBLISHED`, the Type as the first action
+      aimed at a `DisconnectParticipant`, and placeholders of the form
+      `{{INSTANCE_ID}}` for anything the environment supplies (D01's
+      `scripts/probe-create.mjs` fills them and deletes what it creates).
+      The three Types whose pages name no parameter keys
+      (`RouteContactToAgent`, `AuthenticateParticipant`,
+      `CheckSegmentMembership`) are probed with `Parameters` empty, so the
+      first refusal names the first required property.
+    - The five were run on 2026-10-05 (`CreateContactFlow` with
+      `--cli-error-format json`, us-east-1, a development instance with
+      no Customer Profiles domain, no Cases domain and no Lex bot; flows
+      named `hh-probe-40-<Type>`; every accepted flow deleted, with no
+      leftovers). The messages, verbatim:
+      - `AuthenticateParticipant` (contact flow): refused at 17:34:32Z,
+        `InvalidContactFlowException`, with five problems: "Action is
+        missing required error. Error: TimeLimitExceeded, Path:
+        Actions[0]"; "Invalid Action property value. Path:
+        Actions[0].Transitions.Conditions"; "Action is missing required
+        property. Path: Actions[0].Parameters.CognitoConfiguration";
+        "Action is missing required property. Path:
+        Actions[0].Parameters.CustomerProfilesConfiguration"; "Action is
+        missing required property. Path:
+        Actions[0].Parameters.TimeLimitMinutes". Reading: the Type exists;
+        the service names three required parameter keys
+        (`CognitoConfiguration`, `CustomerProfilesConfiguration`,
+        `TimeLimitMinutes`) and a required `TimeLimitExceeded` branch, and
+        expects `Conditions` of a shape the probe's empty list did not
+        meet (the page's Opted out branch, presumably; unknown until an
+        export).
+      - `CheckSegmentMembership` (contact flow): refused at 17:34:34Z,
+        `InvalidContactFlowException`, "Invalid Action type. Type:
+        CheckSegmentMembership, Path: Actions[0].Type" (twice). Reading:
+        either the Type name differs from what the block page says, or the
+        instance lacks Customer Profiles; rule 37 saw "Invalid Action type"
+        for `UpdateContactData`'s Voice ID fields on an instance without
+        Voice ID, so this is not decided. Re-probe on an instance with a
+        Customer Profiles domain (D03) before concluding.
+      - `LoadContactContent` (contact flow): accepted at 17:34:36Z, with
+        `Parameters` `{}` (the kept input carries the page's
+        `ContentType`; the run's input was empty). The page says email
+        only; the create does not check the channel.
+      - `RouteContactToAgent` (customer queue flow): refused at 17:34:40Z,
+        `InvalidContactFlowException`, "Invalid Action type. Type:
+        RouteContactToAgent, Path: Actions[0].Type" (twice). Reading: the
+        same two possibilities as `CheckSegmentMembership` (the name, or a
+        feature the instance lacks); not decided.
+      - `TransferParticipantToThirdParty` (contact flow): accepted at
+        17:34:42Z, consistent with the 2026-09-29 and 2026-09-30 sweeps
+        (rules 37 and 38) that created the `unknown-actions` fixture's
+        shape.
+      So of the five: two accepted, one refused naming its shape, and two
+      refused as an unknown Type on that instance. All five stay
+      `modeled: false`; the two unknown-Type refusals are recorded here and
+      in the census as not decided, not as the service refusing the Type.
+      The inputs for `AuthenticateParticipant` are re-authored once an
+      export shows the three keys' shapes.
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -1156,6 +1318,20 @@ page states no channel restriction; it is never an empty list.
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
 `catalog.test.ts` holds to the catalog.
 
+`source` (added 2026-10-05) says where an entry's `doc` comes from. Absent
+means `devguide`: the Type is on one of the four Developer Guide category
+pages, and its `doc` is its Developer Guide page. `adminguide` is a Type no
+category page lists whose Administrator Guide block page names it in prose
+or in a Flow language example; its `doc` is that block page.
+`console-export` is a Type no AWS page documents, known from a console
+export kept under `conformance/`; its `doc` is the export's repository path
+(or the API Reference page, once one renders). Every entry in the four
+Developer Guide categories has no `source`, every entry in `other` has one
+that is not `devguide`, and `catalog.test.ts` holds each `doc` to the prefix
+its source allows (the export's path must exist). `catalog.ts` types it as
+`CatalogSource`. The five `other` entries, their sources and pages are the
+census under "Unmodeled actions".
+
 A parameter marked `dynamic` also accepts a single JSONPath identifier where
 its page says "fully static or fully dynamic"; the kind describes the static
 form, and the schema accepts either. On an `integer` or `integerString`, `min` and `max` bound the value; on a
@@ -1172,12 +1348,64 @@ be named where a flat key could not.
 
 ## Unmodeled actions
 
-56 action types are documented across the four category pages (27 contact, 6
+The denominator for "every action" (tasks/D00, census of 2026-10-05) is
+61 Types: 56 the Developer Guide's four category pages list (27 contact, 6
 participant, 15 flow control, 8 interactions; recounted 2026-09-11, up from
-the 49 recorded on 2026-08-31) and the builder models 35 of them. Everything
-not in the modeled set above parses to a GenericBlock and round-trips
-verbatim. That is what makes a small modeled set survivable. The
-`conformance/roundtrip/unknown-actions` fixture holds only unmodeled types
-(with tokens inside their parameters) so passthrough is exercised by the
-conformance suite; the demo flow carried an unmodeled action for that purpose
-until 2026-09-11, when its logging block was modeled (rule 36).
+the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
+documented only in the Administrator Guide, plus 1 seen only in a console
+export. Beside it, not in it, 5 console blocks have no documented Type at
+all and enter the count only when an export names one. The builder models
+35 of the 61. Everything not in the modeled set above parses to a
+GenericBlock and round-trips verbatim. That is what makes a small modeled
+set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
+only unmodeled types (with tokens inside their parameters) so passthrough
+is exercised by the conformance suite; the demo flow carried an unmodeled
+action for that purpose until 2026-09-11, when its logging block was
+modeled (rule 36).
+
+| Part of the count       | Types | Modeled | Where                                                       |
+| ----------------------- | ----- | ------- | ----------------------------------------------------------- |
+| Developer Guide pages   | 56    | 35      | the four category lists in `catalog.json`                   |
+| Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
+| Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
+| Denominator             | 61    | 35      |                                                             |
+| Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
+
+Types outside the Developer Guide (rule 40 has the page quotes and the
+2026-10-05 create probes; each entry is `modeled: false` until its D09 task.
+Of the five, the service accepted `LoadContactContent` and
+`TransferParticipantToThirdParty`, refused `AuthenticateParticipant` naming
+its required keys and branch, and refused `CheckSegmentMembership` and
+`RouteContactToAgent` as "Invalid Action type" on an instance without
+Customer Profiles, which rule 40 records as not decided):
+
+| Type                              | Console block                           | Source           | Flow types and channels the page states                                                                                                                                                          | Ref types its parameters need                                                                                                                                                                                                            |
+| --------------------------------- | --------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RouteContactToAgent`             | Interrupt agent                         | `adminguide`     | customer queue flow only; voice, chat, task, email                                                                                                                                               | an agent (user ARN, id or username; a new `user` ref type, name for D01 to settle); the parameter key is unknown until an export                                                                                                           |
+| `LoadContactContent`              | Get stored content                      | `adminguide`     | inbound, customer queue, customer hold, customer whisper, outbound whisper, agent hold, agent whisper, transfer to agent, transfer to queue, disconnect; email only                                | none (`ContentType` is an enum, `EmailMessage`)                                                                                                                                                                                          |
+| `AuthenticateParticipant`         | Authenticate Customer                   | `adminguide`     | inbound flow only; chat only (voice, task and email take the error branch)                                                                                                                       | a Cognito user pool and app client, and a Customer Profiles object type mapping name: none is a Connect resource, so whether D01 adds ref types or leaves them literal is its call; the parameter keys are unknown until an export         |
+| `CheckSegmentMembership`          | Customer profiles, Check segment membership | `adminguide` | all flow types; voice, chat, task, email (the Customer profiles block's tables)                                                                                                                   | a Customer Profiles segment (`SegmentDefinitionName`) and a profile id, each static or dynamic; a `segment` ref type is likely but the parameter keys are unknown until an export, so D01 carries the risk of a later bump                 |
+| `TransferParticipantToThirdParty` | Transfer to phone number                | `console-export` | inbound, customer queue, transfer to agent, transfer to queue; voice only (chat, task and email take the error branch)                                                                           | none in the exported form (`ThirdPartyPhoneNumber` static or JSONPath, `ThirdPartyConnectionTimeLimitSeconds`, `ContinueFlowExecution`); the caller ID number form the page describes is not in the export, and whether it refers to an instance phone number is unknown until one is |
+
+Console blocks with no documented Type, read from the block list on
+2026-10-05. Each needs a console export (owner decision 8) before it can be
+named here; no Type is invented for them:
+
+| Console block                         | Admin guide page                                                                                            | What the page states                                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Agentic CX                            | https://docs.aws.amazon.com/connect/latest/adminguide/agentic-cx-block.html                                | Amazon Connect Customer instances only, some Regions; voice and chat; seven flow types; branches Default, Error, Idle chat timeout, Escalation |
+| External Tool                         | https://docs.aws.amazon.com/connect/latest/adminguide/external-tool.html                                   | Amazon Connect Customer instances only; all channels; all flows; actions Invoke tool and Load tool result               |
+| Data Table                            | https://docs.aws.amazon.com/connect/latest/adminguide/data-table-block.html                                | all channels; all flows; Evaluate, List and Write actions; branches Success and Error                                    |
+| Create persistent contact association | https://docs.aws.amazon.com/connect/latest/adminguide/create-persistent-contact-association-block.html     | chat only; nine flow types; branches Success and Error                                                                   |
+| Customer profiles, Get profile recommendations | https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html#get-profile-recommendations | a Properties section naming the `GetProfileRecommendations` API permission and nothing of the action's shape         |
+
+Forms of modeled types that stay generic, so the count above does not hide
+them (tasks/README.md, Phase D, "Considered and not taken"): Lex V1 `LexBot`
+on `ConnectParticipantWithLexBot`; `VoiceAnalyticsBehavior` and
+`ChatBehavior` on `UpdateContactRecordingAndAnalyticsBehavior`;
+`AnalyticsBehavior` on `UpdateContactRecordingBehavior`; `Wait`'s
+console-only forms (rule 37's refused `Events` shape); and the Set
+Touchtone Buffer Behavior form of `GetParticipantInput`, which the admin
+guide writes with `EnableDTMFBuffer` (with `StoreInput` and
+`InputEncryption` for Stop and Clear), a parameter the catalog does not
+record. D09 types that form after C04 (rule 40 quotes the page).

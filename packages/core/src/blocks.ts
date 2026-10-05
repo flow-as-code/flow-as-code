@@ -2092,7 +2092,8 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 35.
+ * set survivable: 61 action types are in the catalog (56 on the Developer
+ * Guide's category pages, 5 documented elsewhere) and the builder models 35.
  */
 export interface GenericBlockConfig {
   id: string;
