@@ -628,3 +628,293 @@ exports[`FlowSet with a module (acceptance stack) > creates flow, module, module
   },
 }
 `;
+
+exports[`FlowSet with flows referencing flows in the set (C06, shape 1) > resolves an event hook's flow reference to the flow's resource, with a dependency 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "FlowsFlowholdline9DAD8CF6": {
+      "Properties": {
+        "Content": "{
+  "Version": "2019-10-30",
+  "StartAction": "say",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "done": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      },
+      "say": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "say",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Please hold."
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "done",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}
+",
+        "InstanceArn": "INSTANCE_ARN_TOKEN",
+        "Name": "hold-line",
+        "Type": "CONTACT_FLOW",
+      },
+      "Type": "AWS::Connect::ContactFlow",
+    },
+    "FlowsFlowmainline7454820E": {
+      "DependsOn": [
+        "FlowsFlowholdline9DAD8CF6",
+        "FlowsFlowwhisperline93174BE1",
+      ],
+      "Properties": {
+        "Content": {
+          "Fn::Join": [
+            "",
+            [
+              "{
+  "Version": "2019-10-30",
+  "StartAction": "hook-CustomerWhisper",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "done": {
+        "Position": {
+          "x": 800,
+          "y": 20
+        }
+      },
+      "hook-CustomerHold": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      },
+      "hook-CustomerWhisper": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "set-queue": {
+        "Position": {
+          "x": 540,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "hook-CustomerWhisper",
+      "Type": "UpdateContactEventHooks",
+      "Parameters": {
+        "EventHooks": {
+          "CustomerWhisper": "",
+              {
+                "Fn::GetAtt": [
+                  "FlowsFlowwhisperline93174BE1",
+                  "ContactFlowArn",
+                ],
+              },
+              ""
+        }
+      },
+      "Transitions": {
+        "NextAction": "hook-CustomerHold",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hook-CustomerHold",
+      "Type": "UpdateContactEventHooks",
+      "Parameters": {
+        "EventHooks": {
+          "CustomerHold": "",
+              {
+                "Fn::GetAtt": [
+                  "FlowsFlowholdline9DAD8CF6",
+                  "ContactFlowArn",
+                ],
+              },
+              ""
+        }
+      },
+      "Transitions": {
+        "NextAction": "set-queue",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "set-queue",
+      "Type": "UpdateContactTargetQueue",
+      "Parameters": {
+        "QueueId": "QUEUE_TOKEN[appointments]"
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "done",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}
+",
+            ],
+          ],
+        },
+        "InstanceArn": "INSTANCE_ARN_TOKEN",
+        "Name": "main-line",
+        "Type": "CONTACT_FLOW",
+      },
+      "Type": "AWS::Connect::ContactFlow",
+    },
+    "FlowsFlowwhisperline93174BE1": {
+      "Properties": {
+        "Content": "{
+  "Version": "2019-10-30",
+  "StartAction": "say",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "done": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      },
+      "say": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "say",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Please hold."
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "done",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}
+",
+        "InstanceArn": "INSTANCE_ARN_TOKEN",
+        "Name": "whisper-line",
+        "Type": "CONTACT_FLOW",
+      },
+      "Type": "AWS::Connect::ContactFlow",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;

@@ -15,7 +15,7 @@ Site and docs: <https://flow-as-code.dev/>. This package on npm:
 CDK binding for `@flow-as-code/core`. Two exports, plus a scaffold generator on a subpath:
 
 - `TokenBinder`: an interface you implement, mapping reference names to construct attributes (`queue.attrQueueArn`, `fn.functionArn`, a Lex alias ARN). `@flow-as-code/core`'s `materializeWithBinder` inserts the returned strings byte-for-byte, so CDK tokens pass through and CloudFormation resolves them per account at deploy time. No resource map, no literal ARNs in this path.
-- `FlowSet`: a construct consuming a directory of `*.flowdoc.json` files (or `FlowDoc[]`) plus a `TokenBinder`. Flows become `AWS::Connect::ContactFlow` (type from `connectType`), modules become `AWS::Connect::ContactFlowModule`, created in dependency order.
+- `FlowSet`: a construct consuming a directory of `*.flowdoc.json` files (or `FlowDoc[]`) plus a `TokenBinder`. Flows become `AWS::Connect::ContactFlow` (type from `connectType`), modules become `AWS::Connect::ContactFlowModule`, created in dependency order. References between documents in the set resolve without the binder (see below).
 
 ## Usage
 
@@ -31,12 +31,29 @@ new FlowSet(stack, "Flows", {
     lambda: (name) => fns[name].functionArn,
     lex: (name) => lexAliases[name].attrBotAliasArn,
     prompt: (name) => prompts[name].attrPromptArn,
-    // flow?: only needed when a doc uses ${cdref:flow:...}
+    // flow?(name) and module?(name, alias): only for a flow or module that is
+    // not in this set, see "References inside and outside the set".
   },
 });
 ```
 
-Module references (`${cdref:module:name@alias}`) are not the binder's job: `FlowSet` resolves them itself, to the alias ARN of the module it manages.
+## References inside and outside the set
+
+A reference that names a document in the set is resolved by `FlowSet` itself, the way `@flow-as-code/tf` and `@flow-as-code/hcl` resolve their own documents; the binder is not consulted for it:
+
+- `${cdref:module:name@alias}` whose module is in the set becomes the alias ARN of the `AWS::Connect::ContactFlowModuleAlias` the construct manages (see the versioning model below).
+- `${cdref:flow:name}` whose flow is in the set becomes that flow's ARN (`Fn::GetAtt` at its `AWS::Connect::ContactFlow`), with an explicit dependency. This is what a main line that points `UpdateContactEventHooks` at a whisper or hold flow in the same directory needs, and `TransferToFlow` to a flow in the set works the same way.
+
+Documents are created in dependency order over both kinds of reference, and the order is stable, so the template is byte-identical however the files were read. A set whose flow references form a cycle (two flows transferring to each other, a hook pointing back at its caller) fails at synth with the cycle spelled out, `Flow reference cycle: day-line -> night-line -> day-line`, because each flow would need the other's ARN and one CloudFormation template cannot create that; at deploy it would surface as a `Circular dependency` naming logical IDs. Deploy one side from another stack and bind it through `flow()`.
+
+A reference that names a document outside the set goes to the binder's optional method:
+
+- `flow(name)` returns the ARN of a contact flow managed elsewhere.
+- `module(name, alias)` returns the alias ARN of a module managed elsewhere, at the alias the token pins (`live` when it pins none), so the same document binds to a different module alias per environment, from a map or an `Fn.importValue`.
+
+Without the method, synth fails naming the token, the document and both remedies (add the document to the set, or implement the method). A `Lazy.string` is a fine return value: `FlowSet` materializes content in its constructor, so a binder pointing at a flow another `FlowSet` in the same stack manages defers the lookup with `Lazy.string({ produce: () => other.flows.get(name)!.attrContactFlowArn })`, and CDK resolves it at synth, when both constructs exist.
+
+The scaffold writes `flow` and `module` methods only for names the set does not hold.
 
 ## The scaffold (`@flow-as-code/cdk/scaffold`)
 
@@ -90,7 +107,7 @@ asserts the message, including the version floor read from `package.json`.
 
 ## Validation
 
-`FlowSet` refuses, at synth time: duplicate document names, `kind`/`connectType` mismatches, references to modules not in the set, module reference cycles, and any document failing a hard `@flow-as-code/core` lint rule (`no-literal-arn`, `no-unresolved-token`). Binder gaps fail with an error naming the token, the document, and the missing method.
+`FlowSet` refuses, at synth time: duplicate document names, `kind`/`connectType` mismatches, flow and module reference cycles (named), and any document failing a hard `@flow-as-code/core` lint rule (`no-literal-arn`, `no-unresolved-token`). Binder gaps, including a module or flow that is neither in the set nor bound, fail with an error naming the token, the document, and the missing method.
 
 No instance/queue provisioning constructs here; users bring their own or use L1s.
 

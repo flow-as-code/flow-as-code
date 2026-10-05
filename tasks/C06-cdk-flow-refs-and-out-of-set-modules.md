@@ -36,3 +36,33 @@ dependency of the showcase.
   out to be needed, it lands in the same commit, as for every builder feature.
 - A deploy to a live instance is not required. If one is made, it follows A07
   and is recorded here with its date.
+
+## Result (2026-10-05)
+
+Shape 1: `FlowSet` resolves a `${cdref:flow:name}` whose flow is in the set
+itself, to `CfnContactFlow.attrContactFlowArn` with an explicit dependency,
+the way it already resolved a module reference to its alias, and the way the
+tf and flowascode emitters resolve their own documents. The binder's `flow()`
+is not consulted for a flow in the set, so no `Lazy.string` is needed for the
+dead-line pattern inside one set; across two `FlowSet`s in one stack the
+binder may return a `Lazy.string` over the other set's `flows`, and a test
+proves that resolves to the right `Fn::GetAtt`. Creation order is one
+dependency order over flows and modules together (modules first, names break
+ties), so the template is stable however the files were read. A cycle fails
+at synth with `Flow reference cycle: a -> b -> a.` and the remedy; a
+self-reference is a cycle of one.
+
+Shape 2: accept. `TokenBinder` gains an optional `module(name, alias)`,
+called only for a module not in the set, with the alias the token pins or
+`live`, so a caller binds it per environment from a map or an import. A module
+in the set shadows the binder. Without the method, synth fails naming the
+token, the document and both remedies. Refusing was the alternative; accepting
+matches the emitters, where an out-of-set module comes from the address map,
+and is what the showcase's layout (a shared module in one stack, lines in
+another) needs. The scaffold writes `module` and `flow` only for names the set
+does not hold, and `view` when a document shows one, which it had not before.
+
+Tests: `packages/cdk/src/flow-set.test.ts` (two new describe blocks, one new
+snapshot) and `packages/cdk/src/scaffold.test.ts`. No conformance fixture:
+CDK has no Go counterpart, and nothing in `conformance/` changed. No deploy
+was made.

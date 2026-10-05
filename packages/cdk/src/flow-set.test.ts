@@ -10,12 +10,20 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { collectRefs, serialize, type FlowDoc } from "@flow-as-code/core";
-import { App, Fn, Stack } from "aws-cdk-lib";
+import { App, Fn, Lazy, Stack } from "aws-cdk-lib";
 import { Template } from "aws-cdk-lib/assertions";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { FlowSet, type TokenBinder } from "./index.js";
-import { callbackModule, demoDoc, opaqueBinder, routerFlow } from "./test-helpers.js";
+import {
+  callbackModule,
+  demoDoc,
+  hookedFlow,
+  messageFlow,
+  opaqueBinder,
+  routerFlow,
+  transferFlow,
+} from "./test-helpers.js";
 
 const INSTANCE_ARN_TOKEN = "INSTANCE_ARN_TOKEN";
 
@@ -255,9 +263,12 @@ describe("FlowSet validation", () => {
     );
   });
 
-  it("refuses a doc that references a module not in the set", () => {
+  it("names the token and both remedies when a module is neither in the set nor bound", () => {
+    // C06: an out-of-set module is a binder gap, not a refusal. The message
+    // has to say which token, and that the caller can add the module's
+    // document or bind it, because either is a reasonable layout.
     expect(() => synthTemplate([routerFlow()])).toThrow(
-      /no module named "callback-offer" is in this FlowSet/,
+      /TokenBinder has no module\(\) method, but "callback-router" contains \$\{cdref:module:callback-offer@live\} and no module named "callback-offer" is in this FlowSet\. Add the module's document to the set, or implement module\(name, alias\) on the binder/,
     );
   });
 
@@ -268,6 +279,179 @@ describe("FlowSet validation", () => {
       QueueId: "arn:aws:connect:us-east-1:000000000000:instance/i/queue/q",
     };
     expect(() => synthTemplate([doc])).toThrow(/FlowSet refused/);
+  });
+});
+
+describe("FlowSet with flows referencing flows in the set (C06, shape 1)", () => {
+  /** The ContactFlow whose Name is `name`, as [logicalId, resource]. */
+  function flowNamed(template: Template, name: string): [string, any] {
+    const entry = Object.entries(template.findResources("AWS::Connect::ContactFlow")).find(
+      ([, r]: [string, any]) => r.Properties.Name === name,
+    );
+    expect(entry, `expected a ContactFlow named ${name}`).toBeDefined();
+    return entry as [string, any];
+  }
+
+  it("resolves an event hook's flow reference to the flow's resource, with a dependency", () => {
+    // The binder has no flow(): the set resolves its own flows, as the tf and
+    // flowascode emitters do, so a binder is not consulted for them.
+    const template = synthTemplate([
+      hookedFlow("main-line", { CustomerWhisper: "whisper-line", CustomerHold: "hold-line" }),
+      messageFlow("whisper-line"),
+      messageFlow("hold-line"),
+    ]);
+    template.resourceCountIs("AWS::Connect::ContactFlow", 3);
+
+    const [mainId, main] = flowNamed(template, "main-line");
+    const [whisperId] = flowNamed(template, "whisper-line");
+    const [holdId] = flowNamed(template, "hold-line");
+
+    const { text, getAtts } = splitContent(main.Properties.Content);
+    expect(text).not.toContain("${cdref:");
+    expect(text).not.toMatch(/arn:aws/i);
+    expect(getAtts).toEqual([
+      [whisperId, "ContactFlowArn"],
+      [holdId, "ContactFlowArn"],
+    ]);
+    expect(main.DependsOn).toEqual(expect.arrayContaining([whisperId, holdId]));
+    expect(mainId).not.toBe(whisperId);
+    expect(template.toJSON()).toMatchSnapshot();
+  });
+
+  it("does not consult the binder's flow() for a flow in the set", () => {
+    const binder: TokenBinder = {
+      ...opaqueBinder(),
+      flow: (name) => {
+        throw new Error(`binder asked for ${name}`);
+      },
+    };
+    const template = synthTemplate(
+      [hookedFlow("main-line", { AgentWhisper: "whisper-line" }), messageFlow("whisper-line")],
+      binder,
+    );
+    const [whisperId] = flowNamed(template, "whisper-line");
+    const [, main] = flowNamed(template, "main-line");
+    expect(splitContent(main.Properties.Content).getAtts).toEqual([[whisperId, "ContactFlowArn"]]);
+  });
+
+  it("still binds a flow outside the set through flow(), which may return a Lazy", () => {
+    // The dead-line pattern across two sets in one stack: the binder of one
+    // set points at a flow the other set manages, and Lazy defers the lookup
+    // until synth, after both constructs exist.
+    const stack = new Stack(new App(), "Test");
+    const whispers = new FlowSet(stack, "Whispers", {
+      instanceArn: INSTANCE_ARN_TOKEN,
+      source: [messageFlow("whisper-line")],
+      binder: opaqueBinder(),
+    });
+    new FlowSet(stack, "Lines", {
+      instanceArn: INSTANCE_ARN_TOKEN,
+      source: [hookedFlow("main-line", { CustomerWhisper: "whisper-line" })],
+      binder: {
+        ...opaqueBinder(),
+        flow: (name) =>
+          Lazy.string({
+            produce: () => {
+              const flow = whispers.flows.get(name);
+              if (flow === undefined) throw new Error(`no whisper flow "${name}"`);
+              return flow.attrContactFlowArn;
+            },
+          }),
+      },
+    });
+    const template = Template.fromStack(stack);
+    const [whisperId] = flowNamed(template, "whisper-line");
+    const [, main] = flowNamed(template, "main-line");
+    expect(splitContent(main.Properties.Content).getAtts).toEqual([[whisperId, "ContactFlowArn"]]);
+  });
+
+  it("orders flows so a referenced flow is created first, and the template is stable", () => {
+    // Names sort the referrer before its target; creation order must not.
+    const a = synthTemplate([
+      hookedFlow("a-main", { CustomerQueue: "z-queue" }),
+      messageFlow("z-queue"),
+    ]);
+    const b = synthTemplate([
+      messageFlow("z-queue"),
+      hookedFlow("a-main", { CustomerQueue: "z-queue" }),
+    ]);
+    expect(JSON.stringify(a.toJSON())).toBe(JSON.stringify(b.toJSON()));
+    const ids = Object.keys(a.findResources("AWS::Connect::ContactFlow"));
+    expect(ids[0]).toContain("zqueue");
+    expect(ids[1]).toContain("amain");
+  });
+
+  it("fails at synth naming the cycle when flow references form one", () => {
+    // Two flows transferring to each other is something the console can build
+    // in two saves and CloudFormation cannot create in one template. Synth is
+    // where to say so, with the cycle spelled out.
+    expect(() =>
+      synthTemplate([
+        transferFlow("day-line", "night-line"),
+        transferFlow("night-line", "day-line"),
+      ]),
+    ).toThrow(/Flow reference cycle: day-line -> night-line -> day-line\./);
+    expect(() => synthTemplate([transferFlow("loop-line", "loop-line")])).toThrow(
+      /Flow reference cycle: loop-line -> loop-line\./,
+    );
+  });
+});
+
+describe("FlowSet with modules outside the set (C06, shape 2)", () => {
+  it("binds an out-of-set module through the binder's module(), with the alias the token pins", () => {
+    const binder: TokenBinder = {
+      ...opaqueBinder(),
+      module: (name, alias) => `MODULE_TOKEN[${name}@${alias}]`,
+    };
+    const template = synthTemplate([routerFlow()], binder);
+    template.resourceCountIs("AWS::Connect::ContactFlow", 1);
+    template.resourceCountIs("AWS::Connect::ContactFlowModule", 0);
+    template.resourceCountIs("AWS::Connect::ContactFlowModuleAlias", 0);
+    const [, flow] = only(template, "AWS::Connect::ContactFlow");
+    const content = flow.Properties.Content as string;
+    expect(content).toContain("MODULE_TOKEN[callback-offer@live]");
+    expect(content).not.toContain("${cdref:");
+  });
+
+  it("passes the default alias to module() when the token pins none", () => {
+    const doc = routerFlow();
+    const invoke = doc.content.Actions.find((a) => a.Identifier === "offer")!;
+    invoke.Parameters = { FlowModuleId: "${cdref:module:callback-offer}" };
+    doc.refs = collectRefs(doc.content);
+    const seen: [string, string | undefined][] = [];
+    const binder: TokenBinder = {
+      ...opaqueBinder(),
+      module: (name, alias) => {
+        seen.push([name, alias]);
+        return `MODULE_TOKEN[${name}@${alias}]`;
+      },
+    };
+    synthTemplate([doc], binder);
+    expect(seen).toEqual([["callback-offer", "live"]]);
+  });
+
+  it("resolves a module in the set itself even when the binder has module()", () => {
+    // In-set wins, as the emitters' "shadowed" rule has it: the alias this
+    // construct manages is the one the flow must invoke.
+    const binder: TokenBinder = {
+      ...opaqueBinder(),
+      module: (name) => {
+        throw new Error(`binder asked for ${name}`);
+      },
+    };
+    const template = synthTemplate([routerFlow(), callbackModule()], binder);
+    const [aliasId] = only(template, "AWS::Connect::ContactFlowModuleAlias");
+    const [, flow] = only(template, "AWS::Connect::ContactFlow");
+    expect(splitContent(flow.Properties.Content).getAtts).toEqual([
+      [aliasId, "ContactFlowModuleAliasARN"],
+    ]);
+  });
+
+  it("rejects a module() returning a non-string, naming the call", () => {
+    const binder = { ...opaqueBinder(), module: () => undefined as unknown as string };
+    expect(() => synthTemplate([routerFlow()], binder)).toThrow(
+      /TokenBinder\.module\("callback-offer"\) returned undefined/,
+    );
   });
 });
 

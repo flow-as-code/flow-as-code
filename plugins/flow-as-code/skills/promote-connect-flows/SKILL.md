@@ -107,7 +107,9 @@ these resources in the flows module so they promote with the flows.
   holds Terraform addresses, never ARNs; the emitter refuses a value matching
   `arn:aws`.
 - CDK: `FlowSet` takes a `TokenBinder` per stack that returns construct
-  attributes or `Fn.importValue(...)`; no map at all.
+  attributes or `Fn.importValue(...)`; no map at all. Flows and modules in the
+  same set bind to each other without the binder; a module managed elsewhere
+  binds through the binder's `module(name, alias)`.
 
 ## Checklist
 
