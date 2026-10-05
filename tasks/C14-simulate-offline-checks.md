@@ -24,3 +24,84 @@ the queue it expects a transfer to by token.
 - `docs/` describes the dry run beside the live run, including that it does
   not execute Lambdas or evaluate conditions on attribute values.
 - A changeset for each package whose surface moved.
+
+## Record (2026-10-05)
+
+- Entry point: `@flow-as-code/cli/simulate` is a new subpath export, the
+  fourth beside `./synth`, `./watch` and `./bridge`, and the package root
+  re-exports it (`src/index.test.ts` holds the root to the union of the four).
+  It carries `scenarioProblems`, `loadScenarios`, `resolveScenarioPaths`,
+  `dryRunSimulate`, `runSimulate`, `simulateCommand` and the types; the bin
+  calls `simulateCommand`, so the command and the export are one code path.
+  The set-level check is `@flow-as-code/core`'s `dryRunScenario(scenario,
+docs, { resourceMap })` (`packages/core/src/scenario-check.ts`), kept in
+  core because it takes parsed objects and needs no ajv; the schema half stays
+  in the CLI, which ships the schema copy. The showcase's
+  `tests/envScenarios.test.ts` can replace its `dist/simulate.js` import with
+  `@flow-as-code/cli/simulate` once it moves its pin (its own repository).
+- Dry run: `flow-cli simulate --dry-run <scenarios> <flows> [--resource-map |
+--address-map]`. Checks, in `packages/cli/README.md` "Dry run" and
+  `docs/08-simulate.md`: entry flow in the set; an event's resource (and a
+  substitution's production resource) referenced by the set; every other
+  token referenced or keyed in the map, either map, keys only; `expect-prompt`
+  against `Text`, spoken `SSML` and `Messages[]` of every document, module
+  included, with `$.Attributes.<name>` filled from the scenario's initial
+  attributes and `Equals` asserts, `contains` case-insensitive, `similarTo`
+  held to half its words; `send-dtmf` against the `GetParticipantInput`
+  conditions (or `StoreUserInput`, any key) of the nearest preceding prompt.
+  Documented as not done: Lambdas, conditions on attribute values, branches,
+  recorded prompts, the voice transcript. `--instance`, `--format` and `--out`
+  are refused with `--dry-run`; a live run without `--instance` is refused
+  with the dry-run form named. No AWS call: the subprocess tests run with the
+  SDK import denied, as the live-path tests already did.
+- Fixtures: `conformance/simulate/dry-run/` (a keypad flow and a module, a
+  map showing each key form once, seven cases with exact
+  `expected.problems.json`), listed in `conformance/README.md` under the
+  TypeScript-only `simulate` family. `packages/core/src/scenario-check.test.ts`
+  runs them plus mutations (no map, each key form, whitespace and case, an
+  unknown attribute value, a storing input, a recorded prompt, an empty set);
+  `packages/cli/src/simulate.test.ts` runs the same cases through
+  `dryRunSimulate`, `simulateCommand` and the built bin, and checks the
+  canonical suite clean against `conformance/demo`. Shown red: with `dryRunScenario`
+  mutated to accept any key (`accepted.push(step.value)` before the check),
+  the `keypad-wrong-key` fixture test and the storing-input test fail in core
+  ("expected [] to deeply equal [{ path: 'steps[4].value', ... }]"), and the
+  CLI's subprocess test fails on exit 0 ("expected +0 to be 1"); restored,
+  all pass.
+- Queue by token: `expect-transfer` already took a `${cdref:queue:...}` token
+  (schema `$defs/queueToken`; the showcase's S2 uses it), so the gap was
+  `expect-queue`, which took a console name only. It now takes `queue` as an
+  alternative to `name`, exactly one, compiled to an Assert on `$.Queue.ARN`
+  (a documented system attribute beside `$.Queue.Name`,
+  https://docs.aws.amazon.com/connect/latest/adminguide/connect-attrib-list.html)
+  with the token as Operand, resolved by `resolveScenario` with every other
+  token. Additive within scenario 0.1: the schema's `expect-queue` entry says
+  so with the date, every scenario valid before stays valid, and the invalid
+  fixtures are unchanged. New canonical case `conformance/simulate/queue-by-token`
+  with its compile golden; `CASES` in both test files is four.
+- Fixture correction: `appointment-lookup-transfer` pressed `1` with no
+  keypad block in the demo flow. The service ignored it (the scenario passed
+  live, `tasks/A06-export-and-simulate.md`), the dry run reports it, and the
+  canonical suite should dry-run clean against `conformance/demo`, so the
+  step is removed and the golden regenerated; the DtmfInput shape is now held
+  by a unit test in `packages/core/src/simulate.test.ts` and by the dry-run
+  fixtures. The core test that read the SendInstruction shape from this case
+  reads `chat-greeting` too.
+- Docs: `docs/08-simulate.md` (on the site as `/docs/simulate/`), the CLI
+  README's "Dry run" subsection and its "Importing it", the core README's
+  simulate paragraph, `conformance/README.md`. Changeset
+  `.changeset/simulate-dry-run.md` (`core` and `cli`, minor; the set is fixed,
+  so every package moves together).
+- Pending, live: the `$.Queue.ARN` Assert has not been executed against an
+  instance. Evidence needed: one `flow-cli simulate` run of
+  `conformance/simulate/queue-by-token` against the sandbox (an operator
+  step, since CreateTestCase writes), recorded here with its date and the
+  execution record's assertion result. Until then the README and the schema
+  say the form compiles and resolves, not that it passed. The map must hold
+  the queue's ARN, not a bare id, for this step; that is also to be confirmed
+  by the same run.
+- Pending, provider: `conformance/schema/scenario-0.1.schema.json` moved
+  (additive), so the provider repository re-vendors `conformance/` at the
+  merge commit (`scripts/sync-conformance.sh`). The `simulate` family is
+  TypeScript only, so no oracle re-records; the manifest does. Recorded here
+  with the provider commit when it lands, in the Phase C release batch.
