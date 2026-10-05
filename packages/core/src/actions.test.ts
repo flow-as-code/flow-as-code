@@ -18,11 +18,22 @@ import {
   FLOW_LANGUAGE_VERSION,
   FLOW_TYPE_RESTRICTIONS,
   FLOW_TYPE_UNRESTRICTED,
+  CHANNEL_RESTRICTIONS,
   FLOWDOC_VERSION,
   lint,
 } from "./index.js";
 
 const RULE = "action-allowed-in-flow-type";
+
+/**
+ * Transcribed from the Restrictions section of the two pages that name a
+ * channel; the URLs are in actions.ts beside each entry. Spelled out so that
+ * deleting or widening an entry fails here.
+ */
+const EXPECTED_CHANNELS: Record<string, string[]> = {
+  Wait: ["CHAT"],
+  ShowView: ["CHAT"],
+};
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
   "CONTACT_FLOW",
@@ -226,5 +237,16 @@ describe("the audit case", () => {
       Transitions: {},
     });
     expect(lint(doc).filter((f) => f.rule === RULE)).toHaveLength(2);
+  });
+});
+
+describe("CHANNEL_RESTRICTIONS", () => {
+  it("is exactly the two pages that name a channel", () => {
+    expect(CHANNEL_RESTRICTIONS).toEqual(EXPECTED_CHANNELS);
+  });
+
+  it("names only modeled types", () => {
+    const modeled = new Set<string>(Object.values(ActionType));
+    for (const type of Object.keys(CHANNEL_RESTRICTIONS)) expect(modeled.has(type)).toBe(true);
   });
 });

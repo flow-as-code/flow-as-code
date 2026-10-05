@@ -17,6 +17,7 @@ import {
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
+  CHANNEL_RESTRICTIONS,
   CONDITION_CATCH_ALL,
   EXTRA_ERRORS,
   EVENT_HOOKS,
@@ -344,6 +345,21 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       );
     }
 
+    // Channels equal CHANNEL_RESTRICTIONS: present on both sides and equal,
+    // or absent on both (absent is the recorded absence of a restriction).
+    const channels = CHANNEL_RESTRICTIONS[type];
+    if (entry.channels === undefined) {
+      if (channels !== undefined) {
+        out.push(
+          `${where}: no channels in the catalog, restricted to ${channels.join(",")} in the table`,
+        );
+      }
+    } else if (channels === undefined || channels.join(",") !== entry.channels.join(",")) {
+      out.push(
+        `${where}: channels ${entry.channels.join(",")} differ from the table ${(channels ?? []).join(",")}`,
+      );
+    }
+
     // Errors: the branches marked builder are exactly what the block class
     // emits (the extras, then the catch-all), and the catch-all is the branch
     // a document must wire; a type whose page lists no catch-all
@@ -602,6 +618,21 @@ describe("catalogProblems is proven able to fail", () => {
       mutate((c) => (modeledAt(c, "EndFlowModuleExecution").flowTypes = "unrestricted")),
     ).toContainEqual(
       expect.stringContaining("EndFlowModuleExecution: unrestricted in the catalog"),
+    );
+  });
+  it("on a dropped channel restriction", () => {
+    expect(mutate((c) => delete modeledAt(c, "Wait").channels)).toContainEqual(
+      expect.stringContaining("Wait: no channels in the catalog, restricted to CHAT"),
+    );
+  });
+  it("on a widened channel restriction", () => {
+    expect(mutate((c) => (modeledAt(c, "ShowView").channels = ["CHAT", "VOICE"]))).toContainEqual(
+      expect.stringContaining("ShowView: channels CHAT,VOICE differ from the table CHAT"),
+    );
+  });
+  it("on a channel restriction the table does not carry", () => {
+    expect(mutate((c) => (modeledAt(c, "Compare").channels = ["VOICE"]))).toContainEqual(
+      expect.stringContaining("Compare: channels VOICE differ from the table"),
     );
   });
   it("on a moved reference path", () => {

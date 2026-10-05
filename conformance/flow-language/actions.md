@@ -391,7 +391,10 @@ individual action pages linked above.
     admin guide's block has more (participant
     type, Lambda, case and external-tool events, a Continue branch) whose
     flow-language keys the action page does not document; those round-trip
-    as a GenericBlock.
+    as a GenericBlock. The channel half of the restriction is the catalog's
+    `channels: ["CHAT"]` (2026-10-05), which `channel-restricted-action`
+    reports as a warning wherever a `Wait` appears; nothing recorded shows
+    what the service does with a voice contact that reaches one.
     https://docs.aws.amazon.com/connect/latest/adminguide/wait.html
     https://docs.aws.amazon.com/connect/latest/adminguide/sample-disconnect.html
 23. `DistributeByPercentage` (recorded 2026-09-11) "Returns a random number
@@ -732,6 +735,10 @@ individual action pages linked above.
     supported on the chat channel." "This action can be used in inbound flows
     and customer queue flows"; the same page's UI section says inbound only
     and the admin guide lists inbound alone; the Restrictions section governs.
+    The channel sentence is the catalog's `channels: ["CHAT"]` (2026-10-05),
+    which `channel-restricted-action` reports as a warning wherever a
+    `ShowView` appears; the live checks of 2026-09-15 created the block in a
+    contact flow, which says nothing about the channel a contact brings.
     https://docs.aws.amazon.com/connect/latest/adminguide/show-view-block.html
 35. `UpdateContactRecordingAndAnalyticsBehavior` (recorded 2026-09-11, checked
     live 2026-09-15) "Sets
@@ -810,6 +817,15 @@ nine and none covered this. `action-allowed-in-flow-type` landed the same day
 as the tenth, driven by `FLOW_TYPE_RESTRICTIONS` in
 `packages/core/src/actions.ts`, which is transcribed from this reference.
 SPEC.md lists the current set.
+
+Two modeled pages restrict by channel instead of, or as well as, by flow type:
+`Wait` (rule 22) and `ShowView` (rule 34), both "only ... the chat channel".
+The catalog records that as `channels` and `channel-restricted-action` (added
+2026-10-05) reports it, at severity warning: a document does not record which
+channels its flow serves, since that is the contact's to decide, so the rule
+cannot tell a chat-only inbound flow from a voice one. Unmodeled types with a
+channel restriction (`CreateWisdomSession`, voice only) carry nothing in the
+catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
 
 37. Service validation sweep (2026-09-29, sandbox, us-west-2). Every modeled
     type was created in a minimal flow carrying only the error branches the
@@ -1055,8 +1071,9 @@ then.
 documented action type with its category and page URL, and for each modeled
 type its HCL block name, its parameters with their attribute names and kinds,
 its reference-bearing paths, whether it is terminal, the flow types it is
-legal in, the fields that play text, and the errors and conditions it
-carries. Recorded 2026-09-11. It is the file a second implementation
+legal in, the channels it is restricted to where its page names any, the
+fields that play text, and the errors and conditions it carries. Recorded
+2026-09-11. It is the file a second implementation
 generates its schema from, and `packages/core/src/catalog.test.ts` holds
 every table in `packages/core/src/actions.ts` to it, so the prose here, the
 data, and the code cannot disagree. Add a type to both files in the same
@@ -1096,6 +1113,15 @@ is billed prompt text (prompt-length-3000), `announces` the paths whose
 non-blank value means the participant hears something, and
 `recordingEnabler` the list whose non-empty value turns recording on
 (recording-consent-before-record reads both).
+
+`channels` lists the channels an action's page says it supports, in the
+service's Channel vocabulary (`VOICE`, `CHAT`, `TASK`, `EMAIL`), when the
+page names any: `Wait` and `ShowView`, both `["CHAT"]` (added 2026-10-05,
+from the Restrictions sections quoted in rules 22 and 34). Absent means the
+page states no channel restriction; it is never an empty list.
+`channel-restricted-action` reads it, and `packages/core/src/actions.ts`
+carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
+`catalog.test.ts` holds to the catalog.
 
 A parameter marked `dynamic` also accepts a single JSONPath identifier where
 its page says "fully static or fully dynamic"; the kind describes the static

@@ -145,14 +145,18 @@ Every `next` and branch target must name an action in the same resource.
 
 The provider runs the flow-as-code lint rules on every plan. `no-literal-arn`
 and `no-unresolved-token` are hard: they fail the plan and cannot be disabled.
-The rest (`action-allowed-in-flow-type`, `action-count`, `conditional-shape`,
-`error-branches`, `module-depth-5`, `next-action-required`,
-`prompt-length-3000`, `reachable-blocks`, `recording-consent-before-record`,
-`terminal-blocks`, `unique-names`) print warnings keyed by rule id. Treat
-`error-branches`, `conditional-shape` and `next-action-required` warnings as
-failures: Connect will refuse the flow. (`next-action-required` was added on
-2026-09-30; a provider or `flow-cli` release older than that does not run
-it.) A rule that genuinely does
+The rest (`action-allowed-in-flow-type`, `action-count`,
+`channel-restricted-action`, `conditional-shape`, `error-branches`,
+`module-depth-5`, `next-action-required`, `prompt-length-3000`,
+`reachable-blocks`, `recording-consent-before-record`, `terminal-blocks`,
+`unique-names`) print warnings keyed by rule id. Treat `error-branches`,
+`conditional-shape` and `next-action-required` warnings as failures: Connect
+will refuse the flow. (`next-action-required` was added on 2026-09-30 and
+`channel-restricted-action` on 2026-10-05; a provider or `flow-cli` release
+older than that does not run them.) `channel-restricted-action` warns on every
+`wait` and `show_view`, which their pages support on chat only: leave it on a
+flow that voice contacts reach, and disable it for a flow that serves chat
+alone, since the document cannot say which. A rule that genuinely does
 not apply to one flow can be switched off for that resource only:
 
 ```hcl

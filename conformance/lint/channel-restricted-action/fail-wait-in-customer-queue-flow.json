@@ -1,0 +1,65 @@
+{
+  "expect": [
+    {
+      "rule": "channel-restricted-action",
+      "blockId": "pause",
+      "messageIncludes": "Wait is supported only on the CHAT channel, and the document does not record which channels this flow serves"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.2",
+    "kind": "flow",
+    "name": "queue-wait",
+    "connectType": "CUSTOMER_QUEUE",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "pause",
+      "Actions": [
+        {
+          "Identifier": "pause",
+          "Type": "Wait",
+          "Parameters": {
+            "TimeLimitSeconds": "900"
+          },
+          "Transitions": {
+            "NextAction": "resume",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "resume"
+              }
+            ],
+            "Conditions": [
+              {
+                "NextAction": "resume",
+                "Condition": {
+                  "Operator": "Equals",
+                  "Operands": [
+                    "WaitCompleted"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Identifier": "resume",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "pause": {
+        "x": 0,
+        "y": 0
+      },
+      "resume": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

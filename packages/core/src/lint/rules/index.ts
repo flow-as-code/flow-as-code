@@ -7,6 +7,7 @@
 
 import { actionAllowedInFlowType } from "./action-allowed-in-flow-type.js";
 import { actionCount } from "./action-count.js";
+import { channelRestrictedAction } from "./channel-restricted-action.js";
 import { conditionalShape } from "./conditional-shape.js";
 import { errorBranches } from "./error-branches.js";
 import { moduleDepth5 } from "./module-depth-5.js";
@@ -34,6 +35,7 @@ export const allRules: readonly Rule[] = [
   actionCount,
   conditionalShape,
   nextActionRequired,
+  channelRestrictedAction,
 ];
 
 export function ruleById(id: string): Rule | undefined {
@@ -45,6 +47,7 @@ export { NO_LITERAL_ARN, literalArnMessage, literalArnPaths } from "./no-literal
 export {
   actionAllowedInFlowType,
   actionCount,
+  channelRestrictedAction,
   conditionalShape,
   errorBranches,
   moduleDepth5,

@@ -1,0 +1,74 @@
+{
+  "expect": [
+    {
+      "rule": "channel-restricted-action",
+      "blockId": "show-form",
+      "messageIncludes": "ShowView is supported only on the CHAT channel, and the document does not record which channels this flow serves"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.2",
+    "kind": "flow",
+    "name": "guide",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "show-form",
+      "Actions": [
+        {
+          "Identifier": "show-form",
+          "Type": "ShowView",
+          "Parameters": {
+            "ViewResource": {
+              "Id": "${cdref:view:form@1}",
+              "Version": "1"
+            },
+            "InvocationTimeLimitSeconds": "300"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingCondition",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "TimeLimitExceeded",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "show-form": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": [
+      {
+        "token": "${cdref:view:form@1}",
+        "type": "view",
+        "name": "form",
+        "alias": "1"
+      }
+    ]
+  }
+}

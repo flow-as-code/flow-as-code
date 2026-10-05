@@ -1753,6 +1753,9 @@
         "CUSTOMER_QUEUE",
         "MODULE"
       ],
+      "channels": [
+        "CHAT"
+      ],
       "parameters": [
         {
           "key": "ViewResource",
@@ -2264,6 +2267,9 @@
       "block": "wait",
       "terminal": false,
       "flowTypes": "unrestricted",
+      "channels": [
+        "CHAT"
+      ],
       "parameters": [
         {
           "key": "TimeLimitSeconds",

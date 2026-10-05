@@ -44,6 +44,7 @@ describe("A02 acceptance: every rule has fixtures", () => {
     expect([...allRules.map((r) => r.id)].sort()).toEqual([
       "action-allowed-in-flow-type",
       "action-count",
+      "channel-restricted-action",
       "conditional-shape",
       "error-branches",
       "module-depth-5",
@@ -111,6 +112,25 @@ describe.each(ruleDirs)("rule %s", (ruleId) => {
       if (want.blockId !== undefined) expect(got.blockId).toBe(want.blockId);
       expect(got.message).toContain(want.messageIncludes);
     }
+  });
+});
+
+describe("channel-restricted-action", () => {
+  // The fixtures hold the rule id, block and message; the severity is held
+  // here, since a document records no channel and an error would block a
+  // chat-only inbound flow that is legal as written.
+  it("warns, naming the channels the page allows and the page", () => {
+    const fixture = JSON.parse(
+      read("conformance/lint/channel-restricted-action/fail-wait-in-customer-queue-flow.json"),
+    ) as FailFixture;
+    const found = lint(docsOf(fixture)).filter((f) => f.rule === "channel-restricted-action");
+    expect(found).toHaveLength(1);
+    expect(found[0]!.severity).toBe("warning");
+    expect(found[0]!.message).toContain("CHAT");
+    expect(found[0]!.message).toContain(
+      "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html",
+    );
+    expect(hasBlockingFindings(found)).toBe(false);
   });
 });
 
