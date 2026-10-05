@@ -278,3 +278,8 @@ found it and is never the evidence for it.
   `--instance-id-expression` (`<input>:159:1: Unexpected "}".`) with the
   option's name; the check belongs in `@flow-as-code/hcl`'s
   `checkExpression`, and is noted for C12's owner.
+
+## Status (2026-10-05)
+
+Merged to main in #35 (`78b0a87`, 2026-10-05 21:44 UTC); its run,
+37377884054, passed.

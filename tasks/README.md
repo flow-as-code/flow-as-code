@@ -148,23 +148,23 @@ Settled by the owner on 2026-09-30; do not re-ask them.
 
 ## Order
 
-| #   | Task                                                                    | Group       | Gate                          |
-| --- | ----------------------------------------------------------------------- | ----------- | ----------------------------- |
-| C01 | CI green on main again (demo-boot teardown)                             | baseline    | none                          |
-| C02 | The site's staleness inputs cover `conformance/demo/`                   | baseline    | none                          |
-| C03 | Channel-restricted actions: `Wait` and `ShowView` on voice              | contract    | none                          |
-| C04 | Stored-input `GetParticipantInput` in the typed builder                 | engine      | none                          |
-| C05 | Releasing a module nothing in the set references                        | emitters    | none                          |
-| C06 | CDK: same-set flow refs in event hooks, out-of-set modules              | emitters    | none                          |
-| C07 | `scripts/sync-example.mjs` and `examples/vendored/hollow-hour-example/` | integration | a satellite commit            |
-| C08 | Hosted-studio example picker                                            | studio      | C01, C07                      |
-| C09 | Tutorial: a worked example at a tag                                     | docs        | C08, satellite public, a tag  |
-| C10 | Simulate: Lex substitution and mock responses                           | live AWS    | Lex enters the showcase scope |
-| C12 | Emit: unbound refs on flowascode, unused map keys, constraint           | emitters    | none                          |
-| C13 | Emit: per-flow outputs for a promotion gate                             | emitters    | none                          |
-| C14 | Simulate: a library entry point and an offline dry run                  | simulate    | none                          |
-| C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio | none                          |
-| C11 | Release and close                                                       | release     | C01 to C09, C12 to C15        |
+| #   | Task                                                                    | Group       | Gate                          | Status (2026-10-05)                |
+| --- | ----------------------------------------------------------------------- | ----------- | ----------------------------- | ---------------------------------- |
+| C01 | CI green on main again (demo-boot teardown)                             | baseline    | none                          | closed, run 37344998368            |
+| C02 | The site's staleness inputs cover `conformance/demo/`                   | baseline    | none                          | merged, #25 `940af58`              |
+| C03 | Channel-restricted actions: `Wait` and `ShowView` on voice              | contract    | none                          | merged, #26 `eb68746`              |
+| C04 | Stored-input `GetParticipantInput` in the typed builder                 | engine      | none                          | merged, #27 `1b674b1`              |
+| C05 | Releasing a module nothing in the set references                        | emitters    | none                          | merged, #34 into C13, main via #39 |
+| C06 | CDK: same-set flow refs in event hooks, out-of-set modules              | emitters    | none                          | merged, #28 `3bd04c4`              |
+| C07 | `scripts/sync-example.mjs` and `examples/vendored/hollow-hour-example/` | integration | a satellite commit            | waits on a showcase tag            |
+| C08 | Hosted-studio example picker                                            | studio      | C01, C07                      | waits on C07                       |
+| C09 | Tutorial: a worked example at a tag                                     | docs        | C08, satellite public, a tag  | waits on C08 and the tag           |
+| C10 | Simulate: Lex substitution and mock responses                           | live AWS    | Lex enters the showcase scope | gated                              |
+| C12 | Emit: unbound refs on flowascode, unused map keys, constraint           | emitters    | none                          | merged, #29 `8322121`              |
+| C13 | Emit: per-flow outputs for a promotion gate                             | emitters    | none                          | merged, #32 into C12, main via #39 |
+| C14 | Simulate: a library entry point and an offline dry run                  | simulate    | none                          | merged, #31 `4ef9c91`              |
+| C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio | none                          | merged, #35 `78b0a87`              |
+| C11 | Release and close                                                       | release     | C01 to C09, C12 to C15        | open                               |
 
 C12 to C15 were added after the plan's first draft, from the showcase's build
 reports, and are numbered after C11 so no earlier number moves; they come
@@ -249,6 +249,41 @@ for `conformance/`, in the other direction.
   `TransferParticipantToThirdParty`). They stay generic blocks; modeling them
   is its own task when a user needs more than the passthrough.
 
+## Where it stands (2026-10-05)
+
+Every code task that needs no satellite commit is on main, all merged on
+2026-10-05 UTC: C02 (#25, `940af58`), C03 (#26, `eb68746`), C04 (#27,
+`1b674b1`), C06 (#28, `3bd04c4`), C12 (#29, `8322121`), C14 (#31,
+`4ef9c91`), C15 (#35, `78b0a87`), and C13 with C05 through #39 (`8b00b1b`),
+after #32 and #34 had merged into their base branches (see "Lessons"). C01
+closed the same day on run 37344998368, the third consecutive green on main
+after its fix; its file lists every run on main that day, the two red ones
+among them with their causes. The provider re-vendor each task records as
+pending is C11's.
+
+What remains: C07 to C09 wait on a commit and a public tag in the showcase
+repository, C10 is gated on Lex entering the showcase's scope, and C11
+releases and closes.
+
+Also merged on 2026-10-05, outside the C numbering: #36 (`f737583`, the rule
+40 probes in the runner's shape, which closed the one deterministic red run on
+main), #37 (`02bae32`, `TOKEN_SCAN` in `refs` made a single linear pass),
+#40 (`db3fc9b`, the six open code scanning alerts closed at their root;
+`gh api repos/flow-as-code/flow-as-code/code-scanning/alerts?state=open`
+returns none), and from Phase D's pre-gate work, the D00 census (#30,
+`19fe7e1`) and the Phase D preparation (#33, `78ea9bf`).
+
+## Lessons
+
+- A stacked pull request must be retargeted to `main` before it is merged.
+  This repository keeps merged branches, so merging #32 (C13) into
+  `feat/c12-emit-bindings-diagnostics` three minutes after that branch had
+  itself merged to main put C13 on a branch nothing would carry further, and
+  #34 (C05) into C13's branch the same way. Both reached main only through
+  a third pull request, #39, opened from C13's branch. GitHub retargets a
+  stacked PR to the default branch only when the base branch is deleted on
+  merge, which this repository does not do.
+
 ## Definition of done for Phase C
 
 The hosted studio opens `appointment-line` by default and a vendored
@@ -313,10 +348,10 @@ was already a workaround. A phase of its own can close on its own evidence.
 - C04 touches `GetParticipantInput`'s stored form and does not block;
   D09's `EnableDTMFBuffer` lands after it, on the same type (moved from D00
   on 2026-10-05 so D00 has no gate).
-- C01 is not closed: its file still records no CI runs. Main has two green
-  runs since the fix (36794827383 for #22, 36795832942 for #23; the runs for
-  #20 and #21 were cancelled). The third consecutive green run is recorded in
-  C01 with all three URLs before C11, and that is Phase C's work, not D's.
+- C01 closed on 2026-10-05 on run 37344998368 (#25), the third consecutive
+  green on main after its fix, with 36794827383 (#22) and 36795832942 (#23)
+  before it; its file records the runs. (This bullet had said C01 was not
+  closed, which was true when Phase D was planned.)
 - "Considered and not taken" in Phase C says flow-type and channel
   restrictions on unmodeled types wait until "modeling them is its own task".
   Phase D is that task.

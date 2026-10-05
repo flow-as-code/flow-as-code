@@ -100,3 +100,12 @@ docs, { resourceMap })` (`packages/core/src/scenario-check.ts`), kept in
   with the provider commit when it lands, in the Phase C release batch.
 
 - Review of PR #31 (2026-10-05), addressed on the branch: the tag-stripping regex code scanning flagged is a linear `spokenText` pass with the pathological and nested-tag inputs pinned; the DtmfInput golden is the `keypad-press` case above; the dry run takes several flows paths; `--format` is refused with `--dry-run` whatever its value; the ARN form's unverified status is in the README, docs/08 and the schema; the subprocess test's title no longer counts the cases.
+
+## Status (2026-10-05)
+
+Merged to main in #31 (`4ef9c91`, 2026-10-05 21:02 UTC). Its run,
+37373477595, is recorded as a failure because six of its seven jobs were
+cancelled after fifteen minutes queued with no runner; the one that ran,
+`build / node 22`, passed, and the next run on main (37375455463, #39)
+passed in full. C01 records it. The provider re-vendor above is still
+pending and is C11's.

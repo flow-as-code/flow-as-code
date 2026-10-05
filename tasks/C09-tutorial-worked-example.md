@@ -58,3 +58,8 @@ Note (2026-10-05, from C12): the tag this task links must be one whose
 refuses an unbound reference on `--target flowascode` without
 `--allow-unbound`; see the note on C07 and the record in
 `tasks/C12-emit-bindings-diagnostics.md`.
+
+## Status (2026-10-05)
+
+Not started. Waits on C08 and on the showcase repository being public at a
+tag.

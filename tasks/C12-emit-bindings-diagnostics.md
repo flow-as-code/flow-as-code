@@ -117,3 +117,9 @@ appointment-line)`), because the `null` binding it would otherwise write
 Changeset: `.changeset/emit-bindings-diagnostics.md` (`@flow-as-code/cli`
 and `@flow-as-code/hcl` minor, `@flow-as-code/tf` minor for the result
 fields).
+
+## Status (2026-10-05)
+
+Merged to main in #29 (`8322121`, 2026-10-05 18:08 UTC); its run,
+37353765499, passed. The provider re-vendor above is still pending and is
+C11's.

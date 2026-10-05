@@ -66,3 +66,8 @@ Tests: `packages/cdk/src/flow-set.test.ts` (two new describe blocks, one new
 snapshot) and `packages/cdk/src/scaffold.test.ts`. No conformance fixture:
 CDK has no Go counterpart, and nothing in `conformance/` changed. No deploy
 was made.
+
+## Status (2026-10-05)
+
+Merged to main in #28 (`3bd04c4`, 2026-10-05 17:26 UTC); its run,
+37348490241, passed.

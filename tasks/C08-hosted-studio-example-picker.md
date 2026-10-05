@@ -50,3 +50,7 @@ default and without adding anything to the npm package.
   and every request is same-origin. Recorded here with its date.
 - The studio's npm package gets no changeset from this task unless its
   published files change, and the test above says they do not.
+
+## Status (2026-10-05)
+
+Not started. C01 closed on 2026-10-05; the task now waits on C07 alone.

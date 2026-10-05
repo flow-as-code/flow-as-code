@@ -96,3 +96,13 @@ pass` with the providers pinned as the other cases pin them (awscc for the
 
 Changeset: `.changeset/unreferenced-module-release.md` (`@flow-as-code/hcl`,
 `@flow-as-code/tf` and `@flow-as-code/cli` minor).
+
+## Status (2026-10-05)
+
+Merged as #34 (`e37f171`, 2026-10-05 18:15 UTC) into its base branch,
+`feat/c13-emit-per-flow-outputs`, not into main: it was stacked on C13, and
+C13's branch was merged into C12's branch (#32) after C12 had already
+reached main through #29, so neither #32 nor #34 moved main. Both reached
+main through #39 (`8b00b1b`, 21:22 UTC), opened from C13's branch and
+retargeted to main. `tasks/README.md`, "Lessons", records the rule. The
+provider re-vendor above is still pending and is C11's.

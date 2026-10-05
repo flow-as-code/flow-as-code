@@ -108,3 +108,8 @@ disable }` block, which the provider, the CLI's bridge and the studio honor
   commit, implements `channel-restricted-action` (severity warning, same
   message shape) and re-records its oracles. That is the Phase C release
   batch; the provider commit is recorded here when it lands.
+
+## Status (2026-10-05)
+
+Merged to main in #26 (`eb68746`, 2026-10-05 17:01 UTC). The provider
+re-vendor above is still pending and is C11's.
