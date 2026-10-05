@@ -113,6 +113,9 @@ export async function runStudio(dir: string | undefined, options: StudioOptions 
       // the loop this command exists for, because there is nothing to edit.
       ensurePairs: true,
       onEvent: (event) => console.log(eventLine(event, target)),
+      // An error no route expected: the page is told "Internal bridge error."
+      // and this terminal gets the error itself, stack included.
+      onError: (err) => console.error("error    bridge:", err),
     });
   } catch (error) {
     throw new CliError(error instanceof Error ? error.message : String(error));

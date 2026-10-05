@@ -128,11 +128,15 @@ interface Started {
   server: Awaited<ReturnType<typeof startStudioServer>>;
 }
 
-async function start(dir: string, options: { watch?: boolean; assetsDir?: string } = {}) {
+async function start(
+  dir: string,
+  options: { watch?: boolean; assetsDir?: string; onError?: (err: unknown) => void } = {},
+) {
   const server = await startStudioServer({
     dir,
     watch: options.watch ?? false,
     assetsDir: options.assetsDir,
+    onError: options.onError,
     // Short enough that a test never waits on a parked poll, long enough that
     // the poll is a real long poll rather than a busy loop.
     pollTimeoutMs: 500,
@@ -670,6 +674,28 @@ describe("studio bridge: exports", () => {
     ).rejects.toThrow(/outside the served directory/);
     expect(existsSync(join(dir, "..", "escaped.tf"))).toBe(false);
     expect(existsSync(join(dir, "..", "elsewhere"))).toBe(false);
+  });
+
+  it("answers an error no route expected with a fixed line, keeping the error for the log", async () => {
+    // A thrown value written into a response is how a stack trace reaches the
+    // page (code scanning, js/stack-trace-exposure). The client gets one fixed
+    // line; what was thrown goes to onError, which the command logs. A file
+    // where the export needs a directory makes mkdir throw past every check
+    // the route makes itself.
+    const dir = await demoDir();
+    await writeFile(join(dir, "taken"), "a file, not a directory", "utf8");
+    const seen: unknown[] = [];
+    const started = await start(dir, { onError: (err) => seen.push(err) });
+    const response = await asStudio(started, `/bridge/export`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ target: "tf", files: { "taken/out.tf": "x" } }),
+    });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Internal bridge error." });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBeInstanceOf(Error);
+    expect((seen[0] as Error).message).toContain("taken");
   });
 
   it("answers POST only", async () => {

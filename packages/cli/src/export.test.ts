@@ -523,6 +523,23 @@ describe("export", () => {
       expect(run.stdout).toBe("");
     });
 
+    it("finds the broken stub from a directory whose name would break a quoted path", () => {
+      // The hook used to carry the stub's path quoted into its source; this
+      // name holds the characters that quoting had to get right. The hook now
+      // resolves the stub from its own location, so there is nothing to quote.
+      // (No backslash: --import reads its argument as a URL, where one is a
+      // separator, which is a limit of how the hook is loaded, not of the hook.)
+      const dir = join(tempDir(), "q\"uote's ${brace} `tick`");
+      mkdirSync(dir, { recursive: true });
+      const hook = writeBrokenSdkHook(dir);
+      expect(readFileSync(hook, "utf8")).not.toContain("brace");
+      const run = cli(["export", "--instance", INSTANCE, "--out", dir], ["--import", hook]);
+      expect(run.status).toBe(1);
+      expect(run.stderr).toContain(`Cannot find package '${BROKEN_SDK_DEPENDENCY}' imported from `);
+      expect(run.stderr).toContain(join(dir, BROKEN_SDK_STUB));
+      expect(run.stderr.trim().split("\n")).toHaveLength(1);
+    });
+
     it("exits 1 on a bad --instance or --on-error without loading the SDK", () => {
       const dir = tempDir();
       const hook = writeDenySdkHook(dir);

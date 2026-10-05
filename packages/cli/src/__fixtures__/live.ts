@@ -10,7 +10,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import type {
   ConnectInventoryClient,
@@ -290,12 +290,14 @@ export function writeDenySdkHook(dir: string): string {
  */
 export function writeStaleSdkHook(dir: string): string {
   const path = join(dir, "stale-sdk.mjs");
-  const stale = "data:text/javascript,export class ConnectClient { constructor() {} }";
   writeFileSync(
     path,
     hookModule(`
   if (specifier === "@aws-sdk/client-connect") {
-    return { url: ${JSON.stringify(stale)}, shortCircuit: true };
+    return {
+      url: "data:text/javascript,export class ConnectClient { constructor() {} }",
+      shortCircuit: true,
+    };
   }
   return next(specifier, context);
 `),
@@ -307,8 +309,15 @@ export function writeStaleSdkHook(dir: string): string {
 /** The package `writeBrokenSdkHook`'s stand-in SDK fails to import. */
 export const BROKEN_SDK_DEPENDENCY = "no-such-transitive-dependency";
 
+/**
+ * Where `writeBrokenSdkHook` puts its stand-in SDK, relative to `dir`, as the
+ * hook's own text spells it: a URL path from the hook file, which sits in
+ * `dir`. The platform form of the same path is `BROKEN_SDK_STUB`.
+ */
+const BROKEN_SDK_STUB_FROM_HOOK = "./node_modules/@aws-sdk/client-connect/index.mjs";
+
 /** Where `writeBrokenSdkHook` puts its stand-in SDK, relative to `dir`. */
-export const BROKEN_SDK_STUB = join("node_modules", "@aws-sdk", "client-connect", "index.mjs");
+export const BROKEN_SDK_STUB = join(...BROKEN_SDK_STUB_FROM_HOOK.slice(2).split("/"));
 
 /**
  * Writes a hook that resolves @aws-sdk/client-connect to a module in `dir`
@@ -328,11 +337,15 @@ export function writeBrokenSdkHook(dir: string): string {
   mkdirSync(dirname(stub), { recursive: true });
   writeFileSync(stub, `import ${JSON.stringify(BROKEN_SDK_DEPENDENCY)};\n`, "utf8");
   const path = join(dir, "broken-sdk-hook.mjs");
+  // The hook finds the stub from its own location rather than being told the
+  // path: a value quoted into the module's source (JSON.stringify was the
+  // quoting) is what code scanning reported as improper code sanitization.
+  // Nothing but a constant of this file reaches the source now.
   writeFileSync(
     path,
     hookModule(`
   if (specifier === "@aws-sdk/client-connect") {
-    return { url: ${JSON.stringify(pathToFileURL(stub).href)}, shortCircuit: true };
+    return { url: new URL("${BROKEN_SDK_STUB_FROM_HOOK}", import.meta.url).href, shortCircuit: true };
   }
   return next(specifier, context);
 `),
@@ -346,14 +359,24 @@ export function writeBrokenSdkHook(dir: string): string {
  * and later take the synchronous registerHooks form; older Node has only the
  * threaded module.register, which Node 25 deprecates with a warning on stderr,
  * and the tests assert stderr byte for byte.
+ *
+ * `body` is source text written in this file, never a value: the one function
+ * serves both forms, so the module registers itself with module.register and
+ * the hooks thread, where isMainThread is false, imports it for the export
+ * alone instead of registering again. A hook that needs a path computes it
+ * from import.meta.url, which is the same file on either thread.
  */
 function hookModule(body: string): string {
-  const fn = `function resolve(specifier, context, next) {${body}}`;
-  const url = `data:text/javascript,${encodeURIComponent(`export async ${fn}`)}`;
   return [
     'import * as mod from "node:module";',
-    `if (typeof mod.registerHooks === "function") mod.registerHooks({ resolve: ${fn} });`,
-    `else mod.register(${JSON.stringify(url)});`,
+    'import { isMainThread } from "node:worker_threads";',
+    "",
+    `export function resolve(specifier, context, next) {${body}}`,
+    "",
+    "if (isMainThread) {",
+    '  if (typeof mod.registerHooks === "function") mod.registerHooks({ resolve });',
+    "  else mod.register(import.meta.url);",
+    "}",
     "",
   ].join("\n");
 }

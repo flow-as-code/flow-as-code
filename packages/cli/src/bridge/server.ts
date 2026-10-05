@@ -140,6 +140,12 @@ export interface StudioServerOptions {
   token?: string;
   /** Called for every published event, so the command can log a line. */
   onEvent?: (event: BridgeEvent) => void;
+  /**
+   * Called with an error no route expected, which the client is answered
+   * with a fixed 500. The thrown value, stack and all, is for this log and
+   * never for the response. Default: console.error.
+   */
+  onError?: (err: unknown) => void;
 }
 
 export interface StudioServer {
@@ -241,7 +247,7 @@ class Bridge {
           kind: "error",
           name,
           path: name,
-          message: err instanceof Error ? err.message : String(err),
+          message: messageOf(err),
         });
       }),
     );
@@ -289,13 +295,13 @@ class Bridge {
       try {
         conflict.docSide = (await readPair(this.dir, name)).doc;
       } catch (err) {
-        conflict.docError = err instanceof Error ? err.message : String(err);
+        conflict.docError = messageOf(err);
       }
     }
     try {
       conflict.codeSide = await synthPair(this.dir, name);
     } catch (err) {
-      conflict.codeError = err instanceof Error ? err.message : String(err);
+      conflict.codeError = messageOf(err);
     }
     this.conflicts.set(name, conflict);
     this.publish({ kind: "conflict", ...conflict });
@@ -367,6 +373,15 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 
 function sendError(res: ServerResponse, status: number, message: string): void {
   sendJson(res, status, { error: message });
+}
+
+/**
+ * What a client may be told about a thrown value: an Error's own message, or
+ * a fixed line for anything else. Stringifying whatever was thrown is how a
+ * stack trace reaches a response (code scanning, js/stack-trace-exposure).
+ */
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : "Unknown error.";
 }
 
 /** Reads a JSON request body, refusing anything oversized or malformed. */
@@ -487,6 +502,7 @@ class Router {
     private readonly bridge: Bridge,
     private readonly info: BridgeInfo,
     private readonly watcher: FlowWatcher | undefined,
+    private readonly onError: (err: unknown) => void,
   ) {}
 
   async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -513,8 +529,15 @@ class Router {
       try {
         await this.api(method, url, req, res);
       } catch (err) {
-        if (err instanceof BridgeError) sendError(res, err.status, err.message);
-        else sendError(res, 500, err instanceof Error ? err.message : String(err));
+        if (err instanceof BridgeError) {
+          sendError(res, err.status, err.message);
+        } else {
+          // The client gets one fixed line. The error itself goes to the log:
+          // a thrown value written into a response is how a stack trace
+          // reaches a page (code scanning, js/stack-trace-exposure).
+          this.onError(err);
+          sendError(res, 500, "Internal bridge error.");
+        }
       }
       return;
     }
@@ -796,6 +819,10 @@ export function injectBoot(html: string, info: BridgeInfo): string {
  * Starts the bridge on 127.0.0.1. Resolves once it is listening, with the URL
  * to open.
  */
+function defaultOnError(err: unknown): void {
+  console.error(err);
+}
+
 export async function startStudioServer(options: StudioServerOptions): Promise<StudioServer> {
   const dir = resolve(options.dir);
   try {
@@ -833,7 +860,7 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
     label: basename(dir),
     token: options.token ?? newSessionToken(),
   };
-  const router = new Router(bridge, info, watcher);
+  const router = new Router(bridge, info, watcher, options.onError ?? defaultOnError);
 
   const server = createServer((req, res) => {
     void router.handle(req, res).catch(() => {
