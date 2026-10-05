@@ -146,6 +146,12 @@ export interface CatalogTransitions {
 export type ActionCategory = "contact" | "participant" | "flowControl" | "interaction";
 
 /**
+ * A contact channel, as the service's Channel enum spells it.
+ * https://docs.aws.amazon.com/connect/latest/APIReference/API_Contact.html
+ */
+export type Channel = "VOICE" | "CHAT" | "TASK" | "EMAIL";
+
+/**
  * A shape an action must take when one of its parameters has, or lacks, a
  * static value: GetParticipantInput with StoreInput "True" needs
  * InputValidation and takes no conditions. The conditional-shape lint rule
@@ -168,6 +174,14 @@ export interface ModeledAction {
   terminal: boolean;
   /** ConnectType values the action is legal in, or the recorded absence of a restriction. */
   flowTypes: readonly string[] | "unrestricted";
+  /**
+   * The channels the action's page says it supports, when it names any
+   * (Wait and ShowView: "only ... the chat channel"). Absent means the page
+   * states no channel restriction. A document does not record which channels
+   * its flow serves, so channel-restricted-action reports a warning, not an
+   * error, wherever such an action appears.
+   */
+  channels?: readonly Channel[];
   parameters: readonly CatalogParameter[];
   constraints?: readonly CatalogConstraint[];
   /** Parameter-dependent shapes; see CatalogShape. */
@@ -279,4 +293,9 @@ export function announcePaths(type: string): readonly string[] {
 /** The list whose non-empty value enables recording, when the action can. */
 export function recordingEnablerPath(type: string): string | undefined {
   return modeledEntry(type)?.recordingEnabler;
+}
+
+/** The channels an action of this type is restricted to, or undefined when its page names none. */
+export function channelRestriction(type: string): readonly Channel[] | undefined {
+  return modeledEntry(type)?.channels;
 }

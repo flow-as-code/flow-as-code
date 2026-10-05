@@ -11,6 +11,7 @@
 // implementation, and catalog.test.ts holds every table in this file to it:
 // the tables stay here, readable and cited, and a divergence fails CI.
 
+import type { Channel } from "./catalog.js";
 import type { RefType } from "./flowdoc.js";
 
 export const ActionType = {
@@ -470,6 +471,29 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
     ...CUSTOMER_QUEUE,
     ...IN_MODULE,
   ],
+};
+
+/**
+ * Which channels an action is restricted to, where its page names any. The
+ * catalog's `channels` is the same fact, and catalog.test.ts holds the two
+ * together. Consumed by the `channel-restricted-action` lint rule, which
+ * warns rather than errors: a flow's channel is decided by the contact that
+ * reaches it, not by the document, and FlowDoc does not record it.
+ *
+ * An action absent from this table has no channel restriction recorded: the
+ * modeled pages were read for conformance/flow-language/actions.md, these two
+ * are the ones that name a channel, and where another page mentions channels
+ * at all it says "all channels" (quoted beside FLOW_TYPE_UNRESTRICTED and in
+ * FLOW_TYPE_RESTRICTIONS above).
+ */
+export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> = {
+  // "This is supported in every type of flow, but is supported only by the
+  // chat channel."
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html
+  [ActionType.Wait]: ["CHAT"],
+  // "This action is only supported on the chat channel."
+  // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
+  [ActionType.ShowView]: ["CHAT"],
 };
 
 /**

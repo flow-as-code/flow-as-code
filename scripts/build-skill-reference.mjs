@@ -117,6 +117,11 @@ function section(type, a) {
   lines.push(`Block \`${a.block}\`. [Action page](${a.doc}).`);
   const where = Array.isArray(a.flowTypes) ? a.flowTypes.join(", ") : "every flow type";
   lines.push("", `- Legal in: ${where}.`);
+  if (a.channels !== undefined) {
+    lines.push(
+      `- Channels: ${a.channels.join(", ")} only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.`,
+    );
+  }
   if (a.terminal) {
     lines.push("- Terminal: no `next`, no branches.");
   } else {

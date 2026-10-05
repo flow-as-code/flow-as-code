@@ -398,6 +398,7 @@ Block `message_participant_iteratively`. [Action page](https://docs.aws.amazon.c
 Block `show_view`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html).
 
 - Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, MODULE.
+- Channels: CHAT only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required; write the `NoMatchingError` branch's target, as the console does.
 - Error branches: `NoMatchingCondition` (required); `NoMatchingError` (required); `TimeLimitExceeded` (required).
 - Conditions: Equals on values the action defines.
@@ -548,6 +549,7 @@ Block `update_flow_logging_behavior`. [Action page](https://docs.aws.amazon.com/
 Block `wait`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-wait.html).
 
 - Legal in: every flow type.
+- Channels: CHAT only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required; write the `NoMatchingError` branch's target, as the console does.
 - Error branches: `NoMatchingError` (required); `ParticipantNotFound`: Events includes BotParticipantDisconnected.
 - Conditions: Equals on values the action defines.
