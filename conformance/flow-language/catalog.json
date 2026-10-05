@@ -1338,7 +1338,7 @@
                 {
                   "key": "MaximumLength",
                   "attr": "maximum_length",
-                  "kind": "integer",
+                  "kind": "integerString",
                   "required": true
                 }
               ]
@@ -1495,15 +1495,15 @@
             "when": "StoreInput is \"False\": the service refused the action without it on 2026-09-29 (sandbox, us-west-2), with or without conditions, which the page does not say; with StoreInput \"True\" the page forbids it"
           },
           {
+            "type": "InvalidPhoneNumber",
+            "required": false,
+            "builder": true,
+            "when": "StoreInput is \"True\" and PhoneNumberValidation is specified (the page); the builder wires it on every phone number validation, before the catch-all"
+          },
+          {
             "type": "NoMatchingError",
             "required": true,
             "builder": true
-          },
-          {
-            "type": "InvalidPhoneNumber",
-            "required": false,
-            "builder": false,
-            "when": "StoreInput is \"True\" and PhoneNumberValidation is specified"
           }
         ]
       }

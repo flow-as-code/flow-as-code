@@ -21,6 +21,8 @@ import {
   CONDITION_CATCH_ALL,
   EXTRA_ERRORS,
   EVENT_HOOKS,
+  INPUT_MENU_ERRORS,
+  INPUT_STORED_ERRORS,
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
   INTERDIGIT_TIMEOUT_MAX,
@@ -52,6 +54,7 @@ import {
 import {
   actionCatalog,
   builderErrors,
+  builderErrorsFor,
   modeledTypes,
   requiredErrors,
   requiredErrorsFor,
@@ -565,11 +568,30 @@ describe("the action catalog", () => {
   });
 
   it("names the branches the builder wires, in the builder's order", () => {
+    // Both forms' branches; builderErrorsFor narrows them to one form.
     expect(builderErrors("GetParticipantInput")).toEqual([
       "InputTimeLimitExceeded",
       "NoMatchingCondition",
+      "InvalidPhoneNumber",
       "NoMatchingError",
     ]);
+    const menu = { Type: "GetParticipantInput", Parameters: { StoreInput: "False" } };
+    expect(builderErrorsFor(menu)).toEqual([...INPUT_MENU_ERRORS]);
+    expect(builderErrorsFor({ ...menu, Parameters: {} })).toEqual([...INPUT_MENU_ERRORS]);
+    const stored = (validation: unknown) => ({
+      Type: "GetParticipantInput",
+      Parameters: { StoreInput: "True", InputValidation: validation },
+    });
+    expect(builderErrorsFor(stored({ CustomValidation: { MaximumLength: "5" } }))).toEqual([
+      "NoMatchingError",
+    ]);
+    expect(builderErrorsFor(stored({ PhoneNumberValidation: { NumberFormat: "E164" } }))).toEqual([
+      ...INPUT_STORED_ERRORS,
+    ]);
+    expect(builderErrorsFor(stored(undefined))).toEqual(["NoMatchingError"]);
+    // Every other type is its builderErrors.
+    expect(builderErrorsFor({ Type: "Wait", Parameters: {} })).toEqual(builderErrors("Wait"));
+    expect(builderErrorsFor({ Type: "NotAnAction", Parameters: {} })).toEqual([]);
     expect(builderErrors("TransferContactToQueue")).toEqual(["QueueAtCapacity", "NoMatchingError"]);
     expect(builderErrors("DequeueContactAndTransferToQueue")).toEqual([
       "QueueAtCapacity",
@@ -664,7 +686,7 @@ describe("catalogProblems is proven able to fail", () => {
   });
   it("on a builder flag the block class does not honour", () => {
     expect(
-      mutate((c) => (modeledAt(c, "GetParticipantInput").transitions.errors[3]!.builder = true)),
+      mutate((c) => (modeledAt(c, "GetParticipantInput").transitions.errors[2]!.builder = false)),
     ).toContainEqual(expect.stringContaining("GetParticipantInput: builder errors"));
   });
   it("on a catch-all the page leaves optional being marked required", () => {
