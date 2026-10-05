@@ -34,7 +34,7 @@ hcl/parse/<case>/expected.sidecar.json {refs, lint, tags, instanceId, normalized
 hcl/refuse/<case>/case.json            what the case shows
 hcl/refuse/<case>/input.flow.tf        a resource both implementations refuse
 hcl/refuse/<case>/expected-error.json  {code, path?, messageIncludes?}; the code is the cross-language field
-hcl/emit/<case>/case.json              the documents (paths relative to the case), options, validate expectation
+hcl/emit/<case>/case.json              the documents (paths relative to the case), options, unbound, unusedMapKeys, validate expectation
 hcl/emit/<case>/address-map.json       reference -> terraform address, keyed as emit-tf's maps are
 hcl/emit/<case>/expected/              flows.tf, variables.tf, versions.tf.example, byte-exact
 hcl/emit/<case>/validate/stubs.tf      the resources the address map points at
@@ -422,11 +422,18 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
     resource per document sorted by name then kind, each written by rules 3
     to 18 with no banner), `variables.tf` declaring `connect_instance_id`
     unless an instance expression is given, and `versions.tf.example`
-    requiring Terraform `>= 1.8.0` and `flow-as-code/flowascode` `>= 0.1`.
-    A document's `refs` bind a flow or module the set emits to its resource's
-    `arn`, a module invoked by alias to the alias resource's `arn`, anything
-    else to the address map's expression, and the rest to `null` under the
-    TODO comment. After each module invoked by alias come one version
+    requiring Terraform `>= 1.8.0` and `flow-as-code/flowascode` `~> 0.1`
+    (every 0.x release and never 1.0, the range the tutorials and the
+    example roots ask for). A document's `refs` bind a flow or module the
+    set emits to its resource's `arn`, a module invoked by alias to the alias
+    resource's `arn`, anything else to the address map's expression, and the
+    rest to `null` under the TODO comment. The emitter reports the keys it
+    left `null`, each with the documents that make it (a case's `unbound`),
+    and the address map keys no reference in the set reaches by any of its
+    three forms (`unusedMapKeys`); an entry a reference reaches but the set
+    resolves itself is neither. The CLI refuses the run on an unbound key
+    unless `--allow-unbound` is passed, and warns on an unused key, an error
+    under `--strict`. After each module invoked by alias come one version
     resource, with its `lifecycle` block, and one alias resource per alias,
     by rule 27, without descriptions. A literal ARN, a multi-line value or a comment marker in the
     address map, a name that is not a slug, and two documents emitting one

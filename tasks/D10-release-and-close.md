@@ -31,7 +31,7 @@ that writes them.
   `pass`, and none is left (tasks/README.md, "HCL goldens before the
   provider release"). `FLOWASCODE_PROVIDER_CONSTRAINT` in
   `packages/hcl/src/contract.ts` rises to that version as a floor for the
-  new blocks (`>= 0.1` admits it already, so no emitted
+  new blocks (`~> 0.1` admits it already, so no emitted
   `versions.tf.example` changed for `tofu init` before this), and
   `FLOWASCODE_EMITTED_CONSTRAINT` in `packages/tf/src/__fixtures__/tofu.ts`,
   held equal to it, moves with it. An emit-tf case holding typed blocks from

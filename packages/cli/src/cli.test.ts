@@ -134,6 +134,8 @@ describe("--help", () => {
     const emit = cli("emit", "--help").stdout;
     expect(emit).toContain("--target");
     expect(emit).toContain("--address-map");
+    expect(emit).toContain("--allow-unbound");
+    expect(emit).toContain("--strict");
   });
 });
 
@@ -461,8 +463,48 @@ describe("emit --target tf", () => {
   it("exits 0 without an address map, leaving loud TODO placeholders", () => {
     const { dir } = demoWorkspace();
     const out = join(dir, "infra");
-    expect(cli("emit", dir, "--target", "tf", "--out", out).status).toBe(0);
+    const run = cli("emit", dir, "--target", "tf", "--out", out);
+    expect(run.status).toBe(0);
+    expect(run.stderr).toBe("");
     expect(readFileSync(join(out, "flow_refs.tf"), "utf8")).toContain("TODO_MISSING_ADDRESS_");
+    // --allow-unbound is the flowascode target's switch; the flat target's
+    // placeholder is already the loud form, so the flag changes nothing here
+    // and a script that emits both targets with one flag list still runs.
+    expect(cli("emit", dir, "--target", "tf", "--out", out, "--allow-unbound").status).toBe(0);
+  });
+
+  it("warns on a map key no reference uses, and refuses it under --strict", () => {
+    const { dir } = demoWorkspace();
+    const out = join(dir, "infra");
+    const map = join(dir, "with-typo.json");
+    writeFileSync(
+      map,
+      JSON.stringify({
+        "queue:appointments": "aws_connect_queue.appointments.arn",
+        "queue:apointments": "aws_connect_queue.apointments.arn",
+      }),
+    );
+    const run = cli("emit", dir, "--target", "tf", "--address-map", map, "--out", out);
+    expect(run.status).toBe(0);
+    expect(run.stderr).toBe(
+      'warning: address map key "queue:apointments" matches no reference in the set\n',
+    );
+    expect(readFileSync(join(out, "flow_refs.tf"), "utf8")).not.toContain("apointments");
+
+    const strict = cli(
+      "emit",
+      dir,
+      "--target",
+      "tf",
+      "--address-map",
+      map,
+      "--out",
+      out,
+      "--strict",
+    );
+    expect(strict.status).toBe(1);
+    expect(strict.stderr).toContain("queue:apointments");
+    expect(strict.stderr).toContain("--strict");
   });
 
   it("rejects an address map that is not JSON, naming the file", () => {
@@ -512,6 +554,79 @@ describe("emit --target flowascode", () => {
     const run = cli("emit", dir, "--target", "flowascode", "--address-map", map);
     expect(run.status).toBe(1);
     expect(run.stderr).toContain("literal ARN");
+  });
+
+  // A null binding validates and is refused only at plan time, so unlike the
+  // flat target's placeholder it is not loud on its own (task C12).
+  it("exits 1 on an unbound reference, naming each key and its document, and writes nothing", () => {
+    const { dir } = demoWorkspace();
+    const out = join(dir, "infra");
+    const map = join(dir, "partial.json");
+    writeFileSync(
+      map,
+      JSON.stringify({ "hours:main-line": "aws_connect_hours_of_operation.x.arn" }),
+    );
+    const run = cli("emit", dir, "--target", "flowascode", "--address-map", map, "--out", out);
+    expect(run.status).toBe(1);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toContain("2 reference(s) have no terraform address");
+    expect(run.stderr).toContain("  - lambda:appointment-lookup (referenced by appointment-line)");
+    expect(run.stderr).toContain("  - queue:appointments (referenced by appointment-line)");
+    expect(run.stderr).toContain("--allow-unbound");
+    // A refused run leaves the filesystem untouched: not even --out exists.
+    expect(existsSync(out)).toBe(false);
+
+    const allowed = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+      "--out",
+      out,
+      "--allow-unbound",
+    );
+    expect(allowed.status).toBe(0);
+    expect(allowed.stderr).toBe("");
+    const flows = readFileSync(join(out, "flows.tf"), "utf8");
+    expect(flows).toContain("# TODO: no terraform address for ${cdref:queue:appointments}.");
+    expect(flows).toContain('"queue:appointments" = null');
+  });
+
+  it("warns on a map key no reference uses, and refuses it under --strict", () => {
+    const { dir } = demoWorkspace();
+    const out = join(dir, "infra");
+    const map = join(dir, "with-extra.json");
+    const complete = JSON.parse(
+      readFileSync(join(EMIT_TF_CASE, "address-map.json"), "utf8"),
+    ) as Record<string, string>;
+    writeFileSync(
+      map,
+      JSON.stringify({ ...complete, "queue:left-behind": "aws_connect_queue.left_behind.arn" }),
+    );
+    const run = cli("emit", dir, "--target", "flowascode", "--address-map", map, "--out", out);
+    expect(run.status).toBe(0);
+    expect(run.stderr).toBe(
+      'warning: address map key "queue:left-behind" matches no reference in the set\n',
+    );
+    expect(readFileSync(join(out, "flows.tf"), "utf8")).not.toContain("left_behind");
+
+    const fresh = join(dir, "strict-out");
+    const strict = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+      "--out",
+      fresh,
+      "--strict",
+    );
+    expect(strict.status).toBe(1);
+    expect(strict.stderr).toContain("  - queue:left-behind");
+    expect(existsSync(fresh)).toBe(false);
   });
 });
 
@@ -735,6 +850,16 @@ describe("broken input", () => {
     const run = cli("emit", dir, "--target", "pulumi");
     expect(run.status).not.toBe(0);
     expect(run.stderr).toContain("pulumi");
+  });
+
+  it("refuses the Terraform-only emit flags on --target cdk, naming the flag", () => {
+    const { dir } = demoWorkspace();
+    for (const flag of ["--allow-unbound", "--strict"]) {
+      const run = cli("emit", dir, "--target", "cdk", flag);
+      expect(run.status, flag).toBe(1);
+      expect(run.stderr).toContain(flag);
+      expect(run.stderr).toContain("binder");
+    }
   });
 
   it("names an unknown --format", () => {

@@ -6,8 +6,8 @@
 // byte (UPDATE_GOLDENS=1 rewrites them), each document's resource in
 // flows.tf read back to the document, and the refusals emitTf makes.
 
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { slugIdentifier, type FlowDoc } from "@flow-as-code/core";
 import { describe, expect, it } from "vitest";
 import { bytes, viewed } from "./__fixtures__/view.js";
@@ -19,13 +19,17 @@ import { parse } from "./parser.js";
 import { sourceOf } from "./print.js";
 import { toFlowDoc } from "./read.js";
 
-const EMIT = join(import.meta.dirname, "..", "..", "..", "conformance", "hcl", "emit");
+const ROOT = join(import.meta.dirname, "..", "..", "..");
+const EMIT = join(ROOT, "conformance", "hcl", "emit");
 const UPDATE = process.env.UPDATE_GOLDENS === "1";
 const read = (...p: string[]): string => readFileSync(join(...p), "utf8");
 
 interface EmitCase {
   docs: string[];
   options?: { instanceIdExpression?: string };
+  /** Keys the set resolves nowhere, and map keys no reference uses (task C12). */
+  unbound?: string[];
+  unusedMapKeys?: string[];
   validate?: string;
 }
 
@@ -54,7 +58,17 @@ describe("conformance/hcl/emit", () => {
     const spec = JSON.parse(read(dir, "case.json")) as EmitCase;
     const docs = spec.docs.map((p) => JSON.parse(read(dir, p)) as FlowDoc);
     const addressMap = JSON.parse(read(dir, "address-map.json")) as Record<string, string>;
-    const { files } = emitFlowascode(docs, { addressMap, ...spec.options });
+    const { files, unbound, unusedMapKeys } = emitFlowascode(docs, { addressMap, ...spec.options });
+
+    it(`${name}: reports what the map leaves unbound and what it holds unused`, () => {
+      expect(spec.unbound, "case.json names its unbound keys").toBeDefined();
+      expect(spec.unusedMapKeys, "case.json names its unused map keys").toBeDefined();
+      expect(unbound.map((u) => u.key)).toEqual(spec.unbound);
+      expect(unusedMapKeys).toEqual(spec.unusedMapKeys);
+      for (const u of unbound)
+        expect(files["flows.tf"]).toContain(`${JSON.stringify(u.key)} = null`);
+      for (const key of unusedMapKeys) expect(files["flows.tf"]).not.toContain(key);
+    });
 
     it(`${name}: writes the expected files byte for byte`, () => {
       const expected = join(dir, "expected");
@@ -178,5 +192,101 @@ describe("emitFlowascode", () => {
     expect(emitFlowascode([demo]).files["versions.tf.example"]).toContain(
       `version = "${FLOWASCODE_PROVIDER_CONSTRAINT}"`,
     );
+  });
+
+  // One string in the emitted example, the provider tutorials, the cookbook and
+  // every example root (task C12). The emitted `>= 0.1` admitted a 1.0 the
+  // tutorials' `~> 0.1` did not, so a reader following the tutorial and a
+  // reader copying the example were given different ranges.
+  it("asks for the provider at the range the tutorials and examples give", () => {
+    const files = (dir: string, suffix: string, found: string[] = []): string[] => {
+      for (const entry of readdirSync(dir).sort()) {
+        const full = join(dir, entry);
+        if (entry === "node_modules") continue;
+        if (statSync(full).isDirectory()) files(full, suffix, found);
+        else if (entry.endsWith(suffix)) found.push(full);
+      }
+      return found;
+    };
+    const sources = [
+      ...files(join(ROOT, "docs", "tutorials"), ".md"),
+      ...files(join(ROOT, "examples"), ".tf"),
+    ];
+    const block =
+      /flowascode\s*=\s*\{\s*source\s*=\s*"flow-as-code\/flowascode"\s*version\s*=\s*"([^"]*)"/g;
+    const seen: string[] = [];
+    for (const path of sources) {
+      for (const match of read(path).matchAll(block)) {
+        seen.push(relative(ROOT, path));
+        expect(match[1], relative(ROOT, path)).toBe(FLOWASCODE_PROVIDER_CONSTRAINT);
+      }
+    }
+    expect(seen).toContain("docs/tutorials/01-first-flow.md");
+    expect(seen).toContain("examples/terraform-provider/flows/versions.tf");
+    expect(seen.length).toBeGreaterThan(5);
+  });
+
+  const flow = (name: string, parameters: Record<string, string>): FlowDoc => ({
+    ...demo,
+    name,
+    content: {
+      Version: "2019-10-30",
+      StartAction: "one",
+      Actions: [
+        {
+          Identifier: "one",
+          Type: "UpdateContactTargetQueue",
+          Parameters: parameters,
+          Transitions: { NextAction: "end", Errors: [], Conditions: [] },
+        },
+        { Identifier: "end", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+      ],
+    },
+  });
+
+  it("reports each unbound key once, with every document that makes it", () => {
+    const { files, unbound } = emitFlowascode(
+      [
+        flow("second", { QueueId: "${cdref:queue:shared}" }),
+        flow("first", { QueueId: "${cdref:queue:shared}" }),
+        flow("other", { QueueId: "${cdref:queue:bound}" }),
+      ],
+      { addressMap: { "queue:bound": "aws_connect_queue.bound.arn" } },
+    );
+    expect(unbound).toEqual([{ key: "queue:shared", documents: ["first", "second"] }]);
+    expect(files["flows.tf"]).toContain('"queue:shared" = null');
+  });
+
+  it("binds nothing unbound when the map covers the set, in any of the three key forms", () => {
+    const docs = [flow("a", { QueueId: "${cdref:queue:front-desk}" })];
+    for (const key of ["${cdref:queue:front-desk}", "queue:front-desk", "queue_front_desk_arn"]) {
+      const { unbound, unusedMapKeys } = emitFlowascode(docs, {
+        addressMap: { [key]: "aws_connect_queue.front_desk.arn" },
+      });
+      expect(unbound, key).toEqual([]);
+      expect(unusedMapKeys, key).toEqual([]);
+    }
+  });
+
+  it("reports a map key no reference uses, and not one the set resolves itself", () => {
+    const { unusedMapKeys, files } = emitFlowascode(
+      [
+        flow("caller", { QueueId: "${cdref:queue:q}", FlowId: "${cdref:flow:callee}" }),
+        flow("callee", { QueueId: "${cdref:queue:q}" }),
+      ],
+      {
+        addressMap: {
+          "queue:q": "aws_connect_queue.q.arn",
+          // Shadowed by the flow this set emits: reached, so not unused.
+          "flow:callee": "aws_connect_contact_flow.elsewhere.arn",
+          "queue:typo": "aws_connect_queue.typo.arn",
+          queue_left_behind_arn: "aws_connect_queue.left_behind.arn",
+        },
+      },
+    );
+    expect(unusedMapKeys).toEqual(["queue:typo", "queue_left_behind_arn"]);
+    expect(files["flows.tf"]).not.toContain("typo");
+    expect(files["flows.tf"]).not.toContain("left_behind");
+    expect(files["flows.tf"]).toContain("flowascode_contact_flow.callee.arn");
   });
 });

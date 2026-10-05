@@ -52,3 +52,9 @@ way.
 - No launch date, no timing, no positioning. The page is held to the same
   rule as the rest of `docs/`: nothing under it is a marketing document.
 - `llms.txt` lists the page (it is generated from `PAGES`).
+
+Note (2026-10-05, from C12): the tag this task links must be one whose
+`tests/envEmit.test.ts` passes against the release carrying C12, which
+refuses an unbound reference on `--target flowascode` without
+`--allow-unbound`; see the note on C07 and the record in
+`tasks/C12-emit-bindings-diagnostics.md`.

@@ -15,9 +15,15 @@ import {
   type ModeledAction,
 } from "@flow-as-code/core";
 
-/** The provider's registry address and the constraint emitted configuration requires. */
+/**
+ * The provider's registry address and the constraint emitted configuration
+ * requires. `~> 0.1` is what the provider tutorials, the cookbook and every
+ * example root ask for, and packages/hcl/src/emit.test.ts holds them to this
+ * one string: it admits every 0.x release and excludes 1.0, the release that
+ * may change the resource schema.
+ */
 export const FLOWASCODE_PROVIDER_SOURCE = "flow-as-code/flowascode";
-export const FLOWASCODE_PROVIDER_CONSTRAINT = ">= 0.1";
+export const FLOWASCODE_PROVIDER_CONSTRAINT = "~> 0.1";
 /** The oldest Terraform the provider supports (state moves need 1.8; OpenTofu needs 1.10). */
 export const HCL_VERSION_FLOOR = "1.8.0";
 

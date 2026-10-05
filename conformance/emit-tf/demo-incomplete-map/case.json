@@ -1,5 +1,7 @@
 {
   "description": "The demo flow with an address map covering one reference of three. The two unmapped references become TODO placeholders and validate must fail on them.",
   "docs": ["../../demo/appointment-line.flowdoc.json"],
+  "unbound": ["lambda:appointment-lookup", "queue:appointments"],
+  "unusedMapKeys": [],
   "validate": "fail"
 }

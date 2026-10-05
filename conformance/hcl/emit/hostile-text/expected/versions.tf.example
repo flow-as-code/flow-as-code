@@ -14,7 +14,7 @@ terraform {
   required_providers {
     flowascode = {
       source  = "flow-as-code/flowascode"
-      version = ">= 0.1"
+      version = "~> 0.1"
     }
   }
 }

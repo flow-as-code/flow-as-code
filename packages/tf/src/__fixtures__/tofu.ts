@@ -565,7 +565,7 @@ function adoptedPin(source: string): string {
  * holds it equal to FLOWASCODE_PROVIDER_CONSTRAINT.
  */
 export const FLOWASCODE_EMITTED_CONSTRAINT: Readonly<Record<string, string>> = {
-  "flow-as-code/flowascode": ">= 0.1",
+  "flow-as-code/flowascode": "~> 0.1",
 };
 
 /** The range every emitted `versions.tf.example` gives users for `source`. */

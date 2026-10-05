@@ -7,8 +7,8 @@ part of it:
 
 - C12: `flow-cli emit --target flowascode` exits 0 with an unbound reference
   (it writes `null` under a TODO comment), ignores address-map keys no
-  reference uses, and its `versions.tf.example` says `>= 0.1` where the docs
-  say `~> 0.1`.
+  reference uses, and its `versions.tf.example` said `>= 0.1` where the docs
+  say `~> 0.1` (C12 made it `~> 0.1`).
 - C13: the flowascode emitter writes no per-flow outputs.
 - C14: simulate's `scenarioProblems` is not exported, there is no dry run
   that validates scenarios offline, and `expect-transfer` matches a queue by

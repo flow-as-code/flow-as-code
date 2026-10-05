@@ -21,6 +21,7 @@ export {
   emitFlowascode,
   type EmitFlowascodeOptions,
   type EmitFlowascodeResult,
+  type UnboundRef,
 } from "./emit.js";
 export {
   toFlowDoc,

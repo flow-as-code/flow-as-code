@@ -1,5 +1,7 @@
 {
-  "description": "The canonical demo flow with an address for every reference: every refs value bound, no TODO comment.",
+  "description": "The canonical demo flow with an address for every reference: every refs value bound, no TODO comment. The map also carries a key no reference uses, which the emitter leaves out of flows.tf and reports in unusedMapKeys; the CLI warns on it and exits 0 (an error under --strict).",
   "docs": ["../../../demo/appointment-line.flowdoc.json"],
+  "unbound": [],
+  "unusedMapKeys": ["queue:no-such-reference"],
   "validate": "pass"
 }

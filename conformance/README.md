@@ -76,7 +76,11 @@ at `../../demo/` or `../../roundtrip/` rather than copy a document), optional
 `options` passed to the emitter, and `validate`, which is `pass`, `fail`, or
 `skip`. `address-map.json`, when present, becomes `options.addressMap`. The
 emitted files must equal `expected/` byte for byte, so the tree also pins the
-file set: an added or dropped output file fails the case.
+file set: an added or dropped output file fails the case. `unbound` and
+`unusedMapKeys` say what the run reports beside its files: the reference keys
+the set resolves nowhere (placeholders here, `null` bindings in the hcl emit
+cases) and the address map keys no reference in the set uses; the TypeScript
+tests hold both, and a provider that emits may too.
 
 `validate/` is not emitter output. It holds the minimum provider configuration
 and stub resources a `terraform validate` or `tofu validate` run needs for the

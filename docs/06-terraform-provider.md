@@ -37,8 +37,14 @@ a companion. Each document is one resource; its `refs` map binds each key to
 the address the address map gives, to a resource the set emits itself (a flow,
 a module, or a module invoked by alias through the version and alias resources
 the emitter writes beside it), or to `null` under a `# TODO` comment, which
-the provider refuses at plan time naming the key. The goldens are
-`conformance/hcl/emit/`, one case per `emit-tf` case.
+the provider refuses at plan time naming the key. Because that `null`
+validates, `flow-cli emit --target flowascode` refuses the run on any unbound
+reference, listing each key and its documents, unless `--allow-unbound` asks
+for the partial map; a map key no reference uses is a warning, or an error
+under `--strict` (`packages/cli/README.md`, "emit"). The emitted
+`versions.tf.example` asks for the provider at `~> 0.1`, the range the
+tutorials and example roots ask for, held to one string by a test. The
+goldens are `conformance/hcl/emit/`, one case per `emit-tf` case.
 
 ## The resource shape
 
