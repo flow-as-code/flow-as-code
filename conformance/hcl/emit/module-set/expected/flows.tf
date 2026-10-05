@@ -44,7 +44,8 @@ resource "flowascode_contact_flow_module" "after_call_survey" {
 }
 
 # A snapshot of the module's content, replaced when the content
-# changes, and the aliases the flows in this set invoke it through.
+# changes, and the aliases it publishes: those the flows in this set
+# invoke it through, and those declared to the emitter.
 # Connect will not delete a version an alias points at, so the new
 # version is created and the alias moved before the old one goes.
 resource "flowascode_contact_flow_module_version" "after_call_survey" {
@@ -107,7 +108,8 @@ resource "flowascode_contact_flow_module" "satisfaction_question" {
 }
 
 # A snapshot of the module's content, replaced when the content
-# changes, and the aliases the flows in this set invoke it through.
+# changes, and the aliases it publishes: those the flows in this set
+# invoke it through, and those declared to the emitter.
 # Connect will not delete a version an alias points at, so the new
 # version is created and the alias moved before the old one goes.
 resource "flowascode_contact_flow_module_version" "satisfaction_question" {

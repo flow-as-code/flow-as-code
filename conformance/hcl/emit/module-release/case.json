@@ -1,0 +1,10 @@
+{
+  "description": "A module released on its own: nothing in the set invokes it, and the emitter is told it publishes the `live` alias (options.moduleAliases), so the version and alias resources are written as for an invoked module (rule 27), and outputs.tf carries the alias ARN for another root to bind module:satisfaction-question@live through its address map.",
+  "docs": ["../../../emit-tf/module-set/satisfaction-question.flowdoc.json"],
+  "options": {
+    "moduleAliases": { "satisfaction-question": ["live"] }
+  },
+  "unbound": [],
+  "unusedMapKeys": [],
+  "validate": "pass"
+}

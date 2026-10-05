@@ -5,7 +5,8 @@
 # SHA-256 of the document with its references still tokens, equal across
 # environments that apply the same document and known at plan time. A
 # promotion gate compares the hash one environment applied with the one
-# the next plans (docs/tutorials/02-promote.md).
+# the next plans (docs/tutorials/02-promote.md). A module that publishes
+# aliases adds the ARN of each, the value a flow binds for module:<name>@<alias>.
 
 output "after_call_survey_arn" {
   description = "ARN of module after-call-survey."
@@ -17,6 +18,11 @@ output "after_call_survey_document_sha256" {
   value       = sha256(flowascode_contact_flow_module.after_call_survey.flowdoc)
 }
 
+output "after_call_survey_prod_arn" {
+  description = "ARN of module:after-call-survey@prod, the form a flow binds to invoke the alias."
+  value       = flowascode_contact_flow_module_alias.after_call_survey_prod.arn
+}
+
 output "satisfaction_question_arn" {
   description = "ARN of module satisfaction-question."
   value       = flowascode_contact_flow_module.satisfaction_question.arn
@@ -25,6 +31,11 @@ output "satisfaction_question_arn" {
 output "satisfaction_question_document_sha256" {
   description = "SHA-256 of module satisfaction-question as a FlowDoc, references still tokens: equal across environments that apply the same document."
   value       = sha256(flowascode_contact_flow_module.satisfaction_question.flowdoc)
+}
+
+output "satisfaction_question_prod_arn" {
+  description = "ARN of module:satisfaction-question@prod, the form a flow binds to invoke the alias."
+  value       = flowascode_contact_flow_module_alias.satisfaction_question_prod.arn
 }
 
 output "support_line_arn" {

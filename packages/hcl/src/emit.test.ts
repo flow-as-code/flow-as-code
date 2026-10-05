@@ -26,7 +26,7 @@ const read = (...p: string[]): string => readFileSync(join(...p), "utf8");
 
 interface EmitCase {
   docs: string[];
-  options?: { instanceIdExpression?: string };
+  options?: { instanceIdExpression?: string; moduleAliases?: Record<string, string[]> };
   /** Keys the set resolves nowhere, and map keys no reference uses (task C12). */
   unbound?: string[];
   unusedMapKeys?: string[];
@@ -274,6 +274,87 @@ describe("emitFlowascode", () => {
       "value       = sha256(flowascode_contact_flow_module.greeting.flowdoc)",
     );
     expect(format(outputs)).toBe(outputs);
+  });
+
+  // Task C05: a module released on its own, bound from another root by alias.
+  const invoker = (name: string, key: string): FlowDoc => ({
+    ...demo,
+    name,
+    content: {
+      Version: "2019-10-30",
+      StartAction: "one",
+      Actions: [
+        {
+          Identifier: "one",
+          Type: "InvokeFlowModule",
+          Parameters: { FlowModuleId: `\${cdref:${key}}` },
+          Transitions: { NextAction: "end", Errors: [], Conditions: [] },
+        },
+        { Identifier: "end", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+      ],
+    },
+  });
+  const afterModule = (flows: string, module: string): string =>
+    flows.slice(flows.indexOf(`resource "${MODULE_RESOURCE}" "${module}"`));
+
+  it("writes no version and no alias for a module nothing invokes and nothing declares", () => {
+    const { files } = emitFlowascode([moduleDoc("greeting")]);
+    expect(files["flows.tf"]).toContain(`resource "${MODULE_RESOURCE}" "greeting"`);
+    expect(files["flows.tf"]).not.toContain("flowascode_contact_flow_module_version");
+    expect(files["flows.tf"]).not.toContain("flowascode_contact_flow_module_alias");
+    expect(files["outputs.tf"]).not.toContain("_live_arn");
+  });
+
+  it("publishes a declared alias in exactly the shape an invoked alias takes", () => {
+    const released = emitFlowascode([moduleDoc("greeting")], {
+      moduleAliases: { greeting: ["live"] },
+    }).files;
+    const invoked = emitFlowascode([
+      invoker("caller", "module:greeting@live"),
+      moduleDoc("greeting"),
+    ]).files;
+    // Everything from the module resource on: the module, its version with
+    // create_before_destroy, and the alias, byte for byte.
+    expect(afterModule(released["flows.tf"]!, "greeting")).toBe(
+      afterModule(invoked["flows.tf"]!, "greeting"),
+    );
+    expect(released["flows.tf"]).toContain("create_before_destroy = true");
+    expect(released["flows.tf"]).toContain(
+      'resource "flowascode_contact_flow_module_alias" "greeting_live"',
+    );
+    expect(released["outputs.tf"]).toContain('output "greeting_live_arn"');
+    expect(released["outputs.tf"]).toContain(
+      "value       = flowascode_contact_flow_module_alias.greeting_live.arn",
+    );
+  });
+
+  it("unions declared aliases with invoked ones, sorted and once each", () => {
+    const { files } = emitFlowascode(
+      [invoker("caller", "module:greeting@prod"), moduleDoc("greeting")],
+      { moduleAliases: { greeting: ["prod", "live"] } },
+    );
+    const labels = [
+      ...files["flows.tf"]!.matchAll(
+        /^resource "flowascode_contact_flow_module_alias" "([^"]+)"/gm,
+      ),
+    ].map((m) => m[1]);
+    expect(labels).toEqual(["greeting_live", "greeting_prod"]);
+    expect(files["flows.tf"]!.match(/flowascode_contact_flow_module_version" /g)).toHaveLength(1);
+  });
+
+  it("refuses a declared alias for a module the set does not emit, or that is not a slug", () => {
+    let error: unknown;
+    try {
+      emitFlowascode([moduleDoc("greeting"), flow("farewell", {})], {
+        moduleAliases: { farewell: ["live"], greeting: ["Live Now"] },
+      });
+    } catch (e) {
+      error = e;
+    }
+    expect((error as EmitFlowascodeError).problems).toEqual([
+      'moduleAliases names module "farewell", which this set does not emit',
+      'moduleAliases alias "Live Now" for module "greeting" is not a slug',
+    ]);
   });
 
   it("refuses a flow and a module that share a name, since they would share an output", () => {

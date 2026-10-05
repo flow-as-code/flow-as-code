@@ -37,3 +37,62 @@ reverse.
 - Either way, `packages/tf/README.md`, `packages/hcl/README.md` and docs/06 say
   what happens to an unreferenced module.
 - A changeset for each package whose output moved.
+
+## Record (2026-10-05)
+
+Done on branch `feat/c05-unreferenced-module-release`, stacked on C13 and
+C12. The decision is **(a), an emit option**, and the reason: the showcase's
+shape (greeting modules released through a `live` alias in a root of their
+own, flows binding the alias by map) is the shape the emitters already write
+for an invoked module, down to `content_hash` and `create_before_destroy`,
+so the only thing missing was a way to say which aliases a module publishes
+when no flow in the set says it for the emitter. Holding the hand-written
+copy as the supported shape (b) would have left every such root maintaining
+a second copy of what the emitter knows how to write, which is the gap the
+showcase reported. Nothing in the FlowDoc format changes: the aliases a
+module publishes are a property of a deployment, not of the document, so
+they are an emit option, not a document field.
+
+- **The option.** `moduleAliases: { "<module>": ["<alias>", ...] }` on
+  `emitFlowascode` and `emitTf`, and `--module-alias module:<name>@<alias>`
+  on `flow-cli emit`, repeatable, on both Terraform targets (refused on
+  `cdk`, as `--address-map` is). The value is the key a flow in another root
+  binds, so the flag reads as "publish what `module:greeting@live` binds
+  to". A module publishes the union of the aliases the set's flows invoke it
+  through and the declared ones, sorted, once each; a module not in the set,
+  or an alias that is not a slug, is refused with the problem listed.
+- **The shape.** Both emitters write a declared alias exactly as an invoked
+  one: a test on each holds everything from the module resource on byte for
+  byte equal between a set where a flow invokes `module:greeting@live` and a
+  set where the option declares it. On flowascode that is the version
+  resource keyed to `content_hash` with `create_before_destroy`, and the
+  alias resource; on the flat target the awscc version and alias. The
+  version comment in `flows.tf` now says the aliases are those invoked or
+  declared, which moved the `module-set` golden by two comment lines.
+- **The alias ARN is an output.** `outputs.tf` (C13) adds
+  `<module>_<alias>_arn` per published alias, the alias resource's `arn`,
+  which is what the other root's address map binds; the showcase's
+  hand-written `greeting_standard_live_arn` output is this. Rule 29 names
+  it; the `module-set` outputs golden gained two.
+- **Unreferenced and undeclared is unchanged, and now held by test:**
+  flowascode writes the module resource alone; the flat target writes the
+  module and a version and no alias. `packages/tf/README.md`,
+  `packages/hcl/README.md`, `packages/cli/README.md`, docs/03 and docs/06
+  say so, and the cookbook's `module-release.tf` names the flag that writes
+  its shape.
+- **Fixtures.** `conformance/emit-tf/module-release` and
+  `conformance/hcl/emit/module-release`: one module nothing invokes,
+  `options.moduleAliases` declaring `live`, an empty address map, `validate:
+pass` with the providers pinned as the other cases pin them (awscc for the
+  flat target's alias, flowascode alone for the provider's). The flat
+  target's output is `tofu validate`-clean in the emit-tf lane through the
+  existing gated test over every case; the provider-shaped output through
+  `packages/hcl/src/validate.test.ts`.
+- **The provider re-vendor criterion is not met and stays open** until the
+  Phase C release batch re-vendors `conformance/` into the provider
+  repository and its commit is recorded here; everything else in this task
+  is done. Its emit runner plans the new case's `flows.tf` like the others,
+  so nothing here is expected to need a change there beyond the re-vendor.
+
+Changeset: `.changeset/unreferenced-module-release.md` (`@flow-as-code/hcl`,
+`@flow-as-code/tf` and `@flow-as-code/cli` minor).

@@ -434,9 +434,14 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
     three forms (`unusedMapKeys`); an entry a reference reaches but the set
     resolves itself is neither. The CLI refuses the run on an unbound key
     unless `--allow-unbound` is passed, and warns on an unused key, an error
-    under `--strict`. After each module invoked by alias come one version
-    resource, with its `lifecycle` block, and one alias resource per alias,
-    by rule 27, without descriptions. A literal ARN, a multi-line value or a comment marker in the
+    under `--strict`. After each module that publishes an alias come one
+    version resource, with its `lifecycle` block, and one alias resource per
+    alias, by rule 27, without descriptions. A module publishes the aliases
+    the set's flows invoke it through and those `options.moduleAliases`
+    declares (`{ "<module>": ["<alias>"] }`, for a module released on its
+    own and bound from another root; `emit/module-release`); a module with
+    neither gets its resource alone. A declared alias for a module the set
+    does not emit, or that is not a slug, is refused. A literal ARN, a multi-line value or a comment marker in the
     address map, a name that is not a slug, and two documents emitting one
     address are refused, every problem listed.
 
@@ -455,10 +460,12 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
     holds (rule 23): not the `refs` bindings, `tags`, `lint`, `state` or
     `instance_id`. Two roots' hashes therefore agree exactly when those
     document fields agree, whatever each root binds or tags, which is what a
-    hand-written root has to keep equal between environments. Each output
-    carries a `description`. A flow and a
-    module sharing a name would share both outputs, so a set holding both is
-    refused, naming the output. The validate run covers the file: it is a
+    hand-written root has to keep equal between environments. A module that
+    publishes aliases adds, after its two, `<name>_<alias>_arn` per alias,
+    the alias resource's `arn`: the value a flow in another root binds
+    `module:<name>@<alias>` to. Each output carries a `description`. A flow
+    and a module sharing a name would share both outputs, so a set holding
+    both is refused, naming the output. The validate run covers the file: it is a
     `.tf` the case's stubs must satisfy.
 
 ## Error codes

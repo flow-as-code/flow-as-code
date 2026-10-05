@@ -37,7 +37,13 @@ a companion. `outputs.tf` carries, per document and named by its FlowDoc
 name, its `arn` and `sha256()` of its `flowdoc`, the document with its
 references still tokens: the hash a promotion gate compares between
 environments (`docs/tutorials/02-promote.md`), equal when the documents
-are and known at plan time, so no root writes its own. Each document is one resource; its `refs` map binds each key to
+are and known at plan time, so no root writes its own. A module gets a
+version and an alias resource per alias a flow in the set invokes it through
+(rule 27); a module nothing in the set references gets its resource alone,
+and `flow-cli emit --module-alias module:greeting@live` declares an alias it
+publishes anyway, in the same shape, so a module released in a root of its
+own is bound from another root through the address map and the alias ARN
+`outputs.tf` carries (`packages/cli/README.md`, "emit"). Each document is one resource; its `refs` map binds each key to
 the address the address map gives, to a resource the set emits itself (a flow,
 a module, or a module invoked by alias through the version and alias resources
 the emitter writes beside it), or to `null` under a `# TODO` comment, which
