@@ -234,3 +234,40 @@ describe("describeMissingRefKey", () => {
     expect(described).toContain("module_survey_prod_arn");
   });
 });
+
+describe("collectRefs", () => {
+  it("indexes every token in a value once, sorted, whatever surrounds it", () => {
+    const found = collectRefs({
+      a: "${cdref:queue:front-desk}",
+      b: ["x ${cdref:lambda:lookup} y", { c: "${cdref:queue:front-desk}" }],
+      d: "${cdref:module:survey@prod}",
+      // Not tokens: a bad type, a missing close, nested openings.
+      e: "${cdref:nope:x} ${cdref:queue:open ${cdref:${cdref:hours:main}",
+    });
+    expect(found.map((e) => e.token)).toEqual([
+      "${cdref:hours:main}",
+      "${cdref:lambda:lookup}",
+      "${cdref:module:survey@prod}",
+      "${cdref:queue:front-desk}",
+    ]);
+    expect(collectRefs(null)).toEqual([]);
+    expect(collectRefs("no tokens here")).toEqual([]);
+  });
+
+  it("scans a pathological string in linear time", () => {
+    // 100000 characters of openings with no close: the regex this replaced
+    // backtracked over every one of them (code scanning, js/polynomial-redos).
+    const openings = "${cdref:".repeat(12_500);
+    const started = performance.now();
+    expect(collectRefs(openings)).toEqual([]);
+    // One close at the end: every opening is a candidate, and only the last
+    // one parses.
+    expect(collectRefs(`${openings}queue:late}`).map((e) => e.token)).toEqual([
+      "${cdref:queue:late}",
+    ]);
+    expect(collectRefs(`${"$".repeat(50_000)}{cdref:queue:ok}`)).toEqual([
+      expect.objectContaining({ token: "${cdref:queue:ok}" }),
+    ]);
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});

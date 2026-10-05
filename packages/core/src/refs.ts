@@ -27,8 +27,33 @@ export type RefValue<T extends RefType> = Ref<T> | JsonPath;
 export const TOKEN_PATTERN =
   /^\$\{cdref:(queue|hours|lambda|lex|prompt|flow|module|view):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?\}$/;
 
-/** Matches tokens anywhere in a string, for building the refs index. */
-const TOKEN_SCAN = /\$\{cdref:[a-z]+:[^}]+\}/g;
+/** Where a token can begin; `parseToken` decides whether what follows is one. */
+const TOKEN_OPEN = "${cdref:";
+
+/**
+ * Every candidate token in a string, for building the refs index: each
+ * `${cdref:` up to the next `}`. A hand-written scan rather than a regex: the
+ * scan runs over a whole serialized document, and a pattern with an unbounded
+ * class before its closing brace was flagged by code scanning as polynomial on
+ * a run of openings with no close. This is one pass, each opening visited
+ * once, and `parseToken` is the only judge of what is a token.
+ */
+function tokenCandidates(text: string): string[] {
+  const out: string[] = [];
+  let open = text.indexOf(TOKEN_OPEN);
+  // Both searches only ever move forward: the next opening starts after this
+  // one, and the closing brace is looked up again only once the opening has
+  // passed it, so a run of openings sharing one close costs one search.
+  let close = -1;
+  while (open !== -1) {
+    const body = open + TOKEN_OPEN.length;
+    if (close < body) close = text.indexOf("}", body);
+    if (close === -1) return out;
+    out.push(text.slice(open, close + 1));
+    open = text.indexOf(TOKEN_OPEN, open + 1);
+  }
+  return out;
+}
 
 const JSONPATH_PATTERN = /^\$\.[A-Za-z0-9_$.[\]'-]+$/;
 
@@ -198,7 +223,7 @@ export function describeMissingRefKey(entry: RefEntry): string {
  */
 export function collectRefs(value: unknown): RefEntry[] {
   const found = new Map<string, RefEntry>();
-  for (const raw of JSON.stringify(value ?? null).match(TOKEN_SCAN) ?? []) {
+  for (const raw of tokenCandidates(JSON.stringify(value ?? null))) {
     const entry = parseToken(raw);
     if (entry) found.set(entry.token, entry);
   }
