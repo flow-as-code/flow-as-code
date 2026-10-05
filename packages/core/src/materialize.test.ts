@@ -288,4 +288,32 @@ describe("regression: a token must not survive materialization", () => {
     const doc = demo();
     expect(() => materializeWithMap(doc, demoMap())).not.toThrow();
   });
+
+  it("scans a pathological string in linear time", () => {
+    // 100000 characters of openings and no close inside one field: the regex
+    // this check used to run (`/\$\{cdref:[^}"]*\}/g`) backtracked from every
+    // opening to the end of the string (code scanning, js/polynomial-redos).
+    // None of them is a token, so the document materializes, and quickly.
+    const doc = demo();
+    const openings = "${cdref:".repeat(12_500);
+    doc.content.Actions[1]!.Parameters.Text = openings;
+    const started = performance.now();
+    expect(() => materializeWithMap(doc, demoMap())).not.toThrow();
+    // One close at the end: the refs index reads the last opening as a token
+    // (mapped here, so the completeness check passes), and the leak check then
+    // reports the whole run as one embedded token, as the regex did: the next
+    // match is sought past a match, not inside it.
+    doc.content.Actions[1]!.Parameters.Text = `${openings}prompt:late}`;
+    const map = {
+      ...demoMap(),
+      "${cdref:prompt:late}": "arn:aws:connect:us-east-1:111122223333:instance/E/x/E",
+    };
+    try {
+      materializeWithMap(doc, map);
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect((err as MaterializeError).missingTokens).toEqual([`${openings}prompt:late}`]);
+    }
+    expect(performance.now() - started).toBeLessThan(500);
+  });
 });

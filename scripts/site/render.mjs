@@ -170,6 +170,25 @@ export function stripBanner(markdown, origin) {
 }
 
 /**
+ * The text of rendered inline HTML, for a heading's slug: every tag removed,
+ * and removed again until nothing changes. One pass of this pattern already
+ * leaves no `<...>` pair, since every `<` with a `>` after it goes, but the
+ * repeat holds that for any later change to the pattern and is the form code
+ * scanning accepts (js/incomplete-multi-character-sanitization, on the single
+ * pass this replaced). The result is raw material for slugify, which keeps
+ * only letters, digits, spaces and hyphens of it, and the id it becomes is
+ * escaped where it lands; nothing here is served as markup.
+ */
+export function withoutTags(html) {
+  let text = html;
+  for (;;) {
+    const stripped = text.replace(/<[^>]*>/g, "");
+    if (stripped === text) return text;
+    text = stripped;
+  }
+}
+
+/**
  * Markdown to the HTML that goes inside <article>, plus what the caller needs
  * to judge the result: the heading levels in document order, so a page with no
  * <h1>, two of them, or a skipped level fails the build instead of shipping.
@@ -183,7 +202,7 @@ export function renderMarkdown(markdown, context) {
     renderer: {
       heading({ tokens, depth }) {
         const text = this.parser.parseInline(tokens);
-        const base = slugify(text.replace(/<[^>]*>/g, "")) || `section-${String(headings.length)}`;
+        const base = slugify(withoutTags(text)) || `section-${String(headings.length)}`;
         const count = seen.get(base) ?? 0;
         seen.set(base, count + 1);
         const id = count === 0 ? base : `${base}-${String(count)}`;

@@ -63,6 +63,7 @@ import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { SOURCE_PATHS } from "../scripts/build-site.mjs";
+import { renderMarkdown, withoutTags } from "../scripts/site/render.mjs";
 
 const ROOT = process.cwd();
 const STUDIO = join(ROOT, "packages", "studio");
@@ -136,7 +137,15 @@ function references(html: string): string[] {
  * neither is a link on the page.
  */
 function withoutComments(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, "");
+  // Removed until none is left: taking out one comment can expose another
+  // (`<!<!-- -->--` loses the inner one and is `<!--`), and a rule reading the
+  // result must not be looking at a comment either way.
+  let text = html;
+  for (;;) {
+    const stripped = text.replace(/<!--[\s\S]*?-->/g, "");
+    if (stripped === text) return text;
+    text = stripped;
+  }
 }
 
 /** Every .html file in the tree, as a path relative to the site root. */
@@ -250,6 +259,13 @@ function splitCard(html: string): { card: string[]; rest: string } {
 
 const attribute = (tag: string, name: string): string | undefined =>
   new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`).exec(tag)?.[1];
+
+/**
+ * Every opening `<tag ...>` in `html`, whatever its case: a browser reads
+ * `<SCRIPT>` as a script, so a rule about scripts has to as well.
+ */
+const openingTags = (html: string, tag: string): string[] =>
+  html.match(new RegExp(`<${tag}\\b[^>]*>`, "gi")) ?? [];
 
 /** The content of `<meta name|property="...">`, or undefined. */
 function meta(html: string, key: string): string | undefined {
@@ -388,7 +404,7 @@ describe("every page the site publishes", () => {
         if (tag === "script") {
           // A JSON-LD block fetches nothing and executes nothing. Anything
           // else with this tag name does one or the other.
-          for (const script of html.match(/<script\b[^>]*>/g) ?? []) {
+          for (const script of openingTags(html, "script")) {
             expect(attribute(script, "type"), `<script> in ${file}`).toBe("application/ld+json");
             expect(attribute(script, "src"), `<script src> in ${file}`).toBeUndefined();
           }
@@ -400,7 +416,7 @@ describe("every page the site publishes", () => {
           // and no request, it is between a request that 404s and one that does
           // not. Every other rel (stylesheet, preload, prefetch, dns-prefetch)
           // is a third party or a round trip nothing here needs.
-          for (const link of html.match(/<link\b[^>]*>/g) ?? []) {
+          for (const link of openingTags(html, "link")) {
             const rel = attribute(link, "rel");
             expect(["canonical", "icon", "apple-touch-icon"], `<link rel> in ${file}`).toContain(
               rel,
@@ -1044,7 +1060,7 @@ describe("the logo at the root of the tree", () => {
     // landing page's is not is the failure this catches, and the path to the
     // icon differs with depth, so every page has to be read.
     for (const file of ownPages()) {
-      const links = withoutComments(read(file)).match(/<link\b[^>]*>/g) ?? [];
+      const links = openingTags(withoutComments(read(file)), "link");
       const icons = links.filter((link) => attribute(link, "rel") !== "canonical");
       expect(
         icons.map((link) => attribute(link, "rel")),
@@ -1349,5 +1365,63 @@ describe("the staleness gate", () => {
     } finally {
       utimesSync(flow, before.atime, before.mtime);
     }
+  });
+});
+
+// The helpers the rules above read pages through, and the renderer's own tag
+// stripping, held against input built to slip past a single pass. Each of
+// these was a code scanning alert on the one-pass version it replaced.
+describe("the readers the rules above look through", () => {
+  it("withoutComments leaves no comment opening behind, whatever the nesting", () => {
+    // One pass leaves `<!-- -->` here: the inner comments go, and what is
+    // around them closes up into another.
+    const html = '<a href="/kept">x</a> <!<!-- https://hidden.example -->-- <!-- <!-- y --> -->';
+    const text = withoutComments(html);
+    expect(text).not.toContain("<!--");
+    expect(text).not.toContain("hidden.example");
+    expect(references(text)).toEqual(["/kept"]);
+    expect(withoutComments("<p>no comment</p>")).toBe("<p>no comment</p>");
+  });
+
+  it("openingTags finds a script tag in any case", () => {
+    const html = '<SCRIPT SRC="/x.js"></SCRIPT><Script type="module"></Script><script></script>';
+    expect(openingTags(html, "script")).toHaveLength(3);
+    expect(openingTags(html, "link")).toEqual([]);
+    expect(openingTags("<scripts>", "script")).toEqual([]);
+  });
+
+  it("withoutTags leaves no tag behind and is a fixed point of itself", () => {
+    expect(withoutTags("<code>x</code> and <em>y</em>")).toBe("x and y");
+    expect(withoutTags("plain")).toBe("plain");
+    for (const html of [
+      "<<script>script>alert(1)</script>",
+      "<scr<b>ipt>alert(1)</script>",
+      "<<<b>>>deep<</b>>",
+      "<unclosed",
+      "a > b < c",
+    ]) {
+      const text = withoutTags(html);
+      expect(text, html).not.toMatch(/<[^>]*>/);
+      expect(withoutTags(text), html).toBe(text);
+    }
+  });
+
+  it("a heading's id carries nothing of a tag its markup hides", () => {
+    const context = {
+      sourcePath: "docs/x.md",
+      slug: "x",
+      pageBySource: new Map(),
+      isDirectory: () => false,
+      github: "https://github.com/flow-as-code/flow-as-code/blob/main/",
+    };
+    const { html, headings } = renderMarkdown(
+      "# Say <<script>script>hello</script> `there`",
+      context,
+    );
+    expect(headings).toHaveLength(1);
+    const id = headings[0]!.id;
+    expect(id).toMatch(/^[a-z0-9-]+$/);
+    expect(id).toContain("hello");
+    expect(html).toContain(`<h1 id="${id}">`);
   });
 });

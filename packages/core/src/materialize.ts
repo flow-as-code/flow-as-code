@@ -167,6 +167,41 @@ function projectLayout(
   };
 }
 
+/** Where a token begins in serialized content; the scan below finds the end. */
+const TOKEN_OPEN = "${cdref:";
+
+/**
+ * Every `${cdref:...}` left in serialized content, each once, sorted: an
+ * opening followed by a closing brace before any double quote, so a token
+ * never spans a JSON string boundary. The regex this replaced
+ * (`/\$\{cdref:[^}"]*\}/g`) backtracked over a run of openings with no close,
+ * which code scanning flagged as polynomial on document content
+ * (js/polynomial-redos); this is one forward pass. The closing position is
+ * looked up again only once an opening has moved past it, and a search that
+ * ends at a quote moves on by one opening as the regex did, so the next
+ * opening after a match is sought past the match, never inside it.
+ */
+function embeddedTokens(json: string): string[] {
+  const found = new Set<string>();
+  let open = json.indexOf(TOKEN_OPEN);
+  let close = -1;
+  while (open !== -1) {
+    const body = open + TOKEN_OPEN.length;
+    if (close < body) {
+      close = body;
+      while (close < json.length && json[close] !== "}" && json[close] !== '"') close += 1;
+    }
+    if (close === json.length) break;
+    if (json[close] === "}") {
+      found.add(json.slice(open, close + 1));
+      open = json.indexOf(TOKEN_OPEN, close + 1);
+    } else {
+      open = json.indexOf(TOKEN_OPEN, open + 1);
+    }
+  }
+  return [...found].sort();
+}
+
 function materialize(doc: FlowDoc, resolve: (entry: RefEntry) => string): FlowContent {
   // A module requires a top-level Settings in its deployable content; Connect
   // rejects the create without it. Default to {} when the doc does not carry
@@ -211,7 +246,7 @@ export function materializeWithMap(doc: FlowDoc, resourceMap: Record<string, str
   // token used to satisfy the check above and then survive into deployable
   // output as literal text that Connect would read aloud. Refusing here means
   // render and emit, which do not run lint, cannot ship one either.
-  const leaked = [...new Set(JSON.stringify(content).match(/\$\{cdref:[^}"]*\}/g) ?? [])].sort();
+  const leaked = embeddedTokens(JSON.stringify(content));
   if (leaked.length > 0) {
     throw new MaterializeError(
       leaked,
