@@ -573,7 +573,8 @@ describe("emit --target flowascode", () => {
     expect(run.stderr).toContain("  - lambda:appointment-lookup (referenced by appointment-line)");
     expect(run.stderr).toContain("  - queue:appointments (referenced by appointment-line)");
     expect(run.stderr).toContain("--allow-unbound");
-    expect(existsSync(join(out, "flows.tf"))).toBe(false);
+    // A refused run leaves the filesystem untouched: not even --out exists.
+    expect(existsSync(out)).toBe(false);
 
     const allowed = cli(
       "emit",
@@ -611,6 +612,7 @@ describe("emit --target flowascode", () => {
     );
     expect(readFileSync(join(out, "flows.tf"), "utf8")).not.toContain("left_behind");
 
+    const fresh = join(dir, "strict-out");
     const strict = cli(
       "emit",
       dir,
@@ -619,11 +621,12 @@ describe("emit --target flowascode", () => {
       "--address-map",
       map,
       "--out",
-      out,
+      fresh,
       "--strict",
     );
     expect(strict.status).toBe(1);
     expect(strict.stderr).toContain("  - queue:left-behind");
+    expect(existsSync(fresh)).toBe(false);
   });
 });
 

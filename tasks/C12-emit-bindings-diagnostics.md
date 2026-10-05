@@ -57,13 +57,31 @@ appointment-line)`), because the `null` binding it would otherwise write
   nothing there, since the flat target's `TODO_MISSING_ADDRESS_*`
   placeholder is already the loud form and fails `validate` (the decision
   "Considered and not taken" in `tasks/README.md` records), so a script that
-  emits both targets with one flag list, as the showcase's invariant test
-  does, still runs. `packages/cli/README.md`, "emit", states the flat
-  target's behavior beside the flowascode one. The library is unchanged in
-  what it writes: `emitFlowascode` and `emitTf` now return `unbound` (key and
-  sorted document names) and `unusedMapKeys` beside `files`, and the CLI
-  decides the exit code, so the studio's export, which takes the bytes, is
-  untouched.
+  emits both targets with one flag list can keep one. `packages/cli/README.md`,
+  "emit", states the flat target's behavior beside the flowascode one. The
+  library is unchanged in what it writes: `emitFlowascode` and `emitTf` now
+  return `unbound` (key and sorted document names) and `unusedMapKeys` beside
+  `files`, and the CLI decides the exit code, so the studio's export, which
+  takes the bytes, is untouched. A refused run touches nothing on disk, not
+  even `--out`, which is created only when there is something to write.
+- **The showcase's invariant test breaks on the new default, by design.**
+  `tests/envEmit.test.ts` in `hollow-hour-example-typescript` has a probe,
+  "would catch an unbound reference", that emits a partial map on the
+  flowascode lane with no flag and expects a TODO or a `null`; under C12 that
+  emit exits 1 and writes nothing, so the probe fails (`npm run check` exits
+  1, an AssertionError at `tests/envEmit.test.ts:262`, verified on review).
+  Before the showcase pins the release carrying C12 it must pass
+  `--allow-unbound` on that lane, or assert the exit code and the message
+  instead; that follow-up is filed in the satellite, and C07 and C09 note it
+  where they bump the pin. The showcase's other lanes are unaffected: a
+  complete map emits as before.
+- **`--strict` is not for the showcase yet.** Against its current flows,
+  `emit` reports six keys its address maps carry that no flow references
+  (`hours:the-dead`, `lambda:district-for-address`, `lambda:plane-check`,
+  `lambda:prank-score`, `prompt:salt-line-tips`, `queue:the-dead`): the maps
+  are written for the whole design and the flows that use those keys land
+  in its T2. Until then those are six warnings per emit, and `--strict`
+  would refuse the run.
 - **An unused address map key is a warning on either target, an error under
   `--strict`.** One stderr line per key (`warning: address map key
 "queue:apointments" matches no reference in the set`), exit 0; `--strict`

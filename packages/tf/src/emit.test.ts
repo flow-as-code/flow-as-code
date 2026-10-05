@@ -234,6 +234,25 @@ describe("reference resolution", () => {
   });
 });
 
+// Each conformance case says what the run reports beside its files, the way
+// the hcl emit cases do (task C12).
+describe("conformance/emit-tf diagnostics", () => {
+  for (const testCase of loadCases()) {
+    it(`${testCase.name}: reports what the map leaves unbound and what it holds unused`, () => {
+      expect(testCase.unbound, "case.json names its unbound keys").toBeDefined();
+      expect(testCase.unusedMapKeys, "case.json names its unused map keys").toBeDefined();
+      const { files, unbound, unusedMapKeys } = emitTf(testCase.docs, testCase.options);
+      expect(unbound.map((u) => u.key)).toEqual(testCase.unbound);
+      expect(unusedMapKeys).toEqual(testCase.unusedMapKeys);
+      for (const u of unbound) {
+        expect(files["flow_refs.tf"]).toContain(
+          `TODO: no terraform address for \${cdref:${u.key}}.`,
+        );
+      }
+    });
+  }
+});
+
 describe("emitTf refusals", () => {
   it("refuses an empty document set", () => {
     expect(problems(() => emitTf([]))).toEqual(["no documents to emit"]);

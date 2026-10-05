@@ -5,5 +5,7 @@
     "../../roundtrip/after-call-survey/doc.flowdoc.json",
     "satisfaction-question.flowdoc.json"
   ],
+  "unbound": [],
+  "unusedMapKeys": [],
   "validate": "pass"
 }

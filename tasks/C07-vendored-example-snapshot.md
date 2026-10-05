@@ -54,3 +54,11 @@ other direction.
 - The satellite's content passes the `CLAUDE.md` amendment: fictional,
   non-commercial, no product IP, no pricing, no tenant content. The sync
   script does not judge that; the review of the PR that lands a re-sync does.
+
+Note (2026-10-05, from C12): the satellite's `tests/envEmit.test.ts` probe
+"would catch an unbound reference" emits a partial map on the flowascode lane
+with no flag and expects a TODO or a `null`; `flow-cli emit --target
+flowascode` from the release carrying C12 refuses that run instead (exit 1,
+nothing written) unless `--allow-unbound` is passed. The satellite commit
+this task pins must carry that fix (filed there), or its own check is red at
+the pin.

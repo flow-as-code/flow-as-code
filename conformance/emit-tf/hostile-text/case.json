@@ -4,5 +4,7 @@
   "options": {
     "instanceIdExpression": "aws_connect_instance.main.id"
   },
+  "unbound": [],
+  "unusedMapKeys": [],
   "validate": "pass"
 }

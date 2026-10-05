@@ -63,7 +63,9 @@ const unboundLines = (unbound: readonly UnboundRef[]): string[] =>
 const unusedWarnings = (keys: readonly string[]): string[] =>
   keys.map((key) => `warning: address map key "${key}" matches no reference in the set`);
 
+/** Writes the files under `outDir`, creating it then: a refused run touches nothing. */
 function writeFiles(outDir: string, files: Record<string, string>): string[] {
+  mkdirSync(outDir, { recursive: true });
   return Object.entries(files).map(([file, text]) => {
     const path = join(outDir, file);
     mkdirSync(dirname(path), { recursive: true });
@@ -93,16 +95,16 @@ export function runEmit(input: string, options: EmitOptions): EmitOutcome {
   const docsDir = defaultOutDir(input);
   const docs = loadDocs(input).map((l) => l.doc);
   const outDir = resolve(options.out ?? docsDir);
-  mkdirSync(outDir, { recursive: true });
 
   const addressMap =
     options.addressMap === undefined ? undefined : readStringMap(options.addressMap, "address map");
   const emitOptions = addressMap === undefined ? {} : { addressMap };
 
   if (options.target === "cdk") {
-    const path = join(outDir, CDK_SCAFFOLD_FILE);
-    writeFileSync(path, cdkScaffoldForDirs({ docs, outDir, docsDir }), "utf8");
-    return { written: [path], warnings: [] };
+    const written = writeFiles(outDir, {
+      [CDK_SCAFFOLD_FILE]: cdkScaffoldForDirs({ docs, outDir, docsDir }),
+    });
+    return { written, warnings: [] };
   }
 
   let result;

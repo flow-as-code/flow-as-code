@@ -21,6 +21,9 @@ interface CaseFile {
   description: string;
   docs: string[];
   options?: EmitTfOptions;
+  /** Keys the set resolves nowhere, and map keys no reference uses (task C12). */
+  unbound?: string[];
+  unusedMapKeys?: string[];
   validate?: ValidateExpectation;
 }
 
@@ -34,6 +37,9 @@ export interface EmitCase {
   expected: Record<string, string>;
   /** Test-only providers and stub resources for the validate run, if any. */
   support: Record<string, string>;
+  /** What the run reports beside its files; undefined when the case does not say. */
+  unbound: string[] | undefined;
+  unusedMapKeys: string[] | undefined;
   validate: ValidateExpectation;
 }
 
@@ -80,6 +86,8 @@ export function loadCases(): EmitCase[] {
       options: { ...spec.options, ...(addressMap === undefined ? {} : { addressMap }) },
       expected: readTree(new URL("expected/", dir)),
       support: readTree(new URL("validate/", dir)),
+      unbound: spec.unbound,
+      unusedMapKeys: spec.unusedMapKeys,
       validate: spec.validate ?? "skip",
     };
   });
