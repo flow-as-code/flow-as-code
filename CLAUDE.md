@@ -95,6 +95,8 @@ Status only where it changes what you should do. The work record is `tasks/`.
   `tasks/README.md`. The showcase itself is built in its own repository,
   `flow-as-code/hollow-hour-example-typescript`; nothing of it is vendored here until C07, and
   C07 to C09 wait on a commit (and, for C09, a public tag) there.
+- Phase D (every Connect flow action modeled, tasks D00 to D10) was planned
+  on 2026-10-04; the plan is the Phase D section of `tasks/README.md`.
 
 ## Non-negotiables
 
