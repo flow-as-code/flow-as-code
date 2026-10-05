@@ -1,0 +1,5 @@
+{
+  "description": "The stored-input form of GetParticipantInput with each InputValidation: digits kept by length (maximum_length written as an HCL number, read back as the console's string), a local phone number with its country code and InvalidPhoneNumber branch, and an E.164 number.",
+  "doc": "../../../roundtrip/stored-input/doc.flowdoc.json",
+  "validate": "pass"
+}
