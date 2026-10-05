@@ -32,6 +32,7 @@ import {
   migrateFlowDoc,
   parseToken,
   refKey,
+  refMapKeys,
   refVariableName,
   slugIdentifier,
 } from "@flow-as-code/core";
@@ -85,7 +86,8 @@ export interface EmitTfOptions {
    * `module:survey@prod`), or the generated variable name
    * (`queue_front_desk_arn`); the three are tried in that order. Values are HCL
    * expressions such as `aws_connect_queue.front_desk.arn`, never literal ARNs.
-   * Entries matching no reference in the set are ignored.
+   * An entry matching no reference in the set is not written, and its key is
+   * reported in the result's `unusedMapKeys`.
    */
   addressMap?: Record<string, string>;
   /**
@@ -98,9 +100,24 @@ export interface EmitTfOptions {
   instanceIdExpression?: string;
 }
 
+/** A reference key bound to nothing, and the documents that make it. */
+export interface UnboundRef {
+  /** The reference key, `queue:appointments`. */
+  key: string;
+  /** Names of the documents referencing it, sorted. */
+  documents: readonly string[];
+}
+
 export interface EmitTfResult {
   /** Relative POSIX path to file content, insertion-ordered by sorted path. */
   files: Record<string, string>;
+  /**
+   * References the set resolves nowhere, written as `TODO_MISSING_ADDRESS_*`
+   * placeholders that fail `validate`, sorted by key.
+   */
+  unbound: readonly UnboundRef[];
+  /** Address map keys matching no reference in the set, sorted: a typo or a leftover. */
+  unusedMapKeys: readonly string[];
 }
 
 /** Where a reference's address came from. */
@@ -534,6 +551,28 @@ export function emitTf(docs: readonly FlowDoc[], options: EmitTfOptions = {}): E
     ]),
   );
 
+  const missing = new Set(resolved.filter((r) => r.source === "missing").map((r) => r.entry.token));
+  const unboundBy = new Map<string, Set<string>>();
+  const usedKeys = new Set<string>();
+  for (const doc of ordered) {
+    for (const entry of collectRefs(doc.content)) {
+      if (missing.has(entry.token)) {
+        const docs = unboundBy.get(refKey(entry)) ?? new Set<string>();
+        docs.add(doc.name);
+        unboundBy.set(refKey(entry), docs);
+      }
+      // A map entry counts as used when any reference in the set reaches it
+      // by one of its three key forms, shadowed by an in-set resource or not.
+      for (const key of refMapKeys(entry)) if (Object.hasOwn(addressMap, key)) usedKeys.add(key);
+    }
+  }
+  const unbound: UnboundRef[] = [...unboundBy]
+    .sort(([a], [b]) => byString(a, b))
+    .map(([key, docs]) => ({ key, documents: [...docs].sort(byString) }));
+  const unusedMapKeys = Object.keys(addressMap)
+    .filter((key) => !usedKeys.has(key))
+    .sort(byString);
+
   const variables = new Map(resolved.map((r) => [r.entry.token, r.variable]));
   const files: Record<string, string> = {
     "flow_refs.tf": flowRefsTf(ordered, resolved, inSetByDoc),
@@ -547,5 +586,7 @@ export function emitTf(docs: readonly FlowDoc[], options: EmitTfOptions = {}): E
 
   return {
     files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => byString(a, b))),
+    unbound,
+    unusedMapKeys,
   };
 }

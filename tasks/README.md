@@ -419,7 +419,7 @@ job runs all of ci.yml, so no npm release could pass meanwhile. Decided
 - D10, in the commit that raises the pins, adds `validate/` to every such
   case, flips it to `pass`, and leaves none `awaits-provider`; a D10
   criterion says so, and `conformance/hcl/README.md` describes both values.
-- `FLOWASCODE_PROVIDER_CONSTRAINT` (`>= 0.1`) already admits the next minor,
+- `FLOWASCODE_PROVIDER_CONSTRAINT` (`~> 0.1` since C12) already admits the next minor,
   so no emitted `versions.tf.example` changes for `tofu init`; the per-case
   pins, the ci.yml cache key, `FLOWASCODE_EMITTED_CONSTRAINT` in
   `packages/tf/src/__fixtures__/tofu.ts` (held equal to the constraint) and

@@ -1,5 +1,7 @@
 {
-  "description": "The demo flow with an address map covering one reference of three. The two unmapped keys are written null under the TODO comment, which the provider refuses at plan time naming the key.",
+  "description": "The demo flow with an address map covering one reference of three. The two unmapped keys are written null under the TODO comment, which the provider refuses at plan time naming the key, and reported in unbound; the CLI refuses the run on them unless --allow-unbound is passed.",
   "docs": ["../../../demo/appointment-line.flowdoc.json"],
+  "unbound": ["lambda:appointment-lookup", "queue:appointments"],
+  "unusedMapKeys": [],
   "validate": "pass"
 }

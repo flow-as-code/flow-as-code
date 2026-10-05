@@ -53,8 +53,11 @@ npm i -D @flow-as-code/cli
   unless `--keep-old`.
 - An address map (`refs.<env>.tfmap.json`) maps each reference key to a
   Terraform address such as `aws_connect_queue.support.arn`. The emitter
-  refuses any value matching `arn:aws`. An unmapped key is written as `null`
-  under a `# TODO` comment.
+  refuses any value matching `arn:aws`. On `--target flowascode` an unmapped
+  key is an error naming the key and its documents; `--allow-unbound` writes
+  it as `null` under a `# TODO` comment instead. On `--target tf` it is a
+  placeholder that fails `validate`. A map key no flow uses is a warning on
+  either target, an error with `--strict`.
 - `export` writes references as tokens, never ARNs. A flow that refers to
   something the instance's inventory does not list fails by name
   (`--on-error collect`, the default, writes the rest and exits 1).

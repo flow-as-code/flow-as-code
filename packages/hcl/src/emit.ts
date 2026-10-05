@@ -22,6 +22,7 @@ import {
   migrateFlowDoc,
   parseToken,
   refKey,
+  refMapKeys,
   slugIdentifier,
   type FlowDoc,
 } from "@flow-as-code/core";
@@ -54,7 +55,8 @@ export interface EmitFlowascodeOptions {
    * Reference to terraform address expression, keyed as emitTf's is: the
    * token, the reference key, or the `<type>_<name>_arn` variable name. Values
    * are HCL expressions, never literal ARNs. A reference this set resolves
-   * itself ignores its entry; an entry matching no reference is ignored.
+   * itself ignores its entry; an entry matching no reference in the set is
+   * not written, and its key is reported in the result's `unusedMapKeys`.
    */
   addressMap?: Record<string, string>;
   /**
@@ -64,9 +66,25 @@ export interface EmitFlowascodeOptions {
   instanceIdExpression?: string;
 }
 
+/** A reference key bound to nothing, and the documents that make it. */
+export interface UnboundRef {
+  /** The reference key, `queue:appointments`. */
+  key: string;
+  /** Names of the documents referencing it, sorted. */
+  documents: readonly string[];
+}
+
 export interface EmitFlowascodeResult {
   /** Relative POSIX path to file content, sorted by path. */
   files: Record<string, string>;
+  /**
+   * References the set resolves nowhere, written `null` under the TODO
+   * comment, sorted by key. The CLI exits non-zero on any unless told not to;
+   * the provider refuses them at plan time.
+   */
+  unbound: readonly UnboundRef[];
+  /** Address map keys matching no reference in the set, sorted: a typo or a leftover. */
+  unusedMapKeys: readonly string[];
 }
 
 const DEFAULT_INSTANCE_ID_EXPRESSION = "var.connect_instance_id";
@@ -175,10 +193,13 @@ function bindingsFor(
   return out;
 }
 
+/** A flow and a module may share a name, so a document key carries both. */
+const docKey = (doc: FlowDoc): string => `${doc.kind}:${doc.name}`;
+
 function flowsTf(
   docs: readonly FlowDoc[],
   instanceId: string,
-  addressMap: Record<string, string>,
+  bindings: ReadonlyMap<string, Record<string, string | null>>,
 ): string {
   const aliases = aliasesByModule(docs);
   const out: string[] = [
@@ -189,10 +210,7 @@ function flowsTf(
     "# versions.tf.example lists what this needs.",
   ];
   for (const doc of docs) {
-    out.push(
-      "",
-      ...resourceLines(doc, { instanceId, bindings: bindingsFor(doc, docs, addressMap) }),
-    );
+    out.push("", ...resourceLines(doc, { instanceId, bindings: bindings.get(docKey(doc)) }));
     if (doc.kind !== "module") continue;
     const versions = aliases.get(doc.name) ?? [];
     if (versions.length === 0) continue;
@@ -302,10 +320,40 @@ export function emitFlowascode(
   }
   if (problems.length > 0) throw new EmitFlowascodeError(problems);
 
+  const bindings = new Map<string, Record<string, string | null>>();
+  const unboundBy = new Map<string, Set<string>>();
+  const usedKeys = new Set<string>();
+  for (const doc of ordered) {
+    const bound = bindingsFor(doc, ordered, addressMap);
+    bindings.set(docKey(doc), bound);
+    for (const [key, value] of Object.entries(bound)) {
+      if (value !== null) continue;
+      const docs = unboundBy.get(key) ?? new Set<string>();
+      docs.add(doc.name);
+      unboundBy.set(key, docs);
+    }
+    // A map entry counts as used when any reference in the set reaches it
+    // by one of its three key forms, whether or not the set then binds the
+    // reference to a resource of its own instead.
+    for (const entry of collectRefs(doc.content)) {
+      for (const key of refMapKeys(entry)) if (Object.hasOwn(addressMap, key)) usedKeys.add(key);
+    }
+  }
+  const unbound: UnboundRef[] = [...unboundBy]
+    .sort(([a], [b]) => byString(a, b))
+    .map(([key, docs]) => ({ key, documents: [...docs].sort(byString) }));
+  const unusedMapKeys = Object.keys(addressMap)
+    .filter((key) => !usedKeys.has(key))
+    .sort(byString);
+
   const files: Record<string, string> = {
-    "flows.tf": flowsTf(ordered, instanceId, addressMap),
+    "flows.tf": flowsTf(ordered, instanceId, bindings),
     "versions.tf.example": versionsExample(),
   };
   if (options.instanceIdExpression === undefined) files["variables.tf"] = variablesTf();
-  return { files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => byString(a, b))) };
+  return {
+    files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => byString(a, b))),
+    unbound,
+    unusedMapKeys,
+  };
 }

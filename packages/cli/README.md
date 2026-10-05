@@ -21,7 +21,7 @@ flow-cli render <dir-or-file> --resources map.json      standalone materializati
 flow-cli codegen <doc.flowdoc.json> [--to ts|tf] [--out <file>]  FlowDoc -> companion (.flow.ts or .flow.tf)
 flow-cli synth <file.flow.ts|file.flow.tf> [--out <dir>] companion -> FlowDoc (TS in a sandboxed child)
 flow-cli convert <doc.flowdoc.json> --to ts|tf [--address-map <file>] [--keep-old] [--force]
-flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json]
+flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json] [--allow-unbound] [--strict]
 flow-cli diff <dir> --instance <arn>                     local FlowDocs vs the live instance
 flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]
 flow-cli simulate <scenarios> --instance <arn> [--resource-map <file>] [--format junit|json] [--out <file>]
@@ -216,17 +216,34 @@ the bytes the emitter returns and nothing of its own. `--address-map` is passed
 through as `options.addressMap` and takes the same three key forms
 ("Reference map keys" above); without one, unresolved references become the
 emitter's loud `TODO_MISSING_ADDRESS_*` placeholders, which fail
-`terraform validate` rather than deploying a broken flow.
+`terraform validate` rather than deploying a broken flow. That placeholder is
+the flat target's whole answer to an unbound reference: the command exits 0
+and `validate` is where the run stops, so `--allow-unbound` changes nothing
+on this target and is accepted so one flag list serves both.
 
 `--target flowascode` writes the set for the `flow-as-code/flowascode`
 provider, exactly the bytes `@flow-as-code/hcl`'s `emitFlowascode` returns:
 `flows.tf` with one resource per document and its actions as blocks,
-`variables.tf`, and `versions.tf.example`. It takes the same address map; a
-reference it resolves nowhere is bound to `null` under a `# TODO` comment,
-which the provider refuses at plan time naming the key. It never writes a
-`<name>.flow.tf`, so an emit into a directory `flow-cli studio` serves cannot
-create a companion. docs/06-terraform-provider.md says when to pick
-`flowascode` over `tf`.
+`variables.tf`, and `versions.tf.example`. It takes the same address map. A
+reference it resolves nowhere is an error: the command exits 1, writes
+nothing, and lists each key with the documents that make it, because the
+`null` binding the emitter would write validates and is refused only at plan
+time, when the provider names the key. `--allow-unbound` writes the partial
+map anyway, each unbound key as `null` under a `# TODO` comment, and exits 0;
+that is the shape to review or to finish binding in the file, not one to
+apply. It never writes a `<name>.flow.tf`, so an emit into a directory
+`flow-cli studio` serves cannot create a companion.
+docs/06-terraform-provider.md says when to pick `flowascode` over `tf`.
+
+On either target, an address map key that no reference in the set reaches by
+any of its three forms is a warning on stderr (`warning: address map key
+"queue:apointments" matches no reference in the set`), one line per key, and
+the command still exits 0: a typo in a key, or a key left behind when a flow
+stopped using it, is otherwise silent. `--strict` makes it an error, exiting
+1 and writing nothing. A key the set reaches but resolves itself (a flow or
+module the set emits) is not unused; the emitter ignores its value and, on
+the flat target, says so in `flow_refs.tf`. Both flags are refused on
+`--target cdk`, which binds through a `TokenBinder` and takes no map.
 
 `--target cdk` is not a code generator, because `@flow-as-code/cdk` is a
 library: `FlowSet` reads the FlowDoc directory itself at synth time. What the

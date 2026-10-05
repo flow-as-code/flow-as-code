@@ -134,10 +134,32 @@ program
     "tf and flowascode: reference to terraform address expressions",
   )
   .option("--out <dir>", "output directory (default: the input directory)")
+  .option(
+    "--allow-unbound",
+    "flowascode: write a reference the address map does not cover as null under a TODO " +
+      "comment and exit 0, instead of refusing (tf always writes a placeholder that fails validate)",
+  )
+  .option(
+    "--strict",
+    "tf and flowascode: an address map key no reference in the set uses is an error, not a warning",
+  )
   .action(
-    action((input: string, opts: { target: string; addressMap?: string; out?: string }) => {
-      for (const path of runEmit(input, opts)) console.log(path);
-    }),
+    action(
+      (
+        input: string,
+        opts: {
+          target: string;
+          addressMap?: string;
+          out?: string;
+          allowUnbound?: boolean;
+          strict?: boolean;
+        },
+      ) => {
+        const { written, warnings } = runEmit(input, opts);
+        for (const path of written) console.log(path);
+        for (const line of warnings) console.error(line);
+      },
+    ),
   );
 
 program

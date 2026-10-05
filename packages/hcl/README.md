@@ -71,10 +71,12 @@ fractional console position is written rounded.
 ```ts
 import { emitFlowascode } from "@flow-as-code/hcl";
 
-const { files } = emitFlowascode(docs, {
+const { files, unbound, unusedMapKeys } = emitFlowascode(docs, {
   addressMap: { "queue:appointments": "aws_connect_queue.appointments.arn" },
 });
-// flows.tf, variables.tf, versions.tf.example
+// files: flows.tf, variables.tf, versions.tf.example
+// unbound: [{ key: "lambda:appointment-lookup", documents: ["appointment-line"] }, ...]
+// unusedMapKeys: map keys no reference in the set reaches
 ```
 
 `emitFlowascode` is `flow-cli emit --target flowascode`: one resource per
@@ -82,10 +84,14 @@ document in `flows.tf`, written as `fromFlowDoc` writes a companion, with each
 `refs` map bound from the address map (keyed as `@flow-as-code/tf`'s is) or
 to what the set emits itself, and a version and alias resource for every
 module a flow in the set invokes by alias. What nothing binds is `null` under
-a `# TODO` comment, which the provider refuses at plan time. It refuses a
-literal ARN in the address map, a name that is not a slug, and two documents
-with one address, listing every problem on `EmitFlowascodeError.problems`.
-It never writes a `<name>.flow.tf`.
+a `# TODO` comment, which the provider refuses at plan time; the result's
+`unbound` lists those keys with the documents that make them, and
+`unusedMapKeys` the map keys no reference reaches by any of its three forms,
+so a caller can refuse or warn (the CLI does both: an unbound key is an error
+without `--allow-unbound`, an unused key a warning, or an error under
+`--strict`). It refuses a literal ARN in the address map, a name that is not
+a slug, and two documents with one address, listing every problem on
+`EmitFlowascodeError.problems`. It never writes a `<name>.flow.tf`.
 
 ## Parse, print, format
 

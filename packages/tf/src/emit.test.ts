@@ -121,11 +121,30 @@ describe("reference resolution", () => {
     }
   });
 
-  it("ignores address map entries for references the set does not have", () => {
+  it("leaves out address map entries for references the set does not have, and names them", () => {
     const withExtra = emitTf([queueFlow], {
-      addressMap: { "queue:front-desk": "x.y.z", "queue:unused": "a.b.c" },
+      addressMap: { "queue:front-desk": "x.y.z", "queue:unused": "a.b.c", queue_typo_arn: "d.e.f" },
     });
     expect(withExtra.files["flow_refs.tf"]).not.toContain("unused");
+    expect(withExtra.unusedMapKeys).toEqual(["queue:unused", "queue_typo_arn"]);
+    expect(withExtra.unbound).toEqual([]);
+  });
+
+  it("reports each unbound reference once, with every document that makes it", () => {
+    const { unbound, unusedMapKeys } = emitTf([
+      flow("b", { QueueId: "${cdref:queue:shared}" }),
+      flow("a", { QueueId: "${cdref:queue:shared}" }),
+    ]);
+    expect(unbound).toEqual([{ key: "queue:shared", documents: ["a", "b"] }]);
+    expect(unusedMapKeys).toEqual([]);
+  });
+
+  it("counts a map entry an in-set resource shadows as used", () => {
+    const { unusedMapKeys } = emitTf(
+      [flow("caller", { FlowModuleId: "${cdref:module:survey@prod}" }), module("survey")],
+      { addressMap: { "module:survey@prod": "elsewhere.arn" } },
+    );
+    expect(unusedMapKeys).toEqual([]);
   });
 
   it("resolves a module reference to the alias resource this set emits", () => {

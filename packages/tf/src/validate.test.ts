@@ -237,10 +237,21 @@ describe("the provider drift canary", () => {
   // constraint float resolves under genuinely spans more than one major: today
   // `>= 5.0` resolves 6.x, which is already a crossing rather than a claim
   // about a version that does not exist yet.
+  //
+  // The flowascode provider is the exception, on purpose (task C12): its
+  // emitted constraint is `~> 0.1`, every 0.x and never 1.0, the same range the
+  // tutorials and the example roots ask for, so the canary floats it within
+  // 0.x and the emit-tf lane against the published provider is what reports a
+  // 0.x release that stops accepting the output.
   it("resolves fixtures under a constraint that crosses a major", () => {
     const crossings = pinnedProviders().filter((pin) => {
-      const constraint =
-        EMITTED_PROVIDER_CONSTRAINTS[pin.source] ?? FLOWASCODE_EMITTED_CONSTRAINT[pin.source] ?? "";
+      const flowascode = FLOWASCODE_EMITTED_CONSTRAINT[pin.source];
+      if (flowascode !== undefined) {
+        expect(flowascode, pin.source).toMatch(/^~> 0\.\d+$/);
+        expect(major(pin.version), `${pin.case} ${pin.source}`).toBe(0);
+        return false;
+      }
+      const constraint = EMITTED_PROVIDER_CONSTRAINTS[pin.source] ?? "";
       expect(constraint, pin.source).toMatch(/^>=/);
       return major(constraint.replace(">=", "").trim()) < major(pin.version);
     });

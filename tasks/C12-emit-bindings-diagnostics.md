@@ -38,3 +38,64 @@ map does and does not cover, found while building the showcase.
   bytes change; the provider re-vendors and passes, with its commit recorded
   here.
 - A changeset for `@flow-as-code/cli` and `@flow-as-code/hcl`.
+
+## Record (2026-10-05)
+
+Done on branch `feat/c12-emit-bindings-diagnostics`. The decisions, and the
+reason for each:
+
+- **An unbound reference on `--target flowascode` is an error by default.**
+  `flow-cli emit --target flowascode` exits 1, writes nothing, and lists each
+  key with the documents that make it (`  - queue:appointments (referenced by
+appointment-line)`), because the `null` binding it would otherwise write
+  validates and is refused only at plan time. Nothing is written on a refusal
+  so the message is the whole diagnosis, rather than a message beside a
+  half-usable tree. The flag that keeps the old behavior is
+  `--allow-unbound`: the partial map is written with each unbound key as
+  `null` under the TODO comment, the shape to review or to finish binding in
+  the file. `--allow-unbound` is accepted on `--target tf` and changes
+  nothing there, since the flat target's `TODO_MISSING_ADDRESS_*`
+  placeholder is already the loud form and fails `validate` (the decision
+  "Considered and not taken" in `tasks/README.md` records), so a script that
+  emits both targets with one flag list, as the showcase's invariant test
+  does, still runs. `packages/cli/README.md`, "emit", states the flat
+  target's behavior beside the flowascode one. The library is unchanged in
+  what it writes: `emitFlowascode` and `emitTf` now return `unbound` (key and
+  sorted document names) and `unusedMapKeys` beside `files`, and the CLI
+  decides the exit code, so the studio's export, which takes the bytes, is
+  untouched.
+- **An unused address map key is a warning on either target, an error under
+  `--strict`.** One stderr line per key (`warning: address map key
+"queue:apointments" matches no reference in the set`), exit 0; `--strict`
+  exits 1 and writes nothing. A key counts as used when any reference in the
+  set reaches it by any of its three forms, including one the set resolves
+  itself and so ignores (the module-set case's map entry), because that is a
+  key that means something, not a typo. `--strict` is scoped to the warnings
+  the command emits, which today is this one. Both flags are refused on
+  `--target cdk` as `--address-map` is.
+- **The constraint is `~> 0.1`**, in `FLOWASCODE_PROVIDER_CONSTRAINT`, in
+  `FLOWASCODE_EMITTED_CONSTRAINT` (held equal by the existing test) and in
+  rule 28, the string the tutorials, the cookbook and every example root
+  already asked for. It is `>= 0.1, < 1.0`: it excludes the major that may
+  change the schema and admits a 0.x minor, and the emit-tf lane validating
+  against the published provider is what reports a minor that stops
+  accepting the output. The pinned-lane canary test that asserted every
+  emitted constraint starts with `>=` now treats the flowascode provider as
+  the exception it is. A new test in `packages/hcl/src/emit.test.ts` scans
+  `docs/tutorials/*.md` and `examples/**/*.tf` for the provider's
+  `required_providers` entry and holds each to the constant.
+- **No new `conformance/hcl/emit` case.** The bytes an unbound reference
+  emits did not change; `demo-incomplete-map` already is that case. Instead
+  every emit case's `case.json` carries `unbound` and `unusedMapKeys`, held
+  by the emitter test, and `demo-complete-map`'s address map (the hcl copy
+  only; the emit-tf copy that `cli.test.ts` hands to `render` is untouched)
+  gained a key no reference uses. The four `versions.tf.example` goldens
+  changed for the constraint.
+- **Pending, the Phase C release batch:** the provider re-vendors
+  `conformance/` (its runner reads only `docs` and `expected/flows.tf` from
+  an emit case, so the new fields and the map key change nothing it checks)
+  and its commit is recorded here.
+
+Changeset: `.changeset/emit-bindings-diagnostics.md` (`@flow-as-code/cli`
+and `@flow-as-code/hcl` minor, `@flow-as-code/tf` minor for the result
+fields).
