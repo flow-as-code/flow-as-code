@@ -19,7 +19,7 @@ import { runInit } from "./init.js";
 import { runLint } from "./lint.js";
 import { runRender } from "./render.js";
 import { action, usageErrorsExit } from "./run.js";
-import { runSimulate } from "./simulate.js";
+import { simulateCommand, type SimulateOptions } from "./simulate.js";
 import { studioCommand, type StudioOptions } from "./studio.js";
 import { synthToFiles } from "./synth.js";
 import { cliVersion } from "./version.js";
@@ -241,22 +241,26 @@ program
   .description(
     "Run a scenario suite against a live Amazon Connect instance through its TestCase " +
       "operations, within the documented limits (5 concurrent, 100 in flight, 5 minutes " +
-      "each), and write a JUnit or JSON report. Exits 0 only when every scenario passed.",
+      "each), and write a JUnit or JSON report. Exits 0 only when every scenario passed. " +
+      "With --dry-run, check the suite offline against a directory of FlowDocs instead: " +
+      "every token resolves, every expected prompt is one the flows say, every key pressed " +
+      "is one a menu takes. No AWS call; exits 1 listing every problem.",
   )
   .argument("<scenarios>", "scenario file, or a directory of scenario.json / *.scenario.json")
-  .requiredOption("--instance <arn>", "ARN of the Connect instance to run against")
+  .argument("[flows]", "--dry-run only: directory of *.flowdoc.json files, or one FlowDoc")
+  .option("--dry-run", "check the scenarios against <flows> offline, without an instance")
+  .option("--instance <arn>", "ARN of the Connect instance to run against (live run)")
   .option("--resource-map <map.json>", "JSON object mapping reference tokens to ARNs")
-  .option("--format <format>", "report format: junit or json", "junit")
-  .option("--out <file>", "report file (default: stdout)")
+  .option(
+    "--address-map <refs.tfmap.json>",
+    "--dry-run only: an emit address map, read for its keys",
+  )
+  .option("--format <format>", "report format: junit or json (live run)")
+  .option("--out <file>", "report file (default: stdout; live run)")
   .action(
-    action(
-      async (
-        scenarios: string,
-        opts: { instance: string; resourceMap?: string; format?: string; out?: string },
-      ) => {
-        await runSimulate(scenarios, opts);
-      },
-    ),
+    action(async (scenarios: string, flows: string | undefined, opts: SimulateOptions) => {
+      await simulateCommand(scenarios, flows, opts);
+    }),
   );
 
 program

@@ -4,14 +4,16 @@
  */
 // Library entry. Importing this package must not run the CLI, so the commander
 // program lives in ./bin.ts and nothing here has a side effect at load time.
-// The three subpath exports (./synth, ./watch, ./bridge) are the public API and
-// this module is their union; src/index.test.ts holds the two in step.
+// The four subpath exports (./synth, ./watch, ./bridge, ./simulate) are the
+// public API and this module is their union; src/index.test.ts holds the two
+// in step.
 
 import { pathToFileURL } from "node:url";
 
 export * from "./synth.js";
 export * from "./watch.js";
 export * from "./bridge/server.js";
+export * from "./simulate.js";
 
 // Before the bin split this file was the CLI, so `node .../dist/index.js studio`
 // still exists in scripts and in muscle memory. Left alone it now exits 0 having
