@@ -39,19 +39,35 @@
 //     README's, installs one package, names only commands the CLI has, and runs
 //     them in an order that works;
 //   - every markdown file under docs/ reaches a URL, so a doc left off the
-//     hand-written page list is a failure rather than a page nobody can find.
+//     hand-written page list is a failure rather than a page nobody can find;
+//   - the staleness gate compares dist-demo/ against every file the demo build
+//     reads, derived from the imports reachable from the studio's entry, and
+//     refuses to assemble when one of them is newer than the build.
 //
 // Needs `npm run build` (for dist-demo). Without it the assembler exits with
-// the command to run and the first test reports that; the rest skip.
+// the command to run and the first test reports that; the rest skip, apart
+// from the derived-inputs case, which reads sources and needs no build.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  utimesSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { SOURCE_PATHS } from "../scripts/build-site.mjs";
+
 const ROOT = process.cwd();
-const DEMO = join(ROOT, "packages", "studio", "dist-demo");
+const STUDIO = join(ROOT, "packages", "studio");
+const PACKAGES = join(ROOT, "packages");
+const DEMO = join(STUDIO, "dist-demo");
 const APEX = "flow-as-code.dev";
 const ORIGIN = `https://${APEX}`;
 const REPO = "https://github.com/flow-as-code/flow-as-code";
@@ -86,10 +102,10 @@ const ALLOWED_ORIGINS = [
 const scratch = mkdtempSync(join(tmpdir(), "flow-site-"));
 const out = join(scratch, "dist-site");
 
-/** The assembled tree, or the assembler's own error message when it refused. */
-const assembled = ((): { ok: true } | { ok: false; why: string } => {
+/** Runs the real assembler into `dir`: the tree, or its own error message when it refused. */
+function assemble(dir: string): { ok: true } | { ok: false; why: string } {
   try {
-    execFileSync(process.execPath, [join(ROOT, "scripts", "build-site.mjs"), "--out", out], {
+    execFileSync(process.execPath, [join(ROOT, "scripts", "build-site.mjs"), "--out", dir], {
       cwd: ROOT,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
@@ -99,7 +115,9 @@ const assembled = ((): { ok: true } | { ok: false; why: string } => {
     const err = error as { stderr?: string; message?: string };
     return { ok: false, why: (err.stderr ?? err.message ?? "").trim() };
   }
-})();
+}
+
+const assembled = assemble(out);
 const built = assembled.ok;
 
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
@@ -1186,6 +1204,150 @@ describe("the site sources", () => {
     // the listing above and then be copied as a directory into the deploy.
     for (const entry of readdirSync(join(ROOT, "site"))) {
       expect(statSync(join(ROOT, "site", entry)).isFile(), `${entry} is not a file`).toBe(true);
+    }
+  });
+});
+
+// The staleness gate. The assembler refuses to publish a dist-demo/ older
+// than any file under SOURCE_PATHS, so that list has to name every input of
+// `vite build --mode demo`, and the only way to know what those are is to
+// follow the imports from the demo's entry. The walk below does that: the
+// module script in packages/studio/index.html, then every static import,
+// re-export, dynamic import() and `new URL(..., import.meta.url)` (the lint
+// worker) that each file reaches. A workspace package (`@flow-as-code/*`) is
+// followed through its package.json exports to the source its dist/ was
+// compiled from, since that is what an edit touches. Any other bare specifier
+// is a dependency the lockfile pins, not a file in this tree. The demo stubs
+// in vite.config.ts only drop modules and swap in files already under
+// packages/studio/src, so the set found here is a superset of what the demo
+// bundles, never a subset. A specifier the walk cannot resolve is an error
+// rather than a skip: a silent miss is the gap this file exists to close.
+
+/** Extensions Vite tries for an extensionless specifier, in its default order. */
+const EXTENSIONS = [".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json"];
+const PARSED = new Set([".html", ".ts", ".tsx", ".mts", ".js", ".mjs", ".jsx"]);
+
+/** The module specifiers `file` loads, in source order. Non-code files load nothing. */
+function moduleSpecifiers(file: string): string[] {
+  const ext = extname(file);
+  if (ext === ".html") {
+    return [...readFileSync(file, "utf8").matchAll(/<script\b[^>]*\bsrc\s*=\s*"([^"]+)"/g)].map(
+      (m) => m[1]!,
+    );
+  }
+  if (!PARSED.has(ext)) return [];
+  // Comments are dropped first, and the static forms are matched at the start
+  // of a line, so that prose quoting an import, or a string that codegen
+  // emits, is not mistaken for one.
+  const code = readFileSync(file, "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => !/^\s*\/\//.test(line))
+    .join("\n");
+  const patterns = [
+    /^\s*import\s+(?!type\b)[^;"']*?\bfrom\s*["']([^"']+)["']/gm,
+    /^\s*import\s*["']([^"']+)["']/gm,
+    /^\s*export\s+(?!type\b)[^;"']*?\bfrom\s*["']([^"']+)["']/gm,
+    /\bimport\(\s*["']([^"']+)["']\s*\)/g,
+    /new URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/g,
+  ];
+  return patterns.flatMap((pattern) => [...code.matchAll(pattern)].map((m) => m[1]!));
+}
+
+/** The file `base` names once Vite's extension and index probing is applied. */
+function resolveFile(base: string, spec: string, importer: string): string {
+  const candidates = [
+    base,
+    base.replace(/\.jsx?$/, ".ts"),
+    base.replace(/\.jsx?$/, ".tsx"),
+    ...EXTENSIONS.map((ext) => base + ext),
+    ...EXTENSIONS.map((ext) => join(base, `index${ext}`)),
+  ];
+  const hit = candidates.find((candidate) => existsSync(candidate) && statSync(candidate).isFile());
+  if (hit === undefined) {
+    throw new Error(`cannot resolve ${spec} from ${relative(ROOT, importer)}`);
+  }
+  return hit;
+}
+
+/** The file `spec` loads from `importer`, or undefined for a dependency outside the tree. */
+function resolveSpecifier(spec: string, importer: string): string | undefined {
+  const clean = spec.replace(/[?#].*$/, "");
+  // The shell's "/src/main.tsx" is served from the studio's root by Vite.
+  if (clean.startsWith("/")) return resolveFile(join(STUDIO, clean), spec, importer);
+  if (clean.startsWith(".")) return resolveFile(resolve(dirname(importer), clean), spec, importer);
+  const workspace = /^@flow-as-code\/([^/]+)(\/.*)?$/.exec(clean);
+  if (workspace === null) return undefined;
+  const pkg = join(PACKAGES, workspace[1]!);
+  const manifest = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8")) as {
+    exports: Record<string, { import?: string } | string>;
+  };
+  const entry = manifest.exports[`.${workspace[2] ?? ""}`];
+  const target = typeof entry === "string" ? entry : entry?.import;
+  if (target === undefined) {
+    throw new Error(`${spec} from ${relative(ROOT, importer)} is not an export of ${workspace[1]}`);
+  }
+  // The package resolves to its tsc output; the input is the source it came from.
+  const source = target.replace(/^\.\/dist\//, "./src/").replace(/\.js$/, ".ts");
+  return resolveFile(join(pkg, source), spec, importer);
+}
+
+/** Every file in this tree that `vite build --mode demo` reads, from the entry out. */
+function demoInputs(): string[] {
+  const entry = join(STUDIO, "index.html");
+  const seen = new Set<string>([entry]);
+  const queue = [entry];
+  for (let file = queue.shift(); file !== undefined; file = queue.shift()) {
+    for (const spec of moduleSpecifiers(file)) {
+      const target = resolveSpecifier(spec, file);
+      if (target !== undefined && !seen.has(target)) {
+        seen.add(target);
+        queue.push(target);
+      }
+    }
+  }
+  return [...seen].sort();
+}
+
+describe("the staleness gate", () => {
+  it("compares dist-demo against every input the demo build reads", () => {
+    const inputs = demoInputs();
+    // The walk reached what it exists to find: the demo flow and the schemas
+    // under conformance/, the worker, and the sibling packages the export
+    // dialog bundles. Without these the coverage check below would pass empty.
+    expect(inputs).toContain(join(ROOT, "conformance", "demo", "appointment-line.flowdoc.json"));
+    expect(inputs).toContain(join(ROOT, "conformance", "schema", "flowdoc-0.2.schema.json"));
+    expect(inputs).toContain(join(STUDIO, "src", "worker", "lint.worker.ts"));
+    expect(inputs).toContain(join(PACKAGES, "core", "src", "index.ts"));
+    expect(inputs).toContain(join(PACKAGES, "tf", "src", "emit.ts"));
+    expect(inputs).toContain(join(PACKAGES, "cdk", "src", "scaffold.ts"));
+    expect(inputs).toContain(join(PACKAGES, "hcl", "src", "index.ts"));
+
+    const covered = (file: string): boolean =>
+      SOURCE_PATHS.some((path: string) => file === path || file.startsWith(path + sep));
+    expect(
+      inputs.filter((file) => !covered(file)).map((file) => relative(ROOT, file)),
+      "inputs of the demo build that SOURCE_PATHS in scripts/build-site.mjs does not cover",
+    ).toEqual([]);
+  });
+
+  it.runIf(built)("refuses to assemble when the demo flow is newer than dist-demo", () => {
+    // Touch the demo FlowDoc's mtime, not its content, and put it back
+    // afterwards: a checkout gives every file the same timestamp, so a tree
+    // left with this file in the future would refuse to assemble until the
+    // next `npm run build`.
+    const flow = join(ROOT, "conformance", "demo", "appointment-line.flowdoc.json");
+    const before = statSync(flow);
+    utimesSync(flow, before.atime, new Date(Date.now() + 60_000));
+    try {
+      const result = assemble(join(scratch, "stale"));
+      expect(result.ok, "assembled over a demo flow newer than dist-demo").toBe(false);
+      if (result.ok) return;
+      expect(result.why).toContain("packages/studio/dist-demo/ is stale");
+      expect(result.why).toContain("conformance/demo/appointment-line.flowdoc.json");
+      expect(result.why).toContain("npm run build");
+    } finally {
+      utimesSync(flow, before.atime, before.mtime);
     }
   });
 });

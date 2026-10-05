@@ -422,17 +422,32 @@ function newest(path, found = { at: 0, file: "" }) {
 
 /**
  * What dist-demo/ is compared against to decide whether it is current: the
- * inputs to `vite build --mode demo`. Core's sources are in the list because
- * the demo bundles core, so a core edit that was never rebuilt leaves the
- * artifact just as stale as a studio edit. Tests and build output are not,
- * because neither changes a byte of the bundle.
+ * inputs to `vite build --mode demo`, which reach well outside the studio's
+ * own tree. The demo bundles core, tf, cdk and hcl (the export dialog renders
+ * their output in the page), so an edit to any of their sources that was never
+ * rebuilt leaves the artifact just as stale as a studio edit. Two directories
+ * that belong to no package are inputs for the same reason: the studio imports
+ * `conformance/demo/appointment-line.flowdoc.json` (src/store/demoStore.ts)
+ * and the FlowDoc schemas under `conformance/schema/` (src/model/validate.ts)
+ * into the bundle, so an edit to the demo flow with no rebuild would publish
+ * the old canvas. Tests and build output are not inputs, because neither
+ * changes a byte of the bundle.
+ *
+ * tests/site.test.ts derives this set from the imports reachable from the demo
+ * entry and fails when one resolves outside every entry here, so the next
+ * input added cannot be missed the way conformance/demo/ once was.
  */
-const SOURCE_PATHS = [
+export const SOURCE_PATHS = [
   join(ROOT, "packages", "studio", "src"),
   join(ROOT, "packages", "studio", "index.html"),
   join(ROOT, "packages", "studio", "vite.config.ts"),
   join(ROOT, "packages", "studio", "package.json"),
   join(ROOT, "packages", "core", "src"),
+  join(ROOT, "packages", "tf", "src"),
+  join(ROOT, "packages", "cdk", "src"),
+  join(ROOT, "packages", "hcl", "src"),
+  join(ROOT, "conformance", "demo"),
+  join(ROOT, "conformance", "schema"),
 ];
 
 /** Exits with an actionable message unless dist-demo/ exists and is current. */
@@ -944,4 +959,8 @@ function main() {
   console.log(`build-site: ${String(paths.length)} pages at ${origin}/ ; top level: ${roots}`);
 }
 
-main();
+// Run when invoked as a program; tests/site.test.ts imports SOURCE_PATHS from
+// this module and must not assemble a site by doing so.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}

@@ -68,3 +68,28 @@ defined`, reported against the file. The order varies with runner speed:
 - **CLAUDE.md.** Its CI line still says main is red pending this task, which
   is what `gh run list` shows until the merge. Restore "is green" in the same
   change that records the three runs above, not before.
+
+## CI runs (2026-10-05)
+
+`gh run list --repo flow-as-code/flow-as-code --workflow ci.yml --branch main`
+shows, from the fix's merge (#21, 2026-10-01 00:10 UTC) onward:
+
+| Run                                                                   | Commit    | Push                  | Created (UTC)    | Result    |
+| --------------------------------------------------------------------- | --------- | --------------------- | ---------------- | --------- |
+| https://github.com/flow-as-code/flow-as-code/actions/runs/36794773178 | `03e149c` | merge of #20          | 2026-10-01 00:09 | cancelled |
+| https://github.com/flow-as-code/flow-as-code/actions/runs/36794797898 | `7f47603` | merge of #21, the fix | 2026-10-01 00:10 | cancelled |
+| https://github.com/flow-as-code/flow-as-code/actions/runs/36794827383 | `cb09ee6` | merge of #22          | 2026-10-01 00:10 | success   |
+| https://github.com/flow-as-code/flow-as-code/actions/runs/36795832942 | `1462963` | merge of #23          | 2026-10-01 00:22 | success   |
+
+The runs for #20 and #21 themselves were cancelled when the next merge
+started: `ci.yml` sets `cancel-in-progress: true` on a group keyed by the
+ref, so three merges within a minute leave only the last one running. A
+cancelled run counts neither way. The criterion asks for three consecutive
+green runs on main after the merge; two are recorded here and none has failed
+since, so the criterion is not met yet and waits on one more. The next push to
+main is the third: record its run id and result here, and close the task on a
+green one. Nothing in this section claims more than `gh run list` shows.
+
+`CLAUDE.md`'s CI line already read "green on main again" when these runs were
+checked; the same change that records them here cites the two runs on that
+line, so the claim there is the one `gh run list` supports.
