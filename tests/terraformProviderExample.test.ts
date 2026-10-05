@@ -14,7 +14,8 @@
 // - every flow and module resource reads back through the HCL reader and lints
 //   with no findings at all, so no recipe teaches a shape Connect refuses;
 // - the flows module's companion is what codegen writes for its FlowDoc,
-//   byte for byte, and is the promotion example's flow;
+//   byte for byte, its outputs.tf is what `emit --target flowascode` writes,
+//   and it is the promotion example's flow;
 // - the environments call the module with the same arguments and differ only
 //   in the values, and no file holds an ARN;
 // - the cookbook page shows each recipe exactly as its file holds it;
@@ -29,7 +30,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { lint, type FlowDoc } from "@flow-as-code/core";
-import { format, fromFlowDoc, parse, toFlowDoc } from "@flow-as-code/hcl";
+import { emitFlowascode, format, fromFlowDoc, parse, toFlowDoc } from "@flow-as-code/hcl";
 import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
 
@@ -133,6 +134,22 @@ describe("examples/terraform-provider", () => {
       "lambda:appointment-lookup": "var.appointment_lookup_arn",
       "queue:appointments": "var.appointments_queue_arn",
     });
+  });
+
+  // Task C13: the module's outputs are the emitter's, not hand-written, so
+  // the pipeline reads names that a renamed resource address cannot move.
+  it("keeps the flows module's outputs as the emitter writes them", () => {
+    const json = JSON.parse(
+      read(join(EXAMPLE, "flows", "appointment-line.flowdoc.json")),
+    ) as FlowDoc;
+    const emitted = emitFlowascode([json]).files["outputs.tf"];
+    expect(read(join(EXAMPLE, "flows", "outputs.tf"))).toBe(emitted);
+    // What the pipeline and the environments read is an output the emitter
+    // wrote, under its name.
+    expect(emitted).toContain('output "appointment_line_document_sha256"');
+    for (const file of ["ci/promote-flows.yml", "envs/dev/main.tf", "envs/prod/main.tf"]) {
+      expect(read(join(EXAMPLE, file)), file).toContain("appointment_line_document_sha256");
+    }
   });
 
   it("is the promotion example's flow", () => {

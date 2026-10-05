@@ -136,6 +136,7 @@ describe("--help", () => {
     expect(emit).toContain("--address-map");
     expect(emit).toContain("--allow-unbound");
     expect(emit).toContain("--strict");
+    expect(emit).toContain("--module-alias");
   });
 });
 
@@ -528,6 +529,7 @@ describe("emit --target flowascode", () => {
     const expected = emitFlowascode([readDoc(DEMO)], { addressMap }).files;
     expect(Object.keys(expected).sort()).toEqual([
       "flows.tf",
+      "outputs.tf",
       "variables.tf",
       "versions.tf.example",
     ]);
@@ -592,6 +594,95 @@ describe("emit --target flowascode", () => {
     const flows = readFileSync(join(out, "flows.tf"), "utf8");
     expect(flows).toContain("# TODO: no terraform address for ${cdref:queue:appointments}.");
     expect(flows).toContain('"queue:appointments" = null');
+  });
+
+  // Task C05: a module released on its own, in a root of its own, publishes
+  // the alias another root's address map binds.
+  it("publishes a declared alias for a module no flow in the set invokes", () => {
+    const dir = workspace();
+    const module = join(
+      REPO,
+      "conformance",
+      "emit-tf",
+      "module-set",
+      "satisfaction-question.flowdoc.json",
+    );
+    cpSync(module, join(dir, "satisfaction-question.flowdoc.json"));
+    const out = join(dir, "release");
+
+    const bare = cli("emit", dir, "--target", "flowascode", "--out", out);
+    expect(bare.status).toBe(0);
+    expect(readFileSync(join(out, "flows.tf"), "utf8")).not.toContain("_module_alias");
+
+    const released = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--out",
+      out,
+      "--module-alias",
+      "module:satisfaction-question@live",
+      "--module-alias",
+      "module:satisfaction-question@canary",
+    );
+    expect(released.status).toBe(0);
+    expect(released.stderr).toBe("");
+    const flows = readFileSync(join(out, "flows.tf"), "utf8");
+    expect(flows).toContain(
+      'resource "flowascode_contact_flow_module_version" "satisfaction_question"',
+    );
+    expect(flows).toContain(
+      'resource "flowascode_contact_flow_module_alias" "satisfaction_question_canary"',
+    );
+    expect(flows).toContain(
+      'resource "flowascode_contact_flow_module_alias" "satisfaction_question_live"',
+    );
+    expect(readFileSync(join(out, "outputs.tf"), "utf8")).toContain(
+      'output "satisfaction_question_live_arn"',
+    );
+    // The same flag list on the flat target writes the awscc alias.
+    expect(
+      cli(
+        "emit",
+        dir,
+        "--target",
+        "tf",
+        "--out",
+        out,
+        "--module-alias",
+        "module:satisfaction-question@live",
+      ).status,
+    ).toBe(0);
+    expect(readFileSync(join(out, "flows.tf"), "utf8")).toContain(
+      'resource "awscc_connect_contact_flow_module_alias" "satisfaction_question_live"',
+    );
+
+    const unknown = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--out",
+      out,
+      "--module-alias",
+      "module:greeting@live",
+    );
+    expect(unknown.status).toBe(1);
+    expect(unknown.stderr).toContain('names module "greeting", which this set does not emit');
+
+    const malformed = cli(
+      "emit",
+      dir,
+      "--target",
+      "flowascode",
+      "--out",
+      out,
+      "--module-alias",
+      "greeting@live",
+    );
+    expect(malformed.status).toBe(1);
+    expect(malformed.stderr).toContain("module:<name>@<alias>");
   });
 
   it("warns on a map key no reference uses, and refuses it under --strict", () => {
@@ -854,8 +945,15 @@ describe("broken input", () => {
 
   it("refuses the Terraform-only emit flags on --target cdk, naming the flag", () => {
     const { dir } = demoWorkspace();
-    for (const flag of ["--allow-unbound", "--strict"]) {
-      const run = cli("emit", dir, "--target", "cdk", flag);
+    for (const flag of ["--allow-unbound", "--strict", "--module-alias"]) {
+      const run = cli(
+        "emit",
+        dir,
+        "--target",
+        "cdk",
+        flag,
+        ...(flag === "--module-alias" ? ["module:x@y"] : []),
+      );
       expect(run.status, flag).toBe(1);
       expect(run.stderr).toContain(flag);
       expect(run.stderr).toContain("binder");

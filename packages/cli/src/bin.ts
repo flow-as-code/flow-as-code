@@ -143,6 +143,13 @@ program
     "--strict",
     "tf and flowascode: an address map key no reference in the set uses is an error, not a warning",
   )
+  .option(
+    "--module-alias <module:name@alias>",
+    "tf and flowascode: an alias a module in the set publishes though no flow in the set " +
+      "invokes it (version and alias resources as for an invoked module); repeatable",
+    (value: string, previous: string[]) => [...previous, value],
+    [] as string[],
+  )
   .action(
     action(
       (
@@ -153,6 +160,7 @@ program
           out?: string;
           allowUnbound?: boolean;
           strict?: boolean;
+          moduleAlias?: string[];
         },
       ) => {
         const { written, warnings } = runEmit(input, opts);

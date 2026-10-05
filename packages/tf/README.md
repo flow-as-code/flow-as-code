@@ -61,6 +61,8 @@ The `.tftpl` body is JSON containing caller text, and caller text legitimately c
 
 Flow versioning is not available: `CreateContactFlowVersion` "only supports creating versions for flows of type Campaign" ([API reference](https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateContactFlowVersion.html)). Flows update their content in place. Modules get `awscc_connect_contact_flow_module_version` and `awscc_connect_contact_flow_module_alias`, which is how a caller pins the module content it invokes. A version snapshots content at create time, so a module content change needs the version resource replaced for aliases to serve it.
 
+The aliases a module gets are the ones flows in the same set invoke it through (`${cdref:module:survey@prod}` gives `survey` a `prod` alias). A module nothing in the set references gets its resource and a version, and no alias: the emitter cannot know what a root elsewhere will bind. To release such a module on its own, declare the aliases it publishes, `moduleAliases: { survey: ["live"] }` (`flow-cli emit --module-alias module:survey@live`, repeatable); the alias resource is then written exactly as for an invoked module, and another root binds `module:survey@live` through its address map. A module not in the set, or an alias that is not a slug, is refused. `conformance/emit-tf/module-release` is the case.
+
 ## Tests
 
 `npm test` runs the goldens in `conformance/emit-tf` and the unit tests. The tests that run a real `tofu init`, `tofu validate`, `tofu fmt`, and `tofu console` need the network and a few minutes on a cold provider cache, so they are gated behind `RUN_TOFU_VALIDATE=1`:
