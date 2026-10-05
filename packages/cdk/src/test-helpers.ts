@@ -17,8 +17,11 @@ import {
   InvokeLambdaFunction,
   MessageParticipant,
   Refs,
+  TransferToFlow,
+  UpdateContactEventHooks,
   UpdateContactTargetQueue,
   synth,
+  type EventHook,
   type FlowDoc,
 } from "@flow-as-code/core";
 
@@ -72,6 +75,55 @@ export function routerFlow(): FlowDoc {
       onError: "goodbye",
     }),
     new DisconnectParticipant({ id: "goodbye" }),
+  );
+  return synth(flow);
+}
+
+/** A one-message flow, the shape a whisper or hold flow takes. */
+export function messageFlow(name: string, text = "Please hold."): FlowDoc {
+  const flow = new Flow({ name }).add(
+    new MessageParticipant({ id: "say", text, next: "done", onError: "done" }),
+    new DisconnectParticipant({ id: "done" }),
+  );
+  return synth(flow);
+}
+
+/**
+ * A flow that points event hooks at other flows, one UpdateContactEventHooks
+ * per hook as the catalog requires, then hands off to a queue. This is the
+ * shape a main line takes when it sets its whisper and hold flows before
+ * transferring.
+ */
+export function hookedFlow(name: string, hooks: Partial<Record<EventHook, string>>): FlowDoc {
+  const entries = Object.entries(hooks) as [EventHook, string][];
+  const blocks = entries.map(
+    ([hook, target], i) =>
+      new UpdateContactEventHooks({
+        id: `hook-${hook}`,
+        hook,
+        flow: Refs.flow(target),
+        next: i + 1 < entries.length ? `hook-${entries[i + 1]![0]}` : "set-queue",
+        onError: "done",
+      }),
+  );
+  const flow = new Flow({ name }).add(
+    ...blocks,
+    new UpdateContactTargetQueue({
+      id: "set-queue",
+      queue: Refs.queue("appointments"),
+      next: "done",
+      onError: "done",
+    }),
+    new DisconnectParticipant({ id: "done" }),
+  );
+  return synth(flow);
+}
+
+/** A flow whose first action transfers to another flow by reference. */
+export function transferFlow(name: string, to: string): FlowDoc {
+  const flow = new Flow({ name }).add(
+    new TransferToFlow({ id: "hand-off", flow: Refs.flow(to), next: "done", onError: "done" }),
+    new DisconnectParticipant({ id: "done" }),
   );
   return synth(flow);
 }
