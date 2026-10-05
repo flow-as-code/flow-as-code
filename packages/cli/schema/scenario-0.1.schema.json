@@ -216,8 +216,9 @@
           }
         },
         {
+          "description": "Assert which queue the contact reached: `name` against $.Queue.Name, or `queue` (a token, resolved with the rest) against $.Queue.ARN. Exactly one. `queue` was added 2026-10-05 as an additive change within scenario 0.1: every scenario valid before it stays valid. https://docs.aws.amazon.com/connect/latest/adminguide/connect-attrib-list.html",
           "type": "object",
-          "required": ["kind", "name"],
+          "required": ["kind"],
           "additionalProperties": false,
           "properties": {
             "kind": {
@@ -226,8 +227,25 @@
             "name": {
               "type": "string",
               "minLength": 1
+            },
+            "queue": {
+              "$ref": "#/$defs/queueToken"
             }
-          }
+          },
+          "oneOf": [
+            {
+              "required": ["name"],
+              "not": {
+                "required": ["queue"]
+              }
+            },
+            {
+              "required": ["queue"],
+              "not": {
+                "required": ["name"]
+              }
+            }
+          ]
         },
         {
           "type": "object",

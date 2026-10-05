@@ -35,7 +35,12 @@ const root = new URL("../../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf8");
 const readJson = <T>(path: string): T => JSON.parse(read(path)) as T;
 
-const CASES = ["after-hours-message", "appointment-lookup-transfer", "chat-greeting"] as const;
+const CASES = [
+  "after-hours-message",
+  "appointment-lookup-transfer",
+  "chat-greeting",
+  "queue-by-token",
+] as const;
 const scenarioOf = (name: string) =>
   readJson<Scenario>(`conformance/simulate/${name}/scenario.json`);
 
@@ -271,8 +276,10 @@ describe("compileScenario", () => {
   });
 
   it("matches the documented SendInstruction and Assert shapes exactly", () => {
-    const { content } = compileScenario(scenarioOf("appointment-lookup-transfer"));
-    const actions = content.Observations.flatMap((o) => o.Actions);
+    const actions = [
+      ...compileScenario(scenarioOf("chat-greeting")).content.Observations,
+      ...compileScenario(scenarioOf("appointment-lookup-transfer")).content.Observations,
+    ].flatMap((o) => o.Actions);
 
     const send = actions.find((a) => a.Type === "SendInstruction");
     expect(send?.Parameters).toMatchObject({
@@ -633,8 +640,8 @@ describe("runScenarios", () => {
     });
 
     expect(run.totals).toEqual({
-      total: 3,
-      passed: 3,
+      total: CASES.length,
+      passed: CASES.length,
       failed: 0,
       timedOut: 0,
       errored: 0,
@@ -642,8 +649,8 @@ describe("runScenarios", () => {
     });
     // A test case is a server-side resource: it must be published before it can
     // run, and removed afterwards or it is left behind on the instance.
-    expect(client.created.map((c) => c.status)).toEqual(["PUBLISHED", "PUBLISHED", "PUBLISHED"]);
-    expect(client.deleted).toHaveLength(3);
+    expect(client.created.map((c) => c.status)).toEqual(CASES.map(() => "PUBLISHED"));
+    expect(client.deleted).toHaveLength(CASES.length);
     expect(client.created[0]?.content).not.toContain("cdref");
   });
 
@@ -725,7 +732,7 @@ describe("runScenarios", () => {
     expect(timedOut?.status).toBe("TIMED_OUT");
     expect(timedOut?.durationMs).toBeGreaterThanOrEqual(SIMULATE_LIMITS.maxDurationMs);
     expect(client.stopped).toHaveLength(1);
-    expect(client.deleted).toHaveLength(3);
+    expect(client.deleted).toHaveLength(CASES.length);
   });
 
   it("caps the timeout at the documented five minutes", async () => {
@@ -934,9 +941,54 @@ describe("compiled content shape", () => {
     expect(chat).not.toContain('"Type": "Inclusion"');
   });
 
-  it("expresses queue reached as an Assert on $.Queue.Name", () => {
-    const json = serializeTestContent(compiled("appointment-lookup-transfer").content);
-    expect(json).toContain('"Namespace": "$.Queue.Name"');
+  it("expresses queue reached as an Assert on $.Queue.Name, or on $.Queue.ARN by token", () => {
+    const byName = serializeTestContent(compiled("appointment-lookup-transfer").content);
+    expect(byName).toContain('"Namespace": "$.Queue.Name"');
+    expect(byName).not.toContain("$.Queue.ARN");
+    // The token sits where the Operand goes, so resolveScenario swaps in the
+    // map's ARN with every other token (verified offline only; the task file
+    // records the live run it waits on).
+    const byToken = compiled("queue-by-token");
+    expect(serializeTestContent(byToken.content)).toContain('"Namespace": "$.Queue.ARN"');
+    const resolved = serializeTestContent(resolveScenario(byToken, RESOURCE_MAP).content);
+    expect(resolved).toContain(`"Operand": "${RESOURCE_MAP["${cdref:queue:appointments}"]}"`);
+    expect(resolved).not.toContain("${cdref:");
+  });
+
+  it("sends DTMF as a DtmfInput instruction with the keys in Value", () => {
+    const scenario: Scenario = {
+      scenario: "0.1",
+      name: "press-one",
+      entryPoint: { channel: "voice", flow: "${cdref:flow:appointment-line}" },
+      steps: [
+        { kind: "expect-prompt", contains: "press 1" },
+        { kind: "send-dtmf", value: "1#" },
+      ],
+    };
+    const actions = compileScenario(scenario).content.Observations.flatMap((o) => o.Actions);
+    expect(actions.find((a) => a.Type === "SendInstruction")?.Parameters).toEqual({
+      ActionType: "SendInstruction",
+      Actor: "Customer",
+      Instruction: { Type: "DtmfInput", Properties: { Value: "1#" } },
+    });
+  });
+
+  it("refuses an expect-queue with both name and queue, or neither, or a non-queue token", () => {
+    const base = scenarioOf("queue-by-token");
+    const withStep = (step: Record<string, unknown>) => ({ ...base, steps: [step] });
+    expect(validateScenario(withStep({ kind: "expect-queue" })).map((f) => f.path)).toEqual([
+      "steps[0]",
+    ]);
+    expect(
+      validateScenario(
+        withStep({ kind: "expect-queue", name: "Appointments", queue: "${cdref:queue:x}" }),
+      ).map((f) => f.path),
+    ).toEqual(["steps[0]"]);
+    expect(
+      validateScenario(withStep({ kind: "expect-queue", queue: "${cdref:hours:x}" })).map(
+        (f) => f.path,
+      ),
+    ).toEqual(["steps[0].queue"]);
   });
 });
 

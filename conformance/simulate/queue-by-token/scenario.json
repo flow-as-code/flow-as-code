@@ -1,0 +1,36 @@
+{
+  "scenario": "0.1",
+  "name": "queue-by-token",
+  "description": "The same transfer, with the queue reached asserted by token: expect-queue's queue form compiles to an Assert on $.Queue.ARN whose Operand the resource map resolves, so the scenario names the queue the way the flow does and never a console name.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:appointment-line}"
+  },
+  "substitutions": [
+    {
+      "actionType": "TransferContactToQueue",
+      "actionParameters": {
+        "QueueId": "${cdref:queue:appointments}"
+      },
+      "substitute": "${cdref:queue:overflow}"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "expect-hours-check",
+      "hours": "${cdref:hours:main-line}"
+    },
+    {
+      "kind": "expect-lambda",
+      "lambda": "${cdref:lambda:appointment-lookup}"
+    },
+    {
+      "kind": "expect-transfer",
+      "queue": "${cdref:queue:appointments}"
+    },
+    {
+      "kind": "expect-queue",
+      "queue": "${cdref:queue:appointments}"
+    }
+  ]
+}
