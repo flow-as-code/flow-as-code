@@ -14,6 +14,8 @@ layout/<case>/doc.flowdoc.json    a document whose actions the algorithm lays ou
 layout/<case>/expected.layout.json the positions it must produce, byte-exact
 flow-language/actions.md          Connect action types, shapes, and cited doc URLs
 flow-language/catalog.json        the same facts as data; a second implementation generates its schema from it
+flow-language/probes/<rule>/<name>.json  a create probe behind a numbered rule, every id a placeholder (probes/README.md)
+flow-language/probes/<rule>/results.json what the service said to each probe, with the UTC time and Region
 demo/appointment-line.flowdoc.json  the canonical demo flow
 lint/README.md                    fixture format and the rule for adding one
 lint/<rule-id>/pass-*.json        FlowDoc producing no finding for the rule
@@ -167,7 +169,9 @@ Both implementations:
 - `schema`: the FlowDoc schemas; the mutation cases in
   `packages/core/src/conformance.test.ts` are the rejections to reproduce.
 - `flow-language`: `catalog.json` is the source a second implementation
-  generates its schema and lint tables from; `actions.md` is its prose.
+  generates its schema and lint tables from; `actions.md` is its prose, and
+  `probes/` holds the inputs behind its numbered rules, which the provider
+  embeds and does not read.
 - `lint`: every rule's pass and fail fixtures, findings matched by rule,
   block and message fragment.
 - `materialize`: deployable content from a document and a reference map.

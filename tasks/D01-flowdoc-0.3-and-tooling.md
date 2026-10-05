@@ -180,6 +180,19 @@ is exercised before any group needs it.
   describe call. It is never run by `npm test` or `npm run build`; a unit test
   covers placeholder filling offline, and a test refuses a committed probe
   input carrying a 12-digit account id or an instance UUID.
+- Landed ahead of the gate on 2026-10-05 (branch `docs/phase-d-prep`), as
+  this task allows: `scripts/probe-create.mjs`, `tests/probeCreate.test.ts`
+  (a stubbed client; the SDK's paginators insist on a real one, so the runner
+  pages by `NextToken` itself) and `conformance/flow-language/probes/README.md`,
+  the convention. The runner reads the instance id from `CONNECT_INSTANCE_ID`,
+  the Region from `AWS_REGION`, the account from `AWS_ACCOUNT_ID` and any other
+  placeholder from `PROBE_<NAME>`, appends to `results.json` (or a
+  `--results results-<date>-<region>.json`) beside the inputs with every
+  filled value scrubbed back to its placeholder, and refuses to start while
+  an `hh-probe-*` or `fac-probe-*` flow or module exists. It has not been run live;
+  the first live run is the next sweep. The Voice ID probes of 2026-10-05
+  (tasks/D08, "Record") are the first set under the convention, recorded by
+  hand before the runner existed. ADR 0008 landed the same day.
 
 ### Release hygiene
 

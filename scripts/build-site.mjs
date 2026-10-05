@@ -358,6 +358,22 @@ const PAGES = [
     description:
       "Why a .flow.tf is a companion with the same standing as a .flow.ts rather than a rendering target, what a regeneration carries from the previous file, and what does not round-trip.",
   },
+  {
+    source: "docs/adr/0008-case-field-ids.md",
+    slug: "docs/adr-case-field-ids",
+    group: "Decisions",
+    title: "ADR-0008: Cases field ids are casefield references, usable as map keys",
+    description:
+      "Why a Cases field id, a per-domain UUID that CaseRequestFields uses as a map key, is a reference type with tokens standing as keys and a path form that names them, rather than a literal id or an alias table.",
+  },
+  {
+    source: "docs/adr/0009-routing-criteria-expression.md",
+    slug: "docs/adr-routing-criteria-expression",
+    group: "Decisions",
+    title: "ADR-0009: UpdateRoutingCriteria's expression is a json value inside typed steps",
+    description:
+      "Why the recursive routing expression, which no Terraform schema can hold, is a json value inside typed steps rather than all of RoutingCriteria as json, a depth-limited shape or a new number kind.",
+  },
 ];
 
 /** The /docs/ index, which is a page of the site like any other. */
