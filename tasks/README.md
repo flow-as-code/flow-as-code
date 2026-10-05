@@ -290,17 +290,29 @@ was already a workaround. A phase of its own can close on its own evidence.
 
 ## How it relates to Phase C
 
-- Phase C closes and releases on its own first. C11 ships what C01 to C15
-  produce (0.2.x or 0.3.0, as the changesets decide); Phase D's release is
-  D10, separate. Folding D into C11 would hold C's release on live evidence
-  that needs owner actions (feature enablement, quota tickets).
-- D01 is gated on C03. C03 adds the catalog's `channels` field, and several
+- Phase C closes and releases on its own first, and its release carries no
+  format change. `changeset version` consumes every file under `.changeset/`
+  at once, the packages are `fixed`, and `release.yml` refuses to publish
+  while an unconsumed changeset remains, so a D01 changeset on main before
+  C11's release would make C11's release the one that writes FlowDoc 0.3,
+  ahead of any provider that reads it. D01 is therefore gated on C11
+  released, and D02 to D09 follow it; Phase D is serial behind Phase C.
+  Only D00, the two ADRs (0008 under D01, 0009 under D07) and D01's probe
+  runner, none of which changes the format or the catalog's shape as the
+  published provider reads it, may land on main before that gate. Phase D's
+  release is D10, the next npm minor after C11's; its number is read from
+  the registry after the fact, never written here. Folding D into C11 would
+  hold C's release on live evidence that needs owner actions (feature
+  enablement, quota tickets). An integration branch instead of the gate was
+  considered and not taken (below). (Amended 2026-10-05 on review.)
+- D01 needs C03, which C11's release carries. C03 adds the catalog's `channels` field, and several
   types here are restricted by channel (media streaming, media processing,
   `CreateWisdomSession`, Voice ID, `UpdatePreviousContactParticipantState`,
   `StartOutboundChatContact`). D01 extends that vocabulary; it does not
   invent a second one.
-- C04 touches `GetParticipantInput`'s stored form and does not block, but
-  D00's new `GetParticipantInput` parameters land after it, on the same type.
+- C04 touches `GetParticipantInput`'s stored form and does not block;
+  D09's `EnableDTMFBuffer` lands after it, on the same type (moved from D00
+  on 2026-10-05 so D00 has no gate).
 - C01 is not closed: its file still records no CI runs. Main has two green
   runs since the fix (36794827383 for #22, 36795832942 for #23; the runs for
   #20 and #21 were cancelled). The third consecutive green run is recorded in
@@ -314,7 +326,7 @@ was already a workaround. A phase of its own can close on its own evidence.
 | #   | Task                                                                 | Group    | Gate                                    |
 | --- | -------------------------------------------------------------------- | -------- | --------------------------------------- |
 | D00 | Catalog census: what "every action" is measured against              | contract | none                                    |
-| D01 | FlowDoc 0.3, catalog vocabulary, provider and oracle prep            | contract | C03 merged, D00                         |
+| D01 | FlowDoc 0.3, catalog vocabulary, provider and oracle prep            | contract | C11 released (carries C03), D00         |
 | D02 | Contact state (4 types); re-author `roundtrip/unknown-actions`       | engine   | D01                                     |
 | D03 | Customer Profiles (6 types)                                          | engine   | D01, a Profiles domain on the sandbox   |
 | D04 | Outbound (3 types)                                                   | engine   | D01; deploy-only where quotas block     |
@@ -322,8 +334,8 @@ was already a workaround. A phase of its own can close on its own evidence.
 | D06 | Cases (3 types); ADR on per-domain field ids                         | engine   | D01, D03's Profiles domain, a Cases one |
 | D07 | `UpdateRoutingCriteria`; ADR on the recursive expression             | engine   | D01                                     |
 | D08 | Voice ID (2 types), gated on the service still accepting them        | engine   | D01, a probe                            |
-| D09 | Types D00 adds from the admin guide and console exports              | engine   | D00 exports, D01                        |
-| D10 | Release: provider minor, npm 0.3.0, pins, then the showcase consumes | release  | D02 to D09, C11 released                |
+| D09 | Types D00 adds from the admin guide and console exports              | engine   | D00 exports, D01 (C04 is before C11)    |
+| D10 | Release: provider minor, the next npm minor, pins, then the showcase | release  | D02 to D09                              |
 
 D02 to D09 may run in any order once D01 is merged; the order above is
 cheapest evidence first. Each group follows B01's pattern: one commit per
@@ -356,7 +368,10 @@ flow-as-code:
    new rule code in `packages/core/src/lint/` only for a new constraint form.
 7. The group's `conformance/roundtrip/<group>/doc.flowdoc.json`, and a
    `conformance/hcl/roundtrip/<case>/expected.flow.tf` carrying the typed
-   sub-block.
+   sub-block, with `"validate": "awaits-provider"` in its `case.json` and no
+   `validate/` directory until D10 (see "HCL goldens before the provider
+   release" below). The golden is read-write byte-checked from the day it
+   lands; its `tofu validate` is D10's.
 8. Studio: palette entry and default parameters (`palette.ts`), inspector
    fields with ref pickers (`inspectorSchema.ts`), drag rules in
    `mutations.ts` only where conditions or errors need them, with tests.
@@ -366,7 +381,9 @@ flow-as-code:
 10. A changeset per group (`core`, and `studio` where the palette or inspector
     changed).
 
-terraform-provider-flowascode, once per group at a merge commit on main here:
+terraform-provider-flowascode, once per group at a merge commit on main here,
+onto the provider's main, which carries unreleased 0.3 support from D01's
+re-vendor onward (D01, "Provider tooling"):
 
 11. `scripts/sync-conformance.sh <sha>`; `internal/conformance/COMMIT` and
     `MANIFEST.json` updated.
@@ -377,6 +394,37 @@ terraform-provider-flowascode, once per group at a merge commit on main here:
     form, and the acceptance fake taught any refusal the group relies on.
 14. `CHANGELOG.md` names the vendored commit; the provider commit is recorded
     in the task file.
+
+## HCL goldens before the provider release
+
+Every `conformance/hcl/roundtrip/*` and `hcl/emit/*` case is `tofu validate`d
+in the emit-tf lane against the published flowascode provider pinned at an
+exact version in its `validate/providers.tf` (0.1.1 today, named in the
+ci.yml cache key), and `packages/hcl/src/validate.test.ts` holds every case
+to `"validate": "pass"`. The provider builds its typed sub-blocks and its
+`refs` key pattern from its vendored catalog, so a sub-block such as
+`create_case {}` or a `casefield:` key exists only in a provider release, and
+D10 is the one release of this phase. Without a mechanism the first group
+merged after D01 turns the lane red until D10, and `release.yml`'s `gates`
+job runs all of ci.yml, so no npm release could pass meanwhile. Decided
+2026-10-05, implemented in D01:
+
+- A case whose golden carries a sub-block or ref key the pinned provider lacks
+  is committed with `"validate": "awaits-provider"` and no `validate/`
+  directory. `validate.test.ts` skips `tofu validate` for such a case,
+  counts provider pins only over cases that have a `validate/` directory, and
+  a test holds that an `awaits-provider` case has no `validate/` directory
+  and a `pass` case has one. The golden is still byte-checked by the
+  read-write round-trip tests from the day it lands.
+- D10, in the commit that raises the pins, adds `validate/` to every such
+  case, flips it to `pass`, and leaves none `awaits-provider`; a D10
+  criterion says so, and `conformance/hcl/README.md` describes both values.
+- `FLOWASCODE_PROVIDER_CONSTRAINT` (`>= 0.1`) already admits the next minor,
+  so no emitted `versions.tf.example` changes for `tofu init`; the per-case
+  pins, the ci.yml cache key, `FLOWASCODE_EMITTED_CONSTRAINT` in
+  `packages/tf/src/__fixtures__/tofu.ts` (held equal to the constraint) and
+  the constraint itself (raised as a floor for the new blocks) are what move
+  in D10.
 
 ## The evidence rule for this phase
 
@@ -399,7 +447,13 @@ call that returns `ResourceNotFoundException`:
 Probe inputs are kept (rule 37 regrets losing them), under
 `conformance/flow-language/probes/<rule>/`, with every account, instance and
 resource id replaced by a named placeholder that D01's runner fills from the
-environment at run time. A probe that fails on a missing instance feature
+environment at run time. The provider vendors all of `conformance/`
+(`scripts/sync-conformance.sh`, embedded by `internal/conformance/manifest.go`
+with `//go:embed all:data`), so probe inputs and the console exports under
+`conformance/flow-language/exports/` ship inside its binary and MANIFEST
+beside actions.md, which it embeds already. Accepted 2026-10-05: they are
+the evidence for the rules in that file, a few kilobytes each, and the
+provider does not read them. A probe that fails on a missing instance feature
 rather than on the catalog (rule 37's `UpdateContactData` on an instance
 without Voice ID) is rerun on an instance with the feature, and the first
 result is recorded as what it was.
@@ -421,9 +475,16 @@ types (outbound campaigns, SMS, Voice ID) may only ever be deployable.
   numbered rule with its probe inputs kept.
 - FlowDoc 0.3 is the current version, 0.2 is frozen byte for byte, and every
   reader in both repositories migrates a 0.2 document on the way in.
-- The provider release that reads 0.3 is on both registries and was
-  published no later than the npm set that writes it; the emit-tf lane
-  validates a case holding the new typed blocks against it.
+- The provider release that reads 0.3 and carries every typed sub-block and
+  ref-type key of this phase is on both registries and was published before
+  the npm set that writes them. The mechanism is narrower than the format
+  version: an emitted tree carries no FlowDoc version (the provider computes
+  `flowdoc` from the HCL with its own constant), so an older provider
+  refuses it only where it carries a typed sub-block or a ref-type key that
+  provider's catalog lacks, and the showcase's Tier 4 is the first such
+  tree. The emit-tf lane validates a case holding the new typed blocks
+  against the new provider, and the demo emitted by the new CLI still
+  validates against the previous provider.
 - `roundtrip/unknown-actions` still exercises passthrough.
 - CI is green on main at the closing commit, checked with `gh run list`, and
   `tasks/README.md` gains a "Where it ended" for Phase D.
@@ -450,6 +511,19 @@ types (outbound campaigns, SMS, Voice ID) may only ever be deployable.
   needs a float.
 - Exercising Voice ID live. The service ended on 2026-05-20; D08 probes only
   whether a create is still accepted.
+- An integration branch for Phase D, merged to main only at D10, with the
+  provider re-vendored through `scripts/sync-conformance.sh <sha> --from
+<clone>` (which exists for unpushed commits, B04). Every fixture in the
+  repository moves to 0.3 in D01, and Phase C's C03, C04 and C12 to C15 keep
+  touching the same fixtures and the catalog on main, so each rebase of a
+  months-long branch is a repository-wide conflict; the provider's main would
+  then read 0.3 against a conformance tree not on this repository's main,
+  which the drift canary could not compare; and a lane "expected red" on the
+  branch is a baseline nobody can read. The gate on C11 costs calendar time
+  only, bounded by C09's owner action (the satellite public at a tag), and the
+  work that needs no format change (D00, the ADRs, the probe runner, and the
+  sandbox sweeps themselves, whose inputs are kept) proceeds before it.
+  (2026-10-05)
 
 ## Owner decisions
 
@@ -465,7 +539,10 @@ otherwise. Record the answer and its date here when given.
    "Considered and not taken".
 2. **Voice ID.** Default: probe once (D08). If the service accepts a create,
    model both types as deployable only; if it refuses, record the refusal
-   and leave them generic, outside the denominator with that reason.
+   and leave them generic, counted in the denominator as "not modeled:
+   refused <date> <message>" (the definition of done's first bullet; they
+   are two of the 56 in decision 1, and the satellite's Tier 4 counts them
+   the same way). Reworded 2026-10-05; the earlier text put them outside.
 3. **0.3 schema strictness against migrated 0.2 documents.** Default: a 0.3
    per-type clause encodes only what the service enforces at create, so any
    0.2 document the service accepted also validates after migration; a test
@@ -478,8 +555,12 @@ otherwise. Record the answer and its date here when given.
 5. **Cases field ids.** Default: a `casefield` ref type and tokens as map
    keys in `CaseRequestFields` (a new path form), because field ids are
    per-domain UUIDs and the showcase's environments may differ only in
-   bindings. D06's ADR records the alternative (literal ids, an accepted
+   bindings. ADR 0008 records the alternative (literal ids, an accepted
    limitation) and why it was not taken, or the owner's choice if different.
+   The ADR is written under D01, before the format bump commit, so the ref
+   type set 0.3 freezes is final (a later rename or removal would be a
+   second format change, which "Considered and not taken" rules out); D06
+   implements it. Moved from D06 on 2026-10-05.
 6. **Outbound gates.** Default: no campaigns quota ticket and no SMS
    registration. `CheckOutboundCallStatus` and `StartOutboundChatContact`
    are modeled on create evidence alone and documented as deployable, not
@@ -497,8 +578,10 @@ otherwise. Record the answer and its date here when given.
    documented Type, exports it, and commits the export (ids replaced by
    placeholders) under `conformance/flow-language/exports/`; D09 models
    from it.
-9. **Release order.** Default: provider v0.2.0 (reads FlowDoc 0.3) is
-   published before npm 0.3.0, not after; both after C11's release.
+9. **Release order.** Default: the provider minor that reads FlowDoc 0.3 is
+   published before the npm minor that writes it, not after; both after
+   C11's release. Neither number is predicted here: D10 reads them from the
+   registries. FlowDoc 0.3 and an npm 0.3.0 need not coincide.
 10. **The passthrough fixture once every Type is modeled.** Default: it keeps
     any console-only Type still unmodeled; if none remains, it holds a
     synthetic Type name, documented as such, and the codegen test asserts the

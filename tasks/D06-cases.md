@@ -1,7 +1,7 @@
 # D06 Cases: three types, and an ADR on per-domain field ids
 
 Phase D, engine. Gated on D01 (the `casetemplate` and `casefield` ref types,
-value-dependent required errors, refs on map keys) and on a Cases domain,
+ADR 0008, value-dependent required errors, refs on map keys) and on a Cases domain,
 which itself requires Customer Profiles (D03's domain).
 
 Cases field ids are per-domain UUIDs, and `CaseRequestFields` uses them as
@@ -26,13 +26,13 @@ https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html.
 
 ## Acceptance criteria
 
-- `docs/adr/0008-case-field-ids.md` is written and merged before the first
-  type: the options (a `casefield` ref type with tokens as map keys, a new
+- `docs/adr/0008-case-field-ids.md` is written and merged under D01, before
+  the format bump (moved there on 2026-10-05 so the ref type set 0.3
+  freezes is final; the plan's one-bump rule leaves no room for amending
+  D01's vocabulary afterwards). This task implements its decision: the
+  options it weighs (a `casefield` ref type with tokens as map keys, a new
   path form; literal ids as an accepted limitation; a FlowDoc-level alias
-  table), what each costs in core, HCL, the studio, export and the provider,
-  and the decision (owner decision 5; default: the ref type). If the
-  decision differs from what D01 landed, D01's vocabulary is amended in a
-  commit of its own before any type here.
+  table) and the default (owner decision 5: the ref type) are listed there.
 - The three types are modeled per tasks/README.md, "The per-type checklist",
   one commit each, with `conformance/roundtrip/cases/` as the group fixture.
 - `CaseTemplateId` is a `casetemplate` reference; field ids follow the ADR,
@@ -72,7 +72,7 @@ for this phase", for each type; and:
 
 ## Both repositories
 
-- [ ] ADR 0008 merged first.
+- [ ] ADR 0008 (merged under D01) followed.
 - [ ] flow-as-code, checklist lines 1 to 10, per type.
 - [ ] Export, materialize and HCL cases for the field-id decision.
 - [ ] Probe inputs under `conformance/flow-language/probes/<rule>/`.

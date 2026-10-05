@@ -3,8 +3,11 @@
 Phase D, engine. Gated on D01 and on a probe. Amazon Connect Voice ID stopped
 accepting new customers on 2025-05-20, and "After May 20, 2026, you will no
 longer be able to use Amazon Connect Customer Voice ID"
-(https://docs.aws.amazon.com/connect/latest/adminguide/amazonconnect-voiceid-end-of-support.html;
-actions.md rule 30). The action pages still exist, so the service may still
+(https://docs.aws.amazon.com/connect/latest/adminguide/amazonconnect-voiceid-end-of-support.html).
+actions.md rule 30 records the same end date from a different page's
+sentence ("you will no longer be able to access Voice ID on the Amazon
+Connect Customer console", set-voice-id.html). The action pages still
+exist, so the service may still
 accept a flow containing them; nobody has checked. Under owner decision 2
 this task first learns which.
 
@@ -28,8 +31,10 @@ https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvo
   the sandbox (which has never had Voice ID), with the date and message.
 - If every create is refused: actions.md records the refusal and the end of
   support, the catalog entries stay `modeled: false` with `channels` and the
-  refusal noted, the census (D00) lists both outside the denominator with
-  that reason, and the task closes. Nothing else changes.
+  refusal noted, the census (D00) counts both in the denominator as "not
+  modeled: refused <date> <message>" (owner decision 2 as reworded
+  2026-10-05; the definition of done's first bullet), and the task closes.
+  Nothing else changes.
 - If creates are accepted: both types are modeled per tasks/README.md, "The
   per-type checklist", with conditions per option as a `shapes` form, the
   operand spellings taken from what the service accepts (each candidate

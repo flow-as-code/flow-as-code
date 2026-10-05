@@ -1,7 +1,8 @@
 # D09 Types D00 adds from the admin guide and console exports
 
 Phase D, engine. Gated on D01 and, for console-only blocks, on the owner's
-export (owner decision 8). The Types here are the ones the 56 devguide pages
+export (owner decision 8); the `GetParticipantInput` bullet below also needs
+C04 merged, which C11's release (D01's gate) carries. The Types here are the ones the 56 devguide pages
 do not list but D00's census counts.
 
 ## Types
@@ -36,10 +37,14 @@ https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.h
   the rest of this task is done are listed in the census as awaiting an
   export, and the task closes without them; D10 names them in the release
   notes.
-- `GetParticipantInput`'s `EnableDTMFBuffer` and `InputEncryption` (added to
-  the catalog in D00) are typed in the builder for the Set Touchtone Buffer
-  Behavior form, with a codegen case, so a console export of that block
-  inverts.
+- `GetParticipantInput`'s catalog parameters gain `EnableDTMFBuffer` with its
+  kind from the Set Touchtone Buffer Behavior page (moved here from D00 on
+  2026-10-05; C04 owns the stored form, so this lands after it); whether it
+  is required in some form is probed, not read from the page. The catalog
+  already records `InputEncryption` (`EncryptionKeyId`, `Key`, optional):
+  its recorded shape is checked against the page, not re-added. Both are
+  typed in the builder for that form, with a codegen case, so a console
+  export of the block inverts.
 - `roundtrip/unknown-actions` is re-authored once more if
   `TransferParticipantToThirdParty` is modeled, per owner decision 10.
 

@@ -8,13 +8,13 @@ are portable strings.
 Devguide page fetched 2026-10-04:
 https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html.
 
-| Parameter                 | Shape                                                                                                                                                                                                                               |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutingCriteria.Steps[]` | static or dynamic (a JSONPath for the whole list)                                                                                                                                                                                   |
-| `Steps[].Expression`      | a tagged union: `AttributeCondition` {`Name` 1 to 64, `Value` 1 to 64, `ProficiencyLevel` float 1.0 to 5.0, `ComparisonOperator` `NumberGreaterOrEqualTo`} or `AndExpression[]` (the console also writes `OrExpression`), recursive |
-| `Steps[].Expiry`          | {`DurationInSeconds`}, static                                                                                                                                                                                                       |
-| Errors (page)             | `NoMatchingError`                                                                                                                                                                                                                   |
-| Restrictions (page)       | inbound, customer queue, transfer to agent and transfer to queue flows; all channels                                                                                                                                                |
+| Parameter                 | Shape                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RoutingCriteria.Steps[]` | static or dynamic (a JSONPath for the whole list)                                                                                                                                                                                                                                                                                                                   |
+| `Steps[].Expression`      | a tagged union: `AttributeCondition` {`Name` 1 to 64, `Value` 1 to 64, `ProficiencyLevel` one of 1.0, 2.0, 3.0, 4.0, 5.0 ("Valid values are: 1.0, 2.0, 3.0, 4.0 and 5.0"), `ComparisonOperator` `NumberGreaterOrEqualTo`} or `AndExpression[]` (the console also writes `OrExpression`), recursive; `RoutingCriteria`, `Steps` and `Expression` are marked Required |
+| `Steps[].Expiry`          | {`DurationInSeconds`}, static                                                                                                                                                                                                                                                                                                                                       |
+| Errors (page)             | `NoMatchingError`                                                                                                                                                                                                                                                                                                                                                   |
+| Restrictions (page)       | inbound, customer queue, transfer to agent and transfer to queue flows; all channels                                                                                                                                                                                                                                                                                |
 
 A recursive union has no Terraform schema form, and the catalog has no float
 kind.
@@ -40,9 +40,10 @@ kind.
   strictly as the sweep shows the service is, and no more (owner decision 3).
 - HCL writes `Expression` with `jsonencode`, and a
   `conformance/hcl/roundtrip/` case holds it.
-- The `Name` and `Value` bounds and the proficiency range are recorded in the
-  catalog only if the sweep shows the service enforcing them at create;
-  otherwise they are the builder's checks and actions.md says so.
+- The `Name` and `Value` bounds and the five proficiency values are recorded
+  in the catalog only if the sweep shows the service enforcing them at
+  create; otherwise they are the builder's checks and actions.md says so.
+  (The page's five discrete values, not a range: corrected 2026-10-05.)
 
 ## Evidence
 
@@ -50,8 +51,9 @@ One sweep, the next numbered rule, per tasks/README.md, "The evidence rule
 for this phase"; and:
 
 - an `OrExpression` (the page does not list it);
-- `ProficiencyLevel` 0.5, 5.5 and an integer, and an attribute name the
-  instance has not predefined;
+- `ProficiencyLevel` 0.5, 2.5 (inside the range but not one of the five
+  values), 5.5 and an integer, and an attribute name the instance has not
+  predefined;
 - `Steps` as a JSONPath;
 - the type in a contact flow, a module and a customer queue flow.
 

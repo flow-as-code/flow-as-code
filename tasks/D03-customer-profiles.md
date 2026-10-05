@@ -75,8 +75,9 @@ for this phase", for each type; and:
 - Cost: profiles holding only Connect data are free; a profile with imported
   data or custom attributes costs $0.005 on each day it is used, plus $0.005
   per 100 objects
-  (https://aws.amazon.com/products/connect/customer/pricing/appendix/). A KMS
-  key about $1 a month. Creates alone use no profile.
+  (https://aws.amazon.com/products/connect/customer/pricing/appendix/). A customer-managed KMS
+  key carries its monthly key charge (https://aws.amazon.com/kms/pricing/,
+  about $1 a month). Creates alone use no profile.
 - The console exports above are owner actions (decision 8) unless a browser
   session is available.
 

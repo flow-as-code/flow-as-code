@@ -8,10 +8,10 @@ the sandbox instance.
 
 Devguide pages fetched 2026-10-04.
 
-| Type                  | Parameters                                                                                                                                                                                                                                                       | Errors (page)     | Restrictions                                                                                                                            | Size   |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `CreateTask`          | `ContactFlowId` (flow), `Attributes` map, `Name`, `Description`?, `References` map ("Type": "Value" on the page; likely {`Value`, `Type`} objects), `DelaySeconds` 1 to 518400 at most one with `ScheduledTime` (format undocumented), `TaskTemplateId` (static) | `NoMatchingError` | "supported on all channels and in all contact flow types"                                                                               | M to L |
-| `CreateWisdomSession` | `WisdomAssistantArn` (static or dynamic)                                                                                                                                                                                                                         | `NoMatchingError` | devguide: voice only, all flow types; admin guide: all channels, only inbound, customer queue, outbound whisper and both transfer flows | M      |
+| Type                  | Parameters                                                                                                                                                                                                                                                                                                                     | Errors (page)     | Restrictions                                                                                                                            | Size   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `CreateTask`          | `ContactFlowId` (flow; "must be fully static or a single valid JSONPath identifier"), `Attributes` map, `Name`, `Description`?, `References` map ("Type": "Value" on the page; likely {`Value`, `Type`} objects), `DelaySeconds` 1 to 518400 at most one with `ScheduledTime` (format undocumented), `TaskTemplateId` (static) | `NoMatchingError` | "supported on all channels and in all contact flow types"                                                                               | M to L |
+| `CreateWisdomSession` | `WisdomAssistantArn` (static or dynamic)                                                                                                                                                                                                                                                                                       | `NoMatchingError` | devguide: voice only, all flow types; admin guide: all channels, only inbound, customer queue, outbound whisper and both transfer flows | M      |
 
 Pages: https://docs.aws.amazon.com/connect/latest/devguide/createtask.html,
 https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html,
@@ -22,14 +22,17 @@ https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.ht
 - Both types are modeled per tasks/README.md, "The per-type checklist", one
   commit each, with `conformance/roundtrip/tasks-and-assistants/` as the
   group fixture.
-- `CreateTask.ContactFlowId` is a `flow` reference and `TaskTemplateId` a
+- `CreateTask.ContactFlowId` is a `flow` reference with `dynamic` (the page
+  allows a single JSONPath identifier) and `TaskTemplateId` a
   `tasktemplate` reference; whether the template is an id or an ARN, and the
   `References` value shape, come from a console export committed under
   `conformance/flow-language/exports/`.
 - `DelaySeconds` and `ScheduledTime` are `atMostOne`; `ScheduledTime`'s
   format is recorded from the export and a probe, not guessed. The
-  satellite's VERIFY 16.8 found `ContactFlowId` and `Name` required; the
-  sweep confirms it here before the catalog relies on it.
+  satellite's VERIFY 16.8 records `ContactFlowId` and `Name` as required
+  from the page (its sandbox sweep covered `TransferParticipantToThirdParty`
+  only); the sweep here is the first evidence, before the catalog relies on
+  it.
 - `CreateWisdomSession.WisdomAssistantArn` is an `assistant` reference;
   export maps a `wisdom` ARN to it through D01's inventory, and the
   materialize case resolves it back. A JSONPath value stays allowed
