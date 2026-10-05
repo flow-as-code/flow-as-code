@@ -449,7 +449,14 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
     document with its references still tokens, equal across environments
     that apply the same document and known at plan time (`content_hash`
     hashes the content Connect holds, with each environment's ARNs filled
-    in, and would not do). Each output carries a `description`. A flow and a
+    in, and would not do). `flowdoc` holds what the document holds: the
+    resource's `name`, `display_name`, `description` and `type`, its actions
+    with their `start`, positions and reference keys, and nothing the sidecar
+    holds (rule 23): not the `refs` bindings, `tags`, `lint`, `state` or
+    `instance_id`. Two roots' hashes therefore agree exactly when those
+    document fields agree, whatever each root binds or tags, which is what a
+    hand-written root has to keep equal between environments. Each output
+    carries a `description`. A flow and a
     module sharing a name would share both outputs, so a set holding both is
     refused, naming the output. The validate run covers the file: it is a
     `.tf` the case's stubs must satisfy.
