@@ -239,7 +239,7 @@ describe("one FlowDoc, two flowascode trees", () => {
   it("emits the same set of files for both environments", () => {
     const names = Object.keys(dev).sort();
     expect(Object.keys(prod).sort()).toEqual(names);
-    expect(names).toEqual(["flows.tf", "variables.tf", "versions.tf.example"]);
+    expect(names).toEqual(["flows.tf", "outputs.tf", "variables.tf", "versions.tf.example"]);
   });
 
   it("differs in exactly one file, flows.tf", () => {

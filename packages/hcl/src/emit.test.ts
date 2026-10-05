@@ -244,6 +244,51 @@ describe("emitFlowascode", () => {
     },
   });
 
+  const moduleDoc = (name: string): FlowDoc => ({
+    flowdoc: "0.2",
+    kind: "module",
+    name,
+    connectType: "MODULE",
+    content: {
+      Version: "2019-10-30",
+      StartAction: "end",
+      Settings: {},
+      Actions: [
+        { Identifier: "end", Type: "EndFlowModuleExecution", Parameters: {}, Transitions: {} },
+      ],
+    },
+  });
+
+  // Task C13: a promotion gate reads `terraform output` by FlowDoc name.
+  it("writes an ARN and a document hash output per document, named by FlowDoc name", () => {
+    const { files } = emitFlowascode([flow("2fa-line", {}), moduleDoc("greeting")]);
+    const outputs = files["outputs.tf"]!;
+    expect([...outputs.matchAll(/^output "([^"]+)"/gm)].map((m) => m[1])).toEqual([
+      "_2fa_line_arn",
+      "_2fa_line_document_sha256",
+      "greeting_arn",
+      "greeting_document_sha256",
+    ]);
+    expect(outputs).toContain("value       = flowascode_contact_flow._2fa_line.arn");
+    expect(outputs).toContain(
+      "value       = sha256(flowascode_contact_flow_module.greeting.flowdoc)",
+    );
+    expect(format(outputs)).toBe(outputs);
+  });
+
+  it("refuses a flow and a module that share a name, since they would share an output", () => {
+    let error: unknown;
+    try {
+      emitFlowascode([flow("greeting", {}), moduleDoc("greeting")]);
+    } catch (e) {
+      error = e;
+    }
+    expect((error as EmitFlowascodeError).problems).toEqual([
+      "flow greeting and module greeting both emit output greeting_arn",
+      "flow greeting and module greeting both emit output greeting_document_sha256",
+    ]);
+  });
+
   it("reports each unbound key once, with every document that makes it", () => {
     const { files, unbound } = emitFlowascode(
       [

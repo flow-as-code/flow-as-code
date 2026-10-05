@@ -30,10 +30,14 @@ resources. Pick `tf` when the flows are generated artifacts nobody edits as
 HCL; pick `flowascode` when the flows are authored in HCL, reviewed as HCL, or
 need plan-time lint.
 
-`--target flowascode` writes `flows.tf`, `variables.tf` and
+`--target flowascode` writes `flows.tf`, `outputs.tf`, `variables.tf` and
 `versions.tf.example` for a set of documents, never a per-document
 `<name>.flow.tf`, so an emit into a directory the studio serves cannot create
-a companion. Each document is one resource; its `refs` map binds each key to
+a companion. `outputs.tf` carries, per document and named by its FlowDoc
+name, its `arn` and `sha256()` of its `flowdoc`, the document with its
+references still tokens: the hash a promotion gate compares between
+environments (`docs/tutorials/02-promote.md`), equal when the documents
+are and known at plan time, so no root writes its own. Each document is one resource; its `refs` map binds each key to
 the address the address map gives, to a resource the set emits itself (a flow,
 a module, or a module invoked by alias through the version and alias resources
 the emitter writes beside it), or to `null` under a `# TODO` comment, which

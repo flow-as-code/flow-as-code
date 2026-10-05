@@ -36,7 +36,7 @@ hcl/refuse/<case>/input.flow.tf        a resource both implementations refuse
 hcl/refuse/<case>/expected-error.json  {code, path?, messageIncludes?}; the code is the cross-language field
 hcl/emit/<case>/case.json              the documents (paths relative to the case), options, unbound, unusedMapKeys, validate expectation
 hcl/emit/<case>/address-map.json       reference -> terraform address, keyed as emit-tf's maps are
-hcl/emit/<case>/expected/              flows.tf, variables.tf, versions.tf.example, byte-exact
+hcl/emit/<case>/expected/              flows.tf, outputs.tf, variables.tf, versions.tf.example, byte-exact
 hcl/emit/<case>/validate/stubs.tf      the resources the address map points at
 hcl/emit/<case>/validate/providers.tf  the providers at exact versions, for `tofu validate`
 ```
@@ -420,8 +420,9 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
 
 28. `emit --target flowascode` writes `flows.tf` (a header comment, then one
     resource per document sorted by name then kind, each written by rules 3
-    to 18 with no banner), `variables.tf` declaring `connect_instance_id`
-    unless an instance expression is given, and `versions.tf.example`
+    to 18 with no banner), `outputs.tf` (rule 29), `variables.tf` declaring
+    `connect_instance_id` unless an instance expression is given, and
+    `versions.tf.example`
     requiring Terraform `>= 1.8.0` and `flow-as-code/flowascode` `~> 0.1`
     (every 0.x release and never 1.0, the range the tutorials and the
     example roots ask for). A document's `refs` bind a flow or module the
@@ -438,6 +439,27 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
     by rule 27, without descriptions. A literal ARN, a multi-line value or a comment marker in the
     address map, a name that is not a slug, and two documents emitting one
     address are refused, every problem listed.
+
+29. `outputs.tf` holds, per document in the order of `flows.tf`, two outputs
+    named by the document's name as an identifier (hyphens as underscores, a
+    leading digit prefixed by an underscore) rather than by its resource
+    address, so a pipeline reading `terraform output` keeps its names when
+    a resource moves: `<name>_arn`, the resource's `arn`, and
+    `<name>_document_sha256`, `sha256()` of the resource's `flowdoc`, the
+    document with its references still tokens, equal across environments
+    that apply the same document and known at plan time (`content_hash`
+    hashes the content Connect holds, with each environment's ARNs filled
+    in, and would not do). `flowdoc` holds what the document holds: the
+    resource's `name`, `display_name`, `description` and `type`, its actions
+    with their `start`, positions and reference keys, and nothing the sidecar
+    holds (rule 23): not the `refs` bindings, `tags`, `lint`, `state` or
+    `instance_id`. Two roots' hashes therefore agree exactly when those
+    document fields agree, whatever each root binds or tags, which is what a
+    hand-written root has to keep equal between environments. Each output
+    carries a `description`. A flow and a
+    module sharing a name would share both outputs, so a set holding both is
+    refused, naming the output. The validate run covers the file: it is a
+    `.tf` the case's stubs must satisfy.
 
 ## Error codes
 

@@ -20,7 +20,7 @@ flows/                           a Terraform module holding the flows
   appointment-line.flow.tf       the flow, as a flowascode_contact_flow resource
   appointment-line.flowdoc.json  the same flow as a FlowDoc, for the studio
   variables.tf                   the instance, and one ARN per reference
-  outputs.tf                     the flow's ARN and its document hash
+  outputs.tf                     the flow's ARN and its document hash, as flow-cli emit writes them
   versions.tf                    the provider the module needs
 envs/dev/                        dev: creates its own hours, queue and function
 envs/platform/                   a platform team's configuration prod reads

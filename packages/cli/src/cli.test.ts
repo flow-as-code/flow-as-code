@@ -528,6 +528,7 @@ describe("emit --target flowascode", () => {
     const expected = emitFlowascode([readDoc(DEMO)], { addressMap }).files;
     expect(Object.keys(expected).sort()).toEqual([
       "flows.tf",
+      "outputs.tf",
       "variables.tf",
       "versions.tf.example",
     ]);
