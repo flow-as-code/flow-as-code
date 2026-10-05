@@ -663,6 +663,49 @@ describe("a GetParticipantInput menu in the inspector", () => {
     expect(document.querySelector('[data-testid="mutation-notice"]')).toBeNull();
   });
 
+  it("shows a stored-input block typed, with the body and timeout fields", async () => {
+    // The stored form in the exact shape the builder writes (tasks/C04): no
+    // demotion marker, and the inspector offers the same per-type fields it
+    // offers the menu form. The validation itself is not editable here yet.
+    const doc = menuDoc();
+    doc.content.Actions = doc.content.Actions.map((a) =>
+      a.Identifier === "menu"
+        ? {
+            ...a,
+            Parameters: {
+              Text: "Enter your account number, then press pound.",
+              InputTimeLimitSeconds: "5",
+              StoreInput: "True",
+              InputValidation: { CustomValidation: { MaximumLength: "10" } },
+            },
+            Transitions: {
+              NextAction: "no-match",
+              Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+              Conditions: [],
+            },
+          }
+        : a,
+    );
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+      </>,
+    );
+    expect(document.querySelector('[data-testid="demoted-menu"]')).toBeNull();
+    await click(present('[data-testid="node-menu"]'));
+    const field = testId<HTMLInputElement>("number-InputTimeLimitSeconds");
+    expect(field.value).toBe("5");
+    expect(testId<HTMLSelectElement>("message-body-kind").value).toBe("Text");
+    await typeAndBlur(field, "12");
+    expect(document.querySelector('[data-testid="mutation-notice"]')).toBeNull();
+    expect(document.querySelector('[data-testid="demoted-menu"]')).toBeNull();
+    // No branch list and no key hint: the form has no conditions to offer.
+    expect(document.querySelector('[data-testid^="condition-"]')).toBeNull();
+    expect(document.querySelector('[data-testid="menu-branch-hint"]')).toBeNull();
+  });
+
   it("shows the stored-input form generic, with its branches but no key hint", async () => {
     // StoreInput "True" is not the menu form. A stray branch on it is still
     // listed (content is never dropped), but not under the hint that a drag

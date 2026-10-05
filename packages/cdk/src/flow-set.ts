@@ -27,6 +27,24 @@
 //   versions for flows of type Campaign."
 //   https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateContactFlowVersion.html
 //   (verified 2026-08-31)
+//
+// References between documents in the set (C06):
+// - A `${cdref:flow:name}` whose flow is in the set resolves to that flow's
+//   ARN (CfnContactFlow.attrContactFlowArn), with an explicit dependency, the
+//   way a module reference resolves to its alias. This is what
+//   UpdateContactEventHooks pointing at a whisper or hold flow in the same set
+//   needs, and it matches what @flow-as-code/tf and @flow-as-code/hcl do: the
+//   set resolves its own documents, the binder (there, the address map) binds
+//   the rest. The binder's flow() is not consulted for a flow in the set.
+// - Documents are created in dependency order over both kinds of reference,
+//   so a referenced flow exists before the flow that references it. A cycle
+//   fails at synth with the cycle spelled out: each flow would need the
+//   other's ARN, which CloudFormation cannot create in one template, and a
+//   "Circular dependency" at deploy would name logical IDs, not flows.
+// - A `${cdref:module:name@alias}` whose module is NOT in the set goes to the
+//   binder's optional module(name, alias), for a module managed elsewhere and
+//   bound per environment; without that method synth fails naming the token
+//   and both remedies.
 
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
@@ -44,6 +62,7 @@ import {
   type FlowDoc,
   type RefEntry,
 } from "@flow-as-code/core";
+import type { CfnResource } from "aws-cdk-lib";
 import {
   CfnContactFlow,
   CfnContactFlowModule,
@@ -52,10 +71,9 @@ import {
 } from "aws-cdk-lib/aws-connect";
 import { Construct } from "constructs";
 
-import { bindRef, type TokenBinder } from "./binder.js";
+import { DEFAULT_MODULE_ALIAS, bindRef, type TokenBinder } from "./binder.js";
 
-/** Alias created for a module no flow pins to a named alias. */
-export const DEFAULT_MODULE_ALIAS = "live";
+export { DEFAULT_MODULE_ALIAS };
 
 export interface FlowSetProps {
   /** ARN of the Connect instance the flows deploy into. */
@@ -86,21 +104,29 @@ function loadDocs(source: string | FlowDoc[]): FlowDoc[] {
   );
 }
 
+/** A reference to a document of the same set, which the set resolves itself. */
+const inSet = (byName: ReadonlyMap<string, FlowDoc>, ref: RefEntry): boolean =>
+  (ref.type === "module" || ref.type === "flow") && byName.get(ref.name)?.kind === ref.type;
+
 /**
- * Modules ordered so every module is created after the modules it references
- * ("up to five levels" of nesting, per the flow language contract). Stable:
- * ties break on name. Throws on a reference cycle, which Connect could never
- * execute anyway.
+ * The set ordered so every document is created after the documents it
+ * references: a module after the modules it invokes ("up to five levels" of
+ * nesting, per the flow language contract), a flow after the flows its event
+ * hooks or transfers name. Stable: modules come before flows, and ties break
+ * on name. Throws on a reference cycle, naming it.
  */
-function topoSortModules(modules: FlowDoc[]): FlowDoc[] {
-  const byName = new Map(modules.map((m) => [m.name, m]));
+function topoSortDocs(docs: FlowDoc[]): FlowDoc[] {
+  const byName = new Map(docs.map((d) => [d.name, d]));
   const deps = new Map<string, string[]>(
-    modules.map((m) => [
-      m.name,
-      collectRefs(m.content)
-        .filter((r) => r.type === "module" && byName.has(r.name))
-        .map((r) => r.name)
-        .sort(),
+    docs.map((d) => [
+      d.name,
+      [
+        ...new Set(
+          collectRefs(d.content)
+            .filter((r) => inSet(byName, r))
+            .map((r) => r.name),
+        ),
+      ].sort(),
     ]),
   );
 
@@ -110,7 +136,14 @@ function topoSortModules(modules: FlowDoc[]): FlowDoc[] {
   const visit = (name: string, path: string[]): void => {
     if (done.has(name)) return;
     if (visiting.has(name)) {
-      throw new Error(`Module reference cycle: ${[...path, name].join(" -> ")}.`);
+      const cycle = [...path.slice(path.indexOf(name)), name];
+      const kinds = new Set(cycle.map((n) => (byName.get(n) as FlowDoc).kind));
+      const label = kinds.size > 1 ? "Flow and module" : kinds.has("module") ? "Module" : "Flow";
+      const remedy = kinds.has("flow")
+        ? " Each would need the other's ARN, which one CloudFormation template cannot create. " +
+          "Deploy one of them from another stack and bind it through the binder's flow()."
+        : "";
+      throw new Error(`${label} reference cycle: ${cycle.join(" -> ")}.${remedy}`);
     }
     visiting.add(name);
     for (const dep of deps.get(name) ?? []) visit(dep, [...path, name]);
@@ -118,15 +151,17 @@ function topoSortModules(modules: FlowDoc[]): FlowDoc[] {
     done.add(name);
     ordered.push(byName.get(name) as FlowDoc);
   };
-  for (const m of [...modules].sort((a, b) => a.name.localeCompare(b.name))) visit(m.name, []);
+  const byKindThenName = (a: FlowDoc, b: FlowDoc): number =>
+    a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "module" ? -1 : 1;
+  for (const d of [...docs].sort(byKindThenName)) visit(d.name, []);
   return ordered;
 }
 
 /**
  * Creates every flow and module in a FlowDoc set on a Connect instance, with
- * references resolved to CloudFormation tokens: non-module refs through the
- * user's TokenBinder, module refs to the alias ARN of the module this
- * construct manages.
+ * references resolved to CloudFormation tokens: a module in the set to the
+ * alias ARN this construct manages, a flow in the set to that flow's ARN, and
+ * everything else through the user's TokenBinder.
  */
 export class FlowSet extends Construct {
   /** Created contact flows, keyed by document name. */
@@ -142,23 +177,17 @@ export class FlowSet extends Construct {
     const docs = loadDocs(props.source);
     this.validateDocs(docs);
 
-    const moduleDocs = docs.filter((d) => d.kind === "module");
-    const flowDocs = docs
-      .filter((d) => d.kind === "flow")
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const moduleNames = new Set(moduleDocs.map((d) => d.name));
+    const byName = new Map(docs.map((d) => [d.name, d]));
 
-    // Which aliases each module needs: every alias the doc set pins, plus the
-    // default so an unreferenced module still deploys with a usable alias.
-    const wanted = new Map<string, Set<string>>(moduleDocs.map((d) => [d.name, new Set()]));
+    // Which aliases each module in the set needs: every alias the doc set
+    // pins, plus the default so an unreferenced module still deploys with a
+    // usable alias. A module outside the set is the binder's to bind.
+    const wanted = new Map<string, Set<string>>(
+      docs.filter((d) => d.kind === "module").map((d) => [d.name, new Set()]),
+    );
     for (const doc of docs) {
       for (const ref of collectRefs(doc.content)) {
-        if (ref.type !== "module") continue;
-        if (!moduleNames.has(ref.name)) {
-          throw new Error(
-            `"${doc.name}" references ${ref.token}, but no module named "${ref.name}" is in this FlowSet.`,
-          );
-        }
+        if (ref.type !== "module" || !inSet(byName, ref)) continue;
         (wanted.get(ref.name) as Set<string>).add(ref.alias ?? DEFAULT_MODULE_ALIAS);
       }
     }
@@ -170,27 +199,51 @@ export class FlowSet extends Construct {
     const modules = new Map<string, CfnContactFlowModule>();
     const aliases = new Map<string, CfnContactFlowModuleAlias>();
 
-    const materializeDoc = (
-      doc: FlowDoc,
-    ): { content: string; used: CfnContactFlowModuleAlias[] } => {
-      const used: CfnContactFlowModuleAlias[] = [];
+    /** The set's own resource a reference resolves to, created already by the order below. */
+    const created = (ref: RefEntry, docName: string): CfnResource => {
+      const target =
+        ref.type === "module" ? aliases.get(aliasKey(ref.name, ref.alias)) : flows.get(ref.name);
+      if (target === undefined) {
+        // Unreachable: topoSortDocs creates every referenced document first;
+        // kept as a guard with a real message.
+        throw new Error(`Internal: ${ref.token} not yet created (doc "${docName}").`);
+      }
+      return target;
+    };
+
+    const materializeDoc = (doc: FlowDoc): { content: string; used: CfnResource[] } => {
+      const used: CfnResource[] = [];
       const content = materializeWithBinder(doc, (ref: RefEntry): string => {
-        if (ref.type !== "module") return bindRef(props.binder, ref, doc.name);
-        const alias = aliases.get(aliasKey(ref.name, ref.alias));
-        if (alias === undefined) {
-          // Unreachable for modules (topological order) and flows (created
-          // after every module); kept as a guard with a real message.
-          throw new Error(`Internal: alias for ${ref.token} not yet created (doc "${doc.name}").`);
-        }
-        used.push(alias);
-        return alias.attrContactFlowModuleAliasArn;
+        if (!inSet(byName, ref)) return bindRef(props.binder, ref, doc.name);
+        const target = created(ref, doc.name);
+        used.push(target);
+        return target instanceof CfnContactFlowModuleAlias
+          ? target.attrContactFlowModuleAliasArn
+          : (target as CfnContactFlow).attrContactFlowArn;
       });
       return { content: serializeContent(content), used };
     };
 
-    // Modules first, dependency-ordered, each with its version and aliases.
-    for (const doc of topoSortModules(moduleDocs)) {
+    // Dependency order over both kinds: modules before flows unless a module
+    // references a flow, and a referenced document before its referrer.
+    for (const doc of topoSortDocs(docs)) {
       const { content, used } = materializeDoc(doc);
+      if (doc.kind === "flow") {
+        // Explicit dependencies: the references inside content already imply
+        // the ordering, and this keeps it true even if content is later
+        // composed differently.
+        const flow = new CfnContactFlow(this, `Flow-${doc.name}`, {
+          instanceArn: props.instanceArn,
+          name: connectName(doc),
+          type: doc.connectType,
+          content,
+        });
+        for (const dep of used) flow.addResourceDependency(dep);
+        flows.set(doc.name, flow);
+        continue;
+      }
+
+      // A module, with its version and aliases.
       const module = new CfnContactFlowModule(this, `Module-${doc.name}`, {
         instanceArn: props.instanceArn,
         name: connectName(doc),
@@ -226,21 +279,6 @@ export class FlowSet extends Construct {
         alias.addResourceDependency(version);
         aliases.set(aliasKey(doc.name, aliasName), alias);
       }
-    }
-
-    // Then flows. Alias references inside content already imply the ordering;
-    // the explicit dependency keeps it true even if content is later composed
-    // differently.
-    for (const doc of flowDocs) {
-      const { content, used } = materializeDoc(doc);
-      const flow = new CfnContactFlow(this, `Flow-${doc.name}`, {
-        instanceArn: props.instanceArn,
-        name: connectName(doc),
-        type: doc.connectType,
-        content,
-      });
-      for (const dep of used) flow.addResourceDependency(dep);
-      flows.set(doc.name, flow);
     }
 
     this.flows = flows;

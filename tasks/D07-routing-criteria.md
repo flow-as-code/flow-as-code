@@ -28,6 +28,10 @@ kind.
   `flowmodel`, and the decision. Default: `Steps` is a list of objects whose
   `Expression` is `json` and whose `Expiry` is typed, with `dynamic` on the
   list for the JSONPath form, so no float kind is needed.
+  Written 2026-10-05, ahead of D01's gate as the plan allows, taking that
+  default; it records that `2.0` cannot survive a JSON parse in any reader,
+  so the integer spelling in the evidence list below decides what the
+  builder can write.
 - The type is modeled per tasks/README.md, "The per-type checklist", in one
   commit, with `conformance/roundtrip/routing-criteria/` as its fixture
   holding a nested `AndExpression` and an `OrExpression` if the console

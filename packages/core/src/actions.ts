@@ -127,6 +127,33 @@ export const CONDITION_CATCH_ALL: readonly string[] = [
 export const INPUT_TIME_LIMIT_EXCEEDED = "InputTimeLimitExceeded";
 
 /**
+ * GetParticipantInput's stored-input error: "the stored input was not a valid
+ * phone number according to the specified PhoneNumberValidation. Must be
+ * defined only if StoreInput is true, and PhoneNumberValidation is
+ * specified."
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
+ */
+export const INVALID_PHONE_NUMBER = "InvalidPhoneNumber";
+
+/**
+ * The branches each form of GetParticipantInput wires, in the order the
+ * block class writes them. The menu form (StoreInput "False") takes the
+ * admin page's example order. The stored form (StoreInput "True") wires the
+ * catch-all alone when the digits are validated by length, which is the
+ * shape of the service's own "Sample secure input" flows (actions.md, rule
+ * 39), and InvalidPhoneNumber before it when they are validated as a phone
+ * number; that order is the console's convention of the catch-all last, as
+ * on TransferContactToQueue, not a shape read from an export.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
+ */
+export const INPUT_MENU_ERRORS: readonly string[] = [
+  INPUT_TIME_LIMIT_EXCEEDED,
+  NO_MATCHING_CONDITION,
+  NO_MATCHING_ERROR,
+];
+export const INPUT_STORED_ERRORS: readonly string[] = [INVALID_PHONE_NUMBER, NO_MATCHING_ERROR];
+
+/**
  * UpdateContactCallbackNumber's two errors, the only ones its page lists:
  * "The callback number specified was not a valid (e.164) phone number" and
  * "The callback number specified is not dialable by the instance".
@@ -252,10 +279,17 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // wires it on NumberOfAgentsStaffed too.
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkmetricdata.html
   [ActionType.CheckMetricData]: [NO_MATCHING_ERROR, NO_MATCHING_CONDITION],
-  // NoMatchingCondition "Must be defined only if StoreInput is False", which
-  // is the only form the builder emits; the order is the admin page's example.
+  // The union of both forms' branches, in each form's order with the
+  // catch-all last (INPUT_MENU_ERRORS and INPUT_STORED_ERRORS): the first two
+  // belong to the menu form ("NoMatchingCondition: Must be defined only if
+  // StoreInput is False"), InvalidPhoneNumber to the stored form with a
+  // PhoneNumberValidation. No one block wires all three.
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
-  [ActionType.GetParticipantInput]: [INPUT_TIME_LIMIT_EXCEEDED, NO_MATCHING_CONDITION],
+  [ActionType.GetParticipantInput]: [
+    INPUT_TIME_LIMIT_EXCEEDED,
+    NO_MATCHING_CONDITION,
+    INVALID_PHONE_NUMBER,
+  ],
   // The page's Action syntax block, catch-all in the middle: "InputTimeLimitExceeded:
   // if there is no response before the configured LexTimeoutSeconds",
   // "NoMatchingCondition: If no specified condition evaluated to True".
@@ -751,9 +785,9 @@ export const MESSAGES_INTERRUPTED = "MessagesInterrupted";
  */
 /**
  * GetParticipantInput.DTMFConfiguration.InterdigitTimeLimitSeconds "must be
- * a valid integer between 1 and 20". The builder does not model the stored-
- * input form this belongs to; the bound is the catalog's, held here so the
- * catalog test reaches it.
+ * a valid integer between 1 and 20". The builder does not model
+ * DTMFConfiguration (a block carrying it stays a GenericBlock); the bound is
+ * the catalog's, held here so the catalog test reaches it.
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
  */
 export const INTERDIGIT_TIMEOUT_MIN = 1;

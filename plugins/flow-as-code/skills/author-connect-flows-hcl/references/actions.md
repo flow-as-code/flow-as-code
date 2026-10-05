@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-35 modeled types follow. Any other type (21: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `ResumeContact`, `UpdatePreviousContactParticipantState`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`) is written as a `generic` block:
+35 modeled types follow. Any other type (26: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `ResumeContact`, `UpdatePreviousContactParticipantState`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -321,7 +321,7 @@ Block `get_participant_input`. [Action page](https://docs.aws.amazon.com/connect
 
 - Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_QUEUE, MODULE.
 - `next`: required; write the `NoMatchingCondition` branch's target, as the console does; with `StoreInput` "True", which has no `NoMatchingCondition` branch, name the action that should follow.
-- Error branches: `InputTimeLimitExceeded`: StoreInput is "False" or absent, where the service refuses the action without it; with StoreInput "True" it refuses the branch (sandbox, 2026-09-29; the page does not say); `NoMatchingCondition`: StoreInput is "False": the service refused the action without it on 2026-09-29 (sandbox, us-west-2), with or without conditions, which the page does not say; with StoreInput "True" the page forbids it; `NoMatchingError` (required); `InvalidPhoneNumber`: StoreInput is "True" and PhoneNumberValidation is specified.
+- Error branches: `InputTimeLimitExceeded`: StoreInput is "False" or absent, where the service refuses the action without it; with StoreInput "True" it refuses the branch (sandbox, 2026-09-29; the page does not say); `NoMatchingCondition`: StoreInput is "False": the service refused the action without it on 2026-09-29 (sandbox, us-west-2), with or without conditions, which the page does not say; with StoreInput "True" the page forbids it; `InvalidPhoneNumber`: StoreInput is "True" and PhoneNumberValidation is specified; `NoMatchingError` (required).
 - Conditions: Equals on one key each (0 to 9, * or #).
 - Parameters: at most one of `PromptId`, `Text`, `SSML`.
 - Shape with `StoreInput` "True": needs `InputValidation`; must not wire `NoMatchingCondition`, `InputTimeLimitExceeded`; takes no conditions.

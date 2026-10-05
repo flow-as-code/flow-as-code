@@ -1,0 +1,166 @@
+{
+  "flowdoc": "0.2",
+  "kind": "flow",
+  "name": "stored-input",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "ask-postcode",
+    "Actions": [
+      {
+        "Identifier": "ask-postcode",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": "10",
+          "InputValidation": {
+            "CustomValidation": {
+              "MaximumLength": "5"
+            }
+          },
+          "StoreInput": "True",
+          "Text": "Enter the five digit postcode of the address, then press pound."
+        },
+        "Transitions": {
+          "NextAction": "ask-callback",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ask-callback",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": "15",
+          "InputValidation": {
+            "PhoneNumberValidation": {
+              "CountryCode": "US",
+              "NumberFormat": "Local"
+            }
+          },
+          "PromptId": "${cdref:prompt:callback-number}",
+          "StoreInput": "True"
+        },
+        "Transitions": {
+          "NextAction": "ask-international",
+          "Errors": [
+            {
+              "ErrorType": "InvalidPhoneNumber",
+              "NextAction": "bad-number"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bad-number",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "That did not look like a phone number. Let us try again."
+        },
+        "Transitions": {
+          "NextAction": "ask-callback",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "ask-international",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "InputTimeLimitSeconds": "15",
+          "InputValidation": {
+            "PhoneNumberValidation": {
+              "NumberFormat": "E164"
+            }
+          },
+          "SSML": "<speak>Enter the number to reach you abroad, with the country code.</speak>",
+          "StoreInput": "True"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "InvalidPhoneNumber",
+              "NextAction": "bad-number"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Thank you. We have what we need."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "ask-callback": {
+      "x": 280,
+      "y": 20
+    },
+    "ask-international": {
+      "x": 540,
+      "y": 20
+    },
+    "ask-postcode": {
+      "x": 20,
+      "y": 20
+    },
+    "bad-number": {
+      "x": 800,
+      "y": 120
+    },
+    "bye": {
+      "x": 1060,
+      "y": 20
+    },
+    "done": {
+      "x": 800,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:prompt:callback-number}",
+      "type": "prompt",
+      "name": "callback-number"
+    }
+  ]
+}

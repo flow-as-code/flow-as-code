@@ -33,6 +33,9 @@ https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html.
   options it weighs (a `casefield` ref type with tokens as map keys, a new
   path form; literal ids as an accepted limitation; a FlowDoc-level alias
   table) and the default (owner decision 5: the ref type) are listed there.
+  Written 2026-10-05, ahead of D01's gate as the plan allows: the ref type,
+  tokens as whole map keys and list items, and a `*~` path form (every key
+  of a map) in the catalog.
 - The three types are modeled per tasks/README.md, "The per-type checklist",
   one commit each, with `conformance/roundtrip/cases/` as the group fixture.
 - `CaseTemplateId` is a `casetemplate` reference; field ids follow the ADR,

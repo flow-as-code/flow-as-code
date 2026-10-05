@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { appointmentLine } from "./__fixtures__/appointment-line.js";
 import type {
+  DtmfBranch,
   GetParticipantInputConfig,
   InvokeLambdaFunctionConfig,
   MessageParticipantConfig,
@@ -29,10 +30,14 @@ import {
   GenericBlock,
   GetMetricData,
   GetParticipantInput,
+  INPUT_MENU_ERRORS,
+  INPUT_STORED_ERRORS,
   INPUT_TIMEOUT_MAX,
   INPUT_TIMEOUT_MIN,
+  INVALID_PHONE_NUMBER,
   InvokeLambdaFunction,
   jsonPath,
+  lint,
   Loop,
   materializeWithMap,
   MessageParticipantIteratively,
@@ -349,10 +354,13 @@ describe("error branch wiring", () => {
       onError: "fail",
     });
     const action = menu.toAction();
-    // The admin page's example order; EXTRA_ERRORS is what the studio wires
-    // from, so the two must agree or a canvas-wired block would not invert.
-    expect(action.Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
-      ...EXTRA_ERRORS[ActionType.GetParticipantInput]!,
+    // The admin page's example order. The studio wires from the catalog's
+    // builder flags, which catalog.test.ts holds to EXTRA_ERRORS, so the
+    // menu form's list must be the extras that belong to it plus the
+    // catch-all, or a canvas-wired menu would not invert.
+    expect(action.Transitions.Errors!.map((e) => e.ErrorType)).toEqual([...INPUT_MENU_ERRORS]);
+    expect(INPUT_MENU_ERRORS).toEqual([
+      ...EXTRA_ERRORS[ActionType.GetParticipantInput]!.filter((e) => e !== INVALID_PHONE_NUMBER),
       NO_MATCHING_ERROR,
     ]);
     expect(action.Transitions).toEqual({
@@ -398,6 +406,152 @@ describe("error branch wiring", () => {
       InputTimeLimitSeconds: "1",
       StoreInput: "False",
     });
+  });
+});
+
+describe("GetParticipantInput stored-input form", () => {
+  it("writes the stored form as the console does: StoreInput True, InputValidation, no conditions", () => {
+    // The shape of the service's own "Sample secure input" flows, read back
+    // with DescribeContactFlow on 2026-10-05 (actions.md, rule 39):
+    // MaximumLength is a decimal string, NextAction is the success path, the
+    // catch-all is the only branch and Conditions is empty.
+    const digits = new GetParticipantInput({
+      id: "ask-postcode",
+      text: "Enter your postcode, then press pound.",
+      timeoutSeconds: 10,
+      store: { maxLength: 5 },
+      next: "lookup",
+      onError: "bye",
+    });
+    expect(digits.toAction()).toEqual({
+      Identifier: "ask-postcode",
+      Type: "GetParticipantInput",
+      Parameters: {
+        Text: "Enter your postcode, then press pound.",
+        InputTimeLimitSeconds: "10",
+        StoreInput: "True",
+        InputValidation: { CustomValidation: { MaximumLength: "5" } },
+      },
+      Transitions: {
+        NextAction: "lookup",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+        Conditions: [],
+      },
+    });
+    expect(digits.toAction().Transitions.Errors!.map((e) => e.ErrorType)).toEqual(
+      INPUT_STORED_ERRORS.filter((e) => e !== INVALID_PHONE_NUMBER),
+    );
+  });
+
+  it("wires InvalidPhoneNumber before the catch-all when the digits are a phone number", () => {
+    const local = new GetParticipantInput({
+      id: "ask-callback",
+      prompt: Refs.prompt("callback"),
+      timeoutSeconds: 15,
+      store: { phoneNumber: { format: "Local", countryCode: "US" } },
+      next: "set-callback",
+      onInvalidNumber: "bad-number",
+      onError: "bye",
+    });
+    expect(local.toAction().Parameters).toEqual({
+      PromptId: "${cdref:prompt:callback}",
+      InputTimeLimitSeconds: "15",
+      StoreInput: "True",
+      InputValidation: { PhoneNumberValidation: { NumberFormat: "Local", CountryCode: "US" } },
+    });
+    expect(local.toAction().Transitions).toEqual({
+      NextAction: "set-callback",
+      Errors: [
+        { ErrorType: "InvalidPhoneNumber", NextAction: "bad-number" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      Conditions: [],
+    });
+    expect(local.toAction().Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
+      ...INPUT_STORED_ERRORS,
+    ]);
+    // E164 needs no country code, and none is written when none is given.
+    const e164 = new GetParticipantInput({
+      id: "ask-intl",
+      timeoutSeconds: 15,
+      store: { phoneNumber: { format: "E164" } },
+      next: "x",
+      onInvalidNumber: "y",
+      onError: "z",
+    });
+    expect(e164.toAction().Parameters).toEqual({
+      InputTimeLimitSeconds: "15",
+      StoreInput: "True",
+      InputValidation: { PhoneNumberValidation: { NumberFormat: "E164" } },
+    });
+  });
+
+  it("refuses a stored-input config the page or the service would", () => {
+    const base = {
+      id: "ask",
+      timeoutSeconds: 5,
+      next: "x",
+      onError: "z",
+    };
+    const refuse = (config: unknown, message: string) =>
+      expect(() => new GetParticipantInput(config as GetParticipantInputConfig)).toThrow(message);
+    for (const bad of [0, -1, 2.5, "5", NaN]) {
+      refuse({ ...base, store: { maxLength: bad } }, "maxLength");
+    }
+    refuse({ ...base, store: {} }, "store");
+    refuse(
+      {
+        ...base,
+        store: { maxLength: 5, phoneNumber: { format: "E164" } },
+        onInvalidNumber: "y",
+      },
+      "store",
+    );
+    refuse(
+      { ...base, store: { phoneNumber: { format: "Mobile" } }, onInvalidNumber: "y" },
+      "format",
+    );
+    // "If the number format is "Local", this must be defined."
+    refuse(
+      { ...base, store: { phoneNumber: { format: "Local" } }, onInvalidNumber: "y" },
+      "countryCode",
+    );
+    for (const bad of ["us", "USA", "U", ""]) {
+      refuse(
+        {
+          ...base,
+          store: { phoneNumber: { format: "Local", countryCode: bad } },
+          onInvalidNumber: "y",
+        },
+        "countryCode",
+      );
+    }
+    // The branches each form wires are required config, as the menu form's are.
+    refuse({ ...base, store: { phoneNumber: { format: "E164" } } }, "onInvalidNumber");
+    refuse({ ...base, store: { maxLength: 5 }, onInvalidNumber: "y" }, "onInvalidNumber");
+    refuse({ ...base, store: { maxLength: 5 }, branches: [] }, "branches");
+    refuse({ ...base, store: { maxLength: 5 }, onTimeout: "y" }, "onTimeout");
+    refuse({ ...base, store: { maxLength: 5 }, onNoMatch: "y" }, "onNoMatch");
+    refuse({ ...base, store: { maxLength: 5 }, timeoutSeconds: 0 }, "timeoutSeconds");
+    // Neither form: no store and no branches.
+    refuse({ id: "ask", timeoutSeconds: 5, onError: "z" }, "store");
+  });
+
+  it("synthesizes the stored form inside a flow and lints clean", () => {
+    const flow = new Flow({ name: "collect-address" }).add(
+      new GetParticipantInput({
+        id: "ask-postcode",
+        text: "Enter the five digit postcode, then press pound.",
+        timeoutSeconds: 10,
+        store: { maxLength: 5 },
+        next: "bye",
+        onError: "bye",
+      }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    const doc = synth(flow);
+    expect(doc.content.Actions[0]!.Parameters.StoreInput).toBe("True");
+    expect(lint(doc).filter((f) => f.severity === "error")).toEqual([]);
   });
 });
 
@@ -1022,7 +1176,7 @@ describe("guardrails", () => {
           branches: [
             { digit: "1", target: "y" },
             { digit: "2", target: "y" },
-          ],
+          ] satisfies DtmfBranch[],
         }),
     ).not.toThrow();
   });
