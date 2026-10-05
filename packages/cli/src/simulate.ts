@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 // `flow-cli simulate <scenarios> --instance <arn> [--resource-map <file>] [--format junit|json] [--out <file>]`
-// and `flow-cli simulate --dry-run <scenarios> <flows> [--resource-map <file> | --address-map <file>]`.
+// and `flow-cli simulate --dry-run <scenarios> <flows...> [--resource-map <file> | --address-map <file>]`.
 //
 // The live run goes through @flow-as-code/core's runScenarios, which owns the
 // TestCase lifecycle (create published, execute, poll, collect, delete) and the
@@ -24,7 +24,10 @@
 // ERRORED, STOPPED) exits 1.
 //
 // The dry run stops after the offline checks and adds @flow-as-code/core's
-// dryRunScenario over the FlowDoc set the second argument names: the entry
+// dryRunScenario over the FlowDoc set the paths after the scenarios name, read
+// as ONE set (a scenario runs across a flow and the modules it calls, wherever
+// those live, which is the opposite of lint's and emit's one-set-per-argument):
+// the entry
 // flow is in the set, every token is referenced by the set or keyed in the map
 // (a resource map or an address map, since only keys are read), every
 // expect-prompt is a text some block plays, every send-dtmf answers a keypad
@@ -93,7 +96,7 @@ export interface SimulateOptions {
 export interface DryRunResult {
   /** Scenario files checked, in path order. */
   scenarios: string[];
-  /** The FlowDoc set they were checked against, in path order. */
+  /** The FlowDoc set they were checked against: every file of every path, in argument then path order. */
   docs: string[];
   /** Every problem, as `<scenario path>: <finding path>: <message>`, in scenario order. */
   problems: string[];
@@ -223,22 +226,37 @@ function describeProblem(path: string, finding: ScenarioFinding): string {
 }
 
 /**
- * Checks every scenario `<scenarios>` names against the FlowDoc set `<flows>`
- * names, offline. Scenario loading already failed on anything the schema or
- * the cross-field rules reject; what comes back here is the rest. Throws a
- * CliError listing every problem when there is one, and returns what it
- * checked otherwise.
+ * Checks every scenario `<scenarios>` names against the FlowDoc set the
+ * `flows` paths name, read together as one set, offline. Scenario loading
+ * already failed on anything the schema or the cross-field rules reject; what
+ * comes back here is the rest. Throws a CliError listing every problem when
+ * there is one, and returns what it checked otherwise.
  */
 export function dryRunSimulate(
   target: string,
-  flows: string,
+  flows: string | readonly string[],
   options: Pick<SimulateOptions, "resourceMap" | "addressMap"> = {},
 ): DryRunResult {
   if (options.resourceMap !== undefined && options.addressMap !== undefined) {
     throw new CliError("--dry-run reads one map: give --resource-map or --address-map, not both.");
   }
+  const paths = typeof flows === "string" ? [flows] : flows;
+  if (paths.length === 0) {
+    throw new CliError(
+      "--dry-run needs the FlowDoc set to check against: flow-cli simulate --dry-run <scenarios> <flows...>",
+    );
+  }
   const scenarios = loadScenarios(target);
-  const docs = loadDocs(flows);
+  const docs = paths.flatMap((path) => loadDocs(path));
+  const names = new Map<string, string>();
+  for (const { path, doc } of docs) {
+    const key = `${doc.kind}:${doc.name}`;
+    const other = names.get(key);
+    if (other !== undefined) {
+      throw new CliError(`${path} and ${other} both hold the ${doc.kind} "${doc.name}".`);
+    }
+    names.set(key, path);
+  }
   const map =
     options.resourceMap !== undefined
       ? readStringMap(options.resourceMap, "resource map")
@@ -274,34 +292,29 @@ export function dryRunSimulate(
  */
 export async function simulateCommand(
   target: string,
-  flows: string | undefined,
+  flows: readonly string[],
   options: SimulateOptions,
   clients: LiveClients = SDK_CLIENTS,
   timing: Pick<RunOptions, "now" | "sleep" | "pollIntervalMs"> = {},
 ): Promise<DryRunResult | SimulationRun> {
   if (options.dryRun === true) {
-    if (flows === undefined) {
-      throw new CliError(
-        "--dry-run needs the FlowDoc set to check against: flow-cli simulate --dry-run <scenarios> <flows>",
-      );
-    }
     if (options.instance !== undefined) {
       throw new CliError("--dry-run never touches an instance; drop --instance for the dry run.");
     }
-    if (options.out !== undefined || (options.format !== undefined && options.format !== "junit")) {
+    if (options.out !== undefined || options.format !== undefined) {
       throw new CliError(
-        "--format and --out apply to the live run; the dry run prints its problems.",
+        "--format and --out belong to the live run's report; the dry run prints its problems.",
       );
     }
     const result = dryRunSimulate(target, flows, options);
     console.log(
-      `Checked ${String(result.scenarios.length)} scenario(s) against ${String(result.docs.length)} document(s) in ${resolve(flows)}: no problems.`,
+      `Checked ${String(result.scenarios.length)} scenario(s) against ${String(result.docs.length)} document(s) in ${flows.map((f) => resolve(f)).join(", ")}: no problems.`,
     );
     return result;
   }
-  if (flows !== undefined) {
+  if (flows.length > 0) {
     throw new CliError(
-      `A live run takes one argument, the scenarios; "${flows}" is only read with --dry-run.`,
+      `A live run takes one argument, the scenarios; "${flows.join('", "')}" is only read with --dry-run.`,
     );
   }
   return runSimulate(target, options, clients, timing);

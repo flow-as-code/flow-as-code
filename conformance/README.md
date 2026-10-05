@@ -74,8 +74,12 @@ token resolution are separate steps, so the golden never carries an ARN. The
 compiled `Content` shape is the one artifact here that no offline test can
 confirm, because CreateTestCase validates it server-side.
 
-A simulate dry-run case is a scenario the schema and `validateScenario` both
-accept, held against `dry-run/flows/` with `dry-run/resource-map.json`: the
+The canonical simulate cases target `demo/appointment-line.flowdoc.json`,
+except `keypad-press`, written for `simulate/dry-run/flows/` (the one flow
+set here with a keypad block), which is the golden for a compiled DtmfInput
+SendInstruction; every canonical case dry-runs clean against the set it is
+written for. A simulate dry-run case is a scenario the schema and
+`validateScenario` both accept, held against `dry-run/flows/` with `dry-run/resource-map.json`: the
 findings must equal `expected.problems.json` exactly, path and message. The
 map's values are never read, only its keys, which is why the fixture shows
 each of the three key forms once.

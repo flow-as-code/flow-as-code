@@ -42,17 +42,23 @@ instance at all. They answer different questions, and a suite needs both.
 Every resource is a `${cdref:type:name}` token, the same token the flow uses,
 never an ARN and never a console name. `expect-transfer` and `expect-queue`
 both take the queue's token; `expect-queue` may take `name` instead when the
-console name is what the flow reports in `$.Queue.Name`. The test ends after
+console name is what the flow reports in `$.Queue.Name`. The token form of
+`expect-queue` asserts on `$.Queue.ARN` and has not yet been executed against
+an instance (the `name` form has); `tasks/C14-simulate-offline-checks.md`
+records the run it waits on. The test ends after
 the last step by default, so the simulated contact never reaches an agent;
 the queue substitution above is the second safeguard AWS documents.
 
 ## The dry run
 
 ```
-flow-cli simulate --dry-run scenarios/ flows/ --address-map refs/dev.tfmap.json
+flow-cli simulate --dry-run scenarios/ flows/ seasonal/ --address-map refs/dev.tfmap.json
 ```
 
-No AWS call, no credentials, no SDK. The suite is validated (schema, then
+No AWS call, no credentials, no SDK. Every path after the scenarios is read
+into one set, because a scenario runs across a flow and the modules it calls
+wherever they live; this is the one command where two directories are not
+two sets. The suite is validated (schema, then
 the cross-field rules), and each scenario is then held against the set:
 
 | It checks                                                        | Because otherwise                                |

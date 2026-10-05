@@ -56,6 +56,7 @@ const CASES = [
   "after-hours-message",
   "appointment-lookup-transfer",
   "chat-greeting",
+  "keypad-press",
   "queue-by-token",
 ];
 const DRY_RUN = join(SUITE, "dry-run");
@@ -362,8 +363,8 @@ describe("runSimulate", () => {
       const some = await expectCliError(
         runSimulate(SUITE, { instance: INSTANCE, resourceMap: mapFile(dir, partial) }, untouched),
       );
-      // Two scenarios substitute the overflow queue.
-      expect(some.message).toMatch(/^2 scenario\(s\) cannot be resolved:\n/);
+      // Three scenarios substitute the overflow queue.
+      expect(some.message).toMatch(/^3 scenario\(s\) cannot be resolved:\n/);
       expect(some.message).toContain("${cdref:queue:overflow}");
       expect(some.message).not.toContain("no --resource-map given");
     });
@@ -536,7 +537,7 @@ describe("simulate --dry-run", () => {
     it("prints a one-line summary on a clean dry run and never builds a client", async () => {
       const result = await simulateCommand(
         CLEAN,
-        FLOWS,
+        [FLOWS],
         { dryRun: true, resourceMap: MAP },
         untouched,
       );
@@ -547,36 +548,64 @@ describe("simulate --dry-run", () => {
     });
 
     it("refuses --dry-run without a flows argument, or with --instance, --out or --format", async () => {
-      const noFlows = await expectCliError(
-        simulateCommand(CLEAN, undefined, { dryRun: true }, untouched),
-      );
+      const noFlows = await expectCliError(simulateCommand(CLEAN, [], { dryRun: true }, untouched));
       expect(noFlows.message).toContain("--dry-run needs the FlowDoc set");
       const withInstance = await expectCliError(
-        simulateCommand(CLEAN, FLOWS, { dryRun: true, instance: INSTANCE }, untouched),
+        simulateCommand(CLEAN, [FLOWS], { dryRun: true, instance: INSTANCE }, untouched),
       );
       expect(withInstance.message).toContain("drop --instance");
       const withOut = await expectCliError(
-        simulateCommand(CLEAN, FLOWS, { dryRun: true, out: "report.xml" }, untouched),
+        simulateCommand(CLEAN, [FLOWS], { dryRun: true, out: "report.xml" }, untouched),
       );
-      expect(withOut.message).toContain("--format and --out apply to the live run");
-      const withFormat = await expectCliError(
-        simulateCommand(CLEAN, FLOWS, { dryRun: true, format: "json" }, untouched),
+      expect(withOut.message).toContain("--format and --out belong to the live run");
+      // Any explicit --format, the live run's default included: the dry run
+      // has no report to format.
+      for (const format of ["json", "junit"]) {
+        const withFormat = await expectCliError(
+          simulateCommand(CLEAN, [FLOWS], { dryRun: true, format }, untouched),
+        );
+        expect(withFormat.message).toContain("--format and --out belong to the live run");
+      }
+    });
+
+    it("reads several flows paths as one set, and refuses two copies of a document", async () => {
+      const dir = tempDir();
+      const modules = join(dir, "modules");
+      mkdirSync(modules);
+      writeFileSync(
+        join(modules, "billing-menu.flowdoc.json"),
+        readFileSync(join(FLOWS, "billing-menu.flowdoc.json")),
       );
-      expect(withFormat.message).toContain("--format and --out apply to the live run");
+      // The module alone would leave the flow's module reference unresolved;
+      // the two paths together are the set the scenario runs across.
+      const result = await simulateCommand(
+        join(DRY_RUN, "cases", "ssml-and-module-text", "scenario.json"),
+        [join(FLOWS, "keypad-line.flowdoc.json"), modules],
+        { dryRun: true },
+        untouched,
+      );
+      expect("docs" in result && result.docs.length).toBe(2);
+      expect(stdout.join("")).toContain(
+        `2 document(s) in ${join(FLOWS, "keypad-line.flowdoc.json")}, ${modules}:`,
+      );
+      const twice = await expectCliError(
+        simulateCommand(CLEAN, [FLOWS, modules], { dryRun: true }, untouched),
+      );
+      expect(twice.message).toContain('both hold the module "billing-menu"');
     });
 
     it("a live run needs --instance, takes no flows argument and no --address-map", async () => {
       const noInstance = await expectCliError(
-        simulateCommand(SUITE, undefined, { resourceMap: MAP }, untouched),
+        simulateCommand(SUITE, [], { resourceMap: MAP }, untouched),
       );
       expect(noInstance.message).toContain("--instance <arn> is required for a live run");
       expect(noInstance.message).toContain("--dry-run <scenarios> <flows>");
       const extra = await expectCliError(
-        simulateCommand(SUITE, FLOWS, { instance: INSTANCE }, untouched),
+        simulateCommand(SUITE, [FLOWS], { instance: INSTANCE }, untouched),
       );
       expect(extra.message).toContain("only read with --dry-run");
       const addressMap = await expectCliError(
-        simulateCommand(SUITE, undefined, { instance: INSTANCE, addressMap: MAP }, untouched),
+        simulateCommand(SUITE, [], { instance: INSTANCE, addressMap: MAP }, untouched),
       );
       expect(addressMap.message).toContain("--address-map is read by --dry-run only");
     });
@@ -618,18 +647,30 @@ describe("simulate --dry-run", () => {
       );
     });
 
-    it("the three canonical scenarios check clean against the demo flow", () => {
+    it("every canonical scenario checks clean against the flow set it is written for", () => {
+      // keypad-press is written for the dry-run flow set; the rest for the
+      // demo flow. Two sets, so two runs: a scenario is held to one set.
       const demo = join(REPO, "conformance", "demo");
       const dir = tempDir();
-      const run = cli(
-        ["simulate", "--dry-run", SUITE, demo, "--resource-map", mapFile(dir)],
-        ["--import", writeDenySdkHook(dir)],
-      );
-      expect(run.stderr).toBe("");
-      expect(run.status).toBe(0);
-      expect(run.stdout).toContain(
-        `Checked ${String(CASES.length)} scenario(s) against 1 document(s)`,
-      );
+      const hook = writeDenySdkHook(dir);
+      for (const name of CASES) {
+        const flows = name === "keypad-press" ? FLOWS : demo;
+        const map = name === "keypad-press" ? MAP : mapFile(dir);
+        const run = cli(
+          [
+            "simulate",
+            "--dry-run",
+            join(SUITE, name, "scenario.json"),
+            flows,
+            "--resource-map",
+            map,
+          ],
+          ["--import", hook],
+        );
+        expect(run.stderr, name).toBe("");
+        expect(run.status, name).toBe(0);
+        expect(run.stdout).toContain("Checked 1 scenario(s) against");
+      }
     });
   });
 });

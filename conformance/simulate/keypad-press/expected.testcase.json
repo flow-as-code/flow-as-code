@@ -1,0 +1,183 @@
+{
+  "name": "keypad-press",
+  "description": "A caller answers the keypad menu of the dry-run flow set's keypad-line with 1, is routed to the appointments queue through the hours check, and the test ends there. The one canonical case that presses a key, so the compiled DtmfInput SendInstruction has a golden; the dry run checks it clean against conformance/simulate/dry-run/flows.",
+  "entryPoint": {
+    "Type": "VOICE_CALL",
+    "VoiceCallEntryPointParameters": {
+      "SourcePhoneNumber": "+14135550142",
+      "FlowId": "${cdref:flow:keypad-line}"
+    }
+  },
+  "content": {
+    "Version": "2019-10-30",
+    "Metadata": {},
+    "Observations": [
+      {
+        "Identifier": "observation-1",
+        "Event": {
+          "Identifier": "observation-1-event",
+          "Type": "TestInitiated",
+          "Actor": "System",
+          "Properties": {}
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-1-action-1",
+            "Type": "OverrideSystemBehavior",
+            "Parameters": {
+              "ActionType": "OverrideSystemBehavior",
+              "Behavior": {
+                "Type": "FlowAction",
+                "Properties": {
+                  "ActionType": "TransferContactToQueue",
+                  "ActionParameters": {
+                    "QueueId": "${cdref:queue:appointments}"
+                  },
+                  "Strategy": {
+                    "Type": "SubstituteResource",
+                    "SubstituteArn": "${cdref:queue:overflow}"
+                  }
+                }
+              }
+            },
+            "Transitions": {
+              "NextAction": "observation-1-action-2"
+            }
+          },
+          {
+            "Identifier": "observation-1-action-2",
+            "Type": "OverrideSystemBehavior",
+            "Parameters": {
+              "ActionType": "OverrideSystemBehavior",
+              "Behavior": {
+                "Type": "FlowAction",
+                "Properties": {
+                  "ActionType": "CheckHoursOfOperation",
+                  "ActionParameters": {
+                    "HoursOfOperationId": "${cdref:hours:main-line}"
+                  },
+                  "Strategy": {
+                    "Type": "SubstituteResource",
+                    "SubstituteArn": "${cdref:hours:always-open}"
+                  }
+                }
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": [
+            "observation-2"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-2",
+        "Event": {
+          "Identifier": "observation-2-event",
+          "Type": "MessageReceived",
+          "Actor": "System",
+          "Properties": {
+            "Text": "Thanks for calling the keypad line",
+            "MatchingCriteria": {
+              "Type": "Inclusion"
+            }
+          }
+        },
+        "Actions": [],
+        "Transitions": {
+          "NextObservations": [
+            "observation-3"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-3",
+        "Event": {
+          "Identifier": "observation-3-event",
+          "Type": "MessageReceived",
+          "Actor": "System",
+          "Properties": {
+            "Text": "press 1",
+            "MatchingCriteria": {
+              "Type": "Inclusion"
+            }
+          }
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-3-action-1",
+            "Type": "SendInstruction",
+            "Parameters": {
+              "ActionType": "SendInstruction",
+              "Actor": "Customer",
+              "Instruction": {
+                "Type": "DtmfInput",
+                "Properties": {
+                  "Value": "1"
+                }
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": [
+            "observation-4"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-4",
+        "Event": {
+          "Identifier": "observation-4-event",
+          "Type": "FlowActionStarted",
+          "Actor": "System",
+          "Properties": {
+            "ActionType": "CheckHoursOfOperation",
+            "ActionParameters": {
+              "HoursOfOperationId": "${cdref:hours:main-line}"
+            }
+          }
+        },
+        "Actions": [],
+        "Transitions": {
+          "NextObservations": [
+            "observation-5"
+          ]
+        }
+      },
+      {
+        "Identifier": "observation-5",
+        "Event": {
+          "Identifier": "observation-5-event",
+          "Type": "FlowActionStarted",
+          "Actor": "System",
+          "Properties": {
+            "ActionType": "TransferContactToQueue",
+            "ActionParameters": {
+              "QueueId": "${cdref:queue:appointments}"
+            }
+          }
+        },
+        "Actions": [
+          {
+            "Identifier": "observation-5-action-1",
+            "Type": "TestControl",
+            "Parameters": {
+              "ActionType": "TestControl",
+              "Command": {
+                "Type": "EndTest"
+              }
+            },
+            "Transitions": {}
+          }
+        ],
+        "Transitions": {
+          "NextObservations": []
+        }
+      }
+    ]
+  }
+}

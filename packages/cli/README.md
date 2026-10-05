@@ -25,7 +25,7 @@ flow-cli emit <dir> --target cdk|flowascode|tf [--address-map refs.tfmap.json] [
 flow-cli diff <dir> --instance <arn>                     local FlowDocs vs the live instance
 flow-cli export --instance <arn> [--out <dir>] [--author ts|tf] [--no-codegen] [--on-error abort|collect]
 flow-cli simulate <scenarios> --instance <arn> [--resource-map <file>] [--format junit|json] [--out <file>]
-         simulate --dry-run <scenarios> <flows> [--resource-map <file> | --address-map <file>]  offline checks, no instance
+         simulate --dry-run <scenarios> <flows...> [--resource-map <file> | --address-map <file>]  offline checks, no instance
 flow-cli studio [dir] [--port <port>]                    local visual editor, live sync both ways
 ```
 
@@ -474,9 +474,11 @@ of the suite did not pass.
 
 ### Dry run
 
-`flow-cli simulate --dry-run <scenarios> <flows> [--resource-map <file> | --address-map <file>]`
-checks the same suite against a directory of FlowDocs (or one file) with no
-instance, no credentials and no SDK: it is what a unit test or a CI job
+`flow-cli simulate --dry-run <scenarios> <flows...> [--resource-map <file> | --address-map <file>]`
+checks the same suite against a set of FlowDocs (directories or files, read
+together as one set: a scenario runs across a flow and the modules it calls,
+wherever those live, so `flows/ seasonal/` is one set here where `lint` and
+`emit` would keep them apart) with no instance, no credentials and no SDK: it is what a unit test or a CI job
 without an AWS account runs, and what to run before paying for a live run.
 Exit 0 means nothing offline says a scenario cannot pass; any problem exits 1
 with every problem listed, one line per problem as
@@ -515,11 +517,21 @@ read recorded prompts (a `PromptId` plays audio whose words are not in the
 document, and a miss says how many there are), or model the speech-to-text
 transcript a voice `MessageReceived` is matched against, which drops
 punctuation and may spell numbers out. `--format`, `--out` and `--instance`
-belong to the live run and are refused with `--dry-run`.
+belong to the live run and are refused with `--dry-run`, `--format junit`
+included: the dry run has no report to format. Two paths holding a document
+of the same kind and name are refused rather than silently merged.
 
 `conformance/simulate/dry-run/` is the contract: a two-document set, a map,
 and one case per thing the check can say, each with the exact problems it
 must report. docs/08-simulate.md puts the two runs side by side.
+
+A scenario's `expect-queue` takes the queue's token (`queue`) as well as its
+console name (`name`). The token form compiles to an Assert on `$.Queue.ARN`,
+resolved through the resource map like every other token, so the map must
+hold the queue's ARN rather than a bare id for it. It has not yet been
+executed against an instance: the `name` form was, on 2026-09-01, and
+`tasks/C14-simulate-offline-checks.md` records the live run the token form
+waits on.
 
 ## watch (library)
 

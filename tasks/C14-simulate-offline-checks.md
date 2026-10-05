@@ -39,8 +39,8 @@ docs, { resourceMap })` (`packages/core/src/scenario-check.ts`), kept in
   in the CLI, which ships the schema copy. The showcase's
   `tests/envScenarios.test.ts` can replace its `dist/simulate.js` import with
   `@flow-as-code/cli/simulate` once it moves its pin (its own repository).
-- Dry run: `flow-cli simulate --dry-run <scenarios> <flows> [--resource-map |
---address-map]`. Checks, in `packages/cli/README.md` "Dry run" and
+- Dry run: `flow-cli simulate --dry-run <scenarios> <flows...> [--resource-map |
+--address-map]`. The flows paths are read as one set, since a scenario runs across a flow and the modules it calls wherever they live (the showcase keeps `seasonal/` beside `flows/`); this is the opposite of C15's lint and emit, where each argument is its own set, and both READMEs say which is which. Two paths holding the same document are refused. Checks, in `packages/cli/README.md` "Dry run" and
   `docs/08-simulate.md`: entry flow in the set; an event's resource (and a
   substitution's production resource) referenced by the set; every other
   token referenced or keyed in the map, either map, keys only; `expect-prompt`
@@ -50,7 +50,7 @@ docs, { resourceMap })` (`packages/core/src/scenario-check.ts`), kept in
   held to half its words; `send-dtmf` against the `GetParticipantInput`
   conditions (or `StoreUserInput`, any key) of the nearest preceding prompt.
   Documented as not done: Lambdas, conditions on attribute values, branches,
-  recorded prompts, the voice transcript. `--instance`, `--format` and `--out`
+  recorded prompts, the voice transcript. `--instance`, `--format` (any value, the live run's default included; commander no longer supplies one, and the help text names junit as the live default) and `--out`
   are refused with `--dry-run`; a live run without `--instance` is refused
   with the dry-run form named. No AWS call: the subprocess tests run with the
   SDK import denied, as the live-path tests already did.
@@ -79,14 +79,7 @@ docs, { resourceMap })` (`packages/core/src/scenario-check.ts`), kept in
   so with the date, every scenario valid before stays valid, and the invalid
   fixtures are unchanged. New canonical case `conformance/simulate/queue-by-token`
   with its compile golden; `CASES` in both test files is four.
-- Fixture correction: `appointment-lookup-transfer` pressed `1` with no
-  keypad block in the demo flow. The service ignored it (the scenario passed
-  live, `tasks/A06-export-and-simulate.md`), the dry run reports it, and the
-  canonical suite should dry-run clean against `conformance/demo`, so the
-  step is removed and the golden regenerated; the DtmfInput shape is now held
-  by a unit test in `packages/core/src/simulate.test.ts` and by the dry-run
-  fixtures. The core test that read the SendInstruction shape from this case
-  reads `chat-greeting` too.
+- Fixture correction: `appointment-lookup-transfer` pressed `1` with no keypad block in the demo flow. The service ignored it (the scenario passed live, `tasks/A06-export-and-simulate.md`), the dry run reports it, and the canonical suite should dry-run clean against the sets it is written for, so the step is removed and the golden regenerated. The compiled DtmfInput SendInstruction keeps a golden: the new canonical case `conformance/simulate/keypad-press`, written for the dry-run flow set (`keypad-line` has the keypad block), compiled to its `expected.testcase.json`, named in `conformance/README.md`, and dry-run clean against `conformance/simulate/dry-run/flows` by the subprocess test, which checks every canonical case against the set it is written for. `CASES` is five in both test files; a unit test holds the DtmfInput shape as well. The core test that read the SendInstruction shape from the transfer case reads `chat-greeting` too.
 - Docs: `docs/08-simulate.md` (on the site as `/docs/simulate/`), the CLI
   README's "Dry run" subsection and its "Importing it", the core README's
   simulate paragraph, `conformance/README.md`. Changeset
@@ -96,7 +89,7 @@ docs, { resourceMap })` (`packages/core/src/scenario-check.ts`), kept in
   instance. Evidence needed: one `flow-cli simulate` run of
   `conformance/simulate/queue-by-token` against the sandbox (an operator
   step, since CreateTestCase writes), recorded here with its date and the
-  execution record's assertion result. Until then the README and the schema
+  execution record's assertion result. Until then the README, docs/08-simulate.md and the schema's `expect-queue` description
   say the form compiles and resolves, not that it passed. The map must hold
   the queue's ARN, not a bare id, for this step; that is also to be confirmed
   by the same run.
@@ -105,3 +98,5 @@ docs, { resourceMap })` (`packages/core/src/scenario-check.ts`), kept in
   merge commit (`scripts/sync-conformance.sh`). The `simulate` family is
   TypeScript only, so no oracle re-records; the manifest does. Recorded here
   with the provider commit when it lands, in the Phase C release batch.
+
+- Review of PR #31 (2026-10-05), addressed on the branch: the tag-stripping regex code scanning flagged is a linear `spokenText` pass with the pathological and nested-tag inputs pinned; the DtmfInput golden is the `keypad-press` case above; the dry run takes several flows paths; `--format` is refused with `--dry-run` whatever its value; the ARN form's unverified status is in the README, docs/08 and the schema; the subprocess test's title no longer counts the cases.

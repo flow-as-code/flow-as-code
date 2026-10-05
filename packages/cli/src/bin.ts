@@ -247,7 +247,10 @@ program
       "is one a menu takes. No AWS call; exits 1 listing every problem.",
   )
   .argument("<scenarios>", "scenario file, or a directory of scenario.json / *.scenario.json")
-  .argument("[flows]", "--dry-run only: directory of *.flowdoc.json files, or one FlowDoc")
+  .argument(
+    "[flows...]",
+    "--dry-run only: directories of *.flowdoc.json files, or FlowDoc files, read as one set",
+  )
   .option("--dry-run", "check the scenarios against <flows> offline, without an instance")
   .option("--instance <arn>", "ARN of the Connect instance to run against (live run)")
   .option("--resource-map <map.json>", "JSON object mapping reference tokens to ARNs")
@@ -255,10 +258,10 @@ program
     "--address-map <refs.tfmap.json>",
     "--dry-run only: an emit address map, read for its keys",
   )
-  .option("--format <format>", "report format: junit or json (live run)")
-  .option("--out <file>", "report file (default: stdout; live run)")
+  .option("--format <format>", "live run: report format, junit (the default) or json")
+  .option("--out <file>", "live run: report file (default: stdout)")
   .action(
-    action(async (scenarios: string, flows: string | undefined, opts: SimulateOptions) => {
+    action(async (scenarios: string, flows: string[], opts: SimulateOptions) => {
       await simulateCommand(scenarios, flows, opts);
     }),
   );
