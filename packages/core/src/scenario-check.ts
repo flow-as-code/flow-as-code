@@ -72,7 +72,34 @@ function words(text: string): string[] {
     .filter((w) => w !== "");
 }
 
-const stripSsmlTags = (s: string): string => s.replace(/<[^>]*>/g, "");
+/**
+ * The spoken words of an SSML body: what is outside its tags. One linear pass,
+ * each `<` skipping to the next `>`; an unterminated `<` is kept as written.
+ * This is not sanitization and nothing here renders HTML: the result is only
+ * compared against a scenario's expectation and quoted in a finding, so
+ * `<scr<script>ipt>` becoming `ipt>` is the intended reading of a malformed
+ * body, not a hole. A backtracking regex was refused by code scanning for
+ * exactly the strings this pass handles in linear time.
+ */
+export function spokenText(ssml: string): string {
+  let out = "";
+  let i = 0;
+  while (i < ssml.length) {
+    const open = ssml.indexOf("<", i);
+    if (open === -1) {
+      out += ssml.slice(i);
+      break;
+    }
+    out += ssml.slice(i, open);
+    const close = ssml.indexOf(">", open + 1);
+    if (close === -1) {
+      out += ssml.slice(open);
+      break;
+    }
+    i = close + 1;
+  }
+  return out;
+}
 
 /**
  * Every text the set plays. The catalog says where a modeled type keeps its
@@ -92,7 +119,7 @@ function textsOf(docs: readonly FlowDoc[]): { said: Said[]; recorded: number } {
       for (const path of paths) {
         for (const hit of readPath(action.Parameters, path)) {
           if (typeof hit.value !== "string" || hit.value.trim() === "") continue;
-          const text = path.split(".").pop() === "SSML" ? stripSsmlTags(hit.value) : hit.value;
+          const text = path.split(".").pop() === "SSML" ? spokenText(hit.value) : hit.value;
           said.push({ doc: doc.name, action, text });
         }
       }

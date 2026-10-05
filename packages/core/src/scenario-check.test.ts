@@ -13,7 +13,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
 import type { FlowDoc, Scenario, ScenarioFinding } from "./index.js";
-import { dryRunScenario, validateScenario } from "./index.js";
+import { dryRunScenario, spokenText, validateScenario } from "./index.js";
 
 const root = new URL("../../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf8");
@@ -167,5 +167,29 @@ describe("dryRunScenario", () => {
       message:
         "${cdref:flow:keypad-line} names no flow in the set (the set holds no flow documents)",
     });
+  });
+});
+
+describe("spokenText", () => {
+  it("reads the words outside SSML tags", () => {
+    expect(spokenText('<speak>We are closed. <break time="500ms"/>Call back.</speak>')).toBe(
+      "We are closed. Call back.",
+    );
+    expect(spokenText("no tags")).toBe("no tags");
+    expect(spokenText("")).toBe("");
+  });
+
+  it("is linear on pathological input and keeps an unterminated tag as written", () => {
+    const many = "<".repeat(10_000);
+    const started = performance.now();
+    expect(spokenText(many)).toBe(many);
+    expect(spokenText(`${many}>tail`)).toBe("tail");
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
+  it("does not sanitize: a nested tag reads as the text after its first close", () => {
+    // Compared and quoted, never rendered, so this is the reading of a
+    // malformed body rather than a security property.
+    expect(spokenText("<scr<script>ipt>alert(1)")).toBe("ipt>alert(1)");
   });
 });
