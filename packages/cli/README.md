@@ -224,7 +224,10 @@ on this target and is accepted so one flag list serves both.
 `--target flowascode` writes the set for the `flow-as-code/flowascode`
 provider, exactly the bytes `@flow-as-code/hcl`'s `emitFlowascode` returns:
 `flows.tf` with one resource per document and its actions as blocks,
-`variables.tf`, and `versions.tf.example`. It takes the same address map. A
+`outputs.tf` with an `<name>_arn` and an `<name>_document_sha256` output per
+document, named by FlowDoc name, for a promotion gate to read
+(`docs/tutorials/02-promote.md`), `variables.tf`, and `versions.tf.example`.
+It takes the same address map. A
 reference it resolves nowhere is an error: the command exits 1, writes
 nothing, and lists each key with the documents that make it, because the
 `null` binding the emitter would write validates and is refused only at plan

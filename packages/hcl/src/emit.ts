@@ -10,9 +10,9 @@
 // README.md), so there are no templates and no shared locals, and each
 // resource's refs map holds its own bindings.
 //
-// It writes flows.tf, variables.tf and versions.tf.example, never a
-// per-document <name>.flow.tf, so an emit into a directory the studio serves
-// cannot create a companion.
+// It writes flows.tf, outputs.tf, variables.tf and versions.tf.example, never
+// a per-document <name>.flow.tf, so an emit into a directory the studio
+// serves cannot create a companion.
 
 import {
   PACKAGE_NAMES,
@@ -117,6 +117,8 @@ function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
   const problems: string[] = [];
   if (docs.length === 0) problems.push("no documents to emit");
   const seen = new Set<string>();
+  /** Documents with a slug and an address of their own, for the checks below. */
+  const accepted: FlowDoc[] = [];
   for (const doc of docs) {
     if (!SLUG_PATTERN.test(doc.name)) {
       problems.push(`document name "${doc.name}" is not a slug`);
@@ -130,6 +132,7 @@ function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
     }
     const address = `${resourceType(doc)}.${ident(doc.name)}`;
     if (seen.has(address)) problems.push(`two documents both emit ${address}`);
+    else accepted.push(doc);
     seen.add(address);
   }
   // An alias resource is labelled <module>_<alias> with hyphens as
@@ -145,6 +148,16 @@ function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
         problems.push(`module:${prior} and module:${module}@${alias} both emit ${label}`);
       } else labels.set(label, `${module}@${alias}`);
     }
+  }
+  // Outputs are named by FlowDoc name, so a flow and a module sharing a name
+  // would both emit `<name>_arn` (rule 29); nothing else can collide, since a
+  // slug maps to one identifier.
+  const outputs = new Map<string, string>();
+  for (const entry of outputEntries(accepted)) {
+    const prior = outputs.get(entry.name);
+    if (prior !== undefined) {
+      problems.push(`${prior} and ${entry.source} both emit output ${entry.name}`);
+    } else outputs.set(entry.name, entry.source);
   }
   if (problems.length > 0) throw new EmitFlowascodeError(problems);
   return sorted;
@@ -242,6 +255,70 @@ function flowsTf(
         "}",
       );
     }
+  }
+  return format(`${out.join("\n")}\n`);
+}
+
+interface OutputEntry {
+  name: string;
+  description: string;
+  value: string;
+  /** What the output is of, for the collision message: `flow appointment-line`. */
+  source: string;
+}
+
+/**
+ * The outputs a set publishes (rule 29): for every document its ARN and the
+ * SHA-256 of its FlowDoc, named by the document's name rather than its
+ * resource address, so a pipeline reading `terraform output` keeps its names
+ * when a resource moves. `flowdoc` is the document with its references still
+ * tokens, so its hash is equal across environments that apply the same
+ * document and is known at plan time; `content_hash` would not do, since it
+ * hashes the content Connect holds, with each environment's ARNs filled in.
+ */
+function outputEntries(docs: readonly FlowDoc[]): OutputEntry[] {
+  const out: OutputEntry[] = [];
+  for (const doc of docs) {
+    const address = `${resourceType(doc)}.${ident(doc.name)}`;
+    const source = `${doc.kind} ${doc.name}`;
+    out.push(
+      {
+        name: `${ident(doc.name)}_arn`,
+        description: `ARN of ${source}.`,
+        value: `${address}.arn`,
+        source,
+      },
+      {
+        name: `${ident(doc.name)}_document_sha256`,
+        description:
+          `SHA-256 of ${source} as a FlowDoc, references still tokens: ` +
+          "equal across environments that apply the same document.",
+        value: `sha256(${address}.flowdoc)`,
+        source,
+      },
+    );
+  }
+  return out;
+}
+
+function outputsTf(docs: readonly FlowDoc[]): string {
+  const out: string[] = [
+    ...GENERATED_BY,
+    "#",
+    "# Two outputs per document, named by its FlowDoc name: the ARN, and the",
+    "# SHA-256 of the document with its references still tokens, equal across",
+    "# environments that apply the same document and known at plan time. A",
+    "# promotion gate compares the hash one environment applied with the one",
+    "# the next plans (docs/tutorials/02-promote.md).",
+  ];
+  for (const entry of outputEntries(docs)) {
+    out.push(
+      "",
+      `output ${quote(entry.name)} {`,
+      `  description = ${quote(entry.description)}`,
+      `  value = ${entry.value}`,
+      "}",
+    );
   }
   return format(`${out.join("\n")}\n`);
 }
@@ -348,6 +425,7 @@ export function emitFlowascode(
 
   const files: Record<string, string> = {
     "flows.tf": flowsTf(ordered, instanceId, bindings),
+    "outputs.tf": outputsTf(ordered),
     "versions.tf.example": versionsExample(),
   };
   if (options.instanceIdExpression === undefined) files["variables.tf"] = variablesTf();

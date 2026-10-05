@@ -213,6 +213,7 @@ describe("flowascode export (B05b)", () => {
       }
       expect(Object.keys(bundle.files)).toEqual([
         "flows.tf",
+        "outputs.tf",
         "variables.tf",
         "versions.tf.example",
       ]);

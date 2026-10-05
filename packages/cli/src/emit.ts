@@ -8,7 +8,8 @@
 //
 // - flowascode writes the set as flowascode provider resources through
 //   @flow-as-code/hcl's emitFlowascode, byte for byte what it returns: flows.tf,
-//   variables.tf and versions.tf.example, never a per-document companion.
+//   outputs.tf, variables.tf and versions.tf.example, never a per-document
+//   companion.
 // - tf is a real code generator: @flow-as-code/tf turns the document set into HCL plus
 //   .tftpl files. This command is a thin wrapper over `emitTf`, deliberately
 //   adding nothing of its own so the bytes it writes are exactly the bytes

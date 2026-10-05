@@ -42,7 +42,9 @@ another team's remote state
 module call is the only place environments differ.
 
 Export a document hash from the module so a pipeline can prove prod runs what
-dev ran:
+dev ran. `flow-cli emit --target flowascode` writes these in `outputs.tf`,
+an `<name>_arn` and an `<name>_document_sha256` per document, named by
+FlowDoc name; a module authored by hand writes the same:
 
 ```hcl
 output "appointment_line_document_sha256" {

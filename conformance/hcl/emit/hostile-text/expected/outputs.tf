@@ -7,12 +7,12 @@
 # promotion gate compares the hash one environment applied with the one
 # the next plans (docs/tutorials/02-promote.md).
 
-output "appointment_line_arn" {
-  description = "ARN of flow appointment-line."
-  value       = flowascode_contact_flow.appointment_line.arn
+output "hostile_text_arn" {
+  description = "ARN of flow hostile-text."
+  value       = flowascode_contact_flow.hostile_text.arn
 }
 
-output "appointment_line_document_sha256" {
-  description = "SHA-256 of flow appointment-line as a FlowDoc, references still tokens: equal across environments that apply the same document."
-  value       = sha256(flowascode_contact_flow.appointment_line.flowdoc)
+output "hostile_text_document_sha256" {
+  description = "SHA-256 of flow hostile-text as a FlowDoc, references still tokens: equal across environments that apply the same document."
+  value       = sha256(flowascode_contact_flow.hostile_text.flowdoc)
 }

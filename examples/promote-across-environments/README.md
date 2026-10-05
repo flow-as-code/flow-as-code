@@ -188,10 +188,13 @@ diff -r build/flowascode-dev/flows.tf build/flowascode-prod/flows.tf
 >     "queue:appointments"        = data.terraform_remote_state.platform.outputs.appointments_queue_arn
 ```
 
-Three files each (`flows.tf`, `variables.tf`, `versions.tf.example`), and the
-difference is the resource's `refs` block: the action blocks name
-`"queue:appointments"`, and only `refs` says which queue that is in each
-environment. Neither tree holds an ARN.
+Four files each (`flows.tf`, `outputs.tf`, `variables.tf`,
+`versions.tf.example`), and the difference is the resource's `refs` block: the
+action blocks name `"queue:appointments"`, and only `refs` says which queue
+that is in each environment. Neither tree holds an ARN. `outputs.tf` is the
+same in both: `appointment_line_arn` and `appointment_line_document_sha256`,
+the hash of the flow with its references still tokens, which is how a
+pipeline can see that prod runs the document dev ran.
 
 `flowascode/dev/` and `flowascode/prod/` are the environment halves for this
 path. Their `resources.tf` files are the Terraform path's, byte for byte (the

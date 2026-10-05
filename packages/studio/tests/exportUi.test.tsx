@@ -291,7 +291,7 @@ describe("the flowascode target (B05b)", () => {
     expect(document.body.textContent).toContain("which the provider refuses at plan time");
   });
 
-  it("downloads flows.tf, variables.tf and versions.tf.example", async () => {
+  it("downloads flows.tf, outputs.tf, variables.tf and versions.tf.example", async () => {
     const created: string[] = [];
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
       this: HTMLAnchorElement,
@@ -310,6 +310,11 @@ describe("the flowascode target (B05b)", () => {
       await Promise.resolve();
     });
     expect(document.querySelector('[data-testid="export-error"]')?.textContent).toBeUndefined();
-    expect(created.sort()).toEqual(["flows.tf", "variables.tf", "versions.tf.example"]);
+    expect(created.sort()).toEqual([
+      "flows.tf",
+      "outputs.tf",
+      "variables.tf",
+      "versions.tf.example",
+    ]);
   });
 });
