@@ -15,6 +15,7 @@ import {
   DTMF_KEY_ORDER,
   acceptsConditions,
   acceptsNextAction,
+  admitsError,
   defaultConditionFor,
   isDtmfMenu,
   isTerminalType,
@@ -1099,11 +1100,12 @@ describe("M5 a GetParticipantInput is authored as a DTMF menu", () => {
   /**
    * The stored-input form of the same action: StoreInput "True", the
    * InputValidation the action page requires with it, no branches and no
-   * NoMatchingCondition ("Must be defined only if StoreInput is False"). The
-   * builder does not model it, so it is a GenericBlock before any gesture and
-   * must keep the gestures every unmodeled block has.
+   * NoMatchingCondition ("Must be defined only if StoreInput is False"), in
+   * the exact shape the builder's `store` form writes (tasks/C04), so it is a
+   * typed block before any gesture. Its gestures are a message's: a primary
+   * drag means the next action, an error drag the catch-all.
    */
-  function storedInputDoc(): FlowDoc {
+  function storedInputDoc(validation?: unknown): FlowDoc {
     const doc = menuDoc();
     doc.content.Actions = doc.content.Actions.map((a) =>
       a.Identifier === "menu"
@@ -1113,7 +1115,7 @@ describe("M5 a GetParticipantInput is authored as a DTMF menu", () => {
               Text: "Enter your account number, then press pound.",
               InputTimeLimitSeconds: "5",
               StoreInput: "True",
-              InputValidation: { CustomValidation: { MaximumLength: "10" } },
+              InputValidation: validation ?? { CustomValidation: { MaximumLength: "10" } },
             },
             Transitions: {
               NextAction: "sales",
@@ -1126,39 +1128,70 @@ describe("M5 a GetParticipantInput is authored as a DTMF menu", () => {
     return doc;
   }
 
-  it("the stored-input form keeps the gestures of an unmodeled block", () => {
+  it("the stored-input form is typed, and keeps a message's gestures", () => {
     const doc = storedInputDoc();
-    expect(demotedIds(doc).has("menu")).toBe(true);
+    expect(demotedIds(doc).has("menu")).toBe(false);
+    expect(emittedClassFor(doc, "menu")).toContain("new GetParticipantInput(");
+    expect(codegen(doc)).toContain("store: { maxLength: 10 }");
     const stored = getAction(doc, "menu")!;
     expect(isDtmfMenu(stored)).toBe(false);
     expect(acceptsConditions(stored)).toBe(false);
     expect(acceptsNextAction(stored)).toBe(true);
+    expect(offersErrorBranch(stored)).toBe(true);
 
     // With a NextAction already wired, a primary drag has nothing to mean; it
     // never appends a key branch the action page says this form cannot carry.
     expect(connectNodes(doc, "menu", "bye", "primary")).toBeUndefined();
 
-    // Once the next edge has been moved to another block (a source-end rewire
-    // allows that on a generic block), the primary drag is the gesture that
-    // puts it back.
+    // The class needs its next path, so moving the next edge away would
+    // demote the block, and the invariant refuses that as it does on a
+    // message; retargeting it keeps the block typed.
     const fresh = addBlock(doc, "MessageParticipant", { x: 0, y: 900 });
-    const detached = rewireEdge(fresh.doc, nextEdgeId("menu"), fresh.id, "bye")!;
-    expect(getAction(detached, "menu")?.Transitions.NextAction).toBeUndefined();
-    expect(getAction(detached, fresh.id)?.Transitions.NextAction).toBe("bye");
-    const restored = connectNodes(detached, "menu", "bye", "primary")!;
-    expect(getAction(restored, "menu")?.Transitions).toEqual({
-      NextAction: "bye",
+    expect(() => rewireEdge(fresh.doc, nextEdgeId("menu"), fresh.id, "bye")).toThrow(
+      MutationRefused,
+    );
+    const retargeted = rewireEdge(fresh.doc, nextEdgeId("menu"), "menu", fresh.id)!;
+    expect(getAction(retargeted, "menu")?.Transitions).toEqual({
+      NextAction: fresh.id,
       Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
       Conditions: [],
     });
-    expectSchemaValid(restored);
+    expectSchemaValid(retargeted);
+    expect(demotedIds(retargeted).has("menu")).toBe(false);
+    expect(emittedClassFor(retargeted, "menu")).toContain("new GetParticipantInput(");
 
-    // The error vocabulary is the menu form's, so an error drag means nothing
-    // here rather than wiring a NoMatchingCondition the form cannot carry.
+    // The error vocabulary is the stored form's: the catch-all alone on a
+    // length validation, so with it wired an error drag means nothing, and
+    // never a NoMatchingCondition or timeout branch the form cannot carry.
     expect(connectNodes(doc, "menu", "bye", "error")).toBeUndefined();
     expect(connectNodes(doc, "menu", "bye")).toBeUndefined();
-    expect(demotedIds(restored).has("menu")).toBe(true);
-    expect(emittedClassFor(restored, "menu")).toContain("new GenericBlock(");
+    expect(admitsError(stored, "InvalidPhoneNumber")).toBe(false);
+    expect(admitsError(stored, "NoMatchingCondition")).toBe(false);
+  });
+
+  it("a stored phone number offers its InvalidPhoneNumber branch, wired before the catch-all", () => {
+    const doc = storedInputDoc({
+      PhoneNumberValidation: { NumberFormat: "Local", CountryCode: "US" },
+    });
+    const stored = getAction(doc, "menu")!;
+    // Without the branch the class refuses the shape, so the block is generic
+    // until the drag that adds it.
+    expect(demotedIds(doc).has("menu")).toBe(true);
+    expect(admitsError(stored, "InvalidPhoneNumber")).toBe(true);
+    expect(admitsError(stored, "InputTimeLimitExceeded")).toBe(false);
+    const wired = connectNodes(doc, "menu", "no-match", "error")!;
+    expect(getAction(wired, "menu")!.Transitions.Errors).toEqual([
+      { ErrorType: "InvalidPhoneNumber", NextAction: "no-match" },
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ]);
+    expectSchemaValid(wired);
+    expect(demotedIds(wired).has("menu")).toBe(false);
+    expect(codegen(wired)).toContain(
+      'store: { phoneNumber: { format: "Local", countryCode: "US" } }',
+    );
+    // Both wired: nothing left for the handle to mean.
+    expect(connectNodes(wired, "menu", "bye", "error")).toBeUndefined();
+    expect(admitsError(getAction(wired, "menu")!, "InvalidPhoneNumber")).toBe(false);
   });
 
   it("a menu with StoreInput absent is still the menu form", () => {

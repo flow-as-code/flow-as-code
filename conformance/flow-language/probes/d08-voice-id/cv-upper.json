@@ -1,0 +1,43 @@
+{
+  "description": "CheckVoiceId enrollmentStatus with one Equals ENROLLED condition and NoMatchingError only.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "cv",
+    "Actions": [
+      {
+        "Identifier": "cv",
+        "Type": "CheckVoiceId",
+        "Parameters": {
+          "CheckVoiceIdOption": "enrollmentStatus"
+        },
+        "Transitions": {
+          "NextAction": "end",
+          "Conditions": [
+            {
+              "NextAction": "end",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "ENROLLED"
+                ]
+              }
+            }
+          ],
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "end",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+{
+  "prompt:callback-number": "data.aws_connect_prompt.callback_number.arn"
+}

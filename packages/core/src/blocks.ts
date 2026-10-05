@@ -26,6 +26,7 @@ import {
   DTMF_DIGITS,
   EVENT_HOOKS,
   INVALID_CALLBACK_NUMBER,
+  INVALID_PHONE_NUMBER,
   EXTRA_ERRORS,
   INPUT_TIME_LIMIT_EXCEEDED,
   INPUT_TIMEOUT_MAX,
@@ -445,39 +446,58 @@ export interface DtmfBranch {
 }
 
 /**
- * A DTMF menu: play something, wait for one key, branch on it.
- *
- * GetParticipantInput has two forms. With StoreInput "False" the key pressed
- * is the run result and Conditions branch on it; conditions "may use only the
- * Equals operator" and each operand "must be static and be a single character
- * - 0-9 numeric, *, or #". With StoreInput "True" the digits are stored,
- * InputValidation is required, and there are no conditions. The builder models
- * the menu form only; the stored-input form, and anything carrying Media,
- * InputEncryption, or DTMFConfiguration, parses to a GenericBlock and
- * round-trips verbatim.
+ * How a stored-input GetParticipantInput checks the digits before storing
+ * them (the action page's InputValidation, "required if and only if
+ * StoreInput is True"): a maximum length, or a phone number in a given
+ * format.
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
- *
- * The prompt is optional: PromptId, Text, and SSML are each "[Optional]" on
- * the action page, and a menu may follow a prompt played by an earlier block.
- *
- * Every error the menu form documents is a required property: onTimeout
- * (InputTimeLimitExceeded), onNoMatch (NoMatchingCondition), and onError
- * (NoMatchingError). NextAction mirrors onNoMatch, the way
- * CheckHoursOfOperation mirrors its out-of-hours path.
- *
- * InputTimeLimitSeconds and StoreInput are emitted as JSON strings because
- * that is how the console writes them; the admin page's Flow language example
- * has "InputTimeLimitSeconds": "5" and "StoreInput": "False". (InvokeLambda's
- * timeout is a number for the same reason: its page shows a number.)
- * https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
  */
-export type GetParticipantInputConfig = {
+export type StoredInputValidation =
+  | {
+      /**
+       * CustomValidation.MaximumLength: the most digits accepted. A static
+       * positive integer, written as the console's decimal string
+       * (conformance/flow-language/actions.md, rule 39).
+       */
+      maxLength: number;
+      phoneNumber?: never;
+    }
+  | { phoneNumber: PhoneNumberValidation; maxLength?: never };
+
+/**
+ * PhoneNumberValidation. "Local" validates "a local number (without the + and
+ * the country code)" and needs the two-letter country code; "E164" validates
+ * "a fully defined e.164 phone number".
+ */
+export interface PhoneNumberValidation {
+  format: PhoneNumberFormat;
+  /** ISO 3166 alpha-2, upper case ("US"). Required with "Local". */
+  countryCode?: string;
+}
+
+export const PHONE_NUMBER_FORMATS = ["Local", "E164"] as const;
+export type PhoneNumberFormat = (typeof PHONE_NUMBER_FORMATS)[number];
+
+/**
+ * Shared by both forms of GetParticipantInput: the block id, an optional
+ * prompt (PromptId, Text and SSML are each "[Optional]" on the action page,
+ * and a menu may follow a prompt played by an earlier block) and the time
+ * allowed for the first key.
+ */
+type GetParticipantInputBase = {
   id: string;
   /**
    * Seconds to wait for the first key. Static integer, 1 to 180 inclusive
    * (INPUT_TIMEOUT_MIN and INPUT_TIMEOUT_MAX).
    */
   timeoutSeconds: number;
+} & (MessageBody | { text?: never; ssml?: never; prompt?: never });
+
+/**
+ * The DTMF menu form: wait for one key and branch on it. `StoreInput` is
+ * written "False".
+ */
+export type GetParticipantInputMenuConfig = GetParticipantInputBase & {
   /**
    * Keys that branch, in the order Connect evaluates them. May be empty. Each
    * key may branch once; a repeated key is refused by the constructor.
@@ -486,19 +506,93 @@ export type GetParticipantInputConfig = {
   onTimeout: Target;
   onNoMatch: Target;
   onError: Target;
-} & (MessageBody | { text?: never; ssml?: never; prompt?: never });
+  store?: never;
+  next?: never;
+  onInvalidNumber?: never;
+};
 
+/**
+ * The stored-input form: collect digits, validate them, and keep them on the
+ * contact as `$.StoredCustomerInput` for a later block to read. `StoreInput`
+ * is written "True", `store` becomes InputValidation, and the block has no
+ * conditions: `next` is the success path. A phone number validation adds an
+ * `onInvalidNumber` branch (InvalidPhoneNumber); a length validation takes
+ * none.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
+ */
+export type GetParticipantInputStoredConfig = GetParticipantInputBase & {
+  next: Target;
+  onError: Target;
+  branches?: never;
+  onTimeout?: never;
+  onNoMatch?: never;
+} & (
+    | { store: { maxLength: number; phoneNumber?: never }; onInvalidNumber?: never }
+    | { store: { phoneNumber: PhoneNumberValidation; maxLength?: never }; onInvalidNumber: Target }
+  );
+
+/**
+ * Both forms of the action, told apart by `store`: present, the digits are
+ * stored; absent, `branches` make a menu. One class for both, because a block
+ * maps one-to-one onto an Action and the console, the catalog and the HCL
+ * view each have one GetParticipantInput as well; the config object is where
+ * the two shapes differ, as it is for the forms of UpdateContactTargetQueue.
+ */
+export type GetParticipantInputConfig =
+  GetParticipantInputMenuConfig | GetParticipantInputStoredConfig;
+
+/**
+ * Collect DTMF input: a menu that branches on one key, or digits stored on the
+ * contact.
+ *
+ * GetParticipantInput has two forms. With StoreInput "False" the key pressed
+ * is the run result and Conditions branch on it; conditions "may use only the
+ * Equals operator" and each operand "must be static and be a single character
+ * - 0-9 numeric, *, or #". With StoreInput "True" the digits are stored,
+ * InputValidation is required, and there are no conditions. The builder
+ * models both; anything carrying Media, InputEncryption or DTMFConfiguration
+ * parses to a GenericBlock and round-trips verbatim.
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
+ *
+ * Every error a form documents is a required property. The menu form:
+ * onTimeout (InputTimeLimitExceeded), onNoMatch (NoMatchingCondition), and
+ * onError (NoMatchingError), with NextAction mirroring onNoMatch, the way
+ * CheckHoursOfOperation mirrors its out-of-hours path. The stored form:
+ * onError, and onInvalidNumber (InvalidPhoneNumber) with a phone number
+ * validation; NextAction is `next`. The service refuses a stored-input
+ * action carrying InputTimeLimitExceeded or NoMatchingCondition and a menu
+ * without them (actions.md, rule 37), so neither form offers the other's.
+ *
+ * InputTimeLimitSeconds, StoreInput and MaximumLength are emitted as JSON
+ * strings because that is how the console writes them; the admin page's Flow
+ * language example has "InputTimeLimitSeconds": "5" and "StoreInput":
+ * "False", and the service's sample secure input flows carry
+ * "MaximumLength": "20" (rule 39). (InvokeLambda's timeout is a number for
+ * the same reason: its page shows a number.)
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-customer-input.html
+ */
 export class GetParticipantInput extends Block {
   readonly type = ActionType.GetParticipantInput;
 
   constructor(private readonly config: GetParticipantInputConfig) {
     super(config.id);
+    const id = config.id;
     const t = config.timeoutSeconds;
     if (!Number.isInteger(t) || t < INPUT_TIMEOUT_MIN || t > INPUT_TIMEOUT_MAX) {
       throw new Error(
-        `GetParticipantInput "${config.id}" timeoutSeconds must be an integer between ${INPUT_TIMEOUT_MIN} and ${INPUT_TIMEOUT_MAX}, got ${t}.`,
+        `GetParticipantInput "${id}" timeoutSeconds must be an integer between ${INPUT_TIMEOUT_MIN} and ${INPUT_TIMEOUT_MAX}, got ${t}.`,
       );
     }
+    if (config.store !== undefined) this.checkStored(config);
+    else if (config.branches !== undefined) this.checkMenu(config);
+    else {
+      throw new Error(
+        `GetParticipantInput "${id}" needs either store (digits kept on the contact) or branches (a menu).`,
+      );
+    }
+  }
+
+  private checkMenu(config: GetParticipantInputMenuConfig): void {
     // A key that branches twice is two answers to one press. Only one of
     // them can be taken, so the class refuses the config rather than emit
     // both conditions and leave the caller believing each branch is live.
@@ -521,6 +615,54 @@ export class GetParticipantInput extends Block {
     }
   }
 
+  private checkStored(config: GetParticipantInputStoredConfig): void {
+    const id = config.id;
+    const refuse = (what: string): never => {
+      throw new Error(`GetParticipantInput "${id}" ${what}.`);
+    };
+    if (config.branches !== undefined || config.onTimeout !== undefined) {
+      refuse(
+        "stores its input and so takes no branches or onTimeout; those belong to the menu form",
+      );
+    }
+    if (config.onNoMatch !== undefined) {
+      refuse("stores its input and so takes no onNoMatch; that belongs to the menu form");
+    }
+    const { store } = config;
+    const hasLength = store.maxLength !== undefined;
+    const hasPhone = store.phoneNumber !== undefined;
+    if (hasLength === hasPhone) {
+      refuse("store must hold exactly one of maxLength or phoneNumber");
+    }
+    if (hasLength) {
+      const n = store.maxLength;
+      if (!Number.isInteger(n) || (n as number) < 1) {
+        refuse(`store.maxLength must be a positive integer, got ${String(n)}`);
+      }
+      if (config.onInvalidNumber !== undefined) {
+        refuse("takes onInvalidNumber only with a phoneNumber validation");
+      }
+      return;
+    }
+    const phone = store.phoneNumber as PhoneNumberValidation;
+    if (!(PHONE_NUMBER_FORMATS as readonly string[]).includes(phone.format)) {
+      refuse(
+        `store.phoneNumber.format must be one of ${PHONE_NUMBER_FORMATS.join(" or ")}, got "${String(phone.format)}"`,
+      );
+    }
+    if (phone.format === "Local" && phone.countryCode === undefined) {
+      refuse('store.phoneNumber.countryCode is required with format "Local"');
+    }
+    if (phone.countryCode !== undefined && !/^[A-Z]{2}$/.test(phone.countryCode)) {
+      refuse(
+        `store.phoneNumber.countryCode must be a two-letter upper-case country code, got "${String(phone.countryCode)}"`,
+      );
+    }
+    if (config.onInvalidNumber === undefined) {
+      refuse("needs onInvalidNumber (InvalidPhoneNumber) with a phoneNumber validation");
+    }
+  }
+
   protected parameters(): Record<string, unknown> {
     const { text, ssml, prompt } = this.config;
     const p: Record<string, unknown> = {};
@@ -528,12 +670,33 @@ export class GetParticipantInput extends Block {
     else if (ssml !== undefined) p.SSML = ssml;
     else if (prompt !== undefined) p.PromptId = prompt;
     p.InputTimeLimitSeconds = String(this.config.timeoutSeconds);
-    p.StoreInput = "False";
+    const { store } = this.config;
+    if (store === undefined) {
+      p.StoreInput = "False";
+      return p;
+    }
+    p.StoreInput = "True";
+    if (store.maxLength !== undefined) {
+      p.InputValidation = { CustomValidation: { MaximumLength: String(store.maxLength) } };
+    } else {
+      const phone: Record<string, unknown> = { NumberFormat: store.phoneNumber.format };
+      if (store.phoneNumber.countryCode !== undefined) {
+        phone.CountryCode = store.phoneNumber.countryCode;
+      }
+      p.InputValidation = { PhoneNumberValidation: phone };
+    }
     return p;
   }
 
   protected transitions(): Transitions {
-    const { onTimeout, onNoMatch, onError } = this.config;
+    const c = this.config;
+    if (c.store !== undefined) {
+      const errors: [string, Target][] = [];
+      if (c.onInvalidNumber !== undefined) errors.push([INVALID_PHONE_NUMBER, c.onInvalidNumber]);
+      errors.push([NO_MATCHING_ERROR, c.onError]);
+      return wire(c.next, errors);
+    }
+    const { onTimeout, onNoMatch, onError } = c;
     return wire(
       onNoMatch,
       [
@@ -541,7 +704,7 @@ export class GetParticipantInput extends Block {
         [NO_MATCHING_CONDITION, onNoMatch],
         [NO_MATCHING_ERROR, onError],
       ],
-      this.config.branches.map((b) => ({
+      c.branches.map((b) => ({
         target: b.target,
         operator: "Equals",
         operands: [b.digit],
@@ -1929,7 +2092,8 @@ export class CreateCallbackContact extends Block {
 /**
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
- * set survivable: 56 action types are documented and the builder models 35.
+ * set survivable: 61 action types are in the catalog (56 on the Developer
+ * Guide's category pages, 5 documented elsewhere) and the builder models 35.
  */
 export interface GenericBlockConfig {
   id: string;

@@ -55,12 +55,22 @@ import {
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
+  INPUT_MENU_ERRORS,
+  INPUT_STORED_ERRORS,
   NO_MATCHING_CONDITION,
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
 } from "./actions.js";
 import type { DtmfDigit } from "./actions.js";
-import type { Block, DtmfBranch, GenericBlockConfig, MessageBody } from "./blocks.js";
+import type {
+  Block,
+  DtmfBranch,
+  GenericBlockConfig,
+  MessageBody,
+  PhoneNumberFormat,
+  PhoneNumberValidation,
+  StoredInputValidation,
+} from "./blocks.js";
 import {
   CheckHoursOfOperation,
   CheckMetricData,
@@ -80,6 +90,7 @@ import {
   Loop,
   MessageParticipant,
   MessageParticipantIteratively,
+  PHONE_NUMBER_FORMATS,
   ShowView,
   TagContact,
   TransferContactToAgent,
@@ -413,6 +424,43 @@ function terminal(a: FlowAction, make: () => Block): Inversion | undefined {
   if (Object.keys(a.Parameters).length !== 0) return undefined;
   if (Object.keys(a.Transitions).length !== 0) return undefined;
   return { cls: a.Type, entries: [["id", a.Identifier]], block: make() };
+}
+
+/**
+ * A stored-input GetParticipantInput's InputValidation as the class's
+ * `store`, or undefined for any shape the class does not write: both
+ * validations or neither, an extra key, a MaximumLength that is not the
+ * plain decimal string the class writes, a NumberFormat it does not know, or
+ * a CountryCode that is not a string. The constructor settles the rest (a
+ * "Local" number without a country code, a code that is not two upper-case
+ * letters).
+ */
+function storedValidation(value: unknown): StoredInputValidation | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const v = value as Record<string, unknown>;
+  const keys = Object.keys(v);
+  if (keys.length !== 1) return undefined;
+  if (keys[0] === "CustomValidation") {
+    const custom = v.CustomValidation as Record<string, unknown> | null;
+    if (custom === null || typeof custom !== "object" || Array.isArray(custom)) return undefined;
+    if (Object.keys(custom).length !== 1) return undefined;
+    const max = custom.MaximumLength;
+    if (typeof max !== "string" || !/^[1-9][0-9]*$/.test(max)) return undefined;
+    return { maxLength: Number(max) };
+  }
+  if (keys[0] === "PhoneNumberValidation") {
+    const phone = v.PhoneNumberValidation as Record<string, unknown> | null;
+    if (phone === null || typeof phone !== "object" || Array.isArray(phone)) return undefined;
+    const format = phone.NumberFormat;
+    if (!(PHONE_NUMBER_FORMATS as readonly unknown[]).includes(format)) return undefined;
+    const allowed = ["NumberFormat", "CountryCode"];
+    if (!Object.keys(phone).every((k) => allowed.includes(k))) return undefined;
+    if ("CountryCode" in phone && typeof phone.CountryCode !== "string") return undefined;
+    const out: PhoneNumberValidation = { format: format as PhoneNumberFormat };
+    if (typeof phone.CountryCode === "string") out.countryCode = phone.CountryCode;
+    return { phoneNumber: out };
+  }
+  return undefined;
 }
 
 /**
@@ -794,33 +842,9 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   [ActionType.GetParticipantInput]: (a, ctx) => {
     const t = a.Transitions;
     const errors = t.Errors ?? [];
-    // The class emits the menu form's three errors in this order.
-    const expected = [INPUT_TIME_LIMIT_EXCEEDED, NO_MATCHING_CONDITION, NO_MATCHING_ERROR];
-    if (errors.length !== expected.length) return undefined;
-    if (errors.some((e, i) => e.ErrorType !== expected[i])) return undefined;
-    const [onTimeout, onNoMatch, onError] = errors.map((e) => e.NextAction) as [
-      string,
-      string,
-      string,
-    ];
-    // The class mirrors NextAction onto the no-match path.
-    if (t.NextAction !== onNoMatch) return undefined;
     const conditions = t.Conditions ?? [];
     if (!conditions.every(isCondition)) return undefined;
-    const branches: DtmfBranch[] = [];
-    for (const c of conditions) {
-      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
-      const digit = c.Condition.Operands[0]!;
-      if (!(DTMF_DIGITS as readonly string[]).includes(digit)) return undefined;
-      branches.push({ digit: digit as DtmfDigit, target: c.NextAction });
-    }
     const p = a.Parameters;
-    if (!paramKeysAre(p, ["InputTimeLimitSeconds", "StoreInput"], ["Text", "SSML", "PromptId"])) {
-      return undefined;
-    }
-    // Only the menu form is modeled; stored input has no conditions and needs
-    // InputValidation, which the class does not emit.
-    if (p.StoreInput !== "False") return undefined;
     // The class writes the timeout as a plain decimal string, so only that
     // spelling inverts: "5", never 5, "05", or "5.0". The constructor holds
     // the value to its documented range.
@@ -847,8 +871,98 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       entries.push(["prompt", ref]);
       body = { prompt: cast<never>(p.PromptId) };
     } else if (bodyKeys.length === 1) return undefined;
+    entries.push(["timeoutSeconds", timeoutSeconds]);
+
+    if (p.StoreInput === "True") {
+      // The stored form: InputValidation and nothing else the class does not
+      // write (Media, InputEncryption and DTMFConfiguration stay generic), no
+      // conditions, NextAction as the success path, and the catch-all last,
+      // after InvalidPhoneNumber when the digits are a phone number.
+      if (
+        !paramKeysAre(
+          p,
+          ["InputTimeLimitSeconds", "StoreInput", "InputValidation"],
+          ["Text", "SSML", "PromptId"],
+        )
+      ) {
+        return undefined;
+      }
+      if (conditions.length !== 0 || t.NextAction === undefined) return undefined;
+      const store = storedValidation(p.InputValidation);
+      if (store === undefined) return undefined;
+      const expected =
+        store.phoneNumber === undefined ? [NO_MATCHING_ERROR] : [...INPUT_STORED_ERRORS];
+      if (errors.length !== expected.length) return undefined;
+      if (errors.some((e, i) => e.ErrorType !== expected[i])) return undefined;
+      const onError = errors[errors.length - 1]!.NextAction;
+      const next = t.NextAction;
+      if (store.phoneNumber === undefined) {
+        entries.push(
+          ["store", new ObjV([["maxLength", store.maxLength]])],
+          ["next", next],
+          ["onError", onError],
+        );
+        return {
+          cls: "GetParticipantInput",
+          entries,
+          block: new GetParticipantInput({
+            id: a.Identifier,
+            ...body,
+            timeoutSeconds,
+            store: { maxLength: store.maxLength },
+            next,
+            onError,
+          }),
+        };
+      }
+      const onInvalidNumber = errors[0]!.NextAction;
+      const phone: [string, V][] = [["format", store.phoneNumber.format]];
+      if (store.phoneNumber.countryCode !== undefined) {
+        phone.push(["countryCode", store.phoneNumber.countryCode]);
+      }
+      entries.push(
+        ["store", new ObjV([["phoneNumber", new ObjV(phone)]])],
+        ["next", next],
+        ["onInvalidNumber", onInvalidNumber],
+        ["onError", onError],
+      );
+      return {
+        cls: "GetParticipantInput",
+        entries,
+        block: new GetParticipantInput({
+          id: a.Identifier,
+          ...body,
+          timeoutSeconds,
+          store: { phoneNumber: store.phoneNumber },
+          next,
+          onInvalidNumber,
+          onError,
+        }),
+      };
+    }
+
+    // The menu form: the class emits its three errors in this order and
+    // mirrors NextAction onto the no-match path.
+    if (!paramKeysAre(p, ["InputTimeLimitSeconds", "StoreInput"], ["Text", "SSML", "PromptId"])) {
+      return undefined;
+    }
+    if (p.StoreInput !== "False") return undefined;
+    if (errors.length !== INPUT_MENU_ERRORS.length) return undefined;
+    if (errors.some((e, i) => e.ErrorType !== INPUT_MENU_ERRORS[i])) return undefined;
+    const [onTimeout, onNoMatch, onError] = errors.map((e) => e.NextAction) as [
+      string,
+      string,
+      string,
+    ];
+    if (t.NextAction !== onNoMatch) return undefined;
+    const branches: DtmfBranch[] = [];
+    for (const c of conditions) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+      const digit = c.Condition.Operands[0]!;
+      if (!(DTMF_DIGITS as readonly string[]).includes(digit)) return undefined;
+      branches.push({ digit: digit as DtmfDigit, target: c.NextAction });
+    }
     entries.push(
-      ["timeoutSeconds", timeoutSeconds],
       [
         "branches",
         new ArrV(

@@ -82,6 +82,16 @@
         "GetCalculatedAttributesForCustomerProfile",
         "UpdateCustomerProfile"
       ]
+    },
+    "other": {
+      "doc": "https://docs.aws.amazon.com/connect/latest/adminguide/contact-block-definitions.html",
+      "types": [
+        "RouteContactToAgent",
+        "LoadContactContent",
+        "AuthenticateParticipant",
+        "CheckSegmentMembership",
+        "TransferParticipantToThirdParty"
+      ]
     }
   },
   "refTypes": [
@@ -1338,7 +1348,7 @@
                 {
                   "key": "MaximumLength",
                   "attr": "maximum_length",
-                  "kind": "integer",
+                  "kind": "integerString",
                   "required": true
                 }
               ]
@@ -1495,15 +1505,15 @@
             "when": "StoreInput is \"False\": the service refused the action without it on 2026-09-29 (sandbox, us-west-2), with or without conditions, which the page does not say; with StoreInput \"True\" the page forbids it"
           },
           {
+            "type": "InvalidPhoneNumber",
+            "required": false,
+            "builder": true,
+            "when": "StoreInput is \"True\" and PhoneNumberValidation is specified"
+          },
+          {
             "type": "NoMatchingError",
             "required": true,
             "builder": true
-          },
-          {
-            "type": "InvalidPhoneNumber",
-            "required": false,
-            "builder": false,
-            "when": "StoreInput is \"True\" and PhoneNumberValidation is specified"
           }
         ]
       }
@@ -2523,6 +2533,36 @@
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html",
       "modeled": false
+    },
+    "RouteContactToAgent": {
+      "category": "other",
+      "doc": "https://docs.aws.amazon.com/connect/latest/adminguide/interrupt-agent.html",
+      "modeled": false,
+      "source": "adminguide"
+    },
+    "LoadContactContent": {
+      "category": "other",
+      "doc": "https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html",
+      "modeled": false,
+      "source": "adminguide"
+    },
+    "AuthenticateParticipant": {
+      "category": "other",
+      "doc": "https://docs.aws.amazon.com/connect/latest/adminguide/authenticate-customer.html",
+      "modeled": false,
+      "source": "adminguide"
+    },
+    "CheckSegmentMembership": {
+      "category": "other",
+      "doc": "https://docs.aws.amazon.com/connect/latest/adminguide/journey-flow-block-customer-profiles.html",
+      "modeled": false,
+      "source": "adminguide"
+    },
+    "TransferParticipantToThirdParty": {
+      "category": "other",
+      "doc": "conformance/roundtrip/unknown-actions/doc.flowdoc.json",
+      "modeled": false,
+      "source": "console-export"
     }
   }
 }

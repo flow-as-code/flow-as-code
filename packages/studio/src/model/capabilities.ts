@@ -21,7 +21,7 @@ import {
   ActionType,
   PARTICIPANT_NOT_FOUND,
   TERMINAL_ACTIONS,
-  builderErrors,
+  builderErrorsFor,
   conditionsKind,
   modeledEntry,
   nextRule,
@@ -37,27 +37,29 @@ export function isTerminalType(type: string): boolean {
  * Whether a drag from this action's error handle has a branch to create. An
  * unmodeled action's errors are whatever it came with, and the handle is how
  * a detached one is re-attached, so it always offers; a modeled action offers
- * when its page lists an error. UpdateContactRoutingBehavior lists none, so
- * its node renders no error handle unless an existing edge needs one.
+ * when its page lists an error for the form the action is in.
+ * UpdateContactRoutingBehavior lists none, so its node renders no error handle
+ * unless an existing edge needs one.
  */
 export function offersErrorBranch(action: FlowAction): boolean {
   if (isTerminalType(action.Type)) return false;
   if (!isModeled(action.Type)) return true;
-  return builderErrors(action.Type).length > 0;
+  return builderErrorsFor(action).length > 0;
 }
 
 /**
- * Whether this GetParticipantInput is the DTMF menu form, the one form the
- * builder models and the only one the menu gestures below apply to.
+ * Whether this GetParticipantInput is the DTMF menu form, the only form the
+ * menu gestures below apply to.
  *
  * The action has two forms. With StoreInput "False" (or absent: the parameter
  * is optional) the key pressed is the run result, conditions branch on it, and
  * NoMatchingCondition "Must be defined only if StoreInput is False". With
  * StoreInput "True" the digits are stored, there is no run result, and
- * conditions are not supported. That form parses as a GenericBlock and must
- * keep the gestures every unmodeled block has: a drag from its primary handle
+ * conditions are not supported. The builder models both (@flow-as-code/core
+ * blocks.ts, since C04); on the stored form a drag from the primary handle
  * means the next action, never a key branch, or its Transitions would gain a
- * condition the action page says it cannot carry.
+ * condition the action page says it cannot carry, and its error vocabulary is
+ * the catch-all plus InvalidPhoneNumber on a phone number (builderErrorsFor).
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
  */
 export function isDtmfMenu(action: FlowAction): boolean {
@@ -275,15 +277,15 @@ export function defaultConditionFor(action: FlowAction): Condition | undefined {
 
 /**
  * Whether an error edge moved from another block can land on this one: a
- * branch this block's class wires and does not have yet. A Wait's
- * ParticipantNotFound lands only beside its BotParticipantDisconnected
- * branch. An unmodeled block keeps whatever it is given, as with any drag.
+ * branch this block's class wires on the form it is in and does not have
+ * yet. A Wait's ParticipantNotFound lands only beside its
+ * BotParticipantDisconnected branch. An unmodeled block keeps whatever it is
+ * given, as with any drag.
  */
 export function admitsError(action: FlowAction, errorType: string): boolean {
   if (isTerminalType(action.Type)) return false;
   if (!isModeled(action.Type)) return true;
-  if (action.Type === ActionType.GetParticipantInput && !isDtmfMenu(action)) return false;
-  if (!builderErrors(action.Type).includes(errorType)) return false;
+  if (!builderErrorsFor(action).includes(errorType)) return false;
   if ((action.Transitions.Errors ?? []).some((e) => e.ErrorType === errorType)) return false;
   if (action.Type === ActionType.Wait && errorType === PARTICIPANT_NOT_FOUND) {
     return usedKeys(action).has("BotParticipantDisconnected");
