@@ -88,9 +88,11 @@ pass` with the providers pinned as the other cases pin them (awscc for the
   target's output is `tofu validate`-clean in the emit-tf lane through the
   existing gated test over every case; the provider-shaped output through
   `packages/hcl/src/validate.test.ts`.
-- **Pending, the Phase C release batch:** the provider re-vendors
-  `conformance/` and its commit is recorded here; its emit runner plans the
-  new case's `flows.tf` like the others.
+- **The provider re-vendor criterion is not met and stays open** until the
+  Phase C release batch re-vendors `conformance/` into the provider
+  repository and its commit is recorded here; everything else in this task
+  is done. Its emit runner plans the new case's `flows.tf` like the others,
+  so nothing here is expected to need a change there beyond the re-vendor.
 
 Changeset: `.changeset/unreferenced-module-release.md` (`@flow-as-code/hcl`,
 `@flow-as-code/tf` and `@flow-as-code/cli` minor).

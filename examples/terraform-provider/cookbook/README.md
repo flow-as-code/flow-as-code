@@ -621,7 +621,7 @@ resource "flowascode_contact_flow_module" "greeting" {
 
 ## Release the module through an alias
 
-Flows invoke the module through an alias, which points at a version. The version is keyed to the module's `content_hash`, so a content change replaces it; `create_before_destroy` makes the new version exist before the old one goes, and the alias moves to it in place in between. Connect refuses to delete a version an alias still points at. This is the shape `flow-cli emit --target flowascode` writes for a module a flow in the same set invokes by alias, and, with `--module-alias module:greeting@live`, for a module released on its own that nothing in the set invokes (descriptions aside); `outputs.tf` then carries `greeting_live_arn` for another root to bind.
+Flows invoke the module through an alias, which points at a version. The version is keyed to the module's `content_hash`, so a content change replaces it; `create_before_destroy` makes the new version exist before the old one goes, and the alias moves to it in place in between. Connect refuses to delete a version an alias still points at. This is the shape `flow-cli emit --target flowascode` writes for a module a flow in the same set invokes by alias, and, with `--module-alias module:greeting@live`, for a module released on its own that nothing in the set invokes, with one difference: the emitted version and alias carry no `description`. A root that already holds this file by hand, descriptions and all, and switches to the emitted resources sees a plan that drops the descriptions (an in-place update, not a replacement); keep the hand-written resources if the descriptions matter, or accept the change. `outputs.tf` then carries `greeting_live_arn` for another root to bind.
 
 `module-release.tf`:
 

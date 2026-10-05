@@ -26,7 +26,7 @@ const read = (...p: string[]): string => readFileSync(join(...p), "utf8");
 
 interface EmitCase {
   docs: string[];
-  options?: { instanceIdExpression?: string };
+  options?: { instanceIdExpression?: string; moduleAliases?: Record<string, string[]> };
   /** Keys the set resolves nowhere, and map keys no reference uses (task C12). */
   unbound?: string[];
   unusedMapKeys?: string[];

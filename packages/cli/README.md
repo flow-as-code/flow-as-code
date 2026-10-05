@@ -258,7 +258,11 @@ bound as `module:greeting@live` from another root's address map; on
 `flowascode`, `outputs.tf` adds `greeting_live_arn` for that root to read.
 The value is the key a flow binds, `module:<name>@<alias>`, slugs on both
 sides; a module the set does not emit is refused. The flag is refused on
-`--target cdk`.
+`--target cdk`. The emitted version and alias carry no `description`, so a
+root moving from a hand-written pair with descriptions (the cookbook's
+`module-release.tf`) to the emitted one sees a plan that drops them, an
+in-place update; keep the hand-written resources if the descriptions
+matter, or accept the change.
 
 `--target cdk` is not a code generator, because `@flow-as-code/cdk` is a
 library: `FlowSet` reads the FlowDoc directory itself at synth time. What the

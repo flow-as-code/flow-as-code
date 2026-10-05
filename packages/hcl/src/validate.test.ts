@@ -102,10 +102,10 @@ describe.skipIf(!flowascodeSupported())("tofu validate (RUN_TOFU_VALIDATE=1)", (
     "the %s emitter output validates with its stubs",
     (name) => {
       const dir = join(HCL, "emit", name);
-      const spec = json<{ docs: string[]; options?: { instanceIdExpression?: string } }>(
-        dir,
-        "case.json",
-      );
+      const spec = json<{
+        docs: string[];
+        options?: { instanceIdExpression?: string; moduleAliases?: Record<string, string[]> };
+      }>(dir, "case.json");
       const docs = spec.docs.map((p) => json(dir, p));
       const addressMap = json<Record<string, string>>(dir, "address-map.json");
       const { files } = emitFlowascode(docs as never, { addressMap, ...spec.options });
