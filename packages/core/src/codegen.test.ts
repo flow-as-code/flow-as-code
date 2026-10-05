@@ -458,7 +458,9 @@ describe("GetParticipantInput inverts only the shape the class emits", () => {
     expect(first).toContain("new GetParticipantInput(");
   });
 
-  it("falls back for the stored-input form, which the class never emits", () => {
+  it("falls back for a menu that claims to store its input, or says neither", () => {
+    // StoreInput "True" with the menu's three errors is neither form: the
+    // stored form takes only the catch-all (and InvalidPhoneNumber).
     generic(
       withMenu((a) => {
         a.Parameters = {
@@ -648,6 +650,238 @@ describe("GetParticipantInput inverts only the shape the class emits", () => {
         a.Transitions.NextAction = "bye";
       }),
     );
+  });
+});
+
+describe("GetParticipantInput stored form inverts only the shape the class emits", () => {
+  /** The exact Action the class writes for digits kept by length. */
+  const lengthAction = (): FlowAction => ({
+    Identifier: "ask-postcode",
+    Type: "GetParticipantInput",
+    Parameters: {
+      Text: "Enter the postcode, then press pound.",
+      InputTimeLimitSeconds: "10",
+      StoreInput: "True",
+      InputValidation: { CustomValidation: { MaximumLength: "5" } },
+    },
+    Transitions: {
+      NextAction: "lookup",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  /** The exact Action the class writes for a local phone number. */
+  const phoneAction = (): FlowAction => ({
+    Identifier: "ask-callback",
+    Type: "GetParticipantInput",
+    Parameters: {
+      SSML: "<speak>Enter your callback number.</speak>",
+      InputTimeLimitSeconds: "15",
+      StoreInput: "True",
+      InputValidation: { PhoneNumberValidation: { NumberFormat: "Local", CountryCode: "US" } },
+    },
+    Transitions: {
+      NextAction: "lookup",
+      Errors: [
+        { ErrorType: "InvalidPhoneNumber", NextAction: "ask-callback" },
+        { ErrorType: "NoMatchingError", NextAction: "bye" },
+      ],
+      Conditions: [],
+    },
+  });
+  const rest = (): FlowAction[] => [
+    {
+      Identifier: "lookup",
+      Type: "MessageParticipant",
+      Parameters: { Text: "Thank you." },
+      Transitions: {
+        NextAction: "bye",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+        Conditions: [],
+      },
+    },
+    { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+  ];
+  const withStored = (make: () => FlowAction, edit: (a: FlowAction) => void): FlowDoc => {
+    const a = make();
+    edit(a);
+    return docWith([a, ...rest()]);
+  };
+  const generic = (doc: FlowDoc) => {
+    const out = codegen(doc);
+    expect(out).toContain('type: "GetParticipantInput"');
+    expect(out).not.toContain("new GetParticipantInput(");
+    return out;
+  };
+
+  it("emits the class for digits kept by length, and the class re-emits the Action", () => {
+    const out = codegen(docWith([lengthAction(), ...rest()]));
+    expect(out).toContain(
+      [
+        "    new GetParticipantInput({",
+        '      id: "ask-postcode",',
+        '      text: "Enter the postcode, then press pound.",',
+        "      timeoutSeconds: 10,",
+        "      store: { maxLength: 5 },",
+        '      next: "lookup",',
+        '      onError: "bye",',
+        "    }),",
+      ].join("\n"),
+    );
+    const block = new GetParticipantInput({
+      id: "ask-postcode",
+      text: "Enter the postcode, then press pound.",
+      timeoutSeconds: 10,
+      store: { maxLength: 5 },
+      next: "lookup",
+      onError: "bye",
+    });
+    expect(block.toAction()).toEqual(lengthAction());
+  });
+
+  it("emits the class for a phone number, with its InvalidPhoneNumber branch", () => {
+    const out = codegen(docWith([phoneAction(), ...rest()]));
+    expect(out).toContain(
+      [
+        "    new GetParticipantInput({",
+        '      id: "ask-callback",',
+        '      ssml: "<speak>Enter your callback number.</speak>",',
+        "      timeoutSeconds: 15,",
+        '      store: { phoneNumber: { format: "Local", countryCode: "US" } },',
+        '      next: "lookup",',
+        '      onInvalidNumber: "ask-callback",',
+        '      onError: "bye",',
+        "    }),",
+      ].join("\n"),
+    );
+    const e164 = codegen(
+      withStored(phoneAction, (a) => {
+        a.Parameters.InputValidation = { PhoneNumberValidation: { NumberFormat: "E164" } };
+      }),
+    );
+    expect(e164).toContain('store: { phoneNumber: { format: "E164" } },');
+  });
+
+  it("round-trips both validations byte-stably", () => {
+    const doc = docWith([lengthAction(), phoneAction(), ...rest()]);
+    const first = codegen(doc);
+    expect(codegen(doc)).toBe(first);
+    expect(first.match(/new GetParticipantInput\(/g)).toHaveLength(2);
+  });
+
+  it("falls back when a parameter the class does not write is present", () => {
+    // Each of these is a documented shape (the service's sample secure input
+    // flows carry InputEncryption) that stays a GenericBlock, verbatim.
+    generic(
+      withStored(lengthAction, (a) => {
+        a.Parameters.InputEncryption = { EncryptionKeyId: "k", Key: "pem" };
+      }),
+    );
+    generic(
+      withStored(lengthAction, (a) => {
+        a.Parameters.DTMFConfiguration = { InputTerminationSequence: "#" };
+      }),
+    );
+    generic(
+      withStored(lengthAction, (a) => {
+        a.Parameters.Media = { Uri: "x", SourceType: "S3", MediaType: "Audio" };
+      }),
+    );
+    generic(
+      withStored(lengthAction, (a) => {
+        delete a.Parameters.InputValidation;
+      }),
+    );
+  });
+
+  it("falls back when InputValidation is not one validation the class writes", () => {
+    const validation = (v: unknown) =>
+      withStored(lengthAction, (a) => {
+        a.Parameters.InputValidation = v;
+      });
+    // Both, neither, an unknown key, and a MaximumLength that is not the
+    // plain decimal string the console writes.
+    generic(
+      validation({
+        CustomValidation: { MaximumLength: "5" },
+        PhoneNumberValidation: { NumberFormat: "E164" },
+      }),
+    );
+    generic(validation({}));
+    generic(validation({ Other: {} }));
+    generic(validation({ CustomValidation: { MaximumLength: "5", Extra: 1 } }));
+    for (const max of [5, "05", "0", "5.0", "", "$.Attributes.max"]) {
+      generic(validation({ CustomValidation: { MaximumLength: max } }));
+    }
+    // A phone number the constructor refuses: an unknown format, "Local"
+    // without its country code, a code that is not two upper-case letters,
+    // an extra key.
+    const phone = (v: unknown) =>
+      withStored(phoneAction, (a) => {
+        a.Parameters.InputValidation = { PhoneNumberValidation: v };
+      });
+    generic(phone({ NumberFormat: "Mobile", CountryCode: "US" }));
+    generic(phone({ NumberFormat: "Local" }));
+    generic(phone({ NumberFormat: "Local", CountryCode: "us" }));
+    generic(phone({ NumberFormat: "Local", CountryCode: 1 }));
+    generic(phone({ NumberFormat: "E164", Extra: "x" }));
+  });
+
+  it("falls back when the transitions are not the form's", () => {
+    // A condition, a menu-form branch, a missing or extra error, the errors
+    // out of order, InvalidPhoneNumber without a phone validation, and no
+    // NextAction.
+    generic(
+      withStored(lengthAction, (a) => {
+        a.Transitions.Conditions = [
+          { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["1"] } },
+        ];
+      }),
+    );
+    generic(
+      withStored(lengthAction, (a) => {
+        a.Transitions.Errors!.unshift({ ErrorType: "InputTimeLimitExceeded", NextAction: "bye" });
+      }),
+    );
+    generic(
+      withStored(lengthAction, (a) => {
+        a.Transitions.Errors = [];
+      }),
+    );
+    generic(
+      withStored(lengthAction, (a) => {
+        a.Transitions.Errors!.unshift({ ErrorType: "InvalidPhoneNumber", NextAction: "bye" });
+      }),
+    );
+    generic(
+      withStored(phoneAction, (a) => {
+        a.Transitions.Errors = [a.Transitions.Errors![1]!, a.Transitions.Errors![0]!];
+      }),
+    );
+    generic(
+      withStored(phoneAction, (a) => {
+        a.Transitions.Errors = [a.Transitions.Errors![1]!];
+      }),
+    );
+    generic(
+      withStored(lengthAction, (a) => {
+        delete a.Transitions.NextAction;
+      }),
+    );
+  });
+
+  it("inverts the roundtrip fixture to the class for every validation", () => {
+    const fixture = JSON.parse(
+      readFileSync(
+        new URL("../../../conformance/roundtrip/stored-input/doc.flowdoc.json", import.meta.url),
+        "utf8",
+      ),
+    ) as FlowDoc;
+    const out = codegen(fixture);
+    expect(out).not.toContain("new GenericBlock(");
+    expect(out).toContain("store: { maxLength: 5 }");
+    expect(out).toContain('store: { phoneNumber: { format: "Local", countryCode: "US" } }');
+    expect(out).toContain('store: { phoneNumber: { format: "E164" } }');
   });
 });
 

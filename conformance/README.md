@@ -139,7 +139,11 @@ and a view shown with data, a hidden transcript and a time limit, plus a bare
 one); and a flow of the recording block (`recording-analytics`: voice
 recording of both participants with IVR recording, a voice-only form, a
 screen-only form (the service takes one form per block), and the chat
-analytics form the builder leaves generic, with its third error).
+analytics form the builder leaves generic, with its third error); and a flow
+of the stored-input form of `GetParticipantInput` (`stored-input`: digits
+kept by length, a local phone number with its country code and its
+`InvalidPhoneNumber` branch, and an E.164 number, with Text, PromptId and
+SSML bodies; the menu form stays in `dtmf-menu`).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

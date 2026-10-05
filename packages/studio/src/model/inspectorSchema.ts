@@ -121,10 +121,12 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       // Rendered specially: see MESSAGE_BODY_KINDS.
       return [];
     case ActionType.GetParticipantInput:
-      // Body rendered as for MessageParticipant, optional here. Branches are
-      // the condition editor: one key each. StoreInput stays "False": the
-      // stored-input form is not modeled (@flow-as-code/core blocks.ts), so it is not
-      // offered.
+      // Body rendered as for MessageParticipant, optional here, on both forms.
+      // On the menu form the branches are the condition editor, one key each.
+      // The stored form (StoreInput "True") edits the same body and timeout;
+      // its InputValidation (a maximum length, or a phone number format and
+      // country) is not editable here yet and is authored in the .flow.ts or
+      // .flow.tf (tasks/C04). A new block from the palette is the menu form.
       return [
         {
           kind: "number",

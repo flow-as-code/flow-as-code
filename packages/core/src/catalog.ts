@@ -83,10 +83,13 @@ export interface CatalogError {
   /** Whether error-branches reports the branch as missing. */
   required: boolean;
   /**
-   * Whether the builder's modeled form wires this branch, which is also the
+   * Whether a form the builder models wires this branch, which is also the
    * vocabulary the studio offers when a drag from the error handle looks for a
    * branch to create. False for an error that exists only in a form the
-   * builder does not model (GetParticipantInput's InvalidPhoneNumber).
+   * builder does not model. A type with more than one modeled form
+   * (GetParticipantInput) flags the union; builderErrorsFor narrows it to the
+   * form an action is in. The stored form wires InvalidPhoneNumber on every
+   * phone number validation, before the catch-all (actions.md, rule 13).
    */
   builder: boolean;
   /** Free text from the action page, when the error exists only in some forms. */
@@ -258,6 +261,45 @@ export function requiredErrorsFor(type: string, parameters: Record<string, unkno
 /** The error branches the builder's modeled form wires, in its order; empty when none. */
 export function builderErrors(type: string): string[] {
   return (modeledEntry(type)?.transitions.errors ?? []).filter((e) => e.builder).map((e) => e.type);
+}
+
+/**
+ * The error branches the builder wires on this action, in its order: the
+ * builder flags narrowed to the form the action is in. Only GetParticipantInput
+ * has more than one modeled form. Its `shapes` say which branches each value
+ * of StoreInput forbids, and that narrows the menu form (no InvalidPhoneNumber)
+ * and the stored form (no InputTimeLimitExceeded or NoMatchingCondition);
+ * InvalidPhoneNumber is then the stored form's only when the digits are a
+ * phone number ("Must be defined only if StoreInput is true, and
+ * PhoneNumberValidation is specified"), which no shape records because the
+ * deciding value is nested.
+ * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
+ */
+export function builderErrorsFor(action: {
+  Type: string;
+  Parameters: Record<string, unknown>;
+}): string[] {
+  const entry = modeledEntry(action.Type);
+  if (entry === undefined) return [];
+  const forbidden = new Set<string>();
+  for (const shape of entry.shapes ?? []) {
+    const value = action.Parameters[shape.when.key];
+    const holds =
+      shape.when.equals !== undefined
+        ? value === shape.when.equals
+        : value !== shape.when.notEquals;
+    if (!holds) continue;
+    for (const type of shape.forbids?.errors ?? []) forbidden.add(type);
+  }
+  if (action.Type === "GetParticipantInput") {
+    const validation = action.Parameters.InputValidation;
+    const phone =
+      validation !== null &&
+      typeof validation === "object" &&
+      (validation as Record<string, unknown>).PhoneNumberValidation !== undefined;
+    if (!phone) forbidden.add("InvalidPhoneNumber");
+  }
+  return builderErrors(action.Type).filter((e) => !forbidden.has(e));
 }
 
 /** How an action of this type uses Conditions, or undefined for an unmodeled type. */

@@ -194,17 +194,30 @@ individual action pages linked above.
     PhoneNumberValidation is specified"; `InputTimeLimitExceeded` "if there is
     no response before the configured InputTimeLimitSeconds". The admin page's
     example lists them as `InputTimeLimitExceeded`, `NoMatchingCondition`,
-    `NoMatchingError`, and the builder emits that order. `NextAction` is
-    required; the builder mirrors it to the `NoMatchingCondition` target, the
-    way `CheckHoursOfOperation` mirrors its out-of-hours path.
+    `NoMatchingError`, and the builder emits that order on the menu form.
+    `NextAction` is required; on the menu form the builder mirrors it to the
+    `NoMatchingCondition` target, the way `CheckHoursOfOperation` mirrors
+    its out-of-hours path. On the stored form (`StoreInput` `"True"`) the
+    builder writes `NextAction` as the success path and the catch-all as the
+    only branch, the shape of the service's sample secure input flows (rule
+    39), with `InvalidPhoneNumber` before the catch-all when
+    `PhoneNumberValidation` is set: the console's convention of the
+    catch-all last, as on `TransferContactToQueue`, not an order read from
+    an export, which no record here holds.
 14. `GetParticipantInput.InputValidation` is "required if and only if StoreInput
     is True" and holds `PhoneNumberValidation` or `CustomValidation`, never
     both. `InputEncryption` "May only be specified if CustomValidation is
     provided". `DTMFConfiguration.InputTerminationSequence` is up to five
     digits and `InterdigitTimeLimitSeconds` "must be a valid integer between 1
     and 20 seconds". The builder models the DTMF menu form (`StoreInput`
-    `"False"`, no `InputValidation`, `InputEncryption`, `DTMFConfiguration`, or
-    `Media`); every other shape round-trips as a GenericBlock.
+    `"False"`, no `InputValidation`) and, since 2026-10-05 (tasks/C04), the
+    stored form (`StoreInput` `"True"` with either validation; `CountryCode`
+    is "If the number format is "Local", this must be defined", and the
+    builder refuses a `Local` number without one). A block carrying
+    `InputEncryption`, `DTMFConfiguration` or `Media` round-trips as a
+    GenericBlock. `MaximumLength` is "A number" on the page and a decimal
+    string in what the service holds (rule 39); the catalog records it as
+    `integerString`, as it does `InputTimeLimitSeconds`.
 15. `GetParticipantInput` "is only supported on the voice channel" and "can be
     used in contact flows, transfer flows, and customer queue flows but not in
     whisper flows or hold flows". The admin page's flow-type table also marks
@@ -986,6 +999,26 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
     that is left unchecked (SPEC.md).
     https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateContactFlow.html
     https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-compare.html
+39. Stored-input `GetParticipantInput` as the service holds it (2026-10-05,
+    read-only: `DescribeContactFlow` on the sandbox instance, us-west-2, of
+    the two sample flows every instance carries, "Sample secure input with
+    no agent" and "Sample secure input with agent"). Each holds one
+    `GetParticipantInput` with `"StoreInput": "True"`,
+    `"InputTimeLimitSeconds": "6"`, a `Text` body,
+    `"InputValidation": {"CustomValidation": {"MaximumLength": "20"}}` and
+    an `InputEncryption` object, and its transitions are `NextAction` (the
+    block that follows on success), `Errors` holding `NoMatchingError`
+    alone, and `Conditions` empty. So `MaximumLength`, which the page calls
+    "A number", is a decimal string where the service holds it, the spelling
+    `InputTimeLimitSeconds` has, and the catalog records it as
+    `integerString` (it had said `integer`, from the page). The builder
+    writes that shape less `InputEncryption`, and codegen reads it back as
+    the typed class; the sample flows themselves, carrying
+    `InputEncryption`, stay GenericBlocks. No sample flow carries a
+    `PhoneNumberValidation`, so the order of `InvalidPhoneNumber` against
+    the catch-all is not observed (rule 13).
+    https://docs.aws.amazon.com/connect/latest/APIReference/API_DescribeContactFlow.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/sample-secure-input-with-noagent.html
 
 ## Per-action parameter shapes
 
@@ -997,7 +1030,7 @@ GetParticipantInput      { PromptId? | Text? | SSML?, Media?: { Uri, SourceType:
                            InputTimeLimitSeconds,     // static integer > 0; the console writes "5"
                            StoreInput?: "True" | "False",
                            InputValidation?: { PhoneNumberValidation?: { NumberFormat: "Local" | "E164", CountryCode? }
-                                             | CustomValidation?: { MaximumLength } },
+                                             | CustomValidation?: { MaximumLength } },   // the service holds "20" (rule 39)
                            InputEncryption?: { EncryptionKeyId, Key },
                            DTMFConfiguration?: { InputTerminationSequence?, DisableCancelKey?: "True" | "False",
                                                  InterdigitTimeLimitSeconds? } }
