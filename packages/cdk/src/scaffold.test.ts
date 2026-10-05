@@ -14,7 +14,7 @@ import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import type { FlowDoc } from "@flow-as-code/core";
+import { collectRefs, type FlowDoc } from "@flow-as-code/core";
 
 import { CDK_SCAFFOLD_FILE, cdkScaffold, referencedNames, sourceForDepth } from "./scaffold.js";
 
@@ -48,9 +48,70 @@ describe("cdkScaffold", () => {
     for (const type of ["lex", "prompt"]) {
       expect(scaffold).not.toContain(`TODO: bind ${type}`);
     }
-    // FlowSet resolves module references itself, so a binder never has one.
-    expect(scaffold).not.toContain("module: (name)");
+    // The demo references no module or flow outside itself, so the optional
+    // methods are absent.
+    expect(scaffold).not.toContain("module:");
+    expect(scaffold).not.toContain("flow:");
     expect(scaffold).not.toContain("arn:aws:");
+  });
+
+  it("writes module() and flow() only for documents the set does not hold (C06)", () => {
+    // One flow invoking a module and pointing a hook at a whisper flow, with
+    // neither document in the set: both are the binder's to answer.
+    const referrer = demoDoc();
+    referrer.content.Actions = [
+      ...referrer.content.Actions,
+      {
+        Identifier: "offer",
+        Type: "InvokeFlowModule",
+        Parameters: { FlowModuleId: "${cdref:module:callback-offer@prod}" },
+        Transitions: {},
+      },
+      {
+        Identifier: "hook",
+        Type: "UpdateContactEventHooks",
+        Parameters: { EventHooks: { CustomerWhisper: "${cdref:flow:whisper-line}" } },
+        Transitions: {},
+      },
+      {
+        Identifier: "show",
+        Type: "ShowView",
+        Parameters: { ViewResource: { Id: "${cdref:view:after-contact-work@1}" } },
+        Transitions: {},
+      },
+    ];
+    referrer.refs = collectRefs(referrer.content);
+
+    const alone = cdkScaffold({ docs: [referrer], source: "." });
+    expect(alone).toContain("  module: (name, alias) => {");
+    expect(alone).toContain("// Names referenced: callback-offer.");
+    expect(alone).toContain("  flow: (name) => {");
+    expect(alone).toContain("// Names referenced: whisper-line.");
+    // A view is the binder's too, with the version the token pins.
+    expect(alone).toContain("  view: (name, version) => {");
+    expect(alone).toContain("// Names referenced: after-contact-work.");
+    // Alphabetical with the required methods, so the file reads as one list.
+    const order = [
+      "flow:",
+      "hours:",
+      "lambda:",
+      "lex:",
+      "module:",
+      "prompt:",
+      "queue:",
+      "view:",
+    ].map((key) => alone.indexOf(`  ${key} `));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(order.every((at) => at > 0)).toBe(true);
+
+    // Add both documents to the set and FlowSet resolves them: the methods go.
+    const whisper = { ...demoDoc(), name: "whisper-line" };
+    const module = { ...demoDoc(), name: "callback-offer", kind: "module" as const };
+    const together = cdkScaffold({ docs: [referrer, whisper, module], source: "." });
+    expect(together).not.toContain("module:");
+    expect(together).not.toContain("flow:");
+    expect(referencedNames([referrer, whisper, module]).has("module")).toBe(false);
+    expect(referencedNames([referrer, whisper, module]).has("flow")).toBe(false);
   });
 
   it("names the file it is written to", () => {

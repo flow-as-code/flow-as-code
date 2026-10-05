@@ -1,0 +1,91 @@
+[
+  {
+    "probe": "check-enrollment",
+    "description": "CheckVoiceId enrollmentStatus with one Equals Enrolled condition, NoMatchingError and NoMatchingCondition.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T16:49:54Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Voice ID domain",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: NoMatchingCondition, Path: Actions[0]",
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-enrolled",
+    "description": "CheckVoiceId enrollmentStatus with one Equals Enrolled condition and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T16:50:16Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Voice ID domain",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-full-page",
+    "description": "CheckVoiceId enrollmentStatus with the page's three operands (Enrolled, Not enrolled, Opted out) and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T16:50:44Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Voice ID domain",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-full-upper",
+    "description": "CheckVoiceId enrollmentStatus with the operands spelled ENROLLED, NOT_ENROLLED and OPTED_OUT, and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T16:50:46Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Voice ID domain",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-noconds",
+    "description": "CheckVoiceId enrollmentStatus with Conditions empty and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T16:50:14Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Voice ID domain",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-upper",
+    "description": "CheckVoiceId enrollmentStatus with one Equals ENROLLED condition and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T16:50:18Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Voice ID domain",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "start-stream",
+    "description": "StartVoiceIdStream with empty Parameters, a NextAction and NoMatchingError.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-east-1",
+    "at": "2026-10-05T16:49:50Z",
+    "recordedBy": "by hand with the AWS CLI on 2026-10-05, before scripts/probe-create.mjs existed; the showcase's TypeScript-first dev instance, which has no Voice ID domain",
+    "result": "accepted",
+    "cleanup": "deleted at once; a ListContactFlows after the run found no hh-probe-* flow (no describe call was made)"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "description": "StartVoiceIdStream with empty Parameters, a NextAction and NoMatchingError.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "vs",
+    "Actions": [
+      {
+        "Identifier": "vs",
+        "Type": "StartVoiceIdStream",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "end",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "end"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "end",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

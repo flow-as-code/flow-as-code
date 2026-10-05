@@ -28,16 +28,27 @@
 // types and names are sorted, and nothing in the output depends on the order
 // files were read.
 //
-// FlowSet resolves `${cdref:module:...}` itself against the modules it manages,
-// so `module` never appears on a binder (packages/cdk/src/binder.ts).
+// FlowSet resolves a `${cdref:module:...}` or `${cdref:flow:...}` that names a
+// document in the set itself, so those never appear on a binder; `module` and
+// `flow` are emitted only for a document the set does not hold
+// (packages/cdk/src/binder.ts).
 
 import { type FlowDoc, PACKAGE_NAMES, type RefType, collectRefs } from "@flow-as-code/core";
 
 /** Basename of the file the scaffold is written to. */
 export const CDK_SCAFFOLD_FILE = "flow-stack.ts";
 
-/** Required TokenBinder methods, in the order they are emitted. */
+/** TokenBinder methods the interface requires, so every scaffold carries them. */
 const REQUIRED_TYPES = ["hours", "lambda", "lex", "prompt", "queue"] as const;
+
+/** The optional methods, emitted only when a document in the set needs one. */
+const OPTIONAL_TYPES = ["flow", "module", "view"] as const;
+
+/** Parameters of each method, echoing packages/cdk/src/binder.ts. */
+const PARAMS: Record<string, string> = {
+  module: "(name, alias)",
+  view: "(name, version)",
+};
 
 /** What each binder method must return, echoing packages/cdk/src/binder.ts. */
 const RETURNS: Record<string, string> = {
@@ -45,6 +56,7 @@ const RETURNS: Record<string, string> = {
   hours: "ARN of the hours of operation, e.g. hours.attrHoursOfOperationArn",
   lambda: "ARN of the Lambda function, e.g. fn.functionArn",
   lex: "ARN of the Lex bot alias",
+  module: "alias ARN of a module not managed by this FlowSet, at the alias named",
   prompt: "ARN of the prompt",
   queue: "ARN of the queue, e.g. queue.attrQueueArn",
   view: "ARN of the view, with the version the token pins when it pins one",
@@ -56,13 +68,16 @@ const NOUNS: Record<string, string> = {
   hours: "hours of operation",
   lambda: "Lambda function",
   lex: "Lex bot alias",
+  module: "module",
   prompt: "prompt",
   queue: "queue",
   view: "view",
 };
 
 /**
- * Reference names per type across the whole set, sorted and deduplicated.
+ * Reference names per type across the whole set that a binder has to answer,
+ * sorted and deduplicated. A flow or module reference naming a document in the
+ * set is left out: FlowSet resolves those itself.
  *
  * A document's `refs` index is the authored answer, but it is derived data and
  * nothing in the schema forces it to be current, so the content is scanned too
@@ -70,10 +85,13 @@ const NOUNS: Record<string, string> = {
  * the set does not strictly need, never drop one it does.
  */
 export function referencedNames(docs: readonly FlowDoc[]): Map<RefType, string[]> {
+  const kinds = new Map(docs.map((d) => [d.name, d.kind]));
   const byType = new Map<RefType, Set<string>>();
   for (const doc of docs) {
     for (const ref of [...(doc.refs ?? []), ...collectRefs(doc.content)]) {
-      if (ref.type === "module") continue;
+      if ((ref.type === "module" || ref.type === "flow") && kinds.get(ref.name) === ref.type) {
+        continue;
+      }
       const names = byType.get(ref.type) ?? new Set<string>();
       names.add(ref.name);
       byType.set(ref.type, names);
@@ -103,7 +121,7 @@ function binderMethod(type: string, names: readonly string[]): string[] {
       : [`  // TODO: return the ${returns}.`, `  // Names referenced: ${names.join(", ")}.`];
   return [
     ...head,
-    `  ${type}: (name) => {`,
+    `  ${type}: ${PARAMS[type] ?? "(name)"} => {`,
     names.length === 0
       ? `    throw new Error(\`Unexpected ${type} reference "\${name}".\`);`
       : `    throw new Error(\`TODO: bind ${type} "\${name}" to an ARN.\`);`,
@@ -123,9 +141,12 @@ export interface CdkScaffoldInput {
 /** The scaffold source. Pure: no filesystem access, no clock, no randomness. */
 export function cdkScaffold({ docs, source }: CdkScaffoldInput): string {
   const referenced = referencedNames(docs);
-  const types: RefType[] = [...REQUIRED_TYPES];
-  // `flow` is optional on TokenBinder, so it is emitted only when it is used.
-  if ((referenced.get("flow") ?? []).length > 0) types.unshift("flow");
+  // The optional methods are emitted only when used; alphabetical, like the
+  // required ones.
+  const types: RefType[] = [
+    ...REQUIRED_TYPES,
+    ...OPTIONAL_TYPES.filter((type) => (referenced.get(type) ?? []).length > 0),
+  ].sort();
 
   const used = [...referenced]
     .filter(([, names]) => names.length > 0)

@@ -40,7 +40,7 @@ import type {
   WaitEvent,
 } from "@flow-as-code/core";
 import {
-  builderErrors,
+  builderErrorsFor,
   ActionType,
   MAX_ACTIONS_PER_FLOW,
   MESSAGES_INTERRUPTED,
@@ -592,9 +592,9 @@ function listedWaitEvents(action: FlowAction): string[] {
   return Array.isArray(listed) ? listed.map(String) : [];
 }
 
-/** The errors in the block class's order (the catalog's builder order), a stable sort. */
-function inBuilderOrder(type: string, errors: readonly ErrorTransition[]): ErrorTransition[] {
-  const order = builderErrors(type);
+/** The errors in the block class's order for the form the action is in, a stable sort. */
+function inBuilderOrder(action: FlowAction, errors: readonly ErrorTransition[]): ErrorTransition[] {
+  const order = builderErrorsFor(action);
   const rank = (e: ErrorTransition) => {
     const i = order.indexOf(e.ErrorType);
     return i === -1 ? order.length : i;
@@ -616,7 +616,7 @@ function withWaitEvent(action: FlowAction, event: WaitEvent, target: string): Fl
       ...action.Transitions,
       ...(pairs
         ? {
-            Errors: inBuilderOrder(action.Type, [
+            Errors: inBuilderOrder(action, [
               ...errors,
               { ErrorType: PARTICIPANT_NOT_FOUND, NextAction: target },
             ]),
@@ -730,18 +730,16 @@ function appendCondition(doc: FlowDoc, action: FlowAction, target: string): Flow
 function wireMissingError(doc: FlowDoc, action: FlowAction, target: string): FlowDoc | undefined {
   // Only modeled types have a known error vocabulary; an unmodeled block keeps
   // whatever errors it came with. This is intent, not legality: it picks WHICH
-  // error branch a drag should create. GetParticipantInput's vocabulary is the
-  // menu form's (EXTRA_ERRORS: NoMatchingCondition "Must be defined only if
-  // StoreInput is False"), so the stored-input form, which is not modeled,
-  // keeps its errors the way any unmodeled block does.
+  // error branch a drag should create.
   if (!isModeled(action.Type)) return undefined;
-  if (action.Type === ActionType.GetParticipantInput && !isDtmfMenu(action)) return undefined;
-  // The branches the block class wires, in its order, from the catalog: the
-  // extras and then the catch-all for most types, two named errors and no
-  // catch-all for some, none at all for others. A Wait's ParticipantNotFound
-  // is wired by the drag that adds its BotParticipantDisconnected branch
-  // (withWaitEvent), never on its own.
-  const wanted = builderErrors(action.Type).filter(
+  // The branches the block class wires on the form the action is in, in its
+  // order, from the catalog: the extras and then the catch-all for most
+  // types, two named errors and no catch-all for some, none at all for
+  // others; for a GetParticipantInput the menu form's three or the stored
+  // form's catch-all, with InvalidPhoneNumber before it on a phone number. A
+  // Wait's ParticipantNotFound is wired by the drag that adds its
+  // BotParticipantDisconnected branch (withWaitEvent), never on its own.
+  const wanted = builderErrorsFor(action).filter(
     (e) => !(action.Type === ActionType.Wait && e === PARTICIPANT_NOT_FOUND),
   );
   const wired = new Set((action.Transitions.Errors ?? []).map((e) => e.ErrorType));
@@ -756,7 +754,7 @@ function wireMissingError(doc: FlowDoc, action: FlowAction, target: string): Flo
         ...a,
         Transitions: {
           ...a.Transitions,
-          Errors: inBuilderOrder(a.Type, [
+          Errors: inBuilderOrder(a, [
             ...(a.Transitions.Errors ?? []),
             { ErrorType: missing, NextAction: target },
           ]),
@@ -987,9 +985,10 @@ export const rewireEdge = guard(
     // stored-input form cannot carry the error at all; a block that already
     // has one has nowhere to put a second; and one whose NextAction goes
     // elsewhere would have it overwritten, the same clobber as the next-edge
-    // check above. The guard cannot stand in for these checks: the
-    // stored-input form and an unfinished menu are generic already, so there
-    // is nothing for it to see demoted.
+    // check above. The guard cannot stand in for these checks: an unfinished
+    // menu is generic already, so there is nothing for it to see demoted.
+    // (The stored-input form is typed, and the guard holds it as it holds a
+    // message; the vocabulary check above is what refuses the drop there.)
     // An error or a branch lands only where a fresh drag could have authored
     // it: an error the landing block's class wires and it lacks, a condition
     // its kind admits and it does not already hold. Otherwise the landing
@@ -1021,7 +1020,7 @@ export const rewireEdge = guard(
       const t = { ...a.Transitions };
       if (parsed.kind === "next") t.NextAction = newTarget;
       if (parsed.kind === "error") {
-        t.Errors = inBuilderOrder(a.Type, [
+        t.Errors = inBuilderOrder(a, [
           ...(t.Errors ?? []),
           { ErrorType: parsed.errorType, NextAction: newTarget },
         ]);

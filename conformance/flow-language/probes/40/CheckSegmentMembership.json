@@ -1,0 +1,32 @@
+{
+  "description": "Rule 40 probe: Customer profiles, Check segment membership, Parameters empty so the refusal names the first required key (the page names none).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Metadata": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CheckSegmentMembership",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

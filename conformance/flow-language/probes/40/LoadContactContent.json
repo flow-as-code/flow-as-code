@@ -1,0 +1,34 @@
+{
+  "description": "Rule 40 probe: Get stored content with the page's Flow language example; email need not be enabled for a create to be judged, and a refusal naming it is recorded as such.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Metadata": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "LoadContactContent",
+        "Parameters": {
+          "ContentType": "EmailMessage"
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

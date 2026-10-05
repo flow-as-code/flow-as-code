@@ -1,0 +1,44 @@
+{
+  "description": "Rule 40 probe: Transfer to phone number in the shape of the console export conformance/roundtrip/unknown-actions, the number dynamic so no real number is written.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Metadata": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "TransferParticipantToThirdParty",
+        "Parameters": {
+          "ContinueFlowExecution": "True",
+          "ThirdPartyConnectionTimeLimitSeconds": "30",
+          "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "CallFailed",
+              "NextAction": "disconnect"
+            },
+            {
+              "ErrorType": "ConnectionTimeLimitExceeded",
+              "NextAction": "disconnect"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}
