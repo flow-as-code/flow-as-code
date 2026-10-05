@@ -1,0 +1,35 @@
+{
+  "InstanceId": "{{INSTANCE_ID}}",
+  "Name": "fac-probe-39-AuthenticateParticipant",
+  "Type": "CONTACT_FLOW",
+  "Status": "PUBLISHED",
+  "Description": "Rule 39 probe: Authenticate Customer in an inbound flow, Parameters empty so the refusal names the first required key (the page names none); may be refused for want of customer authentication or a Cognito pool, which moves it to D09.",
+  "Content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Metadata": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "AuthenticateParticipant",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

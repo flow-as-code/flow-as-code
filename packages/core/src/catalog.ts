@@ -146,7 +146,22 @@ export interface CatalogTransitions {
   waits?: boolean;
 }
 
-export type ActionCategory = "contact" | "participant" | "flowControl" | "interaction";
+/**
+ * Which Developer Guide category page lists the type (contact, participant,
+ * flowControl, interaction), or `other`: a type no category page lists, known
+ * from an admin-guide block page or a console export (see `CatalogSource`).
+ */
+export type ActionCategory = "contact" | "participant" | "flowControl" | "interaction" | "other";
+
+/**
+ * Where a type's `doc` comes from. Absent means `devguide`: the entry's page
+ * is on one of the four Developer Guide category pages. `adminguide` is an
+ * Administrator Guide block page that names the Type. `console-export` is a
+ * Type no AWS page documents, known from a console export kept under
+ * `conformance/`; its `doc` is that export's repository path, or the API
+ * Reference page once one exists.
+ */
+export type CatalogSource = "devguide" | "adminguide" | "console-export";
 
 /**
  * A contact channel, as the service's Channel enum spells it.
@@ -172,6 +187,7 @@ export interface ModeledAction {
   category: ActionCategory;
   doc: string;
   modeled: true;
+  source?: CatalogSource;
   /** The HCL sub-block name, snakeCaseKey of the Type. */
   block: string;
   terminal: boolean;
@@ -203,6 +219,7 @@ export interface UnmodeledAction {
   category: ActionCategory;
   doc: string;
   modeled: false;
+  source?: CatalogSource;
 }
 
 export type CatalogAction = ModeledAction | UnmodeledAction;

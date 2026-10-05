@@ -1,0 +1,35 @@
+{
+  "InstanceId": "{{INSTANCE_ID}}",
+  "Name": "fac-probe-39-CheckSegmentMembership",
+  "Type": "CONTACT_FLOW",
+  "Status": "PUBLISHED",
+  "Description": "Rule 39 probe: Customer profiles, Check segment membership, Parameters empty so the refusal names the first required key (the page names none).",
+  "Content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Metadata": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CheckSegmentMembership",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

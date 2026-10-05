@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-35 modeled types follow. Any other type (21: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `ResumeContact`, `UpdatePreviousContactParticipantState`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`) is written as a `generic` block:
+35 modeled types follow. Any other type (26: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `ResumeContact`, `UpdatePreviousContactParticipantState`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {

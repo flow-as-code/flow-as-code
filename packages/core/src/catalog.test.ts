@@ -10,7 +10,7 @@
 // so the same function can be shown to fail on a mutated catalog (CONTRIBUTING:
 // a guarantee ships with a test proven able to fail).
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ActionType,
@@ -69,6 +69,8 @@ const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
 
 const DEVGUIDE = "https://docs.aws.amazon.com/connect/latest/devguide/";
+const ADMINGUIDE = "https://docs.aws.amazon.com/connect/latest/adminguide/";
+const APIREFERENCE = "https://docs.aws.amazon.com/connect/latest/APIReference/";
 
 const ALL_CONNECT_TYPES = [
   "CONTACT_FLOW",
@@ -83,8 +85,37 @@ const ALL_CONNECT_TYPES = [
   "MODULE",
 ].sort();
 
-/** The four category pages and how many types each listed on 2026-09-11. */
-const CATEGORY_COUNTS = { contact: 27, participant: 6, flowControl: 15, interaction: 8 };
+/**
+ * The four category pages and how many types each listed on 2026-09-11
+ * (rechecked 2026-10-05, matching), and `other`: the types no category page
+ * lists, known from an admin-guide block page or a console export
+ * (conformance/flow-language/actions.md, "Unmodeled actions", 2026-10-05).
+ */
+const CATEGORY_COUNTS = { contact: 27, participant: 6, flowControl: 15, interaction: 8, other: 5 };
+
+/** The categories whose entries come from the Developer Guide (source absent or `devguide`). */
+const DEVGUIDE_CATEGORIES = new Set(["contact", "participant", "flowControl", "interaction"]);
+
+/**
+ * Where an entry's `doc` must point, by its source: a Developer Guide page,
+ * an Administrator Guide page, or (for a Type no page documents) the API
+ * Reference page or the repository path of the console export that names it.
+ */
+function docProblem(type: string, doc: string, source: string): string | undefined {
+  const page = (prefix: string) => doc.startsWith(prefix) && doc.endsWith(".html");
+  switch (source) {
+    case "devguide":
+      return page(DEVGUIDE) ? undefined : `${type}: doc is not a developer guide page`;
+    case "adminguide":
+      return page(ADMINGUIDE) ? undefined : `${type}: doc is not an admin guide page`;
+    case "console-export":
+      if (page(APIREFERENCE)) return undefined;
+      if (doc.startsWith("conformance/") && existsSync(new URL(doc, root))) return undefined;
+      return `${type}: doc is neither an API Reference page nor a kept console export`;
+    default:
+      return `${type}: source ${source} is unknown`;
+  }
+}
 
 /**
  * The bounds actions.ts carries as constants, by type and top-level key, and
@@ -225,15 +256,30 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       `${String(Object.keys(actions).length)} entries but the categories list ${String(total)}`,
     );
   }
-
-  // Every entry cites its page; unmodeled entries carry nothing else.
+  // The reverse: every entry is listed by the category it names.
   for (const [type, entry] of Object.entries(actions)) {
-    if (!entry.doc.startsWith(DEVGUIDE) || !entry.doc.endsWith(".html")) {
-      out.push(`${type}: doc is not a developer guide page`);
+    const listed = catalog.categories[entry.category]?.types ?? [];
+    if (!listed.includes(type))
+      out.push(`${type} has an entry but category ${entry.category} does not list it`);
+  }
+
+  // Every entry cites its page, where its source says the page is: a
+  // Developer Guide entry (source absent) on that guide, an `other` entry on
+  // the admin guide or in a kept console export. Unmodeled entries carry
+  // nothing else.
+  for (const [type, entry] of Object.entries(actions)) {
+    const source = entry.source ?? "devguide";
+    if (DEVGUIDE_CATEGORIES.has(entry.category) && source !== "devguide") {
+      out.push(`${type}: listed on a developer guide category page but its source is ${source}`);
     }
+    if (!DEVGUIDE_CATEGORIES.has(entry.category) && source === "devguide") {
+      out.push(`${type}: in category ${entry.category} with no source outside the developer guide`);
+    }
+    const problem = docProblem(type, entry.doc, source);
+    if (problem !== undefined) out.push(problem);
     if (!entry.modeled) {
       const keys = Object.keys(entry).sort();
-      if (keys.join(",") !== "category,doc,modeled") {
+      if (!["category,doc,modeled", "category,doc,modeled,source"].includes(keys.join(","))) {
         out.push(`${type}: unmodeled entry carries ${keys.join(",")}`);
       }
     }
@@ -454,11 +500,32 @@ describe("the action catalog", () => {
     );
   });
 
-  it("records the four category pages and the flow language root", () => {
+  it("records the four category pages, the block list for the rest, and the flow language root", () => {
     expect(actionCatalog.catalog).toBe("0.1");
     expect(actionCatalog.flowLanguage.version).toBe("2019-10-30");
-    for (const c of Object.values(actionCatalog.categories))
-      expect(c.doc.startsWith(DEVGUIDE)).toBe(true);
+    for (const [name, c] of Object.entries(actionCatalog.categories)) {
+      expect(c.doc.startsWith(name === "other" ? ADMINGUIDE : DEVGUIDE)).toBe(true);
+    }
+    // The five types no category page lists (2026-10-05), and where each is documented.
+    expect(actionCatalog.categories.other.types).toEqual([
+      "RouteContactToAgent",
+      "LoadContactContent",
+      "AuthenticateParticipant",
+      "CheckSegmentMembership",
+      "TransferParticipantToThirdParty",
+    ]);
+    for (const type of actionCatalog.categories.other.types) {
+      const entry = actionCatalog.actions[type]!;
+      expect(entry.modeled).toBe(false);
+      expect(entry.source).toBe(
+        type === "TransferParticipantToThirdParty" ? "console-export" : "adminguide",
+      );
+    }
+    for (const type of Object.keys(actionCatalog.actions)) {
+      if (!actionCatalog.categories.other.types.includes(type)) {
+        expect(actionCatalog.actions[type]!.source).toBeUndefined();
+      }
+    }
     expect(actionCatalog.refTypes).toEqual([
       "queue",
       "hours",
@@ -767,5 +834,82 @@ describe("catalogProblems is proven able to fail", () => {
     expect(
       mutate((c) => (c.categories.interaction.types = c.categories.interaction.types.slice(1))),
     ).toContainEqual(expect.stringContaining("category interaction lists 7 types"));
+  });
+  it("on the fifth category's count off by one, either way", () => {
+    expect(
+      mutate((c) => (c.categories.other.types = c.categories.other.types.slice(1))),
+    ).toContainEqual(expect.stringContaining("category other lists 4 types, expected 5"));
+    expect(
+      mutate((c) => {
+        c.categories.other.types = [...c.categories.other.types, "Compare"];
+      }),
+    ).toContainEqual(expect.stringContaining("category other lists 6 types, expected 5"));
+  });
+  it("on a type listed in a category without an entry, and an entry no category lists", () => {
+    expect(
+      mutate((c) => {
+        c.categories.other.types = [...c.categories.other.types.slice(1), "NotAType"];
+      }),
+    ).toContainEqual(expect.stringContaining("category other lists NotAType, which has no entry"));
+    expect(
+      mutate((c) => {
+        c.categories.other.types = [
+          ...c.categories.other.types.filter((t) => t !== "LoadContactContent"),
+          "Compare",
+        ];
+      }),
+    ).toContainEqual(
+      expect.stringContaining(
+        "LoadContactContent has an entry but category other does not list it",
+      ),
+    );
+  });
+  it("on a developer guide entry pointing at an admin guide page, or carrying a source", () => {
+    expect(
+      mutate((c) => {
+        (c.actions as Record<string, { doc: string }>).CreateCase!.doc =
+          `${ADMINGUIDE}cases-block.html`;
+      }),
+    ).toContainEqual(expect.stringContaining("CreateCase: doc is not a developer guide page"));
+    expect(
+      mutate((c) => {
+        (c.actions as Record<string, { source?: string }>).CreateCase!.source = "adminguide";
+      }),
+    ).toContainEqual(
+      expect.stringContaining(
+        "CreateCase: listed on a developer guide category page but its source is adminguide",
+      ),
+    );
+  });
+  it("on an entry outside the developer guide with the wrong page, no source, or an unknown one", () => {
+    const at = (c: ActionCatalog, type: string) =>
+      (c.actions as Record<string, { doc: string; source?: string }>)[type]!;
+    expect(mutate((c) => (at(c, "LoadContactContent").doc = `${DEVGUIDE}x.html`))).toContainEqual(
+      expect.stringContaining("LoadContactContent: doc is not an admin guide page"),
+    );
+    expect(mutate((c) => delete at(c, "LoadContactContent").source)).toContainEqual(
+      expect.stringContaining("LoadContactContent: in category other with no source"),
+    );
+    expect(mutate((c) => (at(c, "LoadContactContent").source = "blog"))).toContainEqual(
+      expect.stringContaining("LoadContactContent: source blog is unknown"),
+    );
+    expect(
+      mutate(
+        (c) => (at(c, "TransferParticipantToThirdParty").doc = "conformance/roundtrip/nope.json"),
+      ),
+    ).toContainEqual(
+      expect.stringContaining(
+        "TransferParticipantToThirdParty: doc is neither an API Reference page nor a kept console export",
+      ),
+    );
+  });
+  it("on an unmodeled entry carrying a key outside the whitelist", () => {
+    expect(
+      mutate((c) => {
+        (c.actions as Record<string, { channels?: string[] }>).CreateCase!.channels = ["VOICE"];
+      }),
+    ).toContainEqual(
+      expect.stringContaining("CreateCase: unmodeled entry carries category,channels,doc,modeled"),
+    );
   });
 });

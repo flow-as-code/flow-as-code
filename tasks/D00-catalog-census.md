@@ -127,3 +127,89 @@ after D01's extended oracle). Re-vendor at the merge commit; record the
 provider commit here. This task changes nothing the published provider
 reads from an emitted tree, so it may land on main before C11's release
 (tasks/README.md, "How it relates to Phase C").
+
+## Record (2026-10-05)
+
+Landed on branch `feat/d00-catalog-census`, against main at #24, with the
+AWS pages the task names read on 2026-10-05 and the sandbox's 20 default and
+sample flows read with `DescribeContactFlow` the same day (17:24 UTC,
+us-west-2; none carries a Type outside the Developer Guide). Nothing was
+created on the sandbox: the session that did this work was limited to
+read-only calls, so the create probes are written and not run (below).
+
+### What landed
+
+- `catalog.json` (both copies, `npm run sync:schema`): a fifth category,
+  `other`, whose `doc` is the admin guide's block list, and five
+  `modeled: false` entries with a `source`: `RouteContactToAgent`,
+  `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`
+  (`adminguide`, each `doc` its block page) and
+  `TransferParticipantToThirdParty` (`console-export`, `doc` the export's
+  path `conformance/roundtrip/unknown-actions/doc.flowdoc.json`, since the
+  API Reference page renders empty). The four Developer Guide category lists
+  are unchanged and carry no `source` (absent means `devguide`).
+- `catalog.ts`: `ActionCategory` gains `other`; `CatalogSource` is new;
+  `source?` sits on both action shapes. `catalog.test.ts`: `CATEGORY_COUNTS`
+  gains `other: 5`, the doc-prefix check is per source (`docProblem`), the
+  unmodeled whitelist admits `source`, and every entry must be listed by its
+  own category (the reverse of the existing listing check).
+- `actions.md`: "Action categories" describes `other`, "Machine-readable
+  form" describes `source`, "Unmodeled actions" carries the census tables
+  and the generic forms, and rule 39 carries the page quotes, the
+  touchtone note, the block-list reading and the probe design.
+- `conformance/flow-language/probes/39/<Type>.json`: one `CreateContactFlow`
+  input per Type, `Content` as JSON, `{{INSTANCE_ID}}` placeholders, the
+  three Types whose pages name no keys probed with `Parameters` empty.
+- The skill reference regenerated; `SPEC.md` and the `blocks.ts` comment
+  count 61; a `core` patch changeset.
+
+### Relaxed checks and their replacement mutations
+
+| Check relaxed                                             | Replacement, each shown to fail in `catalog.test.ts`                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| every `doc` starts with the devguide prefix               | "on a developer guide entry pointing at an admin guide page, or carrying a source" (`CreateCase` with an admin-guide URL, and with `source: adminguide`); "on an entry outside the developer guide with the wrong page, no source, or an unknown one" (`LoadContactContent` with a devguide URL, without `source`, with `source: blog`; `TransferParticipantToThirdParty` naming a missing export) |
+| an unmodeled entry carries exactly `category,doc,modeled` | "on an unmodeled entry carrying a key outside the whitelist" (`CreateCase` with `channels`)                                                                                                                                                                                                                                                                                                        |
+| `CATEGORY_COUNTS` and the total over four categories      | "on the fifth category's count off by one, either way"; "on a type listed in a category without an entry, and an entry no category lists" (the existing "on a category page losing a type" still fails too)                                                                                                                                                                                        |
+
+### The denominator
+
+| Part                           | Types | Modeled | Note                                                                                                       |
+| ------------------------------ | ----- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| Developer Guide category pages | 56    | 35      | 27 contact, 6 participant, 15 flow control, 8 interactions; rechecked 2026-10-05, matching                 |
+| Administrator Guide only       | 4     | 0       | `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`           |
+| Console export only            | 1     | 0       | `TransferParticipantToThirdParty`                                                                          |
+| Denominator                    | 61    | 35      | 26 unmodeled, none yet refused by the service (Voice ID's two stay in the 56 either way, owner decision 2) |
+| Beside it: console-only blocks | 5     |         | Agentic CX, External Tool, Data Table, Create persistent contact association, Get profile recommendations  |
+
+Forms of modeled types that stay generic and are not counted: Lex V1
+`LexBot`, `VoiceAnalyticsBehavior` and `ChatBehavior`, the older recording
+action's `AnalyticsBehavior`, Wait's console-only forms, and the touchtone
+form of `GetParticipantInput` (`EnableDTMFBuffer`, D09).
+
+Ref types the new Types need, for D01 (the census table in actions.md has
+the detail): a `user` (agent) for `RouteContactToAgent`; a Customer Profiles
+`segment` for `CheckSegmentMembership`, likely; `AuthenticateParticipant`'s
+Cognito pool, app client and object type mapping are not Connect resources
+and are D01's call; `LoadContactContent` and the exported form of
+`TransferParticipantToThirdParty` need none. Three of the five have no known
+parameter keys until an export, so D01 records the risk of a later bump.
+
+### Pending
+
+- The create sweep under rule 39: run `probes/39/*.json` on the sandbox
+  (D01's `scripts/probe-create.mjs`, or by hand the same way), record each
+  result under the rule with date, UTC time, flow type, Region and message,
+  and re-author the three empty-parameter probes from the owner's export.
+  Until then every new entry stands on its page alone.
+- The owner's console export of the five console-only blocks (owner
+  decision 8), under `conformance/flow-language/exports/`; each Type it
+  names is added the same way under this task or D09.
+- terraform-provider-flowascode, in a provider commit before the re-vendor:
+  `internal/flowdoc/catalog.go`'s unmodeled struct (`Category`, `Doc`,
+  `Modeled`) learns `Source string \`json:"source,omitempty"\``(its strict
+decode refuses the new key today; the`ModeledAction`struct need not
+change until D09 models one of these);`ActionCategory`'s comment learns
+`other`; `conformance_test.go`'s `TestCatalogLoads`counts gain`"other": 5`(its`ModeledTypes()`count stays 35); the oracle's`perType`gains the five Types (re-recorded by`catalog-oracle.mjs`against this commit's`packages/core/dist`, or by hand as `modeled:
+  false`rows like the 21 existing unmodeled ones;`catalogOrder`is
+unchanged). It has no doc-prefix check. Then`scripts/sync-conformance.sh <merge commit>`, and the provider commit
+  recorded here.
