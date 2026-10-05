@@ -25,3 +25,14 @@ opened).
 - Every task file C01 to C09 and C12 to C15 records what landed against each
   criterion, and C10 says whether its gate opened.
 - CI is green on main at the closing commit, checked with `gh run list`.
+
+## Status (2026-10-05)
+
+Open. C02 to C06 and C12 to C15 are on main (the Phase C section of
+`tasks/README.md`, "Where it stands"); the provider re-vendor those tasks
+record as pending is this task's, and C07 to C09 are still ahead of it.
+
+Follow-up this task carries: C01, "Known timing-sensitive tests", records
+three tests that failed on timing on 2026-10-05 (one on a PR run, two on a
+loaded local run, none on main). Deflake each with the cause named, or
+record why its wait is correct, before closing; a retry is not a record.

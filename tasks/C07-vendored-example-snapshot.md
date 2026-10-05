@@ -62,3 +62,9 @@ flowascode` from the release carrying C12 refuses that run instead (exit 1,
 nothing written) unless `--allow-unbound` is passed. The satellite commit
 this task pins must carry that fix (filed there), or its own check is red at
 the pin.
+
+## Status (2026-10-05)
+
+Not started. Waits on a commit in
+`flow-as-code/hollow-hour-example-typescript` to pin, taken at the tag C09
+will link; nothing of the showcase is vendored here yet.

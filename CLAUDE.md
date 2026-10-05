@@ -19,14 +19,12 @@ Status only where it changes what you should do. The work record is `tasks/`.
   history was squashed to a single commit before publication, so there is no
   earlier commit to read; `tasks/` is the record of how anything got the way it
   is, and blame will not tell you.
-- CI runs on GitHub Actions and is green on main again since the C01 fix
-  (#21, merged 2026-10-01 UTC): the two completed runs since it, 36794827383
-  (#22) and 36795832942 (#23), passed, and the runs for #20 and #21 themselves
-  were cancelled by the merges that followed them. The run for #19
-  (36742854426) had been red on an intermittent studio test teardown error.
-  C01 asks for three consecutive green runs and has two; it closes on the
-  next. Check a claim about a run with `gh run list`, not against a note in a
-  doc.
+- CI runs on GitHub Actions and is green on main (37377884054, the merge of
+  #35 on 2026-10-05). C01 closed on 2026-10-05 on run 37344998368 (#25), the
+  third consecutive green after its fix (#21); its file lists every run on
+  main that day, including two red ones with their causes, and the
+  timing-sensitive tests seen on PR and local runs. Check a claim about a run
+  with `gh run list`, not against a note in a doc.
 - The site is live: https://flow-as-code.dev/ and the read-only studio at
   https://flow-as-code.dev/studio/, deployed by `.github/workflows/pages.yml`
   on push to main. A change under `site/` or in the studio ships on merge.
@@ -92,9 +90,11 @@ Status only where it changes what you should do. The work record is `tasks/`.
   site carries the provider tutorials, the flow cookbook and the agent skills.
 - Phase C (a vendored showcase and the tool gaps it exposed, tasks C01 to
   C15) was planned on 2026-09-30; the plan is the Phase C section of
-  `tasks/README.md`. The showcase itself is built in its own repository,
-  `flow-as-code/hollow-hour-example-typescript`; nothing of it is vendored here until C07, and
-  C07 to C09 wait on a commit (and, for C09, a public tag) there.
+  `tasks/README.md`. Its code tasks (C02 to C06, C12 to C15) merged on
+  2026-10-05; only C07 to C11 remain. The showcase itself is built in its own
+  repository, `flow-as-code/hollow-hour-example-typescript`; nothing of it is
+  vendored here until C07, and C07 to C09 wait on a commit (and, for C09, a
+  public tag) there.
 - Phase D (every Connect flow action modeled, tasks D00 to D10) was planned
   on 2026-10-04; the plan is the Phase D section of `tasks/README.md`.
 

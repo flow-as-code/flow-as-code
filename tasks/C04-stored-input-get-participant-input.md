@@ -159,3 +159,10 @@ pending (below).
   - The conformance canary goes red after this merges until the re-vendor
     lands. Provider pull requests trigger the sandbox acceptance lane: ask
     before opening one.
+
+## Status (2026-10-05)
+
+Merged to main in #27 (`1b674b1`, 2026-10-05 17:26 UTC). Its own CI run was
+cancelled by the merge of #28 seven seconds later; the run for #28
+(37348490241) carried both and passed. The provider re-vendor above is still
+pending and is C11's.

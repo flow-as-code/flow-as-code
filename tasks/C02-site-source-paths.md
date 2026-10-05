@@ -71,3 +71,8 @@ than dist-demo: expected true to be false`.
   compares, with the list spelled out.
 
 Done apart from the C08 criterion, which the derived test holds for C08.
+
+## Status (2026-10-05)
+
+Merged to main in #25 (`940af58`, 2026-10-05 16:59 UTC). Its CI run,
+37344998368, is the one that closed C01. The C08 criterion stays with C08.

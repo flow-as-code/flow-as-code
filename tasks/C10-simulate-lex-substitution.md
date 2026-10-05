@@ -28,3 +28,7 @@ https://docs.aws.amazon.com/connect/latest/devguide/testing-language-actions-ove
 - The documented limits still hold: 5 concurrent, 100 queued, 5-minute
   duration, and every scenario ends its test.
 - The provider re-vendors `conformance/` if the fixture lands there.
+
+## Status (2026-10-05)
+
+Gated. Lex has not entered the showcase's scope; the task has not started.

@@ -75,3 +75,14 @@ flows/outputs.tf` is now the emitter's output for the flow, byte for byte,
 
 Changeset: `.changeset/emit-per-flow-outputs.md` (`@flow-as-code/hcl` and
 `@flow-as-code/cli` minor).
+
+## Status (2026-10-05)
+
+Merged as #32 (`27a9b16`, 2026-10-05 18:12 UTC) into its base branch,
+`feat/c12-emit-bindings-diagnostics`, not into main: C12 had reached main
+through #29 three minutes earlier, and a merged branch carries nothing
+further. C05 (#34) then merged into this task's branch the same way. Both
+reached main through #39 (`8b00b1b`, 21:22 UTC), opened from this branch and
+retargeted to main; its run, 37375455463, passed. `tasks/README.md`,
+"Lessons", records the rule. The provider re-vendor above is still pending
+and is C11's.
