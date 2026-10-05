@@ -259,3 +259,247 @@ and lints clean against the current catalog in CI; the tutorial is on the site
 and links only to the satellite at a tag; C03 to C06 and C12 to C15 are
 released with fixtures and a provider re-vendor where `conformance/` changed;
 CI is green on main.
+
+# Phase D: every Connect flow action modeled (planned 2026-10-04)
+
+Planned 2026-10-04. The owner's goal: flow-as-code models every Amazon Connect
+flow action, so the Hollow Hour showcase
+(`flow-as-code/hollow-hour-example-typescript` and its Terraform-first
+sibling, `flow-as-code/hollow-hour-example-terraform`) can exercise every one
+through typed blocks rather than generic ones. Today 35 of the 56 types on the
+Developer Guide's four category pages are modeled; the other 21 parse to a
+GenericBlock and round-trip verbatim. AWS also documents Types outside those
+pages, and the console emits at least one Type no page lists. This phase
+states what "every" is measured against (D00), lands the format and tooling
+changes the remaining types need all at once (D01), models them in groups
+on the evidence rule's terms (D02 to D09), and releases them in an order that
+never leaves a published reader behind a published writer (D10).
+
+Nothing of the showcase is built here. The showcase consumes the release in
+its own repositories (its Tier 4); this repository records only that the
+vendored snapshot still lints clean (C07's re-sync).
+
+## Why a separate phase
+
+Phase C has a definition of done centred on the showcase's first tiers and a
+closing task, C11, gated on a fixed list. Twenty-five or more new types is a
+B01-sized effort: a format version, catalog vocabulary, a provider minor and a
+live sweep per group. Numbering it C16 onwards would hold Phase C open on work
+its definition of done never named, and C12 to C15 being numbered after C11
+was already a workaround. A phase of its own can close on its own evidence.
+
+## How it relates to Phase C
+
+- Phase C closes and releases on its own first. C11 ships what C01 to C15
+  produce (0.2.x or 0.3.0, as the changesets decide); Phase D's release is
+  D10, separate. Folding D into C11 would hold C's release on live evidence
+  that needs owner actions (feature enablement, quota tickets).
+- D01 is gated on C03. C03 adds the catalog's `channels` field, and several
+  types here are restricted by channel (media streaming, media processing,
+  `CreateWisdomSession`, Voice ID, `UpdatePreviousContactParticipantState`,
+  `StartOutboundChatContact`). D01 extends that vocabulary; it does not
+  invent a second one.
+- C04 touches `GetParticipantInput`'s stored form and does not block, but
+  D00's new `GetParticipantInput` parameters land after it, on the same type.
+- C01 is not closed: its file still records no CI runs. Main has two green
+  runs since the fix (36794827383 for #22, 36795832942 for #23; the runs for
+  #20 and #21 were cancelled). The third consecutive green run is recorded in
+  C01 with all three URLs before C11, and that is Phase C's work, not D's.
+- "Considered and not taken" in Phase C says flow-type and channel
+  restrictions on unmodeled types wait until "modeling them is its own task".
+  Phase D is that task.
+
+## Order
+
+| #   | Task                                                                 | Group    | Gate                                    |
+| --- | -------------------------------------------------------------------- | -------- | --------------------------------------- |
+| D00 | Catalog census: what "every action" is measured against              | contract | none                                    |
+| D01 | FlowDoc 0.3, catalog vocabulary, provider and oracle prep            | contract | C03 merged, D00                         |
+| D02 | Contact state (4 types); re-author `roundtrip/unknown-actions`       | engine   | D01                                     |
+| D03 | Customer Profiles (6 types)                                          | engine   | D01, a Profiles domain on the sandbox   |
+| D04 | Outbound (3 types)                                                   | engine   | D01; deploy-only where quotas block     |
+| D05 | Tasks and AI agents (`CreateTask`, `CreateWisdomSession`)            | engine   | D01, an AI agents domain on the sandbox |
+| D06 | Cases (3 types); ADR on per-domain field ids                         | engine   | D01, D03's Profiles domain, a Cases one |
+| D07 | `UpdateRoutingCriteria`; ADR on the recursive expression             | engine   | D01                                     |
+| D08 | Voice ID (2 types), gated on the service still accepting them        | engine   | D01, a probe                            |
+| D09 | Types D00 adds from the admin guide and console exports              | engine   | D00 exports, D01                        |
+| D10 | Release: provider minor, npm 0.3.0, pins, then the showcase consumes | release  | D02 to D09, C11 released                |
+
+D02 to D09 may run in any order once D01 is merged; the order above is
+cheapest evidence first. Each group follows B01's pattern: one commit per
+type, a group fixture, a review round (reviewers and a refuter per finding;
+B01 found 14 to 38 findings per group), then the live sweep recorded as a
+numbered rule in `conformance/flow-language/actions.md` (39 onwards).
+
+## The per-type checklist
+
+Every type in D02 to D09 lands with all of the following, in one commit per
+type unless a line says otherwise. Each task file repeats it as its
+"Both repositories" list and adds what is particular to its group.
+
+flow-as-code:
+
+1. `conformance/flow-language/catalog.json` entry (`modeled: true`, `block`,
+   `terminal`, `flowTypes`, `channels`, `parameters`, `constraints`, `refs`,
+   `transitions`, and `textBodies`, `announces`, `recordingEnabler`, `waits`
+   or `shapes` where they apply), copied by `npm run sync:schema`.
+2. `conformance/flow-language/actions.md`: a Modeled set row, a
+   Reference-bearing parameters row for each ref, a Per-action parameter
+   shapes entry, the "Unmodeled actions" count, and the group's numbered rule.
+3. `packages/core/src/actions.ts` tables, held by `catalog.test.ts` and
+   `actions.test.ts`; a new catalog vocabulary item has a mutation test.
+4. A block class in `blocks.ts`, an inverter in `codegen.ts`, exports from
+   `index.ts`, tests in `codegen.test.ts` and `synth.test.ts`.
+5. A per-type clause in `conformance/schema/flowdoc-0.3.schema.json` (never
+   in the frozen 0.2 schema).
+6. Lint fixtures under `conformance/lint/<rule>/` where the type adds a case;
+   new rule code in `packages/core/src/lint/` only for a new constraint form.
+7. The group's `conformance/roundtrip/<group>/doc.flowdoc.json`, and a
+   `conformance/hcl/roundtrip/<case>/expected.flow.tf` carrying the typed
+   sub-block.
+8. Studio: palette entry and default parameters (`palette.ts`), inspector
+   fields with ref pickers (`inspectorSchema.ts`), drag rules in
+   `mutations.ts` only where conditions or errors need them, with tests.
+9. The skill reference regenerated (`node scripts/build-skill-reference.mjs`)
+   in the same commit as the catalog change; the modeled count in
+   `packages/core/SPEC.md`.
+10. A changeset per group (`core`, and `studio` where the palette or inspector
+    changed).
+
+terraform-provider-flowascode, once per group at a merge commit on main here:
+
+11. `scripts/sync-conformance.sh <sha>`; `internal/conformance/COMMIT` and
+    `MANIFEST.json` updated.
+12. The oracles re-recorded against a built flow-as-code: the extended
+    `catalog-oracle.mjs` (D01), `lint-oracle.mjs`, `export-oracle.mjs`,
+    `materialize/testdata/oracle.mjs`, `ajv-oracle.mjs`.
+13. A lint port in `internal/lint/rule_*.go` for any new rule or constraint
+    form, and the acceptance fake taught any refusal the group relies on.
+14. `CHANGELOG.md` names the vendored commit; the provider commit is recorded
+    in the task file.
+
+## The evidence rule for this phase
+
+`CLAUDE.md` allows a change to the catalog's error branches, conditions or
+shapes only on a create the service refuses or accepts, recorded with its date
+and message. For every type here that means a sweep on the sandbox instance
+(rule 37's and 38's method), each probe a throwaway `CreateContactFlow`
+created as PUBLISHED and deleted after, its deletion confirmed by a describe
+call that returns `ResourceNotFoundException`:
+
+- the required set alone is accepted;
+- each catalog-required error removed alone is refused;
+- the type without `NextAction` is refused (or, for a terminal type, with one
+  is refused);
+- each flow type the catalog allows or forbids that the pages disagree on is
+  probed, and each doubtful spelling or shape is put to the service;
+- each result is recorded with the date, UTC time, flow type, Region and the
+  exception message, never the account or instance id.
+
+Probe inputs are kept (rule 37 regrets losing them), under
+`conformance/flow-language/probes/<rule>/`, with every account, instance and
+resource id replaced by a named placeholder that D01's runner fills from the
+environment at run time. A probe that fails on a missing instance feature
+rather than on the catalog (rule 37's `UpdateContactData` on an instance
+without Voice ID) is rerun on an instance with the feature, and the first
+result is recorded as what it was.
+
+Two kinds of coverage are kept apart throughout. "Deployable" is a create the
+service accepts. "Exercisable" is a live contact running the action. Phase D
+needs the first for every type; the second is the showcase's, and several
+types (outbound campaigns, SMS, Voice ID) may only ever be deployable.
+
+## Definition of done for Phase D
+
+- D00's census is merged and states the denominator: every Type in it is
+  either modeled, with its catalog entry, builder class, inverter, schema
+  clause, studio entry and fixtures, or recorded in actions.md as not
+  modeled with the evidence for why (a create the service refuses, or a
+  console-only block whose export was not obtainable), and that list is
+  named in the release notes.
+- Every modeled type added in this phase has its sweep recorded as a
+  numbered rule with its probe inputs kept.
+- FlowDoc 0.3 is the current version, 0.2 is frozen byte for byte, and every
+  reader in both repositories migrates a 0.2 document on the way in.
+- The provider release that reads 0.3 is on both registries and was
+  published no later than the npm set that writes it; the emit-tf lane
+  validates a case holding the new typed blocks against it.
+- `roundtrip/unknown-actions` still exercises passthrough.
+- CI is green on main at the closing commit, checked with `gh run list`, and
+  `tasks/README.md` gains a "Where it ended" for Phase D.
+
+## Considered and not taken
+
+- Numbering the work C16 onwards (see "Why a separate phase").
+- One FlowDoc bump per new ref type. An older reader refuses a document
+  carrying a token it does not know, so each bump is a release both
+  repositories must make in step. One bump, landed first in D01, carrying
+  every ref type the census shows, costs one migration.
+- Adding per-type clauses to the released 0.2 schema. It would tighten a
+  published format; B01 did that only before 0.2 shipped.
+- Typing every console form of already modeled types (Lex V1 `LexBot`,
+  `VoiceAnalyticsBehavior` and `ChatBehavior` on the recording and analytics
+  action, the older recording action's `AnalyticsBehavior`, Wait's
+  console-only forms). They round-trip as generic blocks today, which the
+  showcase can exercise; each becomes a task when a user needs the typed
+  form. D00 records them so the denominator does not hide them.
+- A `voiceconnector` ref type for `CompleteOutboundCall`'s Chime
+  `VoiceConnector` form, by default (owner decision 4).
+- A `number` catalog kind for `UpdateRoutingCriteria`'s `ProficiencyLevel`, by
+  default: the expression is a `json` value (D07), so nothing outside it
+  needs a float.
+- Exercising Voice ID live. The service ended on 2026-05-20; D08 probes only
+  whether a create is still accepted.
+
+## Owner decisions
+
+Each has a recommended default that the plan assumes until the owner says
+otherwise. Record the answer and its date here when given.
+
+1. **The denominator.** Default: the D00 census, counted as the 56 Developer
+   Guide Types, plus the Types other AWS pages document
+   (`RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`,
+   `CheckSegmentMembership`), plus console-exported Types
+   (`TransferParticipantToThirdParty`, and each console-only block once an
+   export names its Type). Not counted: forms of modeled types listed under
+   "Considered and not taken".
+2. **Voice ID.** Default: probe once (D08). If the service accepts a create,
+   model both types as deployable only; if it refuses, record the refusal
+   and leave them generic, outside the denominator with that reason.
+3. **0.3 schema strictness against migrated 0.2 documents.** Default: a 0.3
+   per-type clause encodes only what the service enforces at create, so any
+   0.2 document the service accepted also validates after migration; a test
+   migrates every 0.2 fixture that holds one of the newly modeled types
+   generically and validates it against 0.3. A shape the clause refuses but
+   the service accepts stays generic in codegen rather than failing a read.
+4. **Chime voice connector.** Default: no `voiceconnector` ref type;
+   `CompleteOutboundCall` is typed for its caller-id and time-limit form, and
+   a block carrying `VoiceConnector` stays generic, as Lex V1 does.
+5. **Cases field ids.** Default: a `casefield` ref type and tokens as map
+   keys in `CaseRequestFields` (a new path form), because field ids are
+   per-domain UUIDs and the showcase's environments may differ only in
+   bindings. D06's ADR records the alternative (literal ids, an accepted
+   limitation) and why it was not taken, or the owner's choice if different.
+6. **Outbound gates.** Default: no campaigns quota ticket and no SMS
+   registration. `CheckOutboundCallStatus` and `StartOutboundChatContact`
+   are modeled on create evidence alone and documented as deployable, not
+   exercisable. Either gate can be opened later without changing the model.
+7. **Sandbox features.** Default: enable on the sandbox instance only, kept
+   between tasks and torn down at D10: a Customer Profiles domain, a Cases
+   domain with one template and two fields, an AI agents assistant on an
+   AWS-owned key with no knowledge base, live media streaming with no
+   retention, one Lambda associated as `MESSAGE_PROCESSOR`, one predefined
+   attribute, one task template, and one claimed US DID kept and never
+   released (the release cooldown makes reclaiming costly). Each is an owner
+   action: the IAM writes and feature enablement are refused to agents.
+8. **Console exports for undocumented blocks.** Default: the owner builds one
+   flow in the sandbox console holding each block D00 lists without a
+   documented Type, exports it, and commits the export (ids replaced by
+   placeholders) under `conformance/flow-language/exports/`; D09 models
+   from it.
+9. **Release order.** Default: provider v0.2.0 (reads FlowDoc 0.3) is
+   published before npm 0.3.0, not after; both after C11's release.
+10. **The passthrough fixture once every Type is modeled.** Default: it keeps
+    any console-only Type still unmodeled; if none remains, it holds a
+    synthetic Type name, documented as such, and the codegen test asserts the
+    name is absent from the catalog.
