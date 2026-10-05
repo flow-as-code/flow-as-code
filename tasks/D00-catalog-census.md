@@ -133,9 +133,10 @@ reads from an emitted tree, so it may land on main before C11's release
 Landed on branch `feat/d00-catalog-census`, against main at #24, with the
 AWS pages the task names read on 2026-10-05 and the sandbox's 20 default and
 sample flows read with `DescribeContactFlow` the same day (17:24 UTC,
-us-west-2; none carries a Type outside the Developer Guide). Nothing was
-created on the sandbox: the session that did this work was limited to
-read-only calls, so the create probes are written and not run (below).
+us-west-2; none carries a Type outside the Developer Guide). The
+session that did this work was limited to read-only calls; the create
+probes it wrote were then run by the coordinator the same day on a
+development instance in us-east-1 (rule 40 has the messages, below).
 
 ### What landed
 
@@ -155,9 +156,10 @@ read-only calls, so the create probes are written and not run (below).
   own category (the reverse of the existing listing check).
 - `actions.md`: "Action categories" describes `other`, "Machine-readable
   form" describes `source`, "Unmodeled actions" carries the census tables
-  and the generic forms, and rule 39 carries the page quotes, the
-  touchtone note, the block-list reading and the probe design.
-- `conformance/flow-language/probes/39/<Type>.json`: one `CreateContactFlow`
+  and the generic forms, and rule 40 carries the page quotes, the
+  touchtone note, the block-list reading, the probe design and the probe
+  results.
+- `conformance/flow-language/probes/40/<Type>.json`: one `CreateContactFlow`
   input per Type, `Content` as JSON, `{{INSTANCE_ID}}` placeholders, the
   three Types whose pages name no keys probed with `Parameters` empty.
 - The skill reference regenerated; `SPEC.md` and the `blocks.ts` comment
@@ -173,13 +175,13 @@ read-only calls, so the create probes are written and not run (below).
 
 ### The denominator
 
-| Part                           | Types | Modeled | Note                                                                                                       |
-| ------------------------------ | ----- | ------- | ---------------------------------------------------------------------------------------------------------- |
-| Developer Guide category pages | 56    | 35      | 27 contact, 6 participant, 15 flow control, 8 interactions; rechecked 2026-10-05, matching                 |
-| Administrator Guide only       | 4     | 0       | `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`           |
-| Console export only            | 1     | 0       | `TransferParticipantToThirdParty`                                                                          |
-| Denominator                    | 61    | 35      | 26 unmodeled, none yet refused by the service (Voice ID's two stay in the 56 either way, owner decision 2) |
-| Beside it: console-only blocks | 5     |         | Agentic CX, External Tool, Data Table, Create persistent contact association, Get profile recommendations  |
+| Part                           | Types | Modeled | Note                                                                                                                                                                                              |
+| ------------------------------ | ----- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Developer Guide category pages | 56    | 35      | 27 contact, 6 participant, 15 flow control, 8 interactions; rechecked 2026-10-05, matching                                                                                                        |
+| Administrator Guide only       | 4     | 0       | `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`                                                                                                  |
+| Console export only            | 1     | 0       | `TransferParticipantToThirdParty`                                                                                                                                                                 |
+| Denominator                    | 61    | 35      | 26 unmodeled; of the five new, two accepted, one refused naming its shape, two refused as unknown Type on that instance, not decided (Voice ID's two stay in the 56 either way, owner decision 2) |
+| Beside it: console-only blocks | 5     |         | Agentic CX, External Tool, Data Table, Create persistent contact association, Get profile recommendations                                                                                         |
 
 Forms of modeled types that stay generic and are not counted: Lex V1
 `LexBot`, `VoiceAnalyticsBehavior` and `ChatBehavior`, the older recording
@@ -196,11 +198,21 @@ parameter keys until an export, so D01 records the risk of a later bump.
 
 ### Pending
 
-- The create sweep under rule 39: run `probes/39/*.json` on the sandbox
-  (D01's `scripts/probe-create.mjs`, or by hand the same way), record each
-  result under the rule with date, UTC time, flow type, Region and message,
-  and re-author the three empty-parameter probes from the owner's export.
-  Until then every new entry stands on its page alone.
+- Rule 40's results, 2026-10-05, us-east-1, a development instance with no
+  Customer Profiles domain, no Cases domain and no Lex bot, every accepted
+  flow deleted: `AuthenticateParticipant` refused at 17:34:32Z naming
+  `CognitoConfiguration`, `CustomerProfilesConfiguration` and
+  `TimeLimitMinutes` as required, a required `TimeLimitExceeded` branch and
+  an "Invalid Action property value" on `Transitions.Conditions`;
+  `CheckSegmentMembership` (17:34:34Z) and `RouteContactToAgent`
+  (17:34:40Z, customer queue flow) refused "Invalid Action type";
+  `LoadContactContent` (17:34:36Z) and `TransferParticipantToThirdParty`
+  (17:34:42Z) accepted. The two "Invalid Action type" refusals are not
+  decided (the name, or a feature the instance lacks; rule 37's Voice ID
+  precedent): re-probe on an instance with a Customer Profiles domain
+  (D03) before D09 concludes anything, and re-author the
+  `AuthenticateParticipant` input once an export shows the three keys'
+  shapes.
 - The owner's console export of the five console-only blocks (owner
   decision 8), under `conformance/flow-language/exports/`; each Type it
   names is added the same way under this task or D09.

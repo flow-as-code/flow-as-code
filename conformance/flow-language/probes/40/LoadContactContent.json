@@ -1,9 +1,9 @@
 {
   "InstanceId": "{{INSTANCE_ID}}",
-  "Name": "fac-probe-39-CheckSegmentMembership",
+  "Name": "fac-probe-40-LoadContactContent",
   "Type": "CONTACT_FLOW",
   "Status": "PUBLISHED",
-  "Description": "Rule 39 probe: Customer profiles, Check segment membership, Parameters empty so the refusal names the first required key (the page names none).",
+  "Description": "Rule 40 probe: Get stored content with the page's Flow language example; email need not be enabled for a create to be judged, and a refusal naming it is recorded as such.",
   "Content": {
     "Version": "2019-10-30",
     "StartAction": "probe",
@@ -11,8 +11,10 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "CheckSegmentMembership",
-        "Parameters": {},
+        "Type": "LoadContactContent",
+        "Parameters": {
+          "ContentType": "EmailMessage"
+        },
         "Transitions": {
           "NextAction": "disconnect",
           "Errors": [

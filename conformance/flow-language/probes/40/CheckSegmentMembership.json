@@ -1,9 +1,9 @@
 {
   "InstanceId": "{{INSTANCE_ID}}",
-  "Name": "fac-probe-39-AuthenticateParticipant",
+  "Name": "fac-probe-40-CheckSegmentMembership",
   "Type": "CONTACT_FLOW",
   "Status": "PUBLISHED",
-  "Description": "Rule 39 probe: Authenticate Customer in an inbound flow, Parameters empty so the refusal names the first required key (the page names none); may be refused for want of customer authentication or a Cognito pool, which moves it to D09.",
+  "Description": "Rule 40 probe: Customer profiles, Check segment membership, Parameters empty so the refusal names the first required key (the page names none).",
   "Content": {
     "Version": "2019-10-30",
     "StartAction": "probe",
@@ -11,7 +11,7 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "AuthenticateParticipant",
+        "Type": "CheckSegmentMembership",
         "Parameters": {},
         "Transitions": {
           "NextAction": "disconnect",

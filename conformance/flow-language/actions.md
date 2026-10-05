@@ -1030,11 +1030,11 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
     https://docs.aws.amazon.com/connect/latest/APIReference/API_DescribeContactFlow.html
     https://docs.aws.amazon.com/connect/latest/adminguide/sample-secure-input-with-noagent.html
 
-39. Catalog census outside the Developer Guide (2026-10-05, pages read
+40. Catalog census outside the Developer Guide (2026-10-05, pages read
     that day). Five Types no category page lists are recorded as
     `modeled: false` entries in category `other`, with a `source`. The
-    pages were read on 2026-10-05; the create probes the evidence rule
-    asks for are written but not yet run (below).
+    pages were read on 2026-10-05, and each Type was put to the service the
+    same day (the create probes, below).
     - `RouteContactToAgent`: "The **Interrupt agent** block is represented
       as the `RouteContactToAgent` action in the Connect Customer Flow
       language." "This block can only be used in a **Customer queue
@@ -1123,7 +1123,7 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       none of the five Types and none of the console-only blocks, so no
       export was obtained that way.
     - Create probes. One probe input per Type is kept under
-      `conformance/flow-language/probes/39/`, each a `CreateContactFlow`
+      `conformance/flow-language/probes/40/`, each a `CreateContactFlow`
       input with `Content` as JSON rather than a string (the runner
       serializes it), `Status` `PUBLISHED`, the Type as the first action
       aimed at a `DisconnectParticipant`, and placeholders of the form
@@ -1132,14 +1132,55 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       The three Types whose pages name no parameter keys
       (`RouteContactToAgent`, `AuthenticateParticipant`,
       `CheckSegmentMembership`) are probed with `Parameters` empty, so the
-      first refusal names the first required property; their inputs are
-      re-authored once the owner's export (owner decision 8) shows the
-      keys. None of the five has been run: this task's session was
-      limited to read-only calls, so every entry stands on its page alone
-      and is counted as not probed. The sweep is pending, and each
-      result, accepted or refused, with its date, UTC time, flow type,
-      Region and message, is to be added under this rule before the Type
-      is modeled (D09).
+      first refusal names the first required property.
+    - The five were run on 2026-10-05 (`CreateContactFlow` with
+      `--cli-error-format json`, us-east-1, a development instance with
+      no Customer Profiles domain, no Cases domain and no Lex bot; flows
+      named `hh-probe-40-<Type>`; every accepted flow deleted, with no
+      leftovers). The messages, verbatim:
+      - `AuthenticateParticipant` (contact flow): refused at 17:34:32Z,
+        `InvalidContactFlowException`, with five problems: "Action is
+        missing required error. Error: TimeLimitExceeded, Path:
+        Actions[0]"; "Invalid Action property value. Path:
+        Actions[0].Transitions.Conditions"; "Action is missing required
+        property. Path: Actions[0].Parameters.CognitoConfiguration";
+        "Action is missing required property. Path:
+        Actions[0].Parameters.CustomerProfilesConfiguration"; "Action is
+        missing required property. Path:
+        Actions[0].Parameters.TimeLimitMinutes". Reading: the Type exists;
+        the service names three required parameter keys
+        (`CognitoConfiguration`, `CustomerProfilesConfiguration`,
+        `TimeLimitMinutes`) and a required `TimeLimitExceeded` branch, and
+        expects `Conditions` of a shape the probe's empty list did not
+        meet (the page's Opted out branch, presumably; unknown until an
+        export).
+      - `CheckSegmentMembership` (contact flow): refused at 17:34:34Z,
+        `InvalidContactFlowException`, "Invalid Action type. Type:
+        CheckSegmentMembership, Path: Actions[0].Type" (twice). Reading:
+        either the Type name differs from what the block page says, or the
+        instance lacks Customer Profiles; rule 37 saw "Invalid Action type"
+        for `UpdateContactData`'s Voice ID fields on an instance without
+        Voice ID, so this is not decided. Re-probe on an instance with a
+        Customer Profiles domain (D03) before concluding.
+      - `LoadContactContent` (contact flow): accepted at 17:34:36Z, with
+        `Parameters` `{}` (the kept input carries the page's
+        `ContentType`; the run's input was empty). The page says email
+        only; the create does not check the channel.
+      - `RouteContactToAgent` (customer queue flow): refused at 17:34:40Z,
+        `InvalidContactFlowException`, "Invalid Action type. Type:
+        RouteContactToAgent, Path: Actions[0].Type" (twice). Reading: the
+        same two possibilities as `CheckSegmentMembership` (the name, or a
+        feature the instance lacks); not decided.
+      - `TransferParticipantToThirdParty` (contact flow): accepted at
+        17:34:42Z, consistent with the 2026-09-29 and 2026-09-30 sweeps
+        (rules 37 and 38) that created the `unknown-actions` fixture's
+        shape.
+      So of the five: two accepted, one refused naming its shape, and two
+      refused as an unknown Type on that instance. All five stay
+      `modeled: false`; the two unknown-Type refusals are recorded here and
+      in the census as not decided, not as the service refusing the Type.
+      The inputs for `AuthenticateParticipant` are re-authored once an
+      export shows the three keys' shapes.
 
 ## Per-action parameter shapes
 
@@ -1330,9 +1371,13 @@ modeled (rule 36).
 | Denominator             | 61    | 35      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
-Types outside the Developer Guide (rule 39 has the page quotes; each entry
-is `modeled: false` until its D09 task, and none has been put to the
-service yet, which rule 39 records as pending):
+Types outside the Developer Guide (rule 40 has the page quotes and the
+2026-10-05 create probes; each entry is `modeled: false` until its D09 task.
+Of the five, the service accepted `LoadContactContent` and
+`TransferParticipantToThirdParty`, refused `AuthenticateParticipant` naming
+its required keys and branch, and refused `CheckSegmentMembership` and
+`RouteContactToAgent` as "Invalid Action type" on an instance without
+Customer Profiles, which rule 40 records as not decided):
 
 | Type                              | Console block                           | Source           | Flow types and channels the page states                                                                                                                                                          | Ref types its parameters need                                                                                                                                                                                                            |
 | --------------------------------- | --------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1363,4 +1408,4 @@ console-only forms (rule 37's refused `Events` shape); and the Set
 Touchtone Buffer Behavior form of `GetParticipantInput`, which the admin
 guide writes with `EnableDTMFBuffer` (with `StoreInput` and
 `InputEncryption` for Stop and Clear), a parameter the catalog does not
-record. D09 types that form after C04 (rule 39 quotes the page).
+record. D09 types that form after C04 (rule 40 quotes the page).
