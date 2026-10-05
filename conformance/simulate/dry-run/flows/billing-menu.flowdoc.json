@@ -1,0 +1,38 @@
+{
+  "flowdoc": "0.2",
+  "kind": "module",
+  "name": "billing-menu",
+  "connectType": "MODULE",
+  "description": "The module keypad-line calls for billing; its text counts as something the set says.",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "intro",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "intro",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Billing questions are answered by our billing team."
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "refs": []
+}

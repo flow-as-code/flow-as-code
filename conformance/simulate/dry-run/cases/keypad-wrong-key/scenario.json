@@ -1,0 +1,66 @@
+{
+  "scenario": "0.1",
+  "name": "keypad-wrong-key",
+  "description": "The menu takes 1 and 2; the scenario presses 3.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:keypad-line}",
+    "sourcePhoneNumber": "+14135550142"
+  },
+  "substitutions": [
+    {
+      "actionType": "TransferContactToQueue",
+      "actionParameters": {
+        "QueueId": "${cdref:queue:appointments}"
+      },
+      "substitute": "${cdref:queue:overflow}"
+    },
+    {
+      "actionType": "CheckHoursOfOperation",
+      "actionParameters": {
+        "HoursOfOperationId": "${cdref:hours:main-line}"
+      },
+      "substitute": "${cdref:hours:always-open}"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "expect-prompt",
+      "contains": "Thanks for calling the keypad line"
+    },
+    {
+      "kind": "expect-lambda",
+      "lambda": "${cdref:lambda:caller-lookup}"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "Welcome back, Mrs. Alder"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "press 1"
+    },
+    {
+      "kind": "send-dtmf",
+      "value": "3"
+    },
+    {
+      "kind": "expect-hours-check",
+      "hours": "${cdref:hours:main-line}"
+    },
+    {
+      "kind": "expect-transfer",
+      "queue": "${cdref:queue:appointments}"
+    },
+    {
+      "kind": "assert",
+      "path": "$.Attributes.callerName",
+      "operator": "Equals",
+      "value": "Mrs. Alder"
+    },
+    {
+      "kind": "expect-queue",
+      "queue": "${cdref:queue:appointments}"
+    }
+  ]
+}

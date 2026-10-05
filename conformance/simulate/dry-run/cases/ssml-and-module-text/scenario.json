@@ -1,0 +1,23 @@
+{
+  "scenario": "0.1",
+  "name": "ssml-and-module-text",
+  "description": "A chat contact that hears the SSML closed message (matched on its spoken words) and the module's text, with a similarity match that shares enough words.",
+  "entryPoint": {
+    "channel": "chat",
+    "flow": "${cdref:flow:keypad-line}"
+  },
+  "steps": [
+    {
+      "kind": "expect-prompt",
+      "similarTo": "Thanks for calling the keypad line today"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "closed right now. Please call back"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "billing team"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "scenario": "0.1",
+  "name": "press-without-menu",
+  "description": "A key pressed after a prompt no keypad block plays, and one pressed before any prompt at all.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:keypad-line}",
+    "sourcePhoneNumber": "+14135550142"
+  },
+  "substitutions": [
+    {
+      "actionType": "TransferContactToQueue",
+      "actionParameters": {
+        "QueueId": "${cdref:queue:appointments}"
+      },
+      "substitute": "${cdref:queue:overflow}"
+    },
+    {
+      "actionType": "CheckHoursOfOperation",
+      "actionParameters": {
+        "HoursOfOperationId": "${cdref:hours:main-line}"
+      },
+      "substitute": "${cdref:hours:always-open}"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "send-dtmf",
+      "value": "1"
+    },
+    {
+      "kind": "expect-prompt",
+      "contains": "Thanks for calling the keypad line"
+    },
+    {
+      "kind": "send-dtmf",
+      "value": "1"
+    }
+  ]
+}

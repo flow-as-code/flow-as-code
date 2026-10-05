@@ -1,0 +1,40 @@
+{
+  "scenario": "0.1",
+  "name": "unresolved-tokens",
+  "description": "An event on a resource no document references, a substitution of one, a substitute neither mapped nor referenced, and a queue token the same; the Lambda substitute is found under the variable-name key form.",
+  "entryPoint": {
+    "channel": "voice",
+    "flow": "${cdref:flow:keypad-line}",
+    "sourcePhoneNumber": "+14135550142"
+  },
+  "substitutions": [
+    {
+      "actionType": "InvokeLambdaFunction",
+      "actionParameters": {
+        "LambdaFunctionARN": "${cdref:lambda:caller-lookup}"
+      },
+      "substitute": "${cdref:lambda:stub-lookup}"
+    },
+    {
+      "actionType": "CheckHoursOfOperation",
+      "actionParameters": {
+        "HoursOfOperationId": "${cdref:hours:weekend}"
+      },
+      "substitute": "${cdref:hours:nowhere}"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "expect-lambda",
+      "lambda": "${cdref:lambda:never-invoked}"
+    },
+    {
+      "kind": "expect-transfer",
+      "queue": "${cdref:queue:appointments}"
+    },
+    {
+      "kind": "expect-queue",
+      "queue": "${cdref:queue:nowhere}"
+    }
+  ]
+}
