@@ -74,16 +74,24 @@ import { emitFlowascode } from "@flow-as-code/hcl";
 const { files, unbound, unusedMapKeys } = emitFlowascode(docs, {
   addressMap: { "queue:appointments": "aws_connect_queue.appointments.arn" },
 });
-// files: flows.tf, variables.tf, versions.tf.example
+// files: flows.tf, outputs.tf, variables.tf, versions.tf.example
 // unbound: [{ key: "lambda:appointment-lookup", documents: ["appointment-line"] }, ...]
 // unusedMapKeys: map keys no reference in the set reaches
 ```
 
 `emitFlowascode` is `flow-cli emit --target flowascode`: one resource per
-document in `flows.tf`, written as `fromFlowDoc` writes a companion, with each
+document in `flows.tf`, written as `fromFlowDoc` writes a companion, an
+`<name>_arn` and an `<name>_document_sha256` output per document in
+`outputs.tf` (the hash is of the resource's `flowdoc`, references still
+tokens, so a pipeline compares it across environments), with each
 `refs` map bound from the address map (keyed as `@flow-as-code/tf`'s is) or
 to what the set emits itself, and a version and alias resource for every
-module a flow in the set invokes by alias. What nothing binds is `null` under
+module a flow in the set invokes by alias. A module nothing in the set
+references gets its resource alone, no version and no alias; to release one
+on its own, `moduleAliases: { greeting: ["live"] }` (`flow-cli emit
+--module-alias module:greeting@live`) writes the version and alias as for an
+invoked module, and `outputs.tf` adds `greeting_live_arn`, the value another
+root binds `module:greeting@live` to through its address map. What nothing binds is `null` under
 a `# TODO` comment, which the provider refuses at plan time; the result's
 `unbound` lists those keys with the documents that make them, and
 `unusedMapKeys` the map keys no reference reaches by any of its three forms,

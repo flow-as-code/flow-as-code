@@ -81,11 +81,14 @@ Outputs:
 appointment_line_document_sha256 = "3d12a6cd22f8e04018712c78915e89cef32b09d60849b573a7af41f14a641e65"
 ```
 
-`appointment_line_document_sha256` comes from the module's `outputs.tf`:
+`appointment_line_document_sha256` comes from the module's `outputs.tf`,
+which is what `flow-cli emit --target flowascode` writes beside `flows.tf`
+for every document, named by its FlowDoc name (a test holds the example's
+copy to the emitter's):
 
 ```hcl
 output "appointment_line_document_sha256" {
-  description = "SHA-256 of the flow's FlowDoc: equal across environments running the same commit."
+  description = "SHA-256 of flow appointment-line as a FlowDoc, references still tokens: equal across environments that apply the same document."
   value       = sha256(flowascode_contact_flow.appointment_line.flowdoc)
 }
 ```

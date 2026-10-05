@@ -10,9 +10,9 @@
 // README.md), so there are no templates and no shared locals, and each
 // resource's refs map holds its own bindings.
 //
-// It writes flows.tf, variables.tf and versions.tf.example, never a
-// per-document <name>.flow.tf, so an emit into a directory the studio serves
-// cannot create a companion.
+// It writes flows.tf, outputs.tf, variables.tf and versions.tf.example, never
+// a per-document <name>.flow.tf, so an emit into a directory the studio
+// serves cannot create a companion.
 
 import {
   PACKAGE_NAMES,
@@ -64,7 +64,19 @@ export interface EmitFlowascodeOptions {
    * `var.connect_instance_id`, in which case variables.tf declares it.
    */
   instanceIdExpression?: string;
+  /**
+   * Aliases a module in the set publishes beyond those the set's flows invoke
+   * it through, by module name: `{ greeting: ["live"] }` writes the version
+   * and alias resources for `module:greeting@live` as if a flow in the set
+   * invoked it, for a module released on its own and bound from another root
+   * through its address map (task C05). A module not in the set, or an alias
+   * that is not a slug, is refused.
+   */
+  moduleAliases?: Record<string, readonly string[]>;
 }
+
+/** Aliases to publish per module, as given. */
+type DeclaredAliases = Readonly<Record<string, readonly string[]>>;
 
 /** A reference key bound to nothing, and the documents that make it. */
 export interface UnboundRef {
@@ -113,10 +125,23 @@ function checkExpression(label: string, value: string, problems: string[]): void
   if (/#|\/\/|\/\*/.test(value)) problems.push(`${label} contains a comment marker (${value})`);
 }
 
-function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
+function checkDocs(docs: readonly FlowDoc[], declared: DeclaredAliases): FlowDoc[] {
   const problems: string[] = [];
   if (docs.length === 0) problems.push("no documents to emit");
+  const moduleNames = new Set(docs.filter((d) => d.kind === "module").map((d) => d.name));
+  for (const [module, aliases] of Object.entries(declared)) {
+    if (!moduleNames.has(module)) {
+      problems.push(`moduleAliases names module "${module}", which this set does not emit`);
+    }
+    for (const alias of aliases) {
+      if (!SLUG_PATTERN.test(alias)) {
+        problems.push(`moduleAliases alias "${alias}" for module "${module}" is not a slug`);
+      }
+    }
+  }
   const seen = new Set<string>();
+  /** Documents with a slug and an address of their own, for the checks below. */
+  const accepted: FlowDoc[] = [];
   for (const doc of docs) {
     if (!SLUG_PATTERN.test(doc.name)) {
       problems.push(`document name "${doc.name}" is not a slug`);
@@ -130,6 +155,7 @@ function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
     }
     const address = `${resourceType(doc)}.${ident(doc.name)}`;
     if (seen.has(address)) problems.push(`two documents both emit ${address}`);
+    else accepted.push(doc);
     seen.add(address);
   }
   // An alias resource is labelled <module>_<alias> with hyphens as
@@ -137,23 +163,52 @@ function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
   // both be a_b_c.
   const labels = new Map<string, string>();
   const sorted = [...docs].sort((a, b) => byString(a.name, b.name) || byString(a.kind, b.kind));
-  for (const [module, aliases] of aliasesByModule(sorted)) {
-    for (const alias of aliases) {
+  const aliases = aliasesByModule(sorted, declared);
+  /** Aliases with a label of their own, on accepted modules, for the output check. */
+  const acceptedAliases = new Map<string, string[]>();
+  const acceptedModules = new Set(accepted.filter((d) => d.kind === "module").map((d) => d.name));
+  for (const [module, names] of aliases) {
+    for (const alias of names) {
       const label = `${MODULE_ALIAS_RESOURCE}.${ident(module)}_${ident(alias)}`;
       const prior = labels.get(label);
       if (prior !== undefined) {
         problems.push(`module:${prior} and module:${module}@${alias} both emit ${label}`);
-      } else labels.set(label, `${module}@${alias}`);
+        continue;
+      }
+      labels.set(label, `${module}@${alias}`);
+      if (!acceptedModules.has(module)) continue;
+      const own = acceptedAliases.get(module) ?? [];
+      own.push(alias);
+      acceptedAliases.set(module, own);
     }
+  }
+  // Outputs are named by FlowDoc name, so a flow and a module sharing a name
+  // would both emit `<name>_arn` (rule 29); nothing else can collide, since a
+  // slug maps to one identifier.
+  const outputs = new Map<string, string>();
+  for (const entry of outputEntries(accepted, acceptedAliases)) {
+    const prior = outputs.get(entry.name);
+    if (prior !== undefined) {
+      problems.push(`${prior} and ${entry.source} both emit output ${entry.name}`);
+    } else outputs.set(entry.name, entry.source);
   }
   if (problems.length > 0) throw new EmitFlowascodeError(problems);
   return sorted;
 }
 
-/** Aliases each emitted module is invoked through, from the references to it. */
-function aliasesByModule(docs: readonly FlowDoc[]): Map<string, string[]> {
+/**
+ * Aliases each emitted module publishes: those the set's flows invoke it
+ * through, from the references to it, and those declared to the emitter.
+ */
+function aliasesByModule(
+  docs: readonly FlowDoc[],
+  declared: DeclaredAliases,
+): Map<string, string[]> {
   const aliases = new Map<string, Set<string>>();
   for (const doc of docs) if (doc.kind === "module") aliases.set(doc.name, new Set());
+  for (const [module, names] of Object.entries(declared)) {
+    for (const alias of names) aliases.get(module)?.add(alias);
+  }
   for (const doc of docs) {
     for (const entry of collectRefs(doc.content)) {
       if (entry.type === "module" && entry.alias !== undefined)
@@ -200,8 +255,8 @@ function flowsTf(
   docs: readonly FlowDoc[],
   instanceId: string,
   bindings: ReadonlyMap<string, Record<string, string | null>>,
+  aliases: ReadonlyMap<string, readonly string[]>,
 ): string {
-  const aliases = aliasesByModule(docs);
   const out: string[] = [
     ...GENERATED_BY,
     "#",
@@ -218,7 +273,8 @@ function flowsTf(
     out.push(
       "",
       "# A snapshot of the module's content, replaced when the content",
-      "# changes, and the aliases the flows in this set invoke it through.",
+      "# changes, and the aliases it publishes: those the flows in this set",
+      "# invoke it through, and those declared to the emitter.",
       "# Connect will not delete a version an alias points at, so the new",
       "# version is created and the alias moved before the old one goes.",
       `resource "${MODULE_VERSION_RESOURCE}" ${quote(ident(doc.name))} {`,
@@ -242,6 +298,89 @@ function flowsTf(
         "}",
       );
     }
+  }
+  return format(`${out.join("\n")}\n`);
+}
+
+interface OutputEntry {
+  name: string;
+  description: string;
+  value: string;
+  /** What the output is of, for the collision message: `flow appointment-line`. */
+  source: string;
+}
+
+/**
+ * The outputs a set publishes (rule 29): for every document its ARN and the
+ * SHA-256 of its FlowDoc, named by the document's name rather than its
+ * resource address, so a pipeline reading `terraform output` keeps its names
+ * when a resource moves. `flowdoc` is the document with its references still
+ * tokens, so its hash is equal across environments that apply the same
+ * document and is known at plan time; `content_hash` would not do, since it
+ * hashes the content Connect holds, with each environment's ARNs filled in.
+ */
+function outputEntries(
+  docs: readonly FlowDoc[],
+  aliases: ReadonlyMap<string, readonly string[]>,
+): OutputEntry[] {
+  const out: OutputEntry[] = [];
+  for (const doc of docs) {
+    const address = `${resourceType(doc)}.${ident(doc.name)}`;
+    const source = `${doc.kind} ${doc.name}`;
+    out.push(
+      {
+        name: `${ident(doc.name)}_arn`,
+        description: `ARN of ${source}.`,
+        value: `${address}.arn`,
+        source,
+      },
+      {
+        name: `${ident(doc.name)}_document_sha256`,
+        description:
+          `SHA-256 of ${source} as a FlowDoc, references still tokens: ` +
+          "equal across environments that apply the same document.",
+        value: `sha256(${address}.flowdoc)`,
+        source,
+      },
+    );
+    if (doc.kind !== "module") continue;
+    // The alias ARN is what a flow binds for `module:<name>@<alias>`, so a
+    // module released on its own publishes it for another root's address
+    // map to read (task C05).
+    for (const alias of aliases.get(doc.name) ?? []) {
+      out.push({
+        name: `${ident(doc.name)}_${ident(alias)}_arn`,
+        description: `ARN of module:${doc.name}@${alias}, the form a flow binds to invoke the alias.`,
+        value: `${MODULE_ALIAS_RESOURCE}.${ident(doc.name)}_${ident(alias)}.arn`,
+        source: `module:${doc.name}@${alias}`,
+      });
+    }
+  }
+  return out;
+}
+
+function outputsTf(
+  docs: readonly FlowDoc[],
+  aliases: ReadonlyMap<string, readonly string[]>,
+): string {
+  const out: string[] = [
+    ...GENERATED_BY,
+    "#",
+    "# Two outputs per document, named by its FlowDoc name: the ARN, and the",
+    "# SHA-256 of the document with its references still tokens, equal across",
+    "# environments that apply the same document and known at plan time. A",
+    "# promotion gate compares the hash one environment applied with the one",
+    "# the next plans (docs/tutorials/02-promote.md). A module that publishes",
+    "# aliases adds the ARN of each, the value a flow binds for module:<name>@<alias>.",
+  ];
+  for (const entry of outputEntries(docs, aliases)) {
+    out.push(
+      "",
+      `output ${quote(entry.name)} {`,
+      `  description = ${quote(entry.description)}`,
+      `  value = ${entry.value}`,
+      "}",
+    );
   }
   return format(`${out.join("\n")}\n`);
 }
@@ -296,7 +435,12 @@ export function emitFlowascode(
   docs: readonly FlowDoc[],
   options: EmitFlowascodeOptions = {},
 ): EmitFlowascodeResult {
-  const ordered = checkDocs(docs.map((doc) => migrateFlowDoc(doc, "emitFlowascode")));
+  const declared = options.moduleAliases ?? {};
+  const ordered = checkDocs(
+    docs.map((doc) => migrateFlowDoc(doc, "emitFlowascode")),
+    declared,
+  );
+  const aliases = aliasesByModule(ordered, declared);
   const problems: string[] = [];
   const instanceId = options.instanceIdExpression ?? DEFAULT_INSTANCE_ID_EXPRESSION;
   if (options.instanceIdExpression !== undefined) {
@@ -347,7 +491,8 @@ export function emitFlowascode(
     .sort(byString);
 
   const files: Record<string, string> = {
-    "flows.tf": flowsTf(ordered, instanceId, bindings),
+    "flows.tf": flowsTf(ordered, instanceId, bindings, aliases),
+    "outputs.tf": outputsTf(ordered, aliases),
     "versions.tf.example": versionsExample(),
   };
   if (options.instanceIdExpression === undefined) files["variables.tf"] = variablesTf();

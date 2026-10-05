@@ -98,7 +98,19 @@ export interface EmitTfOptions {
    * emitted then.
    */
   instanceIdExpression?: string;
+  /**
+   * Aliases a module in the set publishes beyond those the set's flows invoke
+   * it through, by module name: `{ greeting: ["live"] }` writes the awscc
+   * alias resource for `module:greeting@live` as if a flow in the set invoked
+   * it, for a module released on its own and bound from another root through
+   * its address map (task C05). A module not in the set, or an alias that is
+   * not a slug, is refused.
+   */
+  moduleAliases?: Record<string, readonly string[]>;
 }
+
+/** Aliases to publish per module, as given. */
+type DeclaredAliases = Readonly<Record<string, readonly string[]>>;
 
 /** A reference key bound to nothing, and the documents that make it. */
 export interface UnboundRef {
@@ -197,9 +209,20 @@ function checkExpression(label: string, value: string, problems: string[]): void
 }
 
 /** Documents in emission order, with the structural problems reported first. */
-function checkDocs(docs: readonly FlowDoc[]): FlowDoc[] {
+function checkDocs(docs: readonly FlowDoc[], declared: DeclaredAliases): FlowDoc[] {
   const problems: string[] = [];
   if (docs.length === 0) problems.push("no documents to emit");
+  const moduleNames = new Set(docs.filter((d) => d.kind === "module").map((d) => d.name));
+  for (const [module, aliases] of Object.entries(declared)) {
+    if (!moduleNames.has(module)) {
+      problems.push(`moduleAliases names module "${module}", which this set does not emit`);
+    }
+    for (const alias of aliases) {
+      if (!SLUG_PATTERN.test(alias)) {
+        problems.push(`moduleAliases alias "${alias}" for module "${module}" is not a slug`);
+      }
+    }
+  }
 
   const seen = new Map<string, string>();
   for (const doc of docs) {
@@ -289,11 +312,20 @@ function resolveRefs(
   return resolved;
 }
 
-/** Aliases each emitted module needs, derived from the references to it. */
-function aliasesByModule(docs: readonly FlowDoc[]): Map<string, string[]> {
+/**
+ * Aliases each emitted module publishes: those the set's flows invoke it
+ * through, from the references to it, and those declared to the emitter.
+ */
+function aliasesByModule(
+  docs: readonly FlowDoc[],
+  declared: DeclaredAliases,
+): Map<string, string[]> {
   const modules = new Set(docs.filter((d) => d.kind === "module").map((d) => d.name));
   const aliases = new Map<string, Set<string>>();
   for (const name of modules) aliases.set(name, new Set());
+  for (const [module, names] of Object.entries(declared)) {
+    for (const alias of names) aliases.get(module)?.add(alias);
+  }
   for (const doc of docs) {
     for (const entry of collectRefs(doc.content)) {
       if (entry.type !== "module" || entry.alias === undefined) continue;
@@ -318,8 +350,8 @@ function flowsTf(
   docs: readonly FlowDoc[],
   instanceId: string,
   inSetByDoc: ReadonlyMap<string, Resolved[]>,
+  aliases: ReadonlyMap<string, readonly string[]>,
 ): string {
-  const aliases = aliasesByModule(docs);
   const hasModule = docs.some((d) => d.kind === "module");
   const lines: HclLine[] = GENERATED_BY.map(comment);
   lines.push(
@@ -520,7 +552,12 @@ function versionsExample(needsAwscc: boolean): string {
  * and paths come back sorted.
  */
 export function emitTf(docs: readonly FlowDoc[], options: EmitTfOptions = {}): EmitTfResult {
-  const ordered = checkDocs(docs.map((doc) => migrateFlowDoc(doc, "emitTf")));
+  const declared = options.moduleAliases ?? {};
+  const ordered = checkDocs(
+    docs.map((doc) => migrateFlowDoc(doc, "emitTf")),
+    declared,
+  );
+  const aliases = aliasesByModule(ordered, declared);
   const problems: string[] = [];
 
   const instanceId = options.instanceIdExpression ?? DEFAULT_INSTANCE_ID_EXPRESSION;
@@ -576,7 +613,7 @@ export function emitTf(docs: readonly FlowDoc[], options: EmitTfOptions = {}): E
   const variables = new Map(resolved.map((r) => [r.entry.token, r.variable]));
   const files: Record<string, string> = {
     "flow_refs.tf": flowRefsTf(ordered, resolved, inSetByDoc),
-    "flows.tf": flowsTf(ordered, instanceId, inSetByDoc),
+    "flows.tf": flowsTf(ordered, instanceId, inSetByDoc, aliases),
     "versions.tf.example": versionsExample(ordered.some((d) => d.kind === "module")),
   };
   for (const doc of ordered) {
