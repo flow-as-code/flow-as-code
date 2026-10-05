@@ -1,10 +1,7 @@
 {
-  "InstanceId": "{{INSTANCE_ID}}",
-  "Name": "fac-probe-40-TransferParticipantToThirdParty",
-  "Type": "CONTACT_FLOW",
-  "Status": "PUBLISHED",
-  "Description": "Rule 40 probe: Transfer to phone number in the shape of the console export conformance/roundtrip/unknown-actions, the number dynamic so no real number is written.",
-  "Content": {
+  "description": "Rule 40 probe: Transfer to phone number in the shape of the console export conformance/roundtrip/unknown-actions, the number dynamic so no real number is written.",
+  "type": "CONTACT_FLOW",
+  "content": {
     "Version": "2019-10-30",
     "StartAction": "probe",
     "Metadata": {},

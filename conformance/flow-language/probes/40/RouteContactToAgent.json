@@ -1,10 +1,7 @@
 {
-  "InstanceId": "{{INSTANCE_ID}}",
-  "Name": "fac-probe-40-RouteContactToAgent",
-  "Type": "CUSTOMER_QUEUE",
-  "Status": "PUBLISHED",
-  "Description": "Rule 40 probe: Interrupt agent in a customer queue flow, Parameters empty so the refusal names the first required key (the page names none).",
-  "Content": {
+  "description": "Rule 40 probe: Interrupt agent in a customer queue flow, Parameters empty so the refusal names the first required key (the page names none).",
+  "type": "CUSTOMER_QUEUE",
+  "content": {
     "Version": "2019-10-30",
     "StartAction": "probe",
     "Metadata": {},
