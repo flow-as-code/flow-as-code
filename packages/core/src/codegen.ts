@@ -123,6 +123,7 @@ import { assertFlowDoc } from "./flowdoc.js";
 import { autoLayout } from "./layout.js";
 import { PACKAGE_NAMES } from "./package-names.js";
 import { parseToken } from "./refs.js";
+import { displayWidth } from "./width.js";
 
 export interface CodegenOptions {
   /** Import path for the builder API. Defaults to the published package. */
@@ -234,7 +235,13 @@ function toV(value: unknown): V {
 // element is an object with two or more properties.
 // ---------------------------------------------------------------------------
 
-const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+/**
+ * An ES5 IdentifierName, which is what Prettier's `quoteProps: "as-needed"`
+ * leaves unquoted: Unicode letters and letter numbers to start, plus marks,
+ * digits, connectors and the two zero-width joiners after. A key such as
+ * `café` or `código` is therefore written bare, as Prettier would rewrite it.
+ */
+const IDENTIFIER = /^[\p{L}\p{Nl}$_][\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}$_\u200C\u200D]*$/u;
 
 function quoteString(s: string): string {
   const doubles = (s.match(/"/g) ?? []).length;
@@ -271,6 +278,9 @@ function arrayForcesBreak(a: ArrV): boolean {
   return a.items.length > 1 && a.items.every((i) => i instanceof ObjV && i.entries.length >= 2);
 }
 
+/** Columns a fragment takes, as Prettier counts them (src/width.ts). */
+const width = displayWidth;
+
 /** Single-line rendering, or undefined when the value must break. */
 function inlineV(v: V): string | undefined {
   if (v instanceof Raw) return v.code;
@@ -298,11 +308,11 @@ function inlineV(v: V): string | undefined {
  */
 function printV(v: V, col: number, indent: string): string {
   const flat = inlineV(v);
-  if (flat !== undefined && col + flat.length + 1 <= PRINT_WIDTH) return flat;
+  if (flat !== undefined && col + width(flat) + 1 <= PRINT_WIDTH) return flat;
   const inner = `${indent}  `;
   if (v instanceof ObjV && v.entries.length > 0) return printBrokenObject(v.entries, indent);
   if (v instanceof ArrV && v.items.length > 0) {
-    const lines = v.items.map((i) => `${inner}${printV(i, inner.length, inner)},`);
+    const lines = v.items.map((i) => `${inner}${printV(i, width(inner), inner)},`);
     return `[\n${lines.join("\n")}\n${indent}]`;
   }
   // Primitives and Raw fragments cannot break; emit even when over width.
@@ -316,11 +326,11 @@ function printBrokenObject(entries: [string, V][], indent: string): string {
     const prefix = `${inner}${key}: `;
     if (typeof val === "string") {
       const quoted = quoteString(val);
-      if (prefix.length + quoted.length + 1 > PRINT_WIDTH && key.length >= MIN_KEY_WIDTH_TO_BREAK) {
+      if (width(prefix) + width(quoted) + 1 > PRINT_WIDTH && width(key) >= MIN_KEY_WIDTH_TO_BREAK) {
         return `${inner}${key}:\n${inner}  ${quoted},`;
       }
     }
-    return `${prefix}${printV(val, prefix.length, inner)},`;
+    return `${prefix}${printV(val, width(prefix), inner)},`;
   });
   return `{\n${lines.join("\n")}\n${indent}}`;
 }
@@ -2434,7 +2444,7 @@ function renderBlock(inv: Inversion, indent: string): string {
   const head = `new ${inv.cls}(`;
   if (inv.entries.length === 1) {
     const flat = inlineV(new ObjV(inv.entries));
-    if (flat !== undefined && indent.length + head.length + flat.length + 2 <= PRINT_WIDTH) {
+    if (flat !== undefined && width(indent) + width(head) + width(flat) + 2 <= PRINT_WIDTH) {
       return `${head}${flat})`;
     }
   }
@@ -2480,7 +2490,7 @@ export function codegen(doc: FlowDoc, options: CodegenOptions = {}): string {
 
   const importInline = `import { ${names.join(", ")} } from ${quoteString(spec)};`;
   const importSource =
-    importInline.length <= PRINT_WIDTH
+    width(importInline) <= PRINT_WIDTH
       ? importInline
       : `import {\n${names.map((n) => `  ${n},`).join("\n")}\n} from ${quoteString(spec)};`;
 
@@ -2497,13 +2507,13 @@ export function codegen(doc: FlowDoc, options: CodegenOptions = {}): string {
     cfgInline === undefined || argInlines.some((a) => a === undefined)
       ? undefined
       : `  return new ${flowClass}(${cfgInline}).add(${argInlines.join(", ")});`;
-  if (oneLine !== undefined && oneLine.length <= PRINT_WIDTH && !hasBlockComments) {
+  if (oneLine !== undefined && width(oneLine) <= PRINT_WIDTH && !hasBlockComments) {
     body = oneLine;
   } else {
     const openInline =
       cfgInline === undefined ? undefined : `  return new ${flowClass}(${cfgInline}).add(`;
     const open =
-      openInline !== undefined && openInline.length <= PRINT_WIDTH
+      openInline !== undefined && width(openInline) <= PRINT_WIDTH
         ? openInline
         : `  return new ${flowClass}(${printBrokenObject(cfgEntries, "  ")}).add(`;
     // Once the config object has broken, the call's arguments are judged on
@@ -2514,7 +2524,7 @@ export function codegen(doc: FlowDoc, options: CodegenOptions = {}): string {
       open === openInline || argInlines.some((a) => a === undefined) || hasBlockComments
         ? undefined
         : `${argInlines.join(", ")});`;
-    if (argsInline !== undefined && closing.length + argsInline.length <= PRINT_WIDTH) {
+    if (argsInline !== undefined && width(closing) + width(argsInline) <= PRINT_WIDTH) {
       body = `${open}${argsInline}`;
     } else {
       const args: string[] = [];

@@ -127,13 +127,24 @@ program
       "--target cdk writes a flow-stack.ts scaffold that constructs a " +
       `${PACKAGE_NAMES.cdk} FlowSet over the directory.`,
   )
-  .argument("<dir-or-file>", "directory of *.flowdoc.json files, or one FlowDoc file")
+  .argument(
+    "<dir-or-file...>",
+    "directories of *.flowdoc.json files, or FlowDoc files; each is emitted as its own set",
+  )
   .requiredOption("--target <target>", "cdk, flowascode or tf")
   .option(
     "--address-map <refs.tfmap.json>",
     "tf and flowascode: reference to terraform address expressions",
   )
-  .option("--out <dir>", "output directory (default: the input directory)")
+  .option(
+    "--instance-id-expression <expr>",
+    "flowascode: the HCL expression for every resource's instance_id (default: " +
+      "var.connect_instance_id, declared in variables.tf; with this flag no variables.tf is written)",
+  )
+  .option(
+    "--out <dir>",
+    "output directory (default: each set's own directory; refused with several sets)",
+  )
   .option(
     "--allow-unbound",
     "flowascode: write a reference the address map does not cover as null under a TODO " +
@@ -153,7 +164,7 @@ program
   .action(
     action(
       (
-        input: string,
+        inputs: string[],
         opts: {
           target: string;
           addressMap?: string;
@@ -161,9 +172,10 @@ program
           allowUnbound?: boolean;
           strict?: boolean;
           moduleAlias?: string[];
+          instanceIdExpression?: string;
         },
       ) => {
-        const { written, warnings } = runEmit(input, opts);
+        const { written, warnings } = runEmit(inputs, opts);
         for (const path of written) console.log(path);
         for (const line of warnings) console.error(line);
       },

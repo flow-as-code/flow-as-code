@@ -289,6 +289,12 @@ export function reducer(state: StudioState, action: StudioAction): StudioState {
         resolving: false,
         syncError,
         error: null,
+        // The document on screen was replaced: the badge follows its
+        // meta.generator, and an edit held for the question is dropped rather
+        // than applied over a document it was not made on. The answer already
+        // given for this document stands.
+        generator: foreignGenerator(action.doc) ?? null,
+        pendingEdit: null,
       };
     }
     case "conflict":

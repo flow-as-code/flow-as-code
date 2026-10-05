@@ -290,6 +290,14 @@ refused rather than letting the second set overwrite the first; so are two
 sets that would resolve to the same directory. The paths printed are every
 set's, in argument order.
 
+A run over several sets is two-phase: every set goes through its emitter
+first, and nothing is written unless every set passed, so an unbound reference
+or a refused `--strict` in the second set leaves the first set's directory as
+it was; the message names the set. One address map serves every set, so a key
+is unused only when no set uses it: a key `flows/` binds and `seasonal/` never
+mentions is not warned about, and `--strict` refuses only a key no set uses,
+once. `--allow-unbound` and `--instance-id-expression` apply to every set.
+
 `--target tf` is a thin wrapper over `@flow-as-code/tf`, writing exactly
 the bytes the emitter returns and nothing of its own. `--address-map` is passed
 through as `options.addressMap` and takes the same three key forms
@@ -411,7 +419,10 @@ holds the cases. A `.flow.tf` carries no banner, and the flag is refused with
 The TypeScript codegen writes is left unchanged by Prettier 3 at this
 repository's settings (`.prettierrc`: double quotes, trailing commas, print
 width 100, `arrowParens: always`), so a consumer on those settings need not
-list the companions in `.prettierignore`. `packages/core/src/roundtrip.test.ts`
+list the companions in `.prettierignore`. Lines are measured as Prettier
+measures them (`packages/core/src/width.ts`, a port of its display width:
+CJK and fullwidth text two columns, combining marks none), so a Japanese or
+Korean prompt is a fixed point too. `packages/core/src/roundtrip.test.ts`
 formats every roundtrip case's output and asserts it comes back byte-identical,
 and `src/codegen.test.ts` does the same for every export golden. A consumer on
 other settings (a print width of 80, single quotes) formats the companions

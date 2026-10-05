@@ -13,6 +13,8 @@ import type { FlowDoc } from "@flow-as-code/core";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { App } from "../src/App.js";
 import { foreignGenerator } from "../src/model/generated.js";
+import { initialState, reducer } from "../src/state/studio.js";
+import { createDemoStore } from "../src/store/demoStore.js";
 import { MemoryStore } from "../src/store/memoryStore.js";
 import {
   button,
@@ -110,5 +112,30 @@ describe("a generated document in the studio", () => {
     await typeAndBlur(testId<HTMLTextAreaElement>("message-body"), "Edited on the canvas.");
     expect(dialog()).toBeNull();
     expect(welcomeText()).toBe("Edited on the canvas.");
+  });
+});
+
+describe("a sync while the question is open", () => {
+  it("drops the held edit and follows the synced document's generator", () => {
+    const foreign = generatedDoc(GENERATOR);
+    const opened = reducer(initialState(createDemoStore()), {
+      type: "doc-loaded",
+      name: foreign.name,
+      doc: foreign,
+    });
+    const edited = { ...foreign, description: "edited on the canvas" };
+    const asked = reducer(opened, { type: "mutated", doc: edited });
+    expect(asked.pendingEdit).toBe(edited);
+    expect(asked.doc).toBe(foreign);
+
+    // The generator ran again (or the bridge restamped the document as its
+    // own): the synced document is what is on screen, nothing of the held
+    // edit reaches it, and the badge follows meta.generator.
+    const synced = generatedDoc("cli@0.2.1");
+    const after = reducer(asked, { type: "doc-synced", name: synced.name, doc: synced });
+    expect(after.pendingEdit).toBeNull();
+    expect(after.doc).toBe(synced);
+    expect(after.generator).toBeNull();
+    expect(reducer(after, { type: "generated-edit", apply: true }).doc).toBe(synced);
   });
 });

@@ -208,3 +208,61 @@ found it and is never the evidence for it.
   additions), implements `attribute-set-before-read` (warning, set-wide,
   silent on one document) and re-records its lint oracles; recorded here with
   the provider commit when it lands.
+
+## Review of #35 (2026-10-05), addressed on the rebase onto main at #29
+
+- `runEmit` is two-phase across sets: every set goes through its emitter
+  first (files, unbound references, unused map keys), a refusal in any set
+  refuses the run naming the set, and only then is every set written, so
+  C12's "a refused run writes nothing" holds across a multi-set run. Tests:
+  two sets with an unbound reference in the second exit 1 with neither
+  directory touched; the same with `--allow-unbound` writes both; `--out`
+  with two sets and two sets resolving to one directory are still refused;
+  C12's single-set refusals are unchanged.
+- Decided, per-set versus across sets: one address map serves every set, so
+  a key is unused only when no set uses it (the intersection of the
+  emitters' `unusedMapKeys`), warned once, and refused once under
+  `--strict`; `--allow-unbound` and `--instance-id-expression` apply to every
+  set. Tests: a map whose keys are each used by one set only warns nothing
+  and passes `--strict`; a key no set uses warns once and `--strict` exits 1
+  writing nothing. The cdk refusal loop covers `--address-map`,
+  `--allow-unbound`, `--strict` and `--instance-id-expression`, and the test
+  holds all of them. `--module-alias` (C05, #34) is not on main yet: when it
+  lands, an alias is routed to the set(s) that emit the named module and
+  refused only when no set does, with the tests the review lists; recorded
+  here as the one open item of this task.
+- The Prettier decision stands, now measured as Prettier measures:
+  `packages/core/src/width.ts` is a port of Prettier 3's `getStringWidth`
+  (East Asian wide and fullwidth two columns, combining marks and variation
+  selectors none, emoji clusters two or one), held equal to
+  `prettier.util.getStringWidth` over a corpus in `width.test.ts`, and every
+  width comparison in codegen uses it. Keys are unquoted by the ES5
+  IdentifierName rule Prettier applies (`café` bare). Roundtrip case
+  `unicode-text` (a Japanese description and prompt past the width,
+  decomposed accents, Hangul, a `café` key) pins both.
+- `attribute-set-before-read` counts only `UpdateContactAttributes` writes
+  with `TargetContact` absent or `Current`; a write to the related contact
+  leaves the current contact's attribute empty (fixture
+  `fail-set-on-related-contact-only`). SPEC.md lists fifteen rules with the
+  rule's paragraph; the flow-cli skill names the multi-set commands,
+  `--banner` and `--instance-id-expression`.
+- The studio resets `pendingEdit` and recomputes `generator` on
+  `doc-synced`, keeping `generatedAck` for the same document; a reducer test
+  syncs a `cli@` document over a foreign one with an edit held.
+- Pending, provider: the re-vendor at the merge commit owes two Go rules,
+  `channel-restricted-action` (C03, not yet ported) and
+  `attribute-set-before-read` (warning, set-wide, silent on one document,
+  current-contact writes only), the `TestRegistry` list in the provider's
+  `internal/lint/conformance_test.go` (fifteen names, `attributeSetBeforeRead`
+  last), and the lint oracle re-recorded with its `lint-oracle.mjs`;
+  `codegen/` and `schema/lint-report-0.1.schema.json` need nothing on the Go
+  side.
+- Pending, showcase: the break-after-key shape changes codegen output for
+  its generated district and queue-experience flows, so its first upgrade
+  past this change regenerates 14 files (`npm run generate`: seven
+  `.flow.ts` and their documents' `meta.sourceHash`); the stale-check failure
+  there is expected and not a regression.
+- Not taken: framing hcl's raw parser line for a syntactically invalid
+  `--instance-id-expression` (`<input>:159:1: Unexpected "}".`) with the
+  option's name; the check belongs in `@flow-as-code/hcl`'s
+  `checkExpression`, and is noted for C12's owner.
