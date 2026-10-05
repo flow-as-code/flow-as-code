@@ -195,25 +195,30 @@ export function runEmit(inputs: string | readonly string[], options: EmitOptions
     options.addressMap === undefined ? undefined : readStringMap(options.addressMap, "address map");
   const moduleAliases = moduleAliasesFrom(options.moduleAlias ?? []);
 
-  // Every set loaded before any is emitted: an alias is routed by which set
-  // holds its module, and a set that does not load refuses the whole run.
+  // Every set loaded before any is emitted: a set that does not load refuses
+  // the whole run. With several sets an alias is routed to the set(s) whose
+  // documents hold its module, and refused here when none does; a single set
+  // takes every alias as given, and the emitter's own refusal names the module.
   const loaded = sets.map((input) => ({ input, docs: loadDocs(input).map((l) => l.doc) }));
-  const orphaned = Object.keys(moduleAliases).filter((module) =>
-    loaded.every((set) => !modulesOf(set.docs).has(module)),
-  );
-  if (orphaned.length > 0) {
-    throw new CliError(
-      `--module-alias names ${orphaned.length === 1 ? "a module" : "modules"} no set emits: ` +
-        `${orphaned.map((m) => `"${m}"`).join(", ")} (searched ${sets.join(", ")}).`,
+  if (sets.length > 1) {
+    const orphaned = Object.keys(moduleAliases).filter((module) =>
+      loaded.every((set) => !modulesOf(set.docs).has(module)),
     );
+    if (orphaned.length > 0) {
+      throw new CliError(
+        `--module-alias names ${orphaned.length === 1 ? "a module" : "modules"} no set emits: ` +
+          `${orphaned.map((m) => `"${m}"`).join(", ")} (searched ${sets.join(", ")}).`,
+      );
+    }
   }
 
   // Phase one: every set through its emitter, nothing written.
   const emitted = loaded.map(({ input, docs }) => {
     const own = modulesOf(docs);
-    const aliases = Object.fromEntries(
-      Object.entries(moduleAliases).filter(([module]) => own.has(module)),
-    );
+    const aliases =
+      sets.length === 1
+        ? moduleAliases
+        : Object.fromEntries(Object.entries(moduleAliases).filter(([module]) => own.has(module)));
     return emitSet(input, docs, options, addressMap, aliases);
   });
 

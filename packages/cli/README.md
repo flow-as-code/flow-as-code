@@ -297,6 +297,10 @@ it was; the message names the set. One address map serves every set, so a key
 is unused only when no set uses it: a key `flows/` binds and `seasonal/` never
 mentions is not warned about, and `--strict` refuses only a key no set uses,
 once. `--allow-unbound` and `--instance-id-expression` apply to every set.
+`--module-alias module:<name>@<alias>` goes to the set(s) whose documents
+hold that module and is refused, once, naming the sets searched, when none
+does; with one set it is handed to the emitter as given, whose refusal names
+the module. `outputs.tf` is written per set, for that set's flows.
 
 `--target tf` is a thin wrapper over `@flow-as-code/tf`, writing exactly
 the bytes the emitter returns and nothing of its own. `--address-map` is passed

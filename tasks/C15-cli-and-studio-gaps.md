@@ -227,10 +227,18 @@ found it and is never the evidence for it.
   and passes `--strict`; a key no set uses warns once and `--strict` exits 1
   writing nothing. The cdk refusal loop covers `--address-map`,
   `--allow-unbound`, `--strict` and `--instance-id-expression`, and the test
-  holds all of them. `--module-alias` (C05, #34) is not on main yet: when it
-  lands, an alias is routed to the set(s) that emit the named module and
-  refused only when no set does, with the tests the review lists; recorded
-  here as the one open item of this task.
+  holds all of them. `--module-alias` (C05) is
+  routed: with several sets, an alias goes to the set(s) whose documents
+  hold the module it names and is refused once, naming the sets searched,
+  when none does; with one set it reaches the emitter as given, whose own
+  refusal names the module (C05's test). `outputs.tf` (C13) is written per
+  set under the two-phase rule. Tests: an alias for a module in `seasonal/`
+  lands as alias resources in `seasonal/flows.tf` only, byte for byte what
+  the library gives that set, and `flows/` does not refuse it; an alias for a
+  module no set emits exits 1 naming both sets with nothing written. The cdk
+  refusal loop covers every Terraform-only flag, `--address-map`,
+  `--allow-unbound`, `--strict`, `--module-alias` and
+  `--instance-id-expression`, and the test runs all five.
 - The Prettier decision stands, now measured as Prettier measures:
   `packages/core/src/width.ts` is a port of Prettier 3's `getStringWidth`
   (East Asian wide and fullwidth two columns, combining marks and variation

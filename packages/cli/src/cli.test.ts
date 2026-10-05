@@ -756,14 +756,19 @@ describe("emit over several sets", () => {
     const run = cli("emit", flows, seasonal, "--target", "flowascode", "--address-map", map);
     expect(run.stderr).toBe("");
     expect(run.status).toBe(0);
+    // Every file of the tree, outputs.tf included, per set.
     expect(run.stdout.trim().split("\n")).toEqual([
       join(flows, "flows.tf"),
+      join(flows, "outputs.tf"),
       join(flows, "variables.tf"),
       join(flows, "versions.tf.example"),
       join(seasonal, "flows.tf"),
+      join(seasonal, "outputs.tf"),
       join(seasonal, "variables.tf"),
       join(seasonal, "versions.tf.example"),
     ]);
+    expect(readFileSync(join(seasonal, "outputs.tf"), "utf8")).toContain("after_call_survey");
+    expect(readFileSync(join(flows, "outputs.tf"), "utf8")).not.toContain("after_call_survey");
     // Each set resolves only its own documents: the module is a resource in
     // its set and nothing in the other set's tree.
     expect(readFileSync(join(flows, "flows.tf"), "utf8")).not.toContain("after_call_survey");
@@ -851,6 +856,57 @@ describe("emit over several sets", () => {
     expect(existsSync(join(seasonal, "flows.tf"))).toBe(false);
   });
 
+  it("routes --module-alias to the set that emits the module, and refuses one no set emits", () => {
+    const { flows, seasonal, map } = twoSets();
+    // The module lives in seasonal/; flows/ must not refuse an alias it has
+    // nothing to say about.
+    const run = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+      "--module-alias",
+      "module:after-call-survey@live",
+    );
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    const alias = /resource "flowascode_contact_flow_module_alias"/;
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toMatch(alias);
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toContain("live");
+    expect(readFileSync(join(flows, "flows.tf"), "utf8")).not.toMatch(alias);
+    // Both sets written: the same bytes the library gives each on its own.
+    const addressMap = JSON.parse(readFileSync(map, "utf8")) as Record<string, string>;
+    expect(readFileSync(join(seasonal, "flows.tf"), "utf8")).toBe(
+      emitFlowascode(
+        [readDoc(join(REPO, "conformance", "roundtrip", "after-call-survey", "doc.flowdoc.json"))],
+        { addressMap, moduleAliases: { "after-call-survey": ["live"] } },
+      ).files["flows.tf"],
+    );
+
+    rmSync(join(flows, "flows.tf"));
+    rmSync(join(seasonal, "flows.tf"));
+    const orphan = cli(
+      "emit",
+      flows,
+      seasonal,
+      "--target",
+      "flowascode",
+      "--address-map",
+      map,
+      "--module-alias",
+      "module:nowhere@live",
+    );
+    expect(orphan.status).toBe(1);
+    expect(orphan.stdout).toBe("");
+    expect(orphan.stderr).toContain('--module-alias names a module no set emits: "nowhere"');
+    expect(orphan.stderr).toContain(`searched ${flows}, ${seasonal}`);
+    expect(existsSync(join(flows, "flows.tf"))).toBe(false);
+    expect(existsSync(join(seasonal, "flows.tf"))).toBe(false);
+  });
+
   it("refuses --out with more than one set, and two sets that would share a directory", () => {
     const { flows, seasonal, map } = twoSets();
     const merged = cli(
@@ -902,6 +958,7 @@ describe("emit --target flowascode --instance-id-expression", () => {
     expect(run.status).toBe(0);
     expect(run.stdout.trim().split("\n")).toEqual([
       join(dir, "flows.tf"),
+      join(dir, "outputs.tf"),
       join(dir, "versions.tf.example"),
     ]);
     expect(existsSync(join(dir, "variables.tf"))).toBe(false);
@@ -909,7 +966,7 @@ describe("emit --target flowascode --instance-id-expression", () => {
       addressMap,
       instanceIdExpression: "local.connect_instance_id",
     }).files;
-    expect(Object.keys(expected).sort()).toEqual(["flows.tf", "versions.tf.example"]);
+    expect(Object.keys(expected).sort()).toEqual(["flows.tf", "outputs.tf", "versions.tf.example"]);
     expect(readFileSync(join(dir, "flows.tf"), "utf8")).toBe(expected["flows.tf"]);
     expect(readFileSync(join(dir, "flows.tf"), "utf8")).toContain(
       "instance_id = local.connect_instance_id",
