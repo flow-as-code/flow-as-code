@@ -235,10 +235,11 @@ flow-as-code, all of 11 to 14 for the provider.
 
 Implemented on branch `feat/d01-flowdoc-0.3` from main at `fe3e3d6` (#42),
 ungated by the owner decision of 2026-10-05 (tasks/README.md, "How it
-relates to Phase C", as amended by #43; the gate paragraph at the top of
-this file is the one #43 rewrites). Four commits, one per concern, each
-green on `npm run build`, `npm test`, `npm run lint` and `npm run
-typecheck`:
+relates to Phase C", as amended by #43, merged 2026-10-06, which rewrote
+the gate paragraph at the top of this file; main was merged into this
+branch after that so the file reads as one record). Four commits, one per
+concern, each green on `npm run build`, `npm test`, `npm run lint` and
+`npm run typecheck`, then the review commits under "Review" below:
 
 1. `feat(core): FlowDoc 0.3 with the five Phase D reference types` is the
    format bump and every reader in this repository.
@@ -336,8 +337,16 @@ case. A `voiceconnector` type is not added (owner decision 4).
   id-keyed lookup a `CaseRequestFields` key needs, since a bare field id
   matches no ARN-keyed entry.
 - `materialize` and `simulate` are token-driven through `parseToken` and
-  needed no change for a token in a value; resolving a token in a map key is
-  D06's (ADR 0008), as is lint's `walkStrings` visiting keys.
+  needed no change for a token in a value. On review (below), `materialize`
+  resolves a token standing as a map key through the same rule, on both
+  backends, and refuses a token embedded in a longer key or value before
+  substituting (the binder path had no such check);
+  `conformance/materialize/casefield-key-with-map/` is the fixture. Lint's
+  `walkStrings` visits keys at `<path>.<key>~`, so `no-unresolved-token`
+  reports a key token that is malformed, interpolated or missing from the
+  index and `no-literal-arn` an ARN in a key; four fixtures under
+  `conformance/lint/`. The HCL rule for a reference in a map key stays D06's
+  (ADR 0008).
 - cdk: `TokenBinder` gains optional `tasktemplate`, `casetemplate`,
   `casefield`, `assistant` and `phonenumber`; `bindRef` calls them as it
   calls `flow`; the scaffold writes each when a document in the set needs it
@@ -382,7 +391,12 @@ Each described in actions.md, "Machine-readable form", typed in
   Fails on a key that is no parameter, a value the enum lacks, or doubling
   with `required` or `requiredWhenKey`. A JSONPath in the parameter requires
   nothing. The first entry carrying it (D06's `CreateCase`) lands with the
-  lint fixture.
+  lint fixture. `builderErrorsFor` does not read it: the CDK builder wires
+  branches from the `builder` flag and `shapes` alone, so whether the
+  builder wires `CreateCase`'s `ContactNotLinked` only when
+  `LinkContactToCase` is `"true"` (and how, since `shapes` key off a value
+  and could express it) is decided when D06 models `CreateCase`, in its task
+  file, not here.
 - `keyPatterns` on a map, anchored regular expression sources beside `keys`;
   fails on a non-map or an unanchored or invalid pattern.
 - Group alternatives as `groups` on a constraint, in place of `keys`, chosen
@@ -441,11 +455,31 @@ merged unreleased, then re-vendors this PR's merge commit with
 recorded here when they exist.
 
 - `internal/flowdoc/refs.go` `TokenPattern`: the thirteen types, as
-  `TOKEN_PATTERN` spells them.
-- `internal/schema/schema.go` `Versions`: `{"0.1", "0.2", "0.3"}`;
-  `regexp.go` and `serialize.go` wherever they name `0.2`; the embedded
-  schema set gains `flowdoc-0.3.schema.json`; migration returns 0.3 for 0.1
-  and 0.2 (`TestOracleMigrateFlowDoc` re-recorded).
+  `TOKEN_PATTERN` spells them. Separately, `internal/flowmodel/read.go`
+  `RefKeyPattern` (contract.ts's `REF_KEY`, read at `read.go:95` for every
+  `refs` key and at `read.go:579` for a key-form value, failing
+  `REF_KEY_MALFORMED`): the thirteen types as `REF_KEY` spells them. The two
+  are different variables in different packages; updating one leaves the
+  other at eight types.
+- `internal/flowdoc/serialize.go` `const Version = "0.3"`, and in the same
+  commit `internal/flowdoc/migrate.go` `SupportedFlowDocVersions` becomes an
+  explicit `{"0.1", "0.2", Version}`: today it is `{"0.1", Version}`, so
+  bumping the constant alone would make the provider refuse 0.2, the version
+  every existing state's computed `flowdoc` attribute and every 0.1.x export
+  carries. `Version` also stamps a document at `internal/flowmodel/read.go:225`
+  (the computed attribute) and `internal/export/flow.go:503,520` (export's
+  `flowdoc` and `core@` generator), so the stamp moves with it. The embedded
+  schema set under `internal/schema/` gains `flowdoc-0.3.schema.json` and
+  `schema.go` selects it for 0.3; migration returns 0.3 for 0.1 and 0.2
+  (`TestOracleMigrateFlowDoc` re-recorded). There is no `serialize.go`
+  under `internal/schema/`.
+- `internal/flowdoc`'s materialize port resolves a token standing as a map
+  key through the rule it resolves a value with, and refuses a token
+  embedded in a longer key or value on both backends before substituting;
+  the vendored `conformance/materialize/casefield-key-with-map/` holds it.
+  `internal/lint`'s string walk visits keys at `<path>.<key>~` so its
+  `no-unresolved-token` and `no-literal-arn` ports pass the four key
+  fixtures vendored with them.
 - `internal/export/arn.go`: the `phone-number/<id>` form, `task-template` in
   the keyword tables, and `parseCasesArn` and `parseAssistantArn`;
   `reversemap.go`: the four lists, a phone number named by description or
@@ -453,10 +487,32 @@ recorded here when they exist.
   `ListPhoneNumbersV2`, `ListIntegrationAssociations(CASES_DOMAIN)` with the
   Cases `ListTemplates` and `ListFields`, `ListAssistants`, each optional in
   the sense export.ts gives them; `export-oracle.mjs` re-recorded over
-  `conformance/export/phase-d-refs`.
-- The documented IAM policy gains `connect:ListTaskTemplates`,
+  `conformance/export/phase-d-refs`. The Cases and Q in Connect listings are
+  other services: `go.mod` carries `aws-sdk-go-v2/service/connect` alone,
+  `connectapi.API` is a Connect-only interface and `NewInventory(api API,
+instanceID)` takes one client, so the batch adds
+  `aws-sdk-go-v2/service/connectcases` and `aws-sdk-go-v2/service/qconnect`,
+  an interface and a fake for each, and optional clients on the inventory
+  constructor, absent meaning the lists are not read, as `cases` and
+  `qconnect` on `createConnectInventoryClient` mean here.
+- No data source is added: the provider serves `NewView` only
+  (`provider.go:268`) and the golden binds the new types to awscc resources
+  and `aws_connect_phone_number`; each group task decides for its type.
+- The provider documents no IAM policy today (its docs and templates hold
+  the provider's `policy` and `external_id` attributes; the only
+  `connect:List` strings are in `tags_test.go`), and neither does docs/06
+  here. The List permissions export needs (`connect:ListTaskTemplates`,
   `connect:ListPhoneNumbersV2`, `connect:ListIntegrationAssociations`,
-  `cases:ListTemplates`, `cases:ListFields` and `wisdom:ListAssistants`.
+  `cases:ListTemplates`, `cases:ListFields`, `wisdom:ListAssistants`) are
+  written where the provider's export guide first names the permissions it
+  needs, a guide the batch adds under `templates/guides/` if none does by
+  then; ADR 0008's "documented IAM policy" refers to that page.
+- The `Version` bump re-serializes every resource's computed `flowdoc`
+  attribute as `"flowdoc": "0.3"` on the first refresh after the provider
+  upgrade, so every `<name>_document_sha256` output of an emitted tree
+  (`sha256(<address>.flowdoc)`, `packages/hcl/src/emit.ts`) changes once
+  with no document change; a promotion gate reading those outputs sees it.
+  Recorded in tasks/D10 too.
 - `internal/flowdoc/catalog.go`'s strict parser: the unmodeled struct gains
   `Channels []string \`json:"channels,omitempty"\``beside`Source`;
 `CatalogError`gains`RequiredWhenValue *struct{ Key, Equals string }
@@ -486,24 +542,33 @@ recorded here when they exist.
   type is re-recorded and never hand-edited; `oracle_test.go` reads
   `requiredErrorsByParameters` in place of `requiredErrorsForChat`.
 - The vendored `conformance/hcl/roundtrip/casefield-key` case fails the
-  provider's conformance runner until `TokenPattern` and the `refs` key
-  pattern know the five types, which the first item does; it stays
-  `awaits-provider` here until D10 pins the release.
+  provider's conformance runner with `REF_KEY_MALFORMED` on
+  `casefield:priority` until both `TokenPattern` and `RefKeyPattern` know
+  the five types (the first item names both); it stays `awaits-provider`
+  here until D10 pins the release.
 
 The recorder, in full (the provider's
 `internal/flowdoc/testdata/catalog-oracle.mjs`; `node catalog-oracle.mjs
 <flow-as-code checkout> ts-oracle.json [--write]` after `npm run build`
-there):
+there). It keeps what the current recorder does (the `collect` cases
+re-recorded from `collectRefs`, read by `TestOracleCollectRefs`; a type that
+left the catalog flagged in the printed list, since `perType` is rebuilt
+from the catalog) and adds the per-type fields above:
 
 ```js
 // Copyright 2026 The flow-as-code Authors
 // SPDX-License-Identifier: Apache-2.0
-// Re-records every per-type catalog fact oracle_test.go checks in
-// ts-oracle.json from @flow-as-code/core's own catalog functions, plus
-// catalogOrder, keeping every other recorded value, and prints which types
-// changed so the diff can be read before it is committed. A new type is
-// re-recorded here, never hand-edited. Build flow-as-code first (npm run
-// build), then:
+// Re-records the per-type tables in ts-oracle.json (perType and
+// catalogOrder) from @flow-as-code/core's own catalog.ts helpers and
+// actions.ts tables, and the collect cases from its collectRefs: every type
+// the vendored catalog names, so a type the catalog gains is recorded rather
+// than hand-written and a type it loses is flagged, plus the two probes
+// oracle_test.go relies on (NotAType, a type no table has; constructor, an
+// Object.prototype key, which actions.ts's plain-object tables answer with
+// the prototype's function, dropped by JSON.stringify as the Go side
+// expects). Every field oracle_test.go checks is recorded here; the rest of
+// the file is kept. It prints which types changed so the diff can be read
+// before it is committed. Build flow-as-code first (npm run build), then:
 //
 //   node catalog-oracle.mjs <flow-as-code checkout> ts-oracle.json [--write]
 import { execFileSync } from "node:child_process";
@@ -516,6 +581,8 @@ const path = process.argv[3];
 const write = process.argv.includes("--write");
 const core = await import(pathToFileURL(repo + "/packages/core/dist/index.js").href);
 const o = JSON.parse(readFileSync(path, "utf8"));
+const probes = ["NotAType", "constructor"];
+const types = [...Object.keys(core.actionCatalog.actions), ...probes];
 const changed = [];
 
 /**
@@ -542,15 +609,10 @@ function parameterCases(type) {
   return [...cases.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
-// Own keys only: the oracle deliberately records `constructor`, a type no
-// catalog holds, to show every reader uses Object.hasOwn as catalogEntry does.
-const own = (table, key) => (Object.hasOwn(table, key) ? table[key] : undefined);
-const types = new Set([...Object.keys(o.perType), ...Object.keys(core.actionCatalog.actions)]);
-for (const type of [...types].sort()) {
-  const entry = own(o.perType, type) ?? {};
-  const restrictions = own(core.FLOW_TYPE_RESTRICTIONS, type);
+const perType = {};
+for (const type of types) {
+  const entry = o.perType[type] ?? {};
   const next = {
-    ...entry,
     modeled: core.modeledEntry(type) !== undefined,
     requiredErrors: core.requiredErrors(type),
     requiredErrorsByParameters: parameterCases(type).map(([, parameters]) => ({
@@ -566,20 +628,34 @@ for (const type of [...types].sort()) {
     announcePaths: [...core.announcePaths(type)],
     recordingEnablerPath: core.recordingEnablerPath(type) ?? null,
     refPaths: core.refPathsOf(type),
-    restrictions: restrictions === undefined ? null : [...restrictions],
+    // The table read as the action-allowed-in-flow-type rule reads it, a
+    // plain index (packages/core/src/lint/rules/action-allowed-in-flow-type.ts),
+    // so the constructor probe yields the prototype's function, which JSON
+    // drops, and the Go side sees the key absent.
+    restrictions: core.FLOW_TYPE_RESTRICTIONS[type] ?? null,
     unrestricted: core.FLOW_TYPE_UNRESTRICTED.includes(type),
     terminal: core.TERMINAL_ACTIONS.includes(type),
     actionType: Object.values(core.ActionType).includes(type),
     channels:
       core.channelRestriction(type) === undefined ? null : [...core.channelRestriction(type)],
   };
-  delete next.requiredErrorsForChat;
   if (JSON.stringify(next) !== JSON.stringify(entry)) changed.push(type);
-  o.perType[type] = next;
+  perType[type] = next;
 }
-const order = core.modeledTypes();
-if (JSON.stringify(order) !== JSON.stringify(o.catalogOrder)) changed.push("catalogOrder");
-o.catalogOrder = order;
+for (const type of Object.keys(o.perType)) {
+  if (!(type in perType)) changed.push(type);
+}
+o.perType = perType;
+// collect: each case's input is JSON text, parsed here as the Go test parses
+// it, so both sides scan the same bytes.
+o.collect.forEach((c, i) => {
+  const out = core.collectRefs(JSON.parse(c.in));
+  if (JSON.stringify(out) !== JSON.stringify(c.out)) changed.push(`collect[${i}]`);
+  c.out = out;
+});
+const catalogOrder = core.modeledTypes();
+if (JSON.stringify(catalogOrder) !== JSON.stringify(o.catalogOrder)) changed.push("catalogOrder");
+o.catalogOrder = catalogOrder;
 const head = execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 o.generatedFrom = `flow-as-code ${head}, packages/core/dist`;
 console.log(JSON.stringify(changed));
@@ -600,7 +676,49 @@ is if they remain in `perType`.
   next sweep).
 - The CLI's `export` wiring of the Cases and Q in Connect clients (D05,
   D06).
-- `materialize`, `walkStrings` and the HCL rule for a reference in a map
-  key (D06, per ADR 0008).
-- The tasks/README.md order table and CLAUDE.md, which #43 amends; this
-  record names the gate as #43 leaves it.
+- The HCL rule for a reference in a map key, and the typed `create_case`
+  block it lands with (D06, per ADR 0008); `materialize` and `walkStrings`
+  moved here on review.
+- The tasks/README.md order table and CLAUDE.md, amended by #43 (merged
+  2026-10-06).
+
+### Review (2026-10-06)
+
+Findings on #44 and what each changed, on top of the four commits:
+
+- A `casefield` token in a map key passed through `materializeWithBinder`
+  unresolved and unreported: `resolveDeep` rewrote values only, the binder
+  path had no leaked-token check and `walkStrings` never visited keys, so
+  `FlowSet` would have deployed `"${cdref:casefield:priority"` as a literal
+  key and `flow-cli lint` said "No findings". Fixed as ADR 0008 specifies
+  rather than guarded: keys resolve through the one token rule on both
+  backends, both backends refuse an interpolated token before substituting
+  (over the document, since the CDK version hash binds a token to itself),
+  and lint walks keys. Fixtures: `conformance/materialize/casefield-key-with-map/`
+  (the HCL golden's document, a map in all three key forms) and four under
+  `conformance/lint/`. `flow-cli emit --target tf` on the golden now writes
+  the key as `"${casefield_priority_arn}"` in key position instead of
+  refusing with a message that contradicted the restated invariant 4.
+- The provider batch named `TokenPattern` but not `RefKeyPattern`, and named
+  a `Versions` list in a file that does not exist while the list that
+  matters, `SupportedFlowDocVersions`, would have lost 0.2 on a constant
+  bump; both items are rewritten above with the files and lines.
+- The skill reference generator read `c.keys.map` and would have thrown on
+  the first `groups` constraint (D03); it renders both forms through an
+  exported `constraintSentence`, held by `tests/skills.test.ts`.
+- No studio test opened a document carrying the new types;
+  `packages/studio/tests/phaseDRefs.test.ts` opens the HCL golden through
+  `parseFlowDoc`, `validateDoc`, `refUsage` and `addressPlaceholder`.
+- The recorder script above had dropped the `collect` re-recording and the
+  removed-type check the current one has, and its `restrictions` comment
+  misdescribed the rule's reading; restored and corrected.
+- The IAM, inventory and data-source items, the once-only
+  `_document_sha256` change and the showcase's `~> 0.1.1` pin shape are
+  recorded above and in tasks/D10. The changeset and docs/06 say that an
+  older reader refuses a 0.3 document by its version and a mis-stamped token
+  by its token pattern, not by the frozen 0.2 schema.
+- The showcase repository's adoption list (its issue #7) does not name the
+  0.3 version shift: on the new pins its round-trip tests fail on
+  `"flowdoc": "0.2"` versus `"0.3"` for the 12 hand-authored documents, and
+  `npm run generate` rewrites the 7 generated ones. Owner action there, a
+  comment on that issue; tasks/D10 carries it.

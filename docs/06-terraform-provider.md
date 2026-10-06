@@ -139,7 +139,11 @@ its schema file to one present under `conformance/schema/`. The 0.3 row's
 provider column is filled in by tasks/D10 with the version read from the
 registries once that release is out; until then a published provider reads
 0.2, and an emitted tree carries no FlowDoc version, so the provider refuses
-only a typed sub-block or a `refs` key type its vendored catalog lacks.
+only a typed sub-block or a `refs` key type its vendored catalog lacks. An
+older reader of a document (npm 0.2.x, provider 0.1.x) refuses a 0.3 file by
+its version, and treats a 0.3 token in a file stamped 0.2 as malformed: the
+check is the reader's token pattern, not the frozen 0.2 schema, which applies
+the pattern only at `refs[].token` and the typed reference positions.
 
 ## Migrating from hashicorp/aws
 
