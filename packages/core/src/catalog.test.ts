@@ -55,11 +55,15 @@ import {
   actionCatalog,
   builderErrors,
   builderErrorsFor,
+  constraintViolations,
   modeledTypes,
   requiredErrors,
   requiredErrorsFor,
+  requiredErrorsOf,
   type ActionCatalog,
+  type CatalogConstraint,
   type CatalogElement,
+  type CatalogError,
   type CatalogParameter,
 } from "./catalog.js";
 import { snakeCaseKey } from "./hcl-names.js";
@@ -188,9 +192,66 @@ const KINDS = new Set([
   "json",
 ]);
 
+/** The service's Channel enum, which `channels` is spelled in. */
+const CHANNELS = new Set(["VOICE", "CHAT", "TASK", "EMAIL"]);
+
+/**
+ * Kinds a `dynamic` flag may sit on: a scalar the page lets a JSONPath stand
+ * in for, and since FlowDoc 0.3 a `list` (docs/adr/0009). An `object`, `map`
+ * or `json` is never dynamic: the provider's attribute for one has no
+ * JSONPath form.
+ */
+const DYNAMIC_KINDS = new Set(["string", "integer", "integerString", "enum", "list"]);
+
+/** A constraint names known keys, in one of its two forms (catalog.ts, CatalogConstraint). */
+function constraintProblems(
+  where: string,
+  c: CatalogConstraint,
+  known: ReadonlySet<string>,
+): string[] {
+  const out: string[] = [];
+  if ((c.keys === undefined) === (c.groups === undefined)) {
+    out.push(
+      `${where}: constraint carries ${c.keys === undefined ? "neither" : "both"} keys and groups`,
+    );
+  }
+  for (const k of c.keys ?? []) {
+    if (!known.has(k)) out.push(`${where}: constraint names unknown key ${k}`);
+  }
+  const seen = new Set<string>();
+  if (c.groups !== undefined && c.groups.length < 2) {
+    out.push(`${where}: constraint groups need at least two alternatives`);
+  }
+  for (const group of c.groups ?? []) {
+    if (group.length === 0) out.push(`${where}: constraint has an empty group`);
+    for (const k of group) {
+      if (!known.has(k)) out.push(`${where}: constraint group names unknown key ${k}`);
+      if (seen.has(k)) out.push(`${where}: constraint names ${k} in two groups`);
+      seen.add(k);
+    }
+  }
+  return out;
+}
+
 function elementProblems(where: string, e: CatalogElement, refTypes: readonly string[]): string[] {
   const out: string[] = [];
   if (!KINDS.has(e.kind)) out.push(`${where}: unknown kind ${e.kind}`);
+  if (e.dynamic === true && !DYNAMIC_KINDS.has(e.kind)) {
+    out.push(`${where}: dynamic on a ${e.kind}, which has no JSONPath form`);
+  }
+  if (e.keyPatterns !== undefined) {
+    if (e.kind !== "map") out.push(`${where}: keyPatterns on a ${e.kind}, not a map`);
+    for (const pattern of e.keyPatterns) {
+      if (!pattern.startsWith("^") || !pattern.endsWith("$")) {
+        out.push(`${where}: key pattern ${pattern} is not anchored`);
+      }
+      try {
+        new RegExp(pattern);
+      } catch {
+        out.push(`${where}: key pattern ${pattern} is not a regular expression`);
+      }
+    }
+  }
   if (e.kind === "enum" && !(Array.isArray(e.values) && e.values.length > 0)) {
     out.push(`${where}: enum without values`);
   }
@@ -204,12 +265,8 @@ function elementProblems(where: string, e: CatalogElement, refTypes: readonly st
   }
   if (e.of !== undefined) out.push(...elementProblems(`${where}[]`, e.of, refTypes));
   for (const f of e.fields ?? []) out.push(...parameterProblems(`${where}.${f.key}`, f, refTypes));
-  for (const c of e.constraints ?? []) {
-    const keys = new Set((e.fields ?? []).map((f) => f.key));
-    for (const k of c.keys) {
-      if (!keys.has(k)) out.push(`${where}: constraint names unknown key ${k}`);
-    }
-  }
+  const fieldKeys = new Set((e.fields ?? []).map((f) => f.key));
+  for (const c of e.constraints ?? []) out.push(...constraintProblems(where, c, fieldKeys));
   return out;
 }
 
@@ -278,9 +335,17 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
     const problem = docProblem(type, entry.doc, source);
     if (problem !== undefined) out.push(problem);
     if (!entry.modeled) {
-      const keys = Object.keys(entry).sort();
-      if (!["category,doc,modeled", "category,doc,modeled,source"].includes(keys.join(","))) {
-        out.push(`${type}: unmodeled entry carries ${keys.join(",")}`);
+      const keys = Object.keys(entry).filter((k) => k !== "source" && k !== "channels");
+      if (keys.sort().join(",") !== "category,doc,modeled") {
+        out.push(`${type}: unmodeled entry carries ${Object.keys(entry).sort().join(",")}`);
+      }
+    }
+    // Channels, on either kind of entry, are the service's vocabulary and
+    // never an empty list (absent is the recorded absence of a restriction).
+    if (entry.channels !== undefined) {
+      if (entry.channels.length === 0) out.push(`${type}: channels is empty`);
+      for (const channel of entry.channels) {
+        if (!CHANNELS.has(channel)) out.push(`${type}: channel ${channel} is unknown`);
       }
     }
   }
@@ -339,10 +404,7 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       out.push(`${where}: waits, but next is ${entry.transitions.next}`);
     }
     const keys = new Set(entry.parameters.map((p) => p.key));
-    for (const c of entry.constraints ?? []) {
-      for (const k of c.keys)
-        if (!keys.has(k)) out.push(`${where}: constraint names unknown key ${k}`);
-    }
+    for (const c of entry.constraints ?? []) out.push(...constraintProblems(where, c, keys));
 
     // Reference-bearing paths equal REFERENCE_FIELDS, path by path.
     const refs = Object.fromEntries(entry.refs.map((r) => [r.path, r.ref]));
@@ -363,14 +425,33 @@ export function catalogProblems(catalog: ActionCatalog): string[] {
       out.push(`${where}: recordingEnabler ${entry.recordingEnabler} is malformed`);
     }
     // A conditional requirement names a top-level parameter and is not also
-    // unconditional.
+    // unconditional; a value-dependent one names a value the parameter can
+    // hold and is not also presence-dependent.
     const parameterKeys = new Set(entry.parameters.map((p) => p.key));
     for (const e of entry.transitions.errors) {
-      if (e.requiredWhenKey === undefined) continue;
-      if (!parameterKeys.has(e.requiredWhenKey)) {
-        out.push(`${where}: ${e.type} requiredWhenKey ${e.requiredWhenKey} is not a parameter`);
+      if (e.requiredWhenKey !== undefined) {
+        if (!parameterKeys.has(e.requiredWhenKey)) {
+          out.push(`${where}: ${e.type} requiredWhenKey ${e.requiredWhenKey} is not a parameter`);
+        }
+        if (e.required) out.push(`${where}: ${e.type} is both required and requiredWhenKey`);
       }
-      if (e.required) out.push(`${where}: ${e.type} is both required and requiredWhenKey`);
+      if (e.requiredWhenValue !== undefined) {
+        const { key, equals } = e.requiredWhenValue;
+        const parameter = entry.parameters.find((p) => p.key === key);
+        if (parameter === undefined) {
+          out.push(`${where}: ${e.type} requiredWhenValue ${key} is not a parameter`);
+        } else if (typeof equals !== "string") {
+          out.push(`${where}: ${e.type} requiredWhenValue ${key} equals is not a string`);
+        } else if (parameter.kind === "enum" && !(parameter.values ?? []).includes(equals)) {
+          out.push(
+            `${where}: ${e.type} requiredWhenValue ${key} equals ${equals}, which the enum lacks`,
+          );
+        }
+        if (e.required) out.push(`${where}: ${e.type} is both required and requiredWhenValue`);
+        if (e.requiredWhenKey !== undefined) {
+          out.push(`${where}: ${e.type} is both requiredWhenKey and requiredWhenValue`);
+        }
+      }
     }
 
     // Terminal-ness equals TERMINAL_ACTIONS, and a terminal action wires nothing.
@@ -462,7 +543,7 @@ describe("the event hook names", () => {
   // `keys`, and the schema clause's propertyNames enum.
   const schema = JSON.parse(
     readFileSync(
-      new URL("../../../conformance/schema/flowdoc-0.2.schema.json", import.meta.url),
+      new URL("../../../conformance/schema/flowdoc-0.3.schema.json", import.meta.url),
       "utf8",
     ),
   ) as {
@@ -535,6 +616,11 @@ describe("the action catalog", () => {
       "flow",
       "module",
       "view",
+      "tasktemplate",
+      "casetemplate",
+      "casefield",
+      "assistant",
+      "phonenumber",
     ]);
   });
 
@@ -906,10 +992,244 @@ describe("catalogProblems is proven able to fail", () => {
   it("on an unmodeled entry carrying a key outside the whitelist", () => {
     expect(
       mutate((c) => {
-        (c.actions as Record<string, { channels?: string[] }>).CreateCase!.channels = ["VOICE"];
+        (c.actions as Record<string, { block?: string }>).CreateCase!.block = "create_case";
       }),
     ).toContainEqual(
-      expect.stringContaining("CreateCase: unmodeled entry carries category,channels,doc,modeled"),
+      expect.stringContaining("CreateCase: unmodeled entry carries block,category,doc,modeled"),
     );
+    // channels is whitelisted on an unmodeled entry (FlowDoc 0.3 vocabulary).
+    expect(
+      mutate((c) => {
+        (c.actions as Record<string, { channels?: string[] }>).CreateCase!.channels = ["VOICE"];
+      }),
+    ).toEqual([]);
+  });
+
+  // The FlowDoc 0.3 vocabulary (tasks/D01, "Catalog vocabulary"), each item
+  // shown to fail a check before any entry uses it.
+  it("on channels naming an unknown channel or none, on either kind of entry", () => {
+    expect(
+      mutate((c) => {
+        (c.actions as Record<string, { channels?: string[] }>).CreateCase!.channels = ["SMS"];
+      }),
+    ).toContainEqual(expect.stringContaining("CreateCase: channel SMS is unknown"));
+    expect(
+      mutate((c) => {
+        (c.actions as Record<string, { channels?: string[] }>).CreateCase!.channels = [];
+      }),
+    ).toContainEqual(expect.stringContaining("CreateCase: channels is empty"));
+    expect(
+      mutate((c) => {
+        (modeledAt(c, "Wait") as { channels?: string[] }).channels = ["CHAT", "SMS"];
+      }),
+    ).toContainEqual(expect.stringContaining("Wait: channel SMS is unknown"));
+  });
+  it("on a value-dependent requirement naming no parameter, a value the enum lacks, or doubled", () => {
+    const withValue = (c: ActionCatalog, key: string, equals: string, extra = {}) => {
+      (modeledAt(c, "UpdateContactTextToSpeechVoice").transitions.errors as CatalogError[]).push({
+        type: "Extra",
+        required: false,
+        builder: false,
+        requiredWhenValue: { key, equals },
+        ...extra,
+      });
+    };
+    expect(mutate((c) => withValue(c, "Nope", "x"))).toContainEqual(
+      expect.stringContaining("Extra requiredWhenValue Nope is not a parameter"),
+    );
+    expect(mutate((c) => withValue(c, "TextToSpeechEngine", "Nope"))).toContainEqual(
+      expect.stringContaining(
+        "requiredWhenValue TextToSpeechEngine equals Nope, which the enum lacks",
+      ),
+    );
+    expect(
+      mutate((c) => withValue(c, "TextToSpeechEngine", "Neural", { required: true })),
+    ).toContainEqual(expect.stringContaining("Extra is both required and requiredWhenValue"));
+    expect(
+      mutate((c) =>
+        withValue(c, "TextToSpeechEngine", "Neural", { requiredWhenKey: "TextToSpeechEngine" }),
+      ),
+    ).toContainEqual(
+      expect.stringContaining("Extra is both requiredWhenKey and requiredWhenValue"),
+    );
+    // The well-formed case passes every check.
+    expect(mutate((c) => withValue(c, "TextToSpeechEngine", "Neural"))).toEqual([]);
+  });
+  it("on key patterns on a parameter that is not a map, or that are not anchored regular expressions", () => {
+    const eventHooks = (c: ActionCatalog) =>
+      modeledAt(c, "UpdateContactEventHooks").parameters.find((p) => p.key === "EventHooks")!;
+    expect(
+      mutate((c) => {
+        (
+          modeledAt(c, "MessageParticipant").parameters[0] as { keyPatterns?: string[] }
+        ).keyPatterns = ["^x$"];
+      }),
+    ).toContainEqual(expect.stringContaining("keyPatterns on a ref, not a map"));
+    expect(
+      mutate((c) => {
+        (eventHooks(c) as { keyPatterns?: string[] }).keyPatterns = ["Attributes\\..+"];
+      }),
+    ).toContainEqual(expect.stringContaining("is not anchored"));
+    expect(
+      mutate((c) => {
+        (eventHooks(c) as { keyPatterns?: string[] }).keyPatterns = ["^(.+$"];
+      }),
+    ).toContainEqual(expect.stringContaining("is not a regular expression"));
+    expect(
+      mutate((c) => {
+        (eventHooks(c) as { keyPatterns?: string[] }).keyPatterns = ["^Attributes\\.[^.]+$"];
+      }),
+    ).toEqual([]);
+  });
+  it("on a constraint carrying both forms or neither, a group with an unknown key, one key in two groups, or one group", () => {
+    const first = (c: ActionCatalog) => modeledAt(c, "GetMetricData").constraints![0]!;
+    expect(
+      mutate((c) => {
+        (first(c) as { groups?: string[][] }).groups = [["QueueId"], ["AgentId"]];
+      }),
+    ).toContainEqual(
+      expect.stringContaining("GetMetricData: constraint carries both keys and groups"),
+    );
+    expect(
+      mutate((c) => {
+        delete (first(c) as { keys?: string[] }).keys;
+      }),
+    ).toContainEqual(expect.stringContaining("constraint carries neither keys and groups"));
+    const grouped = (c: ActionCatalog, groups: string[][]) => {
+      const constraint = first(c) as { keys?: string[]; groups?: string[][] };
+      delete constraint.keys;
+      constraint.groups = groups;
+    };
+    expect(mutate((c) => grouped(c, [["QueueId"], ["AgentId", "Nope"]]))).toContainEqual(
+      expect.stringContaining("constraint group names unknown key Nope"),
+    );
+    expect(mutate((c) => grouped(c, [["QueueId"], ["AgentId", "QueueId"]]))).toContainEqual(
+      expect.stringContaining("constraint names QueueId in two groups"),
+    );
+    expect(mutate((c) => grouped(c, [["QueueId", "AgentId"]]))).toContainEqual(
+      expect.stringContaining("constraint groups need at least two alternatives"),
+    );
+    expect(mutate((c) => grouped(c, [["QueueId"], []]))).toContainEqual(
+      expect.stringContaining("constraint has an empty group"),
+    );
+    expect(mutate((c) => grouped(c, [["QueueId"], ["AgentId"]]))).toEqual([]);
+  });
+  it("on dynamic on an object, a map or a json value, and not on a list", () => {
+    expect(
+      mutate((c) => {
+        const bot = modeledAt(c, "ConnectParticipantWithLexBot").parameters.find(
+          (p) => p.key === "LexV2Bot",
+        )!;
+        (bot as { dynamic?: boolean }).dynamic = true;
+      }),
+    ).toContainEqual(expect.stringContaining("LexV2Bot: dynamic on a object"));
+    expect(
+      mutate((c) => {
+        const hooks = modeledAt(c, "UpdateContactEventHooks").parameters.find(
+          (p) => p.key === "EventHooks",
+        )!;
+        (hooks as { dynamic?: boolean }).dynamic = true;
+      }),
+    ).toContainEqual(expect.stringContaining("EventHooks: dynamic on a map"));
+    expect(
+      mutate((c) => {
+        const tags = modeledAt(c, "UntagContact").parameters.find((p) => p.key === "TagKeys")!;
+        (tags as { dynamic?: boolean }).dynamic = true;
+      }),
+    ).toEqual([]);
+  });
+  it("on a reference path with a tilde on a named segment, and not on the map-key form", () => {
+    expect(
+      mutate((c) => {
+        modeledAt(c, "MessageParticipant").refs[0]!.path = "PromptId~";
+      }),
+    ).toContainEqual(expect.stringContaining("ref path PromptId~ is malformed"));
+    expect(
+      mutate((c) => {
+        modeledAt(c, "UpdateContactEventHooks").refs[0]!.path = "EventHooks.*~";
+      }),
+    ).not.toContainEqual(expect.stringContaining("is malformed"));
+  });
+});
+
+// The readings of the FlowDoc 0.3 vocabulary, on entries the catalog does
+// not hold yet: the first type to carry each lands with its lint fixture
+// (CreateCase for requiredWhenValue, GetCustomerProfile for groups).
+describe("requiredErrorsOf", () => {
+  const errors: CatalogError[] = [
+    { type: "Always", required: true, builder: true },
+    { type: "WhenKey", required: false, builder: true, requiredWhenKey: "ChatBehavior" },
+    {
+      type: "WhenValue",
+      required: false,
+      builder: true,
+      requiredWhenValue: { key: "LinkContactToCase", equals: "true" },
+    },
+    { type: "Never", required: false, builder: true },
+  ];
+
+  it("requires a branch by a parameter's value, in the catalog's order", () => {
+    expect(requiredErrorsOf(errors, { LinkContactToCase: "true", ChatBehavior: {} })).toEqual([
+      "Always",
+      "WhenKey",
+      "WhenValue",
+    ]);
+    expect(requiredErrorsOf(errors, { LinkContactToCase: "false" })).toEqual(["Always"]);
+    expect(requiredErrorsOf(errors, { LinkContactToCase: "$.Attributes.link" })).toEqual([
+      "Always",
+    ]);
+    expect(requiredErrorsOf(errors, {})).toEqual(["Always"]);
+    expect(requiredErrorsOf(errors, { ChatBehavior: null })).toEqual(["Always", "WhenKey"]);
+  });
+
+  it("is what requiredErrorsFor reads for a catalog type", () => {
+    const recording = actionCatalog.actions.UpdateContactRecordingAndAnalyticsBehavior;
+    const catalogErrors = recording?.modeled === true ? recording.transitions.errors : [];
+    expect(catalogErrors.length).toBeGreaterThan(0);
+    expect(
+      requiredErrorsFor("UpdateContactRecordingAndAnalyticsBehavior", { ChatBehavior: {} }),
+    ).toEqual(requiredErrorsOf(catalogErrors, { ChatBehavior: {} }));
+    expect(requiredErrorsFor("CreateCase", { LinkContactToCase: "true" })).toEqual([]);
+  });
+});
+
+describe("constraintViolations", () => {
+  const pair: CatalogConstraint[] = [{ rule: "atMostOne", keys: ["QueueId", "AgentId"] }];
+  const alternatives: CatalogConstraint[] = [
+    { rule: "exactlyOne", groups: [["IdentifierName", "IdentifierValue"], ["SearchCriteria"]] },
+  ];
+
+  it("reads keys as it always has", () => {
+    expect(constraintViolations(pair, { QueueId: "q" })).toEqual([]);
+    expect(constraintViolations(pair, {})).toEqual([]);
+    expect(constraintViolations(pair, { QueueId: "q", AgentId: "a" })).toEqual([
+      "at most one of QueueId, AgentId may be present; 2 present.",
+    ]);
+    expect(constraintViolations([{ rule: "exactlyOne", keys: ["A", "B"] }], {})).toEqual([
+      "exactly one of A, B is required; 0 present.",
+    ]);
+  });
+
+  it("reads a group as present only when every key in it is", () => {
+    expect(
+      constraintViolations(alternatives, { IdentifierName: "phone", IdentifierValue: "+1" }),
+    ).toEqual([]);
+    expect(constraintViolations(alternatives, { SearchCriteria: [] })).toEqual([]);
+    expect(constraintViolations(alternatives, { IdentifierName: "phone" })).toEqual([
+      "(IdentifierName and IdentifierValue) is incomplete: a group is present only with every key in it.",
+      "exactly one of (IdentifierName and IdentifierValue), SearchCriteria is required; 0 present.",
+    ]);
+    expect(
+      constraintViolations(alternatives, {
+        IdentifierName: "phone",
+        IdentifierValue: "+1",
+        SearchCriteria: [],
+      }),
+    ).toEqual([
+      "exactly one of (IdentifierName and IdentifierValue), SearchCriteria is required; 2 present.",
+    ]);
+    expect(constraintViolations(alternatives, {})).toEqual([
+      "exactly one of (IdentifierName and IdentifierValue), SearchCriteria is required; 0 present.",
+    ]);
   });
 });

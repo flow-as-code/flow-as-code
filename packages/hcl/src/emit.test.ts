@@ -141,7 +141,7 @@ describe("emitFlowascode", () => {
 
   it("refuses two module aliases that label one alias resource", () => {
     const module = (name: string): FlowDoc => ({
-      flowdoc: "0.2",
+      flowdoc: "0.3",
       kind: "module",
       name,
       connectType: "MODULE",
@@ -245,7 +245,7 @@ describe("emitFlowascode", () => {
   });
 
   const moduleDoc = (name: string): FlowDoc => ({
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "module",
     name,
     connectType: "MODULE",

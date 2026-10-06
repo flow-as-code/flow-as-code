@@ -49,7 +49,7 @@ const STRUCTURAL = new Set([
   "lifecycle",
 ]);
 const KEY =
-  /^(queue|hours|lambda|lex|prompt|flow|module|view):[a-z0-9]+(-[a-z0-9]+)*(@[a-z0-9]+(-[a-z0-9]+)*)?$/;
+  /^(queue|hours|lambda|lex|prompt|flow|module|view|tasktemplate|casetemplate|casefield|assistant|phonenumber):[a-z0-9]+(-[a-z0-9]+)*(@[a-z0-9]+(-[a-z0-9]+)*)?$/;
 
 /** A document's reference keys, spelled the way the resource's refs map spells them. */
 function refKeys(doc: FlowDoc): string[] {
@@ -85,7 +85,11 @@ describe("conformance/hcl/roundtrip", () => {
     it(`${name}: a normal-form document, bindings to its references, and a golden naming only catalog blocks`, () => {
       const spec = JSON.parse(read(new URL("case.json", dir))) as CaseFile;
       expect(spec.description.length).toBeGreaterThan(0);
-      expect(["pass", "fail", "skip"]).toContain(spec.validate ?? "skip");
+      // `awaits-provider`: the golden carries a sub-block or a reference key
+      // type the pinned provider lacks until the release that reads FlowDoc
+      // 0.3 (conformance/hcl/README.md; packages/hcl/src/validate.test.ts
+      // holds that such a case has no validate/ directory).
+      expect(["pass", "fail", "skip", "awaits-provider"]).toContain(spec.validate ?? "skip");
       const doc = normalDoc(new URL(spec.doc, dir));
       const keys = refKeys(doc);
       for (const key of keys) expect(key).toMatch(KEY);

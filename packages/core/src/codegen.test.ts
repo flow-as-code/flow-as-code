@@ -34,7 +34,7 @@ const demoDoc = (): FlowDoc =>
 /** A minimal hand-rolled FlowDoc for shapes the builder cannot produce. */
 function docWith(actions: FlowDoc["content"]["Actions"]): FlowDoc {
   return {
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "flow",
     name: "hand-rolled",
     connectType: "CONTACT_FLOW",
@@ -101,7 +101,7 @@ describe("codegen emission", () => {
     // written broken, which Prettier preserves), so the shape needs blocks of
     // one entry each.
     const doc: FlowDoc = {
-      flowdoc: "0.2",
+      flowdoc: "0.3",
       kind: "flow",
       name: "two-short",
       connectType: "CONTACT_FLOW",

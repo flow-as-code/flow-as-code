@@ -147,7 +147,7 @@ describe("synth rejects what is not a Flow", () => {
     ["a plain object", { name: "x" }],
     ["a string", "flow"],
     // The commonest mistake: handing synth the document it produces.
-    ["a FlowDoc", { flowdoc: "0.2", kind: "flow", name: "x", connectType: "CONTACT_FLOW" }],
+    ["a FlowDoc", { flowdoc: "0.3", kind: "flow", name: "x", connectType: "CONTACT_FLOW" }],
   ])("throws a clear error for %s", (_label, value) => {
     expect(() => synth(value as never)).toThrow(/synth expects a Flow built with new Flow/);
     expect(() => synth(value as never)).not.toThrow(TypeError);

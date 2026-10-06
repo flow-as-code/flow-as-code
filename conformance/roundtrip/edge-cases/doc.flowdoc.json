@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "flow",
   "name": "edge-cases",
   "description": "Every shape the builder can express and one it cannot.",

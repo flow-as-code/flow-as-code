@@ -42,6 +42,20 @@ describe("readPath", () => {
     ]);
   });
 
+  // FlowDoc 0.3 (docs/adr/0008): a Cases field id stands as a map key, so
+  // the catalog names the keys of a map, and a hit's value is the key itself.
+  it("reads every key of a map, naming each with a trailing tilde", () => {
+    expect(readPath(params, "EventHooks.*~")).toEqual([
+      { path: "EventHooks.CustomerQueue~", value: "CustomerQueue" },
+      { path: "EventHooks.AgentWhisper~", value: "AgentWhisper" },
+    ]);
+    expect(readPath({ Fields: { "${cdref:casefield:priority}": "high" } }, "Fields.*~")).toEqual([
+      { path: "Fields.${cdref:casefield:priority}~", value: "${cdref:casefield:priority}" },
+    ]);
+    expect(readPath(params, "Messages.*~")).toEqual([]);
+    expect(readPath(params, "Missing.*~")).toEqual([]);
+  });
+
   it("yields nothing for a path the value does not have", () => {
     expect(readPath(params, "Missing")).toEqual([]);
     expect(readPath(params, "PromptId.Deeper")).toEqual([]);
@@ -58,13 +72,21 @@ describe("readPath", () => {
 });
 
 describe("isCatalogPath", () => {
-  it.each(["PromptId", "LexV2Bot.AliasArn", "Messages[].PromptId", "EventHooks.*", "A.B[].C.*"])(
-    "accepts %s",
+  it.each([
+    "PromptId",
+    "LexV2Bot.AliasArn",
+    "Messages[].PromptId",
+    "EventHooks.*",
+    "A.B[].C.*",
+    "CaseRequestFields.*~",
+    "A[].B.*~",
+  ])("accepts %s", (path) => {
+    expect(isCatalogPath(path)).toBe(true);
+  });
+  it.each(["", ".", "A.", "A[0]", "A[", "A b", "*.[]", "A~", "*~~", "~", "A.*~.B~"])(
+    "rejects %j",
     (path) => {
-      expect(isCatalogPath(path)).toBe(true);
+      expect(isCatalogPath(path)).toBe(false);
     },
   );
-  it.each(["", ".", "A.", "A[0]", "A[", "A b", "*.[]"])("rejects %j", (path) => {
-    expect(isCatalogPath(path)).toBe(false);
-  });
 });

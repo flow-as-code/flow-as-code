@@ -140,7 +140,7 @@ function allDocs(dir: string): string[] {
     if (!e.name.endsWith(".json")) return [];
     try {
       const v = JSON.parse(readFileSync(p, "utf8")) as { flowdoc?: unknown; content?: unknown };
-      return v.flowdoc === "0.2" && typeof v.content === "object" ? [p] : [];
+      return v.flowdoc === "0.3" && typeof v.content === "object" ? [p] : [];
     } catch {
       return [];
     }
@@ -281,7 +281,7 @@ describe("writer edge cases the review found", () => {
   /** A one-action flow ending in a disconnect, for one action under test. */
   const flowWith = (type: string, parameters: Record<string, unknown>): FlowDoc =>
     ({
-      flowdoc: "0.2",
+      flowdoc: "0.3",
       kind: "flow",
       name: "edge",
       connectType: "CONTACT_FLOW",

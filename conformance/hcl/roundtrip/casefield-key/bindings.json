@@ -1,0 +1,9 @@
+{
+  "assistant:agent-help": "awscc_wisdom_assistant.agent_help.assistant_arn",
+  "casefield:priority": "awscc_connectcases_field.priority.field_id",
+  "casefield:summary": "awscc_connectcases_field.summary.field_id",
+  "casetemplate:billing-dispute": "awscc_connectcases_template.billing_dispute.template_id",
+  "flow:task-line": "flowascode_contact_flow.task_line.arn",
+  "phonenumber:main-did": "aws_connect_phone_number.main_did.arn",
+  "tasktemplate:follow-up": "awscc_connect_task_template.follow_up.arn"
+}

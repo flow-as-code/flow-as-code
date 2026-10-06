@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "flow",
   "name": "sample-after-contact-work-flow",
   "displayName": "Sample after contact work flow",
@@ -72,7 +72,7 @@
     }
   ],
   "meta": {
-    "generator": "core@0.2",
+    "generator": "core@0.3",
     "source": {
       "id": "cccc3333-0000-4000-8000-000000000021",
       "instanceId": "11111111-2222-3333-4444-555555555555",

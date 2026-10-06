@@ -21,6 +21,19 @@
 //   ListPrompts                https://docs.aws.amazon.com/connect/latest/APIReference/API_ListPrompts.html
 //   ListLambdaFunctions        https://docs.aws.amazon.com/connect/latest/APIReference/API_ListLambdaFunctions.html
 //   ListBots                   https://docs.aws.amazon.com/connect/latest/APIReference/API_ListBots.html
+// Added for FlowDoc 0.3 (tasks/D01), verified 2026-10-05 against the API
+// reference pages named beside each adapter method below:
+//   ListTaskTemplates          https://docs.aws.amazon.com/connect/latest/APIReference/API_ListTaskTemplates.html
+//   ListPhoneNumbersV2         https://docs.aws.amazon.com/connect/latest/APIReference/API_ListPhoneNumbersV2.html
+//   ListIntegrationAssociations (CASES_DOMAIN, to find the instance's Cases domain)
+//                              https://docs.aws.amazon.com/connect/latest/APIReference/API_ListIntegrationAssociations.html
+//   Cases ListTemplates        https://docs.aws.amazon.com/connect/latest/APIReference/API_connect-cases_ListTemplates.html
+//   Cases ListFields           https://docs.aws.amazon.com/connect/latest/APIReference/API_connect-cases_ListFields.html
+//   Q in Connect ListAssistants https://docs.aws.amazon.com/amazon-q-connect/latest/APIReference/API_ListAssistants.html
+// The last three are other services' clients (@aws-sdk/client-connectcases,
+// @aws-sdk/client-qconnect), optional peers like @aws-sdk/client-connect;
+// without them the inventory names no Cases resource or assistant and such an
+// ARN in flow content is reported as unknown.
 //
 // SPEC.md used to say Lambda and Lex come from "Lambda/Lex associations", which
 // points at ListIntegrationAssociations. That operation cannot discover either:
@@ -46,13 +59,17 @@ import { collectRefs, parseToken, token } from "./refs.js";
 import { canonicalize } from "./serialize.js";
 
 // --- ARN parsing -------------------------------------------------------------
-// Every Connect resource ARN but one nests under the instance ARN, so the
+// Every Connect resource ARN but two nests under the instance ARN, so the
 // resource part splits on "/" into [instance, {instanceId}, {typeKeyword},
-// {resourceId}]. The exception is an AWS-managed view, which belongs to no
+// {resourceId}]. The exceptions are an AWS-managed view, which belongs to no
 // instance and no account: `arn:aws:connect:<region>:aws:view/<name>:<version>`
 // (observed live 2026-09-01 on the stock "Sample after contact work flow";
 // https://docs.aws.amazon.com/connect/latest/APIReference/API_ListViews.html
-// lists AWS_MANAGED views beside CUSTOMER_MANAGED ones).
+// lists AWS_MANAGED views beside CUSTOMER_MANAGED ones), and a claimed phone
+// number, which belongs to the account and is routed to an instance or a
+// traffic distribution group: `arn:aws:connect:<region>:<account>:phone-number/<id>`
+// (the service reference's ARN format, read 2026-10-05; ListPhoneNumbersV2
+// returns it as PhoneNumberArn).
 // Two type keywords do not match their IAM resource-type names, which is the
 // trap this parser exists to avoid: a contact-flow-module is `flow-module` in
 // the ARN, and an hours-of-operation is `operating-hours`.
@@ -61,7 +78,12 @@ import { canonicalize } from "./serialize.js";
 // (the feed behind
 // https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonconnect.html)
 
-/** ARN type keyword to FlowDoc ref type, for resources nested under an instance. */
+/**
+ * ARN type keyword to FlowDoc ref type, for every Connect resource ARN a
+ * reference can stand for: the instance-nested ones, the AWS-managed view and
+ * the phone number. Lambda, Lex, Cases and Q in Connect resources are other
+ * services' ARNs and have parsers of their own below.
+ */
 export const CONNECT_ARN_REF_TYPES: Readonly<Record<string, RefType>> = {
   "contact-flow": "flow",
   "flow-module": "module",
@@ -69,6 +91,8 @@ export const CONNECT_ARN_REF_TYPES: Readonly<Record<string, RefType>> = {
   "operating-hours": "hours",
   prompt: "prompt",
   view: "view",
+  "task-template": "tasktemplate",
+  "phone-number": "phonenumber",
 };
 
 /** FlowDoc ref type to ARN type keyword. The inverse of CONNECT_ARN_REF_TYPES. */
@@ -79,6 +103,8 @@ export const REF_TYPE_ARN_KEYWORDS: Readonly<Record<string, string>> = {
   hours: "operating-hours",
   prompt: "prompt",
   view: "view",
+  tasktemplate: "task-template",
+  phonenumber: "phone-number",
 };
 
 export interface ConnectArn {
@@ -86,9 +112,9 @@ export interface ConnectArn {
   region: string;
   /** Digits, or `aws` for an AWS-managed view. */
   account: string;
-  /** Empty for an AWS-managed view, which belongs to no instance. */
+  /** Empty for an AWS-managed view or a phone number, which belong to no instance. */
   instanceId: string;
-  /** ARN type keyword, e.g. `contact-flow`, `flow-module`, `operating-hours`, `view`. */
+  /** ARN type keyword, e.g. `contact-flow`, `flow-module`, `operating-hours`, `view`, `phone-number`. */
   resourceType?: string;
   resourceId?: string;
   /**
@@ -117,6 +143,20 @@ export function parseConnectArn(arn: string): ConnectArn | undefined {
       instanceId: "",
       resourceType: "view",
       resourceId: segments.slice(1).join("/"),
+    };
+    if (qualifier !== undefined) parsed.qualifier = qualifier;
+    return parsed;
+  }
+  if (segments[0] === "phone-number" && segments.length === 2 && segments[1] !== "") {
+    // A claimed phone number: the account's, routed to an instance, nested
+    // under none. The form the AWS-managed view takes, with an account id.
+    const parsed: ConnectArn = {
+      partition: parts[1] ?? "",
+      region: parts[3] ?? "",
+      account: parts[4] ?? "",
+      instanceId: "",
+      resourceType: "phone-number",
+      resourceId: segments[1]!,
     };
     if (qualifier !== undefined) parsed.qualifier = qualifier;
     return parsed;
@@ -152,9 +192,68 @@ export function parseLambdaFunctionArn(arn: string): string | undefined {
   return name === undefined || name === "" ? undefined : name;
 }
 
+/** A Cases resource ARN: the domain, or a template or field inside it. */
+export interface CasesArn {
+  partition: string;
+  region: string;
+  account: string;
+  domainId: string;
+  resourceType?: "template" | "field";
+  resourceId?: string;
+}
+
+/**
+ * Parses an Amazon Connect Cases ARN. Cases is its own service, `cases`, and
+ * its resources nest under a domain rather than under a Connect instance
+ * (the service reference's ARN formats, read 2026-10-05):
+ *   arn:aws:cases:<region>:<account>:domain/<domainId>
+ *   arn:aws:cases:<region>:<account>:domain/<domainId>/template/<templateId>
+ *   arn:aws:cases:<region>:<account>:domain/<domainId>/field/<fieldId>
+ * The instance's domain is named by its CASES_DOMAIN integration association
+ * (`IntegrationArn`), which is how the inventory finds it.
+ * https://docs.aws.amazon.com/connect/latest/APIReference/API_ListIntegrationAssociations.html
+ */
+export function parseCasesArn(arn: string): CasesArn | undefined {
+  const parts = arn.split(":");
+  if (parts.length !== 6 || parts[0] !== "arn" || parts[2] !== "cases") return undefined;
+  const segments = (parts[5] ?? "").split("/");
+  if (segments[0] !== "domain" || segments[1] === undefined || segments[1] === "") {
+    return undefined;
+  }
+  const parsed: CasesArn = {
+    partition: parts[1] ?? "",
+    region: parts[3] ?? "",
+    account: parts[4] ?? "",
+    domainId: segments[1],
+  };
+  if (segments.length === 2) return parsed;
+  const [type, id] = [segments[2], segments[3]];
+  if (segments.length !== 4 || (type !== "template" && type !== "field") || !id) return undefined;
+  parsed.resourceType = type;
+  parsed.resourceId = id;
+  return parsed;
+}
+
+/**
+ * The assistant id out of an Amazon Q in Connect assistant ARN. The service
+ * keeps its original name in the ARN, `wisdom`, whatever the console calls it
+ * (the service reference's ARN format, read 2026-10-05):
+ *   arn:aws:wisdom:<region>:<account>:assistant/<assistantId>
+ * `CreateWisdomSession.WisdomAssistantArn` holds exactly this.
+ * https://docs.aws.amazon.com/amazon-q-connect/latest/APIReference/API_ListAssistants.html
+ */
+export function parseAssistantArn(arn: string): string | undefined {
+  const parts = arn.split(":");
+  if (parts.length !== 6 || parts[0] !== "arn" || parts[2] !== "wisdom") return undefined;
+  const segments = (parts[5] ?? "").split("/");
+  if (segments[0] !== "assistant" || segments.length !== 2 || segments[1] === "") return undefined;
+  return segments[1];
+}
+
 /**
  * Drops the trailing qualifier a reference may carry, so `:$SAVED` or a version
- * suffix resolves to the same reverse-map entry as the bare resource.
+ * suffix resolves to the same reverse-map entry as the bare resource. A Cases
+ * or Q in Connect ARN carries none and is returned as is.
  */
 export function normalizeArn(arn: string): string {
   const parts = arn.split(":");
@@ -226,6 +325,35 @@ export interface ViewSummary {
   status?: string;
 }
 
+/**
+ * One claimed phone number, as ListPhoneNumbersV2 returns it. The summary has
+ * no name: `PhoneNumberDescription` is optional free text, and the number
+ * itself is E.164. The reverse map slugs the description when there is one
+ * and the number's digits otherwise.
+ * https://docs.aws.amazon.com/connect/latest/APIReference/API_ListPhoneNumbersV2.html
+ */
+export interface PhoneNumberSummary {
+  arn: string;
+  id: string;
+  /** E.164, as `PhoneNumber`. */
+  number: string;
+  description?: string;
+  /** `PhoneNumberType`: DID, TOLL_FREE, UIFN, SHARED, THIRD_PARTY_TF, THIRD_PARTY_DID, SHORT_CODE. */
+  type?: string;
+}
+
+/**
+ * The instance's Cases domain and what it holds. One instance has one domain,
+ * named by its CASES_DOMAIN integration association; templates and fields are
+ * per domain, which is why a field is a reference (docs/adr/0008).
+ */
+export interface CasesDomainInventory {
+  domainArn: string;
+  domainId: string;
+  templates: ResourceSummary[];
+  fields: ResourceSummary[];
+}
+
 export interface InstanceInventory {
   contactFlows: ContactFlowSummary[];
   contactFlowModules: ContactFlowModuleSummary[];
@@ -236,6 +364,18 @@ export interface InstanceInventory {
   lambdaFunctions: string[];
   lexBots: LexBotSummary[];
   views: ViewSummary[];
+  /**
+   * The FlowDoc 0.3 resources, each optional so an inventory recorded before
+   * the bump still reads: task templates (ListTaskTemplates), claimed phone
+   * numbers (ListPhoneNumbersV2), the Cases domain with its templates and
+   * fields (ListIntegrationAssociations, then Cases ListTemplates and
+   * ListFields; absent when the instance has no domain or the client has no
+   * Cases access) and Amazon Q in Connect assistants (ListAssistants).
+   */
+  taskTemplates?: ResourceSummary[];
+  phoneNumbers?: PhoneNumberSummary[];
+  casesDomain?: CasesDomainInventory;
+  assistants?: ResourceSummary[];
   /**
    * Each module's aliases, when the client can list them. A flow invokes an
    * alias as `<module ARN>:<alias id>`, the only qualifier Connect runs as
@@ -302,6 +442,16 @@ export interface ConnectInventoryClient {
   listContactFlowModuleAliases?(
     contactFlowModuleId: string,
   ): Promise<{ aliasId: string; name: string }[]>;
+  /**
+   * The FlowDoc 0.3 lists, each optional for the same reason as the aliases:
+   * a client written before the bump still works, and a reference of a type
+   * it cannot list stays an unknown ARN on export rather than a crash.
+   */
+  listTaskTemplates?(): Promise<ResourceSummary[]>;
+  listPhoneNumbers?(): Promise<PhoneNumberSummary[]>;
+  /** The instance's Cases domain, or undefined when it has none. */
+  describeCasesDomain?(): Promise<CasesDomainInventory | undefined>;
+  listAssistants?(): Promise<ResourceSummary[]>;
 }
 
 export interface CollectInventoryOptions {
@@ -314,7 +464,7 @@ export interface CollectInventoryOptions {
   includeModules?: boolean;
 }
 
-/** Runs the ten list operations and assembles one inventory. */
+/** Runs the list operations the client offers and assembles one inventory. */
 export async function collectInventory(
   client: ConnectInventoryClient,
   options: CollectInventoryOptions = {},
@@ -329,6 +479,10 @@ export async function collectInventory(
     lambdaFunctions,
     lexBots,
     views,
+    taskTemplates,
+    phoneNumbers,
+    casesDomain,
+    assistants,
   ] = await Promise.all([
     client.listContactFlows(options.flowTypes),
     includeModules ? client.listContactFlowModules() : Promise.resolve([]),
@@ -338,6 +492,10 @@ export async function collectInventory(
     client.listLambdaFunctions(),
     client.listBots(),
     client.listViews(),
+    client.listTaskTemplates?.(),
+    client.listPhoneNumbers?.(),
+    client.describeCasesDomain?.(),
+    client.listAssistants?.(),
   ]);
   const moduleAliases: ModuleAliasSummary[] = [];
   if (client.listContactFlowModuleAliases !== undefined) {
@@ -358,6 +516,10 @@ export async function collectInventory(
     lexBots,
     views,
     ...(moduleAliases.length === 0 ? {} : { moduleAliases }),
+    ...(taskTemplates === undefined ? {} : { taskTemplates }),
+    ...(phoneNumbers === undefined ? {} : { phoneNumbers }),
+    ...(casesDomain === undefined ? {} : { casesDomain }),
+    ...(assistants === undefined ? {} : { assistants }),
   };
 }
 
@@ -470,6 +632,21 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
   // A view ARN in flow content carries the version as a qualifier; the map is
   // keyed on the bare ARN and rewriteArns puts the version back as the alias.
   for (const v of inventory.views) add(v.arn, v.name, "view");
+  // FlowDoc 0.3. A phone number has no name of its own: its description when
+  // one is set, else the number's digits, which slug to a valid name
+  // (`+15551234567` becomes `15551234567`) and are what an operator reads in
+  // the console anyway. A Cases template or field is keyed by its own ARN,
+  // which is a `cases` ARN; `CaseTemplateId` and the field keys may hold the
+  // bare id instead, which no reverse map can match (D05 and D06 settle what
+  // the service writes). An assistant ARN is the `wisdom` ARN the action holds.
+  for (const t of inventory.taskTemplates ?? []) add(t.arn, t.name, "tasktemplate");
+  for (const n of inventory.phoneNumbers ?? []) {
+    const description = n.description?.trim() ?? "";
+    add(n.arn, description === "" ? n.number : description, "phonenumber");
+  }
+  for (const t of inventory.casesDomain?.templates ?? []) add(t.arn, t.name, "casetemplate");
+  for (const f of inventory.casesDomain?.fields ?? []) add(f.arn, f.name, "casefield");
+  for (const a of inventory.assistants ?? []) add(a.arn, a.name, "assistant");
 
   for (const arn of inventory.lambdaFunctions) {
     const fn = parseLambdaFunctionArn(arn);
@@ -717,7 +894,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * both spellings are live output and mean the same thing.
  *
  * FlowDoc requires the key on every action
- * (conformance/schema/flowdoc-0.2.schema.json, `$defs.action.required`), so
+ * (conformance/schema/flowdoc-0.3.schema.json, `$defs.action.required`), so
  * passing the omission through produced a schema-invalid document, and codegen
  * read `Object.keys(a.Parameters)` straight off it and threw
  * "Cannot convert undefined or null to object". Filling in the empty map
@@ -1154,6 +1331,18 @@ interface ConnectCommands {
   ListBotsCommand: new (input: any) => any;
   ListViewsCommand: new (input: any) => any;
   ListContactFlowModuleAliasesCommand: new (input: any) => any;
+  ListTaskTemplatesCommand: new (input: any) => any;
+  ListPhoneNumbersV2Command: new (input: any) => any;
+  ListIntegrationAssociationsCommand: new (input: any) => any;
+}
+
+interface CasesCommands {
+  ListTemplatesCommand: new (input: any) => any;
+  ListFieldsCommand: new (input: any) => any;
+}
+
+interface QConnectCommands {
+  ListAssistantsCommand: new (input: any) => any;
 }
 
 async function loadConnectCommands(): Promise<ConnectCommands> {
@@ -1167,9 +1356,42 @@ async function loadConnectCommands(): Promise<ConnectCommands> {
   }
 }
 
+async function loadCasesCommands(): Promise<CasesCommands> {
+  try {
+    return (await import("@aws-sdk/client-connectcases")) as unknown as CasesCommands;
+  } catch (cause) {
+    throw new Error(
+      "Listing a Cases domain's templates and fields needs the optional peer dependency @aws-sdk/client-connectcases. Install it, or omit `cases` to export without Cases references.",
+      { cause },
+    );
+  }
+}
+
+async function loadQConnectCommands(): Promise<QConnectCommands> {
+  try {
+    return (await import("@aws-sdk/client-qconnect")) as unknown as QConnectCommands;
+  } catch (cause) {
+    throw new Error(
+      "Listing Amazon Q in Connect assistants needs the optional peer dependency @aws-sdk/client-qconnect. Install it, or omit `qconnect` to export without assistant references.",
+      { cause },
+    );
+  }
+}
+
 export interface ConnectClientOptions extends RateLimiterOptions {
   /** An @aws-sdk/client-connect ConnectClient, or anything with `send`. */
   connect: AwsCommandSender;
+  /**
+   * An @aws-sdk/client-connectcases ConnectCasesClient for the same account
+   * and Region. Optional: without it the inventory has no Cases domain, and a
+   * Cases template or field ARN in flow content is reported as unknown.
+   */
+  cases?: AwsCommandSender;
+  /**
+   * An @aws-sdk/client-qconnect QConnectClient for the same account and
+   * Region. Optional: without it the inventory lists no assistants.
+   */
+  qconnect?: AwsCommandSender;
   /** Instance id or instance ARN; both are accepted by every operation. */
   instanceId: string;
   /** Page size for the Connect resource lists. Their maximum is 1000. */
@@ -1187,6 +1409,10 @@ export function createConnectInventoryClient(
   const { connect, instanceId } = options;
   const maxResults = options.maxResults ?? 1000;
   let commands: ConnectCommands | undefined;
+  let casesCommands: CasesCommands | undefined;
+  let qconnectCommands: QConnectCommands | undefined;
+  // One budget for the three clients: they are one account's quotas, read in
+  // one sitting.
   const throttle = createRateLimiter(options);
 
   const send = async (make: (c: ConnectCommands) => any): Promise<any> => {
@@ -1195,21 +1421,30 @@ export function createConnectInventoryClient(
     return connect.send(make(commands));
   };
 
-  /** Every list operation here pages the same way: opaque NextToken, query string. */
-  const paginate = async <T>(
-    make: (c: ConnectCommands, nextToken: string | undefined) => any,
+  /**
+   * Every Connect list operation pages the same way: opaque NextToken, query
+   * string. `pageWith` is the same loop over another client, whose token key
+   * the caller names (Cases and Q in Connect spell it `nextToken`).
+   */
+  const pageWith = async <T>(
+    request: (nextToken: string | undefined) => Promise<any>,
     pick: (response: any) => T[] | undefined,
+    tokenKey = "NextToken",
   ): Promise<T[]> => {
     const out: T[] = [];
     let nextToken: string | undefined;
     do {
-      const response = await send((c) => make(c, nextToken));
+      const response = await request(nextToken);
       out.push(...(pick(response) ?? []));
-      nextToken =
-        response.NextToken === "" ? undefined : (response.NextToken as string | undefined);
+      const token: unknown = response[tokenKey];
+      nextToken = typeof token === "string" && token !== "" ? token : undefined;
     } while (nextToken !== undefined);
     return out;
   };
+  const paginate = <T>(
+    make: (c: ConnectCommands, nextToken: string | undefined) => any,
+    pick: (response: any) => T[] | undefined,
+  ): Promise<T[]> => pageWith((nextToken) => send((c) => make(c, nextToken)), pick);
 
   const summary = (s: { Arn?: string; Id?: string; Name?: string }): ResourceSummary => ({
     arn: s.Arn ?? "",
@@ -1406,5 +1641,137 @@ export function createConnectInventoryClient(
             ...(v.Status === undefined ? {} : { status: v.Status }),
           })),
       ),
+
+    // FlowDoc 0.3 (tasks/D01). ListTaskTemplates caps a page at 100 and
+    // documents NextToken as always null, so one page is the whole list; the
+    // loop costs nothing if that changes.
+    // https://docs.aws.amazon.com/connect/latest/APIReference/API_ListTaskTemplates.html
+    listTaskTemplates: () =>
+      paginate<ResourceSummary>(
+        (c, nextToken) =>
+          new c.ListTaskTemplatesCommand({
+            InstanceId: instanceId,
+            MaxResults: Math.min(maxResults, 100),
+            NextToken: nextToken,
+          }),
+        (r) => (r.TaskTemplates ?? []).map(summary),
+      ),
+
+    // ListPhoneNumbersV2 takes the instance as InstanceId or as TargetArn
+    // (which may also be a traffic distribution group); with neither it lists
+    // the whole account. The response names the ARN PhoneNumberArn, not Arn.
+    // https://docs.aws.amazon.com/connect/latest/APIReference/API_ListPhoneNumbersV2.html
+    listPhoneNumbers: () =>
+      paginate<PhoneNumberSummary>(
+        (c, nextToken) =>
+          new c.ListPhoneNumbersV2Command({
+            ...(instanceId.startsWith("arn:")
+              ? { TargetArn: instanceId }
+              : { InstanceId: instanceId }),
+            MaxResults: maxResults,
+            NextToken: nextToken,
+          }),
+        (r) =>
+          (r.ListPhoneNumbersSummaryList ?? []).map((n: any) => ({
+            arn: n.PhoneNumberArn ?? "",
+            id: n.PhoneNumberId ?? "",
+            number: n.PhoneNumber ?? "",
+            ...(n.PhoneNumberDescription === undefined
+              ? {}
+              : { description: n.PhoneNumberDescription }),
+            ...(n.PhoneNumberType === undefined ? {} : { type: n.PhoneNumberType }),
+          })),
+      ),
+
+    // The instance's Cases domain is the IntegrationArn of its CASES_DOMAIN
+    // association (ListIntegrationAssociations caps a page at 100); its
+    // templates and fields come from the Cases service, whose lists cap at
+    // 100 and spell the token nextToken. Offered only when a Cases client was
+    // given, so an export without one is unchanged.
+    // https://docs.aws.amazon.com/connect/latest/APIReference/API_ListIntegrationAssociations.html
+    // https://docs.aws.amazon.com/connect/latest/APIReference/API_connect-cases_ListTemplates.html
+    // https://docs.aws.amazon.com/connect/latest/APIReference/API_connect-cases_ListFields.html
+    ...(options.cases === undefined
+      ? {}
+      : {
+          describeCasesDomain: async (): Promise<CasesDomainInventory | undefined> => {
+            const cases = options.cases!;
+            const associations = await paginate<any>(
+              (c, nextToken) =>
+                new c.ListIntegrationAssociationsCommand({
+                  InstanceId: instanceId,
+                  IntegrationType: "CASES_DOMAIN",
+                  MaxResults: 100,
+                  NextToken: nextToken,
+                }),
+              (r) => r.IntegrationAssociationSummaryList ?? [],
+            );
+            const domainArn = associations
+              .map((a) => a.IntegrationArn as string | undefined)
+              .find((arn) => arn !== undefined && parseCasesArn(arn) !== undefined);
+            if (domainArn === undefined) return undefined;
+            const domainId = parseCasesArn(domainArn)!.domainId;
+            const sendCases = async (make: (c: CasesCommands) => any): Promise<any> => {
+              casesCommands ??= await loadCasesCommands();
+              await throttle();
+              return cases.send(make(casesCommands));
+            };
+            const templates = await pageWith<ResourceSummary>(
+              (nextToken) =>
+                sendCases(
+                  (c) => new c.ListTemplatesCommand({ domainId, maxResults: 100, nextToken }),
+                ),
+              (r) =>
+                (r.templates ?? []).map((t: any) => ({
+                  arn: t.templateArn ?? "",
+                  id: t.templateId ?? "",
+                  name: t.name ?? "",
+                })),
+              "nextToken",
+            );
+            const fields = await pageWith<ResourceSummary>(
+              (nextToken) =>
+                sendCases((c) => new c.ListFieldsCommand({ domainId, maxResults: 100, nextToken })),
+              (r) =>
+                (r.fields ?? []).map((f: any) => ({
+                  arn: f.fieldArn ?? "",
+                  id: f.fieldId ?? "",
+                  name: f.name ?? "",
+                })),
+              "nextToken",
+            );
+            return { domainArn, domainId, templates, fields };
+          },
+        }),
+
+    // Amazon Q in Connect assistants, from that service's own client; a page
+    // caps at 100 and the token is nextToken. Offered only when the client was
+    // given. ListAssistants is account-wide: every assistant the account has in
+    // the Region is named, associated with this instance or not, which is the
+    // same stance ListViews takes with AWS-managed views.
+    // https://docs.aws.amazon.com/amazon-q-connect/latest/APIReference/API_ListAssistants.html
+    ...(options.qconnect === undefined
+      ? {}
+      : {
+          listAssistants: (): Promise<ResourceSummary[]> => {
+            const qconnect = options.qconnect!;
+            return pageWith<ResourceSummary>(
+              async (nextToken) => {
+                qconnectCommands ??= await loadQConnectCommands();
+                await throttle();
+                return qconnect.send(
+                  new qconnectCommands.ListAssistantsCommand({ maxResults: 100, nextToken }),
+                );
+              },
+              (r) =>
+                (r.assistantSummaries ?? []).map((a: any) => ({
+                  arn: a.assistantArn ?? "",
+                  id: a.assistantId ?? "",
+                  name: a.name ?? "",
+                })),
+              "nextToken",
+            );
+          },
+        }),
   };
 }

@@ -81,7 +81,22 @@ be published before the npm set that writes them.
   ships it on merge.
 - **The showcase consumes.** The satellites move their pins to the released
   versions in their own repositories and add the new types in their Tier 4,
-  tracked there. This repository records only the satellite commit it
+  tracked there. Two things the pins alone do not say: the satellites' Terraform
+  roots pin `flowascode ~> 0.1.1` (`envs/*/providers.tf`), a shape that
+  excludes a minor, so the pin must become `~> 0.2` (or the released floor)
+  before the provider minor is admitted at all; and on the npm pins the
+  format moves to 0.3 on synth, so the showcase's "synthesizes back to the
+  same document" tests fail on `"flowdoc": "0.2"` versus `"0.3"` for its 12
+  hand-authored documents until they are re-codegened, and `npm run
+generate` rewrites its 7 generated pairs with new `sourceHash` values
+  (checked on a scratch clone, 2026-10-06; lint over the mixed set is
+  clean). The showcase's adoption issue (its #7) names neither; the owner
+  adds a comment there before the satellites move. The provider minor also
+  re-serializes every resource's computed `flowdoc` attribute on its first
+  refresh, so every `<name>_document_sha256` output changes once with no
+  document change (tasks/D01, "The next provider batch"); a promotion gate
+  reading those outputs sees it on that refresh only. This repository
+  records only the satellite commit it
   re-syncs from (C07's `scripts/sync-example.mjs`), that the snapshot lints
   clean against the released catalog, and the date the snapshot first
   carried 0.3 documents (it stays 0.2, read through `migrateFlowDoc` under

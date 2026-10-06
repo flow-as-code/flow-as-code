@@ -21,8 +21,8 @@ hcl/roundtrip/<case>/case.json         description, the document (a path relativ
 hcl/roundtrip/<case>/bindings.json     reference key -> terraform address expression; a key absent here is unbound
 hcl/roundtrip/<case>/expected.flow.tf  the resource, byte-exact, a `terraform fmt` fixed point
 hcl/roundtrip/<case>/*.flowdoc.json    optional; a document the case does not borrow from elsewhere in conformance/
-hcl/roundtrip/<case>/validate/stubs.tf what the golden's refs and instance_id refer to, declared minimally
-hcl/roundtrip/<case>/validate/providers.tf the providers at exact versions, for `tofu validate`
+hcl/roundtrip/<case>/validate/stubs.tf what the golden's refs and instance_id refer to, declared minimally (absent while the case awaits a provider release)
+hcl/roundtrip/<case>/validate/providers.tf the providers at exact versions, for `tofu validate` (likewise)
 hcl/regenerate/<case>/case.json        what the case shows (TypeScript only)
 hcl/regenerate/<case>/doc.flowdoc.json the document being written
 hcl/regenerate/<case>/previous.flow.tf the companion on disk before regeneration
@@ -66,8 +66,19 @@ lists the kept comment lines, for the resource and by action id. `options` in a 
 `lintDisable`: the values a companion carries that the document does not. A
 case's `validate` says what `tofu validate` does with it against the published
 provider, with the stubs in its `validate/` directory (`stubs.tf` for what its
-refs bind, `providers.tf` pinning exact versions); every case is `pass`, and
-packages/hcl/src/validate.test.ts runs them from OpenTofu 1.10 (task B03e).
+refs bind, `providers.tf` pinning exact versions). It is one of two values.
+`pass`: the case validates against the pinned provider, and
+packages/hcl/src/validate.test.ts runs it from OpenTofu 1.10 (task B03e).
+`awaits-provider` (since 2026-10-05, tasks/D01): the golden carries a typed
+sub-block or a `refs` key type the pinned provider's vendored catalog lacks,
+so no published provider accepts it yet; the case has no `validate/`
+directory, `tofu validate` is skipped for it, its golden is still byte-checked
+by the round-trip tests, and the release that reads FlowDoc 0.3 (tasks/D10)
+adds the directory and flips it to `pass`, leaving none. The provider's own
+conformance runner plans every `roundtrip` golden, so an `awaits-provider`
+case fails that runner until the provider's main reads 0.3; its first case is
+`roundtrip/casefield-key`, every FlowDoc 0.3 reference type as the generic
+blocks that hold them, a `casefield` token standing as a map key among them.
 
 ## The resource
 
@@ -185,8 +196,9 @@ resource "flowascode_contact_flow" "appointment_line" {
    (or the case's `options.instanceId`) and carried verbatim afterwards.
 6. `refs` is an object with one entry per entry of the document's `refs`,
    keyed by the reference key (`queue:front-desk`, `module:survey@prod`,
-   `view:form@1`: the token without its `${cdref:` wrapper), keys in byte
-   order and always quoted. The value is the terraform address bound to the
+   `view:form@1`, `casefield:priority`: the token without its `${cdref:`
+   wrapper; the types are FlowDoc 0.3's thirteen), keys in byte order and
+   always quoted. The value is the terraform address bound to the
    key, or `null` for an unbound key, with the comment
    `# TODO: no terraform address for ${cdref:<key>}.` on the line above it.
    The map is omitted when the document has no references.
@@ -332,9 +344,10 @@ resource "flowascode_contact_flow" "appointment_line" {
     `REF_EXPRESSION_REFUSED`, naming the file, line and attribute, and the
     `refs` entry to write instead. The one exception is the TypeScript
     parser's sugar (`address-sugar.json`): a resource address of a listed
-    type (`aws_connect_queue.x.arn` and the others) is rewritten to the key
-    (`queue:x`) plus a `refs` entry on the next regeneration, and the rewrite
-    is recorded in the sidecar's `normalized` list. An address of the same
+    type (`aws_connect_queue.x.arn`, `aws_connect_phone_number.x.arn` and the
+    others) is rewritten to the key (`queue:x`, `phonenumber:x`) plus a `refs`
+    entry on the next regeneration, and the rewrite is recorded in the
+    sidecar's `normalized` list. An address of the same
     shape (`<type>.<label>.arn`, `data.<type>.<label>.arn`) whose type is not
     listed, a module alias's among them, is refused with
     `REF_SUGAR_UNSUPPORTED_TYPE`, naming the `refs` key that binds the address

@@ -25,7 +25,7 @@ export type JsonPath = string & { readonly __jsonPath: true };
 export type RefValue<T extends RefType> = Ref<T> | JsonPath;
 
 export const TOKEN_PATTERN =
-  /^\$\{cdref:(queue|hours|lambda|lex|prompt|flow|module|view):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?\}$/;
+  /^\$\{cdref:(queue|hours|lambda|lex|prompt|flow|module|view|tasktemplate|casetemplate|casefield|assistant|phonenumber):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?\}$/;
 
 /** Where a token can begin; `parseToken` decides whether what follows is one. */
 const TOKEN_OPEN = "${cdref:";
@@ -95,6 +95,35 @@ export const Refs = {
    * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
    */
   view: (name: string, version?: string): Ref<"view"> => token("view", name, version),
+  /**
+   * A task template, for `CreateTask.TaskTemplateId`. FlowDoc 0.3.
+   * https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
+   */
+  tasktemplate: (name: string): Ref<"tasktemplate"> => token("tasktemplate", name),
+  /**
+   * A Cases template, for `CreateCase.CaseTemplateId`. FlowDoc 0.3.
+   * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+   */
+  casetemplate: (name: string): Ref<"casetemplate"> => token("casetemplate", name),
+  /**
+   * A Cases field, standing as a whole map key of `CaseRequestFields` or a
+   * whole item of `CaseResponseFields` (docs/adr/0008-case-field-ids.md). The
+   * alias slot has no meaning for it, so this never writes one. FlowDoc 0.3.
+   * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+   */
+  casefield: (name: string): Ref<"casefield"> => token("casefield", name),
+  /**
+   * An Amazon Q in Connect assistant, for `CreateWisdomSession.WisdomAssistantArn`
+   * (a `wisdom` service ARN, not a Connect one). FlowDoc 0.3.
+   * https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
+   */
+  assistant: (name: string): Ref<"assistant"> => token("assistant", name),
+  /**
+   * A phone number claimed to the instance, for
+   * `StartOutboundChatContact.SourceEndpoint.Address`. FlowDoc 0.3.
+   * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+   */
+  phonenumber: (name: string): Ref<"phonenumber"> => token("phonenumber", name),
 } as const;
 
 /** Wraps a JSONPath expression for use in a reference-bearing parameter. */

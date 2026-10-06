@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "flow",
   "name": "draft-line",
   "displayName": "Draft Line",
@@ -45,7 +45,7 @@
   },
   "refs": [],
   "meta": {
-    "generator": "core@0.2",
+    "generator": "core@0.3",
     "source": {
       "alias": "$SAVED",
       "id": "cccc3333-0000-4000-8000-000000000002",

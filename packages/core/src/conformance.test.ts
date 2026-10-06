@@ -2,18 +2,36 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { ActionType } from "./actions.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
-import { migrateFlowDoc, serialize, type FlowDoc } from "./index.js";
+import {
+  FLOWDOC_VERSION,
+  actionCatalog,
+  collectRefs,
+  migrateFlowDoc,
+  serialize,
+  type FlowDoc,
+} from "./index.js";
+
+/** The reference types 0.3 added; a token of one cannot appear in a 0.2 document. */
+const NEW_IN_03 = new Set([
+  "tasktemplate",
+  "casetemplate",
+  "casefield",
+  "assistant",
+  "phonenumber",
+]);
 
 // The conformance directory is the cross-language contract (conformance/README.md).
 // These assertions are what a future Go provider must also satisfy.
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
 
-const schema = JSON.parse(read("conformance/schema/flowdoc-0.2.schema.json"));
+const schema = JSON.parse(read("conformance/schema/flowdoc-0.3.schema.json"));
+const schema02 = JSON.parse(read("conformance/schema/flowdoc-0.2.schema.json"));
 const schema01 = JSON.parse(read("conformance/schema/flowdoc-0.1.schema.json"));
 const demoRaw = read("conformance/demo/appointment-line.flowdoc.json");
 const demo = JSON.parse(demoRaw);
@@ -810,15 +828,17 @@ describe("FlowDoc schema rejections: GetParticipantInput", () => {
 // Lint fail-*.json fixtures are deliberately defective documents (that is
 // what they test) and auxiliary files (maps, binders, goldens) are not
 // FlowDocs, so neither is swept.
+/** Every FlowDoc fixture under `dir`, by the naming the suites use. */
+const collect = (dir: string): string[] =>
+  readdirSync(new URL(dir, root), { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory()
+      ? collect(`${dir}${e.name}/`)
+      : e.name.endsWith(".flowdoc.json") || e.name.startsWith("pass-")
+        ? [`${dir}${e.name}`]
+        : [],
+  );
+
 describe("all conformance fixtures are schema-valid", () => {
-  const collect = (dir: string): string[] =>
-    readdirSync(new URL(dir, root), { withFileTypes: true }).flatMap((e) =>
-      e.isDirectory()
-        ? collect(`${dir}${e.name}/`)
-        : e.name.endsWith(".flowdoc.json") || e.name.startsWith("pass-")
-          ? [`${dir}${e.name}`]
-          : [],
-    );
   // conformance/migrate inputs are older versions by design; their own suite
   // below validates them against the schema they name.
   const files = collect("conformance/").filter(
@@ -876,25 +896,30 @@ describe("kind and connectType agree", () => {
 // Versioning). conformance/migrate holds an input at each older version and
 // the exact bytes it becomes; a second implementation runs the same files.
 describe("FlowDoc migration", () => {
-  const validate02 = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const validate03 = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const validate02 = new Ajv2020({ allErrors: true, strict: false }).compile(schema02);
   const validate01 = new Ajv2020({ allErrors: true, strict: false }).compile(schema01);
+  const validators: Record<string, typeof validate01> = { "0.1": validate01, "0.2": validate02 };
   const cases = readdirSync(new URL("conformance/migrate/", root), { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
     .sort();
 
   it("has a case per older version", () => {
-    expect(cases).toEqual(["minimal-0.1", "with-meta-0.1"]);
+    expect(cases).toEqual(["minimal-0.1", "minimal-0.2", "with-meta-0.1", "with-meta-0.2"]);
   });
 
   it.each(cases)("%s: the input is valid at its own version and migrates byte for byte", (c) => {
     const input = JSON.parse(read(`conformance/migrate/${c}/input.flowdoc.json`));
-    expect(validate01(input), JSON.stringify(validate01.errors)).toBe(true);
-    expect(validate02(input)).toBe(false);
+    const own = validators[input.flowdoc]!;
+    expect(c.endsWith(`-${input.flowdoc}`)).toBe(true);
+    expect(own(input), JSON.stringify(own.errors)).toBe(true);
+    expect(validate03(input)).toBe(false);
     const migrated = migrateFlowDoc(input);
+    expect(migrated.flowdoc).toBe(FLOWDOC_VERSION);
     expect(serialize(migrated)).toBe(read(`conformance/migrate/${c}/expected.flowdoc.json`));
-    expect(validate02(migrated), JSON.stringify(validate02.errors)).toBe(true);
-    expect(validate01(migrated)).toBe(false);
+    expect(validate03(migrated), JSON.stringify(validate03.errors)).toBe(true);
+    expect(own(migrated)).toBe(false);
   });
 
   it("returns a current document unchanged", () => {
@@ -908,6 +933,76 @@ describe("FlowDoc migration", () => {
     expect(versions.length).toBeGreaterThan(3);
     for (const version of versions) {
       expect(() => migrateFlowDoc({ ...demo, flowdoc: version })).toThrow(/is not supported/);
+    }
+  });
+
+  // The frozen schemas stay byte for byte what they were when their version
+  // shipped (docs/01-flowdoc-spec.md, "Versioning"): a 0.2 file is still
+  // validated against the rules it was written to, and a per-type clause for
+  // a newly modeled type goes into 0.3 only.
+  it("keeps the 0.1 and 0.2 schemas frozen", () => {
+    const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+    expect(sha256(read("conformance/schema/flowdoc-0.1.schema.json"))).toBe(
+      "47e06f2beb4d717d8c78c579324f1161767126379359979f625996b67f8c2942",
+    );
+    expect(sha256(read("conformance/schema/flowdoc-0.2.schema.json"))).toBe(
+      "66edb9d45c51a44712d04deb472cbd5e1879810297229e15e0afcbcfe9db6437",
+    );
+  });
+
+  it("0.3 accepts what 0.2 could not say: the five Phase D reference types", () => {
+    const tokens = [
+      "${cdref:tasktemplate:follow-up}",
+      "${cdref:casetemplate:billing-dispute}",
+      "${cdref:casefield:priority}",
+      "${cdref:assistant:agent-help}",
+      "${cdref:phonenumber:main-did}",
+    ];
+    const doc = JSON.parse(demoRaw);
+    doc.content.Actions.push({
+      Identifier: "create-task",
+      Type: "CreateTask",
+      Parameters: { Name: "Follow up", TaskTemplateId: tokens[0] },
+      Transitions: {},
+    });
+    for (const token of tokens) {
+      const [, type, name] = /^\$\{cdref:([a-z]+):([a-z0-9-]+)\}$/.exec(token)!;
+      doc.refs.push({ token, type, name });
+    }
+    expect(validate03(doc), JSON.stringify(validate03.errors)).toBe(true);
+    doc.flowdoc = "0.2";
+    expect(validate02(doc)).toBe(false);
+  });
+
+  // Owner decision 3 (tasks/README.md, Phase D): a 0.3 per-type clause encodes
+  // only what the service enforces at create, so any 0.2 document the service
+  // accepted still validates after migration. Every fixture holding an
+  // unmodeled type as a generic block is taken back to 0.2 (the version it was
+  // written at before the bump), validated there, migrated, and validated at
+  // 0.3. The group tasks' clauses are held to this as they land.
+  it("migrates every 0.2 document holding an unmodeled type and validates it at 0.3", () => {
+    const unmodeled = new Set(
+      Object.entries(actionCatalog.actions)
+        .filter(([, a]) => !a.modeled)
+        .map(([t]) => t),
+    );
+    const docs = collect("conformance/")
+      .filter((f) => !f.includes("/schema/") && !f.includes("/migrate/"))
+      .map((f) => JSON.parse(read(f)) as { doc?: FlowDoc; flowdoc?: string })
+      .map((parsed) => parsed.doc ?? (parsed.flowdoc !== undefined ? (parsed as FlowDoc) : null))
+      .filter(
+        (d): d is FlowDoc => d !== null && d.content.Actions.some((a) => unmodeled.has(a.Type)),
+      )
+      // A fixture written for 0.3 (conformance/export/phase-d-refs) holds a
+      // token no 0.2 document could, so it is outside this claim.
+      .filter((d) => !collectRefs(d.content).some((r) => NEW_IN_03.has(r.type)));
+    expect(docs.length).toBeGreaterThan(0);
+    for (const doc of docs) {
+      const older = { ...doc, flowdoc: "0.2" };
+      expect(validate02(older), JSON.stringify(validate02.errors)).toBe(true);
+      const migrated = migrateFlowDoc(older);
+      expect(migrated.flowdoc).toBe(FLOWDOC_VERSION);
+      expect(validate03(migrated), JSON.stringify(validate03.errors)).toBe(true);
     }
   });
 
@@ -930,14 +1025,15 @@ describe("FlowDoc migration", () => {
       name: "after-contact-work",
       alias: "1",
     });
+    doc.flowdoc = "0.2";
     expect(validate02(doc), JSON.stringify(validate02.errors)).toBe(true);
     doc.flowdoc = "0.1";
     expect(validate01(doc)).toBe(false);
   });
 
-  it("0.2 still refuses a sourceKind it does not know", () => {
+  it("0.3 still refuses a sourceKind it does not know", () => {
     const doc = JSON.parse(demoRaw);
     doc.meta = { ...doc.meta, sourceKind: "yaml" };
-    expect(validate02(doc)).toBe(false);
+    expect(validate03(doc)).toBe(false);
   });
 });

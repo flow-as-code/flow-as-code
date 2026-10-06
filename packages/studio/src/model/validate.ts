@@ -10,12 +10,13 @@
 //
 // Two independent checks, both required:
 //   1. the two hard lint rules, via @flow-as-code/core's own hasBlockingFindings, and
-//   2. structural validity against conformance/schema/flowdoc-0.2.schema.json,
+//   2. structural validity against conformance/schema/flowdoc-0.3.schema.json,
 //      the cross-language contract the Go provider validates against too.
 //
 // A file read from disk is validated against the schema of the version its
 // `flowdoc` field names and then migrated, so the canvas only ever holds the
-// current version while a 0.1 file written before FlowDoc 0.2 still opens.
+// current version while a 0.1 or 0.2 file written before FlowDoc 0.3 still
+// opens.
 // A mutation bug can produce a schema-invalid doc that lints clean (a
 // MessageParticipant with no body, say), so the schema check is not optional.
 
@@ -32,7 +33,8 @@ import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.
 // Imported, not fetched: the schemas are bundled at build time so the studio
 // validates with no network access (docs/02-studio-design.md, local-first).
 import schema01 from "../../../../conformance/schema/flowdoc-0.1.schema.json" with { type: "json" };
-import schema from "../../../../conformance/schema/flowdoc-0.2.schema.json" with { type: "json" };
+import schema02 from "../../../../conformance/schema/flowdoc-0.2.schema.json" with { type: "json" };
+import schema from "../../../../conformance/schema/flowdoc-0.3.schema.json" with { type: "json" };
 
 export { FLOWDOC_VERSION };
 
@@ -50,7 +52,8 @@ const HARD_RULE_IDS = new Set(HARD_RULES);
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 const validators: Readonly<Record<SupportedFlowDocVersion, ValidateFunction>> = {
   "0.1": ajv.compile(schema01 as object),
-  "0.2": ajv.compile(schema as object),
+  "0.2": ajv.compile(schema02 as object),
+  "0.3": ajv.compile(schema as object),
 };
 const validateSchema: ValidateFunction = validators[FLOWDOC_VERSION];
 
@@ -125,7 +128,7 @@ export function parseFlowDoc(text: string): FlowDoc {
   const version = (parsed as { flowdoc?: unknown } | null)?.flowdoc;
   if (parsed === null || typeof parsed !== "object" || !isSupportedFlowDocVersion(version)) {
     throw new Error(
-      `Not a FlowDoc file (this build reads ${SUPPORTED_FLOWDOC_VERSIONS.join(" and ")}).`,
+      `Not a FlowDoc file (this build reads ${SUPPORTED_FLOWDOC_VERSIONS.join(", ")}).`,
     );
   }
   const validate = validators[version];

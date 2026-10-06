@@ -52,7 +52,7 @@ async function openDialog(doc: FlowDoc = demoDoc()): Promise<void> {
  */
 function unemittableDoc(): FlowDoc {
   return {
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "flow",
     name: "clash-line",
     connectType: "CONTACT_FLOW",

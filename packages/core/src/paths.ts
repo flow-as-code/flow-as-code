@@ -9,18 +9,27 @@
 //   LexV2Bot.AliasArn     a key inside an object
 //   Messages[].PromptId   a key inside every element of a list
 //   EventHooks.*          every value of a map
+//   CaseRequestFields.*~  every key of a map (the key itself, as a string)
 //
-// A flat key table cannot name the last three, and the reference-bearing
-// fields the modeled set grows into include all of them. Browser-safe: no
+// A flat key table cannot name the last four, and the reference-bearing
+// fields the modeled set grows into include all of them. The key form is
+// FlowDoc 0.3's, for a Cases field id standing as a map key
+// (docs/adr/0008-case-field-ids.md); the trailing `~` is JSONPath Plus's
+// property-name operator, borrowed rather than invented. Browser-safe: no
 // Node builtins, so the lint rules may use it.
 
-/** One value found at a concrete path, `Messages[2].PromptId` for example. */
+/**
+ * One value found at a concrete path, `Messages[2].PromptId` for example. A
+ * hit from a `*~` segment names the key with a trailing `~`
+ * (`CaseRequestFields.priority~`) and its value is the key string, so a key
+ * hit and the value hit beside it never share a path.
+ */
 export interface PathHit {
   path: string;
   value: unknown;
 }
 
-const SEGMENT = /^(?:\*|([A-Za-z0-9_$-]+)(\[\])?)$/;
+const SEGMENT = /^(?:\*~?|([A-Za-z0-9_$-]+)(\[\])?)$/;
 
 /** Whether a string is a well-formed catalog path. */
 export function isCatalogPath(path: string): boolean {
@@ -46,6 +55,12 @@ export function readPath(value: unknown, path: string): PathHit[] {
         if (!isRecord(hit.value)) continue;
         for (const [k, v] of Object.entries(hit.value))
           next.push({ path: join(hit.path, k), value: v });
+        continue;
+      }
+      if (segment === "*~") {
+        if (!isRecord(hit.value)) continue;
+        for (const k of Object.keys(hit.value))
+          next.push({ path: `${join(hit.path, k)}~`, value: k });
         continue;
       }
       const m = SEGMENT.exec(segment)!;

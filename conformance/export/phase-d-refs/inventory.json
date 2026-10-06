@@ -1,0 +1,74 @@
+{
+  "contactFlows": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000031",
+      "id": "cccc3333-0000-4000-8000-000000000031",
+      "name": "Case Intake",
+      "contactFlowType": "CONTACT_FLOW",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    },
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000032",
+      "id": "cccc3333-0000-4000-8000-000000000032",
+      "name": "Task Follow Up",
+      "contactFlowType": "CONTACT_FLOW",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    }
+  ],
+  "contactFlowModules": [],
+  "queues": [],
+  "hoursOfOperations": [],
+  "prompts": [],
+  "lambdaFunctions": [],
+  "lexBots": [],
+  "views": [],
+  "taskTemplates": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/task-template/tttt6666-0000-4000-8000-000000000001",
+      "id": "tttt6666-0000-4000-8000-000000000001",
+      "name": "Follow Up"
+    }
+  ],
+  "phoneNumbers": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:phone-number/pppp7777-0000-4000-8000-000000000001",
+      "id": "pppp7777-0000-4000-8000-000000000001",
+      "number": "+15555550100",
+      "description": "Main DID",
+      "type": "DID"
+    },
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:phone-number/pppp7777-0000-4000-8000-000000000002",
+      "id": "pppp7777-0000-4000-8000-000000000002",
+      "number": "+15555550199",
+      "type": "DID"
+    }
+  ],
+  "casesDomain": {
+    "domainArn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000001",
+    "domainId": "dddd8888-0000-4000-8000-000000000001",
+    "templates": [
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000001/template/eeee9999-0000-4000-8000-000000000001",
+        "id": "eeee9999-0000-4000-8000-000000000001",
+        "name": "Billing Dispute"
+      }
+    ],
+    "fields": [
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000001/field/ffff0000-0000-4000-8000-000000000001",
+        "id": "ffff0000-0000-4000-8000-000000000001",
+        "name": "Priority"
+      }
+    ]
+  },
+  "assistants": [
+    {
+      "arn": "arn:aws:wisdom:us-east-1:111122223333:assistant/aaaa0000-0000-4000-8000-000000000001",
+      "id": "aaaa0000-0000-4000-8000-000000000001",
+      "name": "Agent Help"
+    }
+  ]
+}

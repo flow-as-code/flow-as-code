@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "module",
   "name": "module-settings",
   "description": "A module whose Settings object is not empty.",
