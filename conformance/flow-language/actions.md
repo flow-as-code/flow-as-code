@@ -1336,15 +1336,56 @@ A parameter marked `dynamic` also accepts a single JSONPath identifier where
 its page says "fully static or fully dynamic"; the kind describes the static
 form, and the schema accepts either. On an `integer` or `integerString`, `min` and `max` bound the value; on a
 `list` or `map` they bound the entry count, and a `map` may carry `keys`, the keys its page
-allows.
+allows, and `keyPatterns`, anchored regular expressions a key may match
+beside them (`^Attributes\.[^.]+$` for the `Attributes.x` keys the Customer
+Profiles pages allow); a map with neither admits any key. `dynamic` sits on a
+scalar kind, or since FlowDoc 0.3 on a `list` whose page lets a JSONPath
+stand for the whole list (`UpdateRoutingCriteria.RoutingCriteria.Steps`,
+docs/adr/0009); never on an `object`, `map` or `json`, whose provider
+attribute has no JSONPath form.
+
+Vocabulary added for Phase D on 2026-10-05 (tasks/D01), before any entry
+uses it, each item held by a `catalog.test.ts` mutation that fails on a
+malformed use:
+
+- `channels` may sit on an unmodeled entry as on a modeled one, so a page's
+  restriction is recorded when it is read rather than when the type is
+  modeled; `channel-restricted-action` reads it either way.
+- An error's `requiredWhenValue`, `{ "key": <parameter>, "equals": <value> }`,
+  makes the branch required when the parameter holds that static value
+  (`CreateCase`'s `ContactNotLinked` when `LinkContactToCase` is `"true"`),
+  where `requiredWhenKey` keys off presence alone. The value must be one the
+  parameter's enum allows when it is an enum, and the error is not also
+  `required` or `requiredWhenKey`. `requiredErrorsFor` reads it, so
+  error-branches and the provider's port report the branch missing on
+  exactly those actions; a JSONPath in the parameter requires nothing, since
+  the value is decided at run time.
+- A constraint's `groups`, in place of `keys`: alternatives that are each
+  several keys (`GetCustomerProfile`'s `IdentifierName` and `IdentifierValue`
+  pair against `SearchCriteria`; `GetCustomerProfileObject`'s `UseLatest`
+  against the pair). A group is present when every key in it is, a group
+  with some of its keys present is a violation whatever the rule, and the
+  rule then reads over groups as it reads over keys. Chosen over `shapes`
+  because a shape keys off a parameter's value and these alternatives key
+  off presence, which is what `constraints` already express; a constraint
+  carries `keys` or `groups`, never both, with at least two alternatives,
+  and no key in two groups. `constraintViolations` in `catalog.ts` is the
+  one reading of both forms.
+- The path form `A.*~`, every key of the map at `A` (the trailing `~` is
+  JSONPath Plus's property-name operator), so a reference-bearing map key
+  can be named: `CreateCase`'s refs are `CaseRequestFields.*~` with the
+  `casefield` type (docs/adr/0008). `readPath` returns a hit per key whose
+  value is the key string, at the path `A.<key>~`, so export, lint and the
+  studio read keys through the table they read values through.
 
 Attribute names are the mechanical `snake_case` of the Flow language key
 (`packages/core/src/hcl-names.ts`): `PromptId` is `prompt_id`,
 `LambdaFunctionARN` is `lambda_function_arn`, `LexV2Bot` is `lex_v2_bot`.
 Reference-bearing fields are named by dotted paths (`packages/core/src/paths.ts`),
 so a field inside an object (`LexV2Bot.AliasArn`), inside every element of a
-list (`Messages[].PromptId`), or as every value of a map (`EventHooks.*`) can
-be named where a flat key could not.
+list (`Messages[].PromptId`), as every value of a map (`EventHooks.*`), or as
+every key of one (`CaseRequestFields.*~`) can be named where a flat key could
+not.
 
 ## Unmodeled actions
 
