@@ -10,10 +10,20 @@ import { describe, expect, it } from "vitest";
 import {
   FLOWDOC_VERSION,
   actionCatalog,
+  collectRefs,
   migrateFlowDoc,
   serialize,
   type FlowDoc,
 } from "./index.js";
+
+/** The reference types 0.3 added; a token of one cannot appear in a 0.2 document. */
+const NEW_IN_03 = new Set([
+  "tasktemplate",
+  "casetemplate",
+  "casefield",
+  "assistant",
+  "phonenumber",
+]);
 
 // The conformance directory is the cross-language contract (conformance/README.md).
 // These assertions are what a future Go provider must also satisfy.
@@ -982,7 +992,10 @@ describe("FlowDoc migration", () => {
       .map((parsed) => parsed.doc ?? (parsed.flowdoc !== undefined ? (parsed as FlowDoc) : null))
       .filter(
         (d): d is FlowDoc => d !== null && d.content.Actions.some((a) => unmodeled.has(a.Type)),
-      );
+      )
+      // A fixture written for 0.3 (conformance/export/phase-d-refs) holds a
+      // token no 0.2 document could, so it is outside this claim.
+      .filter((d) => !collectRefs(d.content).some((r) => NEW_IN_03.has(r.type)));
     expect(docs.length).toBeGreaterThan(0);
     for (const doc of docs) {
       const older = { ...doc, flowdoc: "0.2" };

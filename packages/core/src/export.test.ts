@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type {
+  CasesDomainInventory,
   ConnectInventoryClient,
   ContactFlowModuleSummary,
   ContactFlowSummary,
@@ -13,6 +14,7 @@ import type {
   FlowDoc,
   InstanceInventory,
   LexBotSummary,
+  PhoneNumberSummary,
   ResourceSummary,
 } from "./index.js";
 import {
@@ -25,6 +27,8 @@ import {
   lookupArn,
   materializeWithMap,
   normalizeArn,
+  parseAssistantArn,
+  parseCasesArn,
   parseConnectArn,
   parseLambdaFunctionArn,
   reverseMapOfResourceMap,
@@ -159,6 +163,21 @@ class FixtureClient implements ConnectInventoryClient {
   listBots(): Promise<LexBotSummary[]> {
     return Promise.resolve(this.inventory.lexBots);
   }
+  // The FlowDoc 0.3 lists, offered as the SDK adapter offers them: every
+  // fixture written before the bump carries none, and the methods then answer
+  // empty, which is what an instance without the resources answers.
+  listTaskTemplates(): Promise<ResourceSummary[]> {
+    return Promise.resolve(this.inventory.taskTemplates ?? []);
+  }
+  listPhoneNumbers(): Promise<PhoneNumberSummary[]> {
+    return Promise.resolve(this.inventory.phoneNumbers ?? []);
+  }
+  describeCasesDomain(): Promise<CasesDomainInventory | undefined> {
+    return Promise.resolve(this.inventory.casesDomain);
+  }
+  listAssistants(): Promise<ResourceSummary[]> {
+    return Promise.resolve(this.inventory.assistants ?? []);
+  }
 }
 
 describe("ARN parsing", () => {
@@ -209,6 +228,56 @@ describe("ARN parsing", () => {
       "arn:aws:connect:us-east-1:aws:view/after-contact-work",
     );
     expect(normalizeArn(`${INSTANCE}/contact-flow/f1:$SAVED`)).toBe(`${INSTANCE}/contact-flow/f1`);
+  });
+
+  // FlowDoc 0.3. The second Connect ARN that nests under no instance, with an
+  // account id where the managed view has `aws`; the service reference's
+  // format, read 2026-10-05.
+  it("parses a phone number ARN, which belongs to the account rather than an instance", () => {
+    const parsed = parseConnectArn(
+      "arn:aws:connect:us-east-1:111122223333:phone-number/pppp7777-0000-4000-8000-000000000001",
+    );
+    expect(parsed).toEqual({
+      partition: "aws",
+      region: "us-east-1",
+      account: "111122223333",
+      instanceId: "",
+      resourceType: "phone-number",
+      resourceId: "pppp7777-0000-4000-8000-000000000001",
+    });
+    expect(parseConnectArn("arn:aws:connect:us-east-1:111122223333:phone-number/")).toBeUndefined();
+    expect(parseConnectArn(`${INSTANCE}/task-template/t1`)?.resourceType).toBe("task-template");
+  });
+
+  // Cases and Amazon Q in Connect are other services: `cases` ARNs nest under
+  // a domain, and an assistant keeps the service's original name, `wisdom`.
+  it("parses Cases template, field and domain ARNs, and an assistant ARN", () => {
+    const domain = "arn:aws:cases:us-east-1:111122223333:domain/d1";
+    expect(parseCasesArn(domain)).toEqual({
+      partition: "aws",
+      region: "us-east-1",
+      account: "111122223333",
+      domainId: "d1",
+    });
+    expect(parseCasesArn(`${domain}/template/t1`)).toMatchObject({
+      domainId: "d1",
+      resourceType: "template",
+      resourceId: "t1",
+    });
+    expect(parseCasesArn(`${domain}/field/f1`)).toMatchObject({
+      resourceType: "field",
+      resourceId: "f1",
+    });
+    expect(parseCasesArn(`${domain}/layout/l1`)).toBeUndefined();
+    expect(parseCasesArn(`${INSTANCE}/queue/q1`)).toBeUndefined();
+    expect(parseCasesArn("arn:aws:cases:us-east-1:111122223333:domain/")).toBeUndefined();
+    expect(parseAssistantArn("arn:aws:wisdom:us-east-1:111122223333:assistant/a1")).toBe("a1");
+    expect(
+      parseAssistantArn("arn:aws:wisdom:us-east-1:111122223333:knowledge-base/k1"),
+    ).toBeUndefined();
+    expect(parseAssistantArn(`${INSTANCE}/queue/q1`)).toBeUndefined();
+    // Neither carries a qualifier, so normalization leaves both alone.
+    expect(normalizeArn(`${domain}/field/f1`)).toBe(`${domain}/field/f1`);
   });
 
   it("takes a Lambda function name from the Lambda ARN itself", () => {
@@ -278,6 +347,36 @@ describe("buildReverseMap", () => {
     );
     expect(names.sort()).toEqual(["front-desk", "front-desk-2"]);
     expect(collided.warnings.join("\n")).toContain("front-desk");
+  });
+
+  // FlowDoc 0.3: the four optional lists feed the map, and a phone number,
+  // which has no name, is named by its description or else its digits.
+  it("maps the FlowDoc 0.3 resources, naming a phone number by description or digits", () => {
+    const phaseD = buildReverseMap(
+      readJson<InstanceInventory>("conformance/export/phase-d-refs/inventory.json"),
+    );
+    const domain =
+      "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000001";
+    expect(
+      lookupArn(phaseD, `${INSTANCE}/task-template/tttt6666-0000-4000-8000-000000000001`)?.token,
+    ).toBe("${cdref:tasktemplate:follow-up}");
+    expect(
+      lookupArn(phaseD, `${domain}/template/eeee9999-0000-4000-8000-000000000001`)?.token,
+    ).toBe("${cdref:casetemplate:billing-dispute}");
+    expect(lookupArn(phaseD, `${domain}/field/ffff0000-0000-4000-8000-000000000001`)?.token).toBe(
+      "${cdref:casefield:priority}",
+    );
+    expect(
+      lookupArn(
+        phaseD,
+        "arn:aws:wisdom:us-east-1:111122223333:assistant/aaaa0000-0000-4000-8000-000000000001",
+      )?.token,
+    ).toBe("${cdref:assistant:agent-help}");
+    const number = (id: string) =>
+      lookupArn(phaseD, `arn:aws:connect:us-east-1:111122223333:phone-number/${id}`)?.token;
+    expect(number("pppp7777-0000-4000-8000-000000000001")).toBe("${cdref:phonenumber:main-did}");
+    expect(number("pppp7777-0000-4000-8000-000000000002")).toBe("${cdref:phonenumber:15555550199}");
+    expect(phaseD.warnings).toEqual([]);
   });
 
   it("inverts a materialization resource map", () => {
@@ -747,6 +846,68 @@ describe("exportInstance", () => {
     ).toThrow(ExportError);
   });
 
+  // FlowDoc 0.3: a flow holding every new reference kind exports, each ARN a
+  // token of its type, and the generic blocks that hold them keep every other
+  // key. The content is hand-written from each action's page (the shapes are
+  // the group tasks' to settle against the service); the inventory shape is
+  // what the List APIs document, read 2026-10-05.
+  it("exports a flow holding every FlowDoc 0.3 reference kind", async () => {
+    const client = new FixtureClient("phase-d-refs");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.3" });
+
+    expect(result.failures).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(result.flows.map((f) => f.doc.name)).toEqual(["case-intake", "task-follow-up"]);
+    const intake = result.flows[0]!.doc;
+    expect(intake.refs?.map((r) => r.token)).toEqual([
+      "${cdref:assistant:agent-help}",
+      "${cdref:casefield:priority}",
+      "${cdref:casetemplate:billing-dispute}",
+      "${cdref:flow:task-follow-up}",
+      "${cdref:phonenumber:main-did}",
+    ]);
+    expect(result.flows[1]!.doc.refs?.map((r) => r.token)).toEqual([
+      "${cdref:flow:case-intake}",
+      "${cdref:tasktemplate:follow-up}",
+    ]);
+    for (const flow of result.flows) {
+      expect(serialize(flow.doc), flow.doc.name).not.toContain("arn:aws");
+      const golden = `conformance/export/phase-d-refs/expected/${flow.doc.name}`;
+      expect(serialize(flow.doc)).toBe(golden_(`${golden}.flowdoc.json`, serialize(flow.doc)));
+      expect(flow.code).toBe(golden_(`${golden}.flow.ts`, flow.code!));
+    }
+  });
+
+  // A client written before 0.3 offers none of the four lists, and the
+  // inventory it assembles carries none of the four keys rather than empty
+  // lists, so a recorded fixture from before the bump still compares equal.
+  it("assembles an inventory without the FlowDoc 0.3 lists when the client offers none", async () => {
+    const fixture = new FixtureClient("demo-instance");
+    const older: ConnectInventoryClient = {
+      listContactFlows: (types) => fixture.listContactFlows(types),
+      describeContactFlow: (id) => fixture.describeContactFlow(id),
+      listContactFlowModules: () => fixture.listContactFlowModules(),
+      describeContactFlowModule: (id) => fixture.describeContactFlowModule(id),
+      listQueues: () => fixture.listQueues(),
+      listHoursOfOperations: () => fixture.listHoursOfOperations(),
+      listPrompts: () => fixture.listPrompts(),
+      listLambdaFunctions: () => fixture.listLambdaFunctions(),
+      listBots: () => fixture.listBots(),
+      listViews: () => fixture.listViews(),
+    };
+    const result = await exportInstance(older);
+    expect(Object.keys(result.inventory).sort()).toEqual([
+      "contactFlowModules",
+      "contactFlows",
+      "hoursOfOperations",
+      "lambdaFunctions",
+      "lexBots",
+      "prompts",
+      "queues",
+      "views",
+    ]);
+  });
+
   // Whole-instance export over content recorded from a live instance, where
   // two of the action types arrive with no Parameters key at all.
   it("exports flows whose actions Connect returned without Parameters", async () => {
@@ -899,6 +1060,189 @@ describe("createConnectInventoryClient", () => {
       ["after-contact-work", "AWS_MANAGED"],
       ["Order lookup", "CUSTOMER_MANAGED"],
     ]);
+  });
+
+  // FlowDoc 0.3 (tasks/D01). Each list's page size and token spelling is the
+  // one its API reference page states, read 2026-10-05.
+  it("pages ListTaskTemplates at its maximum of 100 and reads TaskTemplates", async () => {
+    const fake = sender({
+      ListTaskTemplatesCommand: [
+        { TaskTemplates: [{ Arn: `${INSTANCE}/task-template/t1`, Id: "t1", Name: "Follow Up" }] },
+      ],
+    });
+    const client = createConnectInventoryClient({
+      connect: fake,
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    expect(await client.listTaskTemplates!()).toEqual([
+      { arn: `${INSTANCE}/task-template/t1`, id: "t1", name: "Follow Up" },
+    ]);
+    expect(fake.sent[0]?.input.MaxResults).toBe(100);
+  });
+
+  it("lists phone numbers by TargetArn for an instance ARN and InstanceId for an id", async () => {
+    const page = {
+      ListPhoneNumbersSummaryList: [
+        {
+          PhoneNumberArn: "arn:aws:connect:us-east-1:111122223333:phone-number/p1",
+          PhoneNumberId: "p1",
+          PhoneNumber: "+15555550100",
+          PhoneNumberDescription: "Main DID",
+          PhoneNumberType: "DID",
+          PhoneNumberCountryCode: "US",
+        },
+        {
+          PhoneNumberArn: "arn:aws:connect:us-east-1:111122223333:phone-number/p2",
+          PhoneNumberId: "p2",
+          PhoneNumber: "+15555550199",
+        },
+      ],
+    };
+    const byArn = sender({ ListPhoneNumbersV2Command: [{ ...page, NextToken: "page2" }, page] });
+    const client = createConnectInventoryClient({
+      connect: byArn,
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    const numbers = await client.listPhoneNumbers!();
+    expect(numbers).toHaveLength(4);
+    expect(numbers[0]).toEqual({
+      arn: "arn:aws:connect:us-east-1:111122223333:phone-number/p1",
+      id: "p1",
+      number: "+15555550100",
+      description: "Main DID",
+      type: "DID",
+    });
+    expect(numbers[1]).toEqual({
+      arn: "arn:aws:connect:us-east-1:111122223333:phone-number/p2",
+      id: "p2",
+      number: "+15555550199",
+    });
+    expect(byArn.sent[0]?.input.TargetArn).toBe(INSTANCE);
+    expect(byArn.sent[0]?.input.InstanceId).toBeUndefined();
+    expect(byArn.sent[1]?.input.NextToken).toBe("page2");
+
+    const byId = sender({ ListPhoneNumbersV2Command: [page] });
+    await createConnectInventoryClient({
+      connect: byId,
+      instanceId: "11111111-2222-3333-4444-555555555555",
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    }).listPhoneNumbers!();
+    expect(byId.sent[0]?.input.InstanceId).toBe("11111111-2222-3333-4444-555555555555");
+    expect(byId.sent[0]?.input.TargetArn).toBeUndefined();
+  });
+
+  // The Cases domain is found through the instance's CASES_DOMAIN association
+  // and read with the Cases client, whose lists spell the token nextToken.
+  // Without a Cases client the method is not offered at all.
+  it("reads the Cases domain's templates and fields through the association, when given a Cases client", async () => {
+    const domain = "arn:aws:cases:us-east-1:111122223333:domain/d1";
+    const connect = sender({
+      ListIntegrationAssociationsCommand: [
+        {
+          IntegrationAssociationSummaryList: [
+            { IntegrationType: "CASES_DOMAIN", IntegrationArn: domain },
+          ],
+        },
+      ],
+    });
+    const cases = sender({
+      ListTemplatesCommand: [
+        {
+          templates: [{ templateArn: `${domain}/template/t1`, templateId: "t1", name: "Billing" }],
+          nextToken: "more",
+        },
+        { templates: [{ templateArn: `${domain}/template/t2`, templateId: "t2", name: "Return" }] },
+      ],
+      ListFieldsCommand: [
+        { fields: [{ fieldArn: `${domain}/field/f1`, fieldId: "f1", name: "Priority" }] },
+      ],
+    });
+    const client = createConnectInventoryClient({
+      connect,
+      cases,
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    expect(await client.describeCasesDomain!()).toEqual({
+      domainArn: domain,
+      domainId: "d1",
+      templates: [
+        { arn: `${domain}/template/t1`, id: "t1", name: "Billing" },
+        { arn: `${domain}/template/t2`, id: "t2", name: "Return" },
+      ],
+      fields: [{ arn: `${domain}/field/f1`, id: "f1", name: "Priority" }],
+    });
+    expect(connect.sent[0]?.input.IntegrationType).toBe("CASES_DOMAIN");
+    expect(connect.sent[0]?.input.MaxResults).toBe(100);
+    expect(cases.sent[0]?.input).toEqual({ domainId: "d1", maxResults: 100, nextToken: undefined });
+    expect(cases.sent[1]?.input.nextToken).toBe("more");
+
+    // No association: no domain, and the Cases client is never called.
+    const bare = sender({});
+    const withoutDomain = createConnectInventoryClient({
+      connect: sender({ ListIntegrationAssociationsCommand: [{}] }),
+      cases: bare,
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    expect(await withoutDomain.describeCasesDomain!()).toBeUndefined();
+    expect(bare.sent).toEqual([]);
+
+    const withoutClient = createConnectInventoryClient({
+      connect: sender({}),
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    expect(withoutClient.describeCasesDomain).toBeUndefined();
+    expect(withoutClient.listAssistants).toBeUndefined();
+  });
+
+  it("lists assistants through the Amazon Q in Connect client, paging by nextToken", async () => {
+    const qconnect = sender({
+      ListAssistantsCommand: [
+        {
+          assistantSummaries: [
+            {
+              assistantArn: "arn:aws:wisdom:us-east-1:111122223333:assistant/a1",
+              assistantId: "a1",
+              name: "Agent Help",
+              type: "AGENT",
+            },
+          ],
+          nextToken: "page2",
+        },
+        {
+          assistantSummaries: [
+            {
+              assistantArn: "arn:aws:wisdom:us-east-1:111122223333:assistant/a2",
+              assistantId: "a2",
+              name: "Self Service",
+            },
+          ],
+        },
+      ],
+    });
+    const client = createConnectInventoryClient({
+      connect: sender({}),
+      qconnect,
+      instanceId: INSTANCE,
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    expect(await client.listAssistants!()).toEqual([
+      { arn: "arn:aws:wisdom:us-east-1:111122223333:assistant/a1", id: "a1", name: "Agent Help" },
+      { arn: "arn:aws:wisdom:us-east-1:111122223333:assistant/a2", id: "a2", name: "Self Service" },
+    ]);
+    expect(qconnect.sent[0]?.input).toEqual({ maxResults: 100, nextToken: undefined });
+    expect(qconnect.sent[1]?.input.nextToken).toBe("page2");
   });
 
   // lexVersion is required, so a full inventory takes two passes.
