@@ -35,7 +35,7 @@ const expectedOf = (name: string) =>
 describe("conformance/simulate/dry-run", () => {
   it("holds a flow and a module, both valid FlowDocs", () => {
     const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
-      JSON.parse(read("conformance/schema/flowdoc-0.2.schema.json")),
+      JSON.parse(read("conformance/schema/flowdoc-0.3.schema.json")),
     );
     for (const doc of docs) expect(validate(doc), JSON.stringify(validate.errors)).toBe(true);
     expect(docs.map((d) => `${d.kind}:${d.name}`)).toEqual([

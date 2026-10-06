@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "flow",
   "name": "flow-control",
   "description": "Flow-control actions, with a loop whose continue path is a back edge.",

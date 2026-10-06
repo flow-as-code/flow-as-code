@@ -60,6 +60,7 @@ const REQUIRED_DATA_FILES: Readonly<Record<(typeof PACKAGES)[number], readonly s
     "template/appointment-line.flowdoc.json",
     "schema/flowdoc-0.1.schema.json",
     "schema/flowdoc-0.2.schema.json",
+    "schema/flowdoc-0.3.schema.json",
     "schema/scenario-0.1.schema.json",
   ],
   tf: [],

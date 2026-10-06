@@ -42,7 +42,16 @@ export const CDK_SCAFFOLD_FILE = "flow-stack.ts";
 const REQUIRED_TYPES = ["hours", "lambda", "lex", "prompt", "queue"] as const;
 
 /** The optional methods, emitted only when a document in the set needs one. */
-const OPTIONAL_TYPES = ["flow", "module", "view"] as const;
+const OPTIONAL_TYPES = [
+  "flow",
+  "module",
+  "view",
+  "tasktemplate",
+  "casetemplate",
+  "casefield",
+  "assistant",
+  "phonenumber",
+] as const;
 
 /** Parameters of each method, echoing packages/cdk/src/binder.ts. */
 const PARAMS: Record<string, string> = {
@@ -60,6 +69,11 @@ const RETURNS: Record<string, string> = {
   prompt: "ARN of the prompt",
   queue: "ARN of the queue, e.g. queue.attrQueueArn",
   view: "ARN of the view, with the version the token pins when it pins one",
+  tasktemplate: "ARN of the task template, e.g. template.attrArn",
+  casetemplate: "id or ARN of the Cases template, e.g. template.attrTemplateId",
+  casefield: "id of the Cases field, e.g. field.attrFieldId",
+  assistant: "ARN of the Amazon Q in Connect assistant, e.g. assistant.attrAssistantArn",
+  phonenumber: "ARN of the claimed phone number, e.g. number.attrPhoneNumberArn",
 };
 
 /** What each reference type names, for the comment on an unused method. */
@@ -72,6 +86,11 @@ const NOUNS: Record<string, string> = {
   prompt: "prompt",
   queue: "queue",
   view: "view",
+  tasktemplate: "task template",
+  casetemplate: "Cases template",
+  casefield: "Cases field",
+  assistant: "Amazon Q in Connect assistant",
+  phonenumber: "phone number",
 };
 
 /**

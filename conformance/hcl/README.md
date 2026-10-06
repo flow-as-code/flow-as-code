@@ -185,8 +185,9 @@ resource "flowascode_contact_flow" "appointment_line" {
    (or the case's `options.instanceId`) and carried verbatim afterwards.
 6. `refs` is an object with one entry per entry of the document's `refs`,
    keyed by the reference key (`queue:front-desk`, `module:survey@prod`,
-   `view:form@1`: the token without its `${cdref:` wrapper), keys in byte
-   order and always quoted. The value is the terraform address bound to the
+   `view:form@1`, `casefield:priority`: the token without its `${cdref:`
+   wrapper; the types are FlowDoc 0.3's thirteen), keys in byte order and
+   always quoted. The value is the terraform address bound to the
    key, or `null` for an unbound key, with the comment
    `# TODO: no terraform address for ${cdref:<key>}.` on the line above it.
    The map is omitted when the document has no references.
@@ -332,9 +333,10 @@ resource "flowascode_contact_flow" "appointment_line" {
     `REF_EXPRESSION_REFUSED`, naming the file, line and attribute, and the
     `refs` entry to write instead. The one exception is the TypeScript
     parser's sugar (`address-sugar.json`): a resource address of a listed
-    type (`aws_connect_queue.x.arn` and the others) is rewritten to the key
-    (`queue:x`) plus a `refs` entry on the next regeneration, and the rewrite
-    is recorded in the sidecar's `normalized` list. An address of the same
+    type (`aws_connect_queue.x.arn`, `aws_connect_phone_number.x.arn` and the
+    others) is rewritten to the key (`queue:x`, `phonenumber:x`) plus a `refs`
+    entry on the next regeneration, and the rewrite is recorded in the
+    sidecar's `normalized` list. An address of the same
     shape (`<type>.<label>.arn`, `data.<type>.<label>.arn`) whose type is not
     listed, a module alias's among them, is refused with
     `REF_SUGAR_UNSUPPORTED_TYPE`, naming the `refs` key that binds the address

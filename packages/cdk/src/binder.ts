@@ -76,6 +76,46 @@ export interface TokenBinder {
    * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
    */
   view?(name: string, version?: string): string;
+  /**
+   * ARN of a task template (FlowDoc 0.3), for `CreateTask.TaskTemplateId`:
+   * `arn:aws:connect:<region>:<account>:instance/<id>/task-template/<id>`.
+   * hashicorp/aws has no resource for one; aws-cdk-lib has `CfnTaskTemplate`
+   * (`attrArn`).
+   * https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
+   */
+  tasktemplate?(name: string): string;
+  /**
+   * The Cases template (FlowDoc 0.3) for `CreateCase.CaseTemplateId`, a
+   * per-domain id or its ARN, as the action accepts it; aws-cdk-lib's
+   * `CfnTemplate` in `aws-connectcases` has `attrTemplateArn` and
+   * `attrTemplateId`.
+   * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+   */
+  casetemplate?(name: string): string;
+  /**
+   * The Cases field id (FlowDoc 0.3) a `${cdref:casefield:<name>}` stands for
+   * as a map key of `CaseRequestFields` or an item of `CaseResponseFields`
+   * (docs/adr/0008-case-field-ids.md); aws-cdk-lib's `CfnField` has
+   * `attrFieldId`. Resolution of a key is D06's; a token in a value resolves
+   * through this today.
+   */
+  casefield?(name: string): string;
+  /**
+   * ARN of an Amazon Q in Connect assistant (FlowDoc 0.3), for
+   * `CreateWisdomSession.WisdomAssistantArn`:
+   * `arn:aws:wisdom:<region>:<account>:assistant/<id>`; aws-cdk-lib's
+   * `CfnAssistant` in `aws-wisdom` has `attrAssistantArn`.
+   * https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
+   */
+  assistant?(name: string): string;
+  /**
+   * ARN of a phone number claimed to the instance (FlowDoc 0.3), for
+   * `StartOutboundChatContact.SourceEndpoint.Address`:
+   * `arn:aws:connect:<region>:<account>:phone-number/<id>`, which nests under
+   * no instance; `CfnPhoneNumber.attrPhoneNumberArn`.
+   * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+   */
+  phonenumber?(name: string): string;
 }
 
 /**

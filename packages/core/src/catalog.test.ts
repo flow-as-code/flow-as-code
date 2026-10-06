@@ -462,7 +462,7 @@ describe("the event hook names", () => {
   // `keys`, and the schema clause's propertyNames enum.
   const schema = JSON.parse(
     readFileSync(
-      new URL("../../../conformance/schema/flowdoc-0.2.schema.json", import.meta.url),
+      new URL("../../../conformance/schema/flowdoc-0.3.schema.json", import.meta.url),
       "utf8",
     ),
   ) as {
@@ -535,6 +535,11 @@ describe("the action catalog", () => {
       "flow",
       "module",
       "view",
+      "tasktemplate",
+      "casetemplate",
+      "casefield",
+      "assistant",
+      "phonenumber",
     ]);
   });
 

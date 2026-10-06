@@ -184,7 +184,8 @@ pair is worse than none.
 `lint`, `render`, and `emit` take a directory or a single file. A directory
 contributes every `*.flowdoc.json` in it, sorted by name, and is not walked
 recursively. Every document is validated against the schema of the version its
-`flowdoc` field names (`flowdoc-0.1.schema.json` or `flowdoc-0.2.schema.json`,
+`flowdoc` field names (`flowdoc-0.1.schema.json`, `flowdoc-0.2.schema.json` or
+`flowdoc-0.3.schema.json`,
 byte copies of `conformance/schema/` this package ships) and then migrated to
 the current version,
 before any command looks at it, so a malformed document fails with its own path

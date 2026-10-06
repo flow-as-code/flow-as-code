@@ -113,7 +113,7 @@ function chainDoc(name: string, messages: number): FlowDoc {
     Transitions: { Errors: [], Conditions: [] },
   });
   return {
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "flow",
     name,
     connectType: "CONTACT_FLOW",
@@ -453,7 +453,7 @@ describe("studio bridge: documents", () => {
     // The schema gate in writePair is only enforced where it is the ONLY thing
     // that refuses. A document that codegen also rejects proves nothing: the
     // 422 comes back either way. content.Actions has maxItems: 250
-    // (conformance/schema/flowdoc-0.2.schema.json), and codegen generates a
+    // (conformance/schema/flowdoc-0.3.schema.json), and codegen generates a
     // 301-action chain without complaint, so this is the difference.
     const dir = await demoDir();
     const started = await start(dir);

@@ -84,11 +84,14 @@ Rules:
 ## References: keys in actions, addresses in refs
 
 - A field that names a Connect resource (queue, hours, Lambda function,
-  prompt, flow, module, Lex bot alias, view) holds a reference key,
-  `"<type>:<name>"`: `"queue:support"`, `"hours:main-line"`,
-  `"lambda:customer-lookup"`, `"prompt:welcome"`, `"flow:after-hours"`,
-  `"module:greeting@live"`, `"view:form@1"`. A JSONPath (`"$.Attributes.x"`)
-  is also accepted there.
+  prompt, flow, module, Lex bot alias, view, and since FlowDoc 0.3 a task
+  template, a Cases template or field, an Amazon Q in Connect assistant and a
+  phone number) holds a reference key, `"<type>:<name>"`: `"queue:support"`,
+  `"hours:main-line"`, `"lambda:customer-lookup"`, `"prompt:welcome"`,
+  `"flow:after-hours"`, `"module:greeting@live"`, `"view:form@1"`,
+  `"tasktemplate:follow-up"`, `"casetemplate:billing"`,
+  `"casefield:priority"`, `"assistant:agent-help"`, `"phonenumber:main-did"`.
+  A JSONPath (`"$.Attributes.x"`) is also accepted there.
 - The resource's `refs` map binds each key once to a Terraform expression:
   a resource attribute, a data source, remote state output or module variable.
 - Never write an ARN in an action (the plan fails with `LITERAL_ARN`) or in

@@ -129,12 +129,17 @@ The provider has its own semantic version from v0.1.0 and records the commit
 of `conformance/` it vendors. The FlowDoc format version it reads is the one
 the schema under `conformance/schema/` names at that commit.
 
-| Provider | FlowDoc | Schema file             | Terraform     | OpenTofu       |
-| -------- | ------- | ----------------------- | ------------- | -------------- |
-| 0.1.x    | 0.2     | flowdoc-0.2.schema.json | 1.8 and later | 1.10 and later |
+| Provider           | FlowDoc | Schema file             | Terraform     | OpenTofu       |
+| ------------------ | ------- | ----------------------- | ------------- | -------------- |
+| 0.1.x              | 0.2     | flowdoc-0.2.schema.json | 1.8 and later | 1.10 and later |
+| none released; D10 | 0.3     | flowdoc-0.3.schema.json | 1.8 and later | 1.10 and later |
 
 A repository test holds the table's FlowDoc column to `FLOWDOC_VERSION` and
-its schema file to one present under `conformance/schema/`.
+its schema file to one present under `conformance/schema/`. The 0.3 row's
+provider column is filled in by tasks/D10 with the version read from the
+registries once that release is out; until then a published provider reads
+0.2, and an emitted tree carries no FlowDoc version, so the provider refuses
+only a typed sub-block or a `refs` key type its vendored catalog lacks.
 
 ## Migrating from hashicorp/aws
 

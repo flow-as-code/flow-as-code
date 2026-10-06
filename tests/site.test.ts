@@ -1332,7 +1332,7 @@ describe("the staleness gate", () => {
     // under conformance/, the worker, and the sibling packages the export
     // dialog bundles. Without these the coverage check below would pass empty.
     expect(inputs).toContain(join(ROOT, "conformance", "demo", "appointment-line.flowdoc.json"));
-    expect(inputs).toContain(join(ROOT, "conformance", "schema", "flowdoc-0.2.schema.json"));
+    expect(inputs).toContain(join(ROOT, "conformance", "schema", "flowdoc-0.3.schema.json"));
     expect(inputs).toContain(join(STUDIO, "src", "worker", "lint.worker.ts"));
     expect(inputs).toContain(join(PACKAGES, "core", "src", "index.ts"));
     expect(inputs).toContain(join(PACKAGES, "tf", "src", "emit.ts"));

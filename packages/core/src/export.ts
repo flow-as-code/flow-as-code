@@ -717,7 +717,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * both spellings are live output and mean the same thing.
  *
  * FlowDoc requires the key on every action
- * (conformance/schema/flowdoc-0.2.schema.json, `$defs.action.required`), so
+ * (conformance/schema/flowdoc-0.3.schema.json, `$defs.action.required`), so
  * passing the omission through produced a schema-invalid document, and codegen
  * read `Object.keys(a.Parameters)` straight off it and threw
  * "Cannot convert undefined or null to object". Filling in the empty map

@@ -1,0 +1,10 @@
+---
+"@flow-as-code/core": minor
+"@flow-as-code/cli": minor
+"@flow-as-code/cdk": minor
+"@flow-as-code/tf": minor
+"@flow-as-code/hcl": minor
+"@flow-as-code/studio": minor
+---
+
+FlowDoc 0.3. The format gains five reference types in one bump: `tasktemplate` (`CreateTask.TaskTemplateId`), `casetemplate` (`CreateCase.CaseTemplateId`), `casefield` (a Cases field id, which may stand as a whole map key of `CaseRequestFields` or a whole item of `CaseResponseFields`), `assistant` (`CreateWisdomSession.WisdomAssistantArn`) and `phonenumber` (`StartOutboundChatContact.SourceEndpoint.Address`), each with a `Refs.*` builder and none carrying an alias. `migrateFlowDoc` reads 0.1, 0.2 and 0.3 and returns 0.3; the CLI, the studio, `FlowSet` and both Terraform emitters migrate every document on the way in, and the CLI and the studio validate a file against the schema of the version it names first, with `flowdoc-0.2.schema.json` frozen byte for byte. `synth()`, `flow-cli synth` and export now write `"flowdoc": "0.3"` and stamp `core@0.3`, and older tools refuse a 0.3 document: `@flow-as-code/*` 0.2.x and the flowascode provider 0.1.x read 0.1 and 0.2 only, so upgrade a provider that reads 0.3 before the npm set that writes it. Export's inventory and reverse map read task templates, phone numbers, Cases templates and fields and Amazon Q in Connect assistants, each from its List API (`ListTaskTemplates`, `ListPhoneNumbersV2`, Cases `ListTemplates` and `ListFields` through the instance's `CASES_DOMAIN` association, and `ListAssistants`), and `parseConnectArn` reads the `phone-number/<id>` form beside the managed-view form. `TokenBinder` gains optional `tasktemplate`, `casetemplate`, `casefield`, `assistant` and `phonenumber` methods and the CDK scaffold writes them when a document needs one. `@flow-as-code/hcl` accepts the five as `refs` keys and rewrites `aws_connect_phone_number.<label>.arn` to `phonenumber:<label>` as it does the other address sugar; the studio's refs sidebar, pickers and address-map editor know them. The actions that take these references stay generic blocks until the Phase D group tasks model them.

@@ -79,6 +79,12 @@ const ident = (slug: string): string => {
  * so the hint is a variable rather than an attribute that does not exist.
  * Views are the same case: the AWS-managed ones a flow usually shows have no
  * resource in hashicorp/aws at all, so the hint is a variable too.
+ *
+ * Of the five FlowDoc 0.3 types, only a phone number has a hashicorp/aws
+ * resource exporting `arn` (aws_connect_phone_number, checked 2026-10-05:
+ * https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/connect_phone_number).
+ * A task template, a Cases template or field and an Amazon Q in Connect
+ * assistant exist in hashicorp/awscc only, so their hints are variables.
  */
 const ADDRESS_SHAPE: Readonly<Record<RefType, (name: string) => string>> = {
   queue: (n) => `aws_connect_queue.${n}.arn`,
@@ -89,6 +95,11 @@ const ADDRESS_SHAPE: Readonly<Record<RefType, (name: string) => string>> = {
   module: (n) => `aws_connect_contact_flow_module.${n}.arn`,
   lex: (n) => `var.${n}_bot_alias_arn`,
   view: (n) => `var.${n}_view_arn`,
+  tasktemplate: (n) => `var.${n}_task_template_arn`,
+  casetemplate: (n) => `var.${n}_case_template_id`,
+  casefield: (n) => `var.${n}_case_field_id`,
+  assistant: (n) => `var.${n}_assistant_arn`,
+  phonenumber: (n) => `aws_connect_phone_number.${n}.arn`,
 };
 
 /**

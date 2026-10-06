@@ -1,7 +1,7 @@
 {
   "docs": [
     {
-      "flowdoc": "0.2",
+      "flowdoc": "0.3",
       "kind": "flow",
       "name": "main-line",
       "connectType": "CONTACT_FLOW",
@@ -39,7 +39,7 @@
       }
     },
     {
-      "flowdoc": "0.2",
+      "flowdoc": "0.3",
       "kind": "flow",
       "name": "agent-whisper",
       "connectType": "CONTACT_FLOW",

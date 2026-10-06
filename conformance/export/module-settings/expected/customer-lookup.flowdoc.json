@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "module",
   "name": "customer-lookup",
   "displayName": "Customer lookup",
@@ -61,7 +61,7 @@
   },
   "refs": [],
   "meta": {
-    "generator": "core@0.2",
+    "generator": "core@0.3",
     "source": {
       "id": "eeee5555-0000-4000-8000-000000000031",
       "instanceId": "11111111-2222-3333-4444-555555555555",

@@ -501,7 +501,7 @@ describe("exportInstance", () => {
 
   it("exports every flow and module the instance can represent", async () => {
     const client = new FixtureClient("demo-instance");
-    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.3" });
 
     expect(result.flows.map((f) => f.doc.name)).toEqual([
       "appointment-line",
@@ -587,7 +587,7 @@ describe("exportInstance", () => {
     // Recorded from a sandbox instance: Connect keeps the Settings a module
     // was created with inside its Content.
     const client = new FixtureClient("module-settings");
-    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.3" });
     expect(result.failures).toEqual([]);
     const flow = result.flows[0]!;
     expect(flow.doc.kind).toBe("module");
@@ -607,7 +607,7 @@ describe("exportInstance", () => {
     // flow here invokes <module>:<alias id>, a version, and $LATEST, and the
     // inventory's alias listing names the id.
     const client = new FixtureClient("module-alias");
-    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.3" });
     expect(result.failures).toEqual([]);
     const flow = result.flows.find((f) => f.doc.name === "survey-line")!;
     const ids = flow.doc.content.Actions.filter((a) => a.Type === "InvokeFlowModule").map(
@@ -713,7 +713,7 @@ describe("exportInstance", () => {
   // its inventory lists no views.
   it("exports a flow that shows an AWS-managed view, keeping the version", async () => {
     const client = new FixtureClient("managed-view");
-    const result = await exportInstance(client, { codegen: true, generator: "core@0.2" });
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.3" });
 
     expect(result.failures).toEqual([]);
     expect(result.flows.map((f) => f.doc.name)).toEqual(["sample-after-contact-work-flow"]);
@@ -753,7 +753,7 @@ describe("exportInstance", () => {
     const client = new FixtureClient("omitted-parameters");
     const result = await exportInstance(client, {
       codegen: true,
-      generator: "core@0.2",
+      generator: "core@0.3",
     });
 
     expect(result.failures).toEqual([]);
