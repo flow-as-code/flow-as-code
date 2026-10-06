@@ -2,7 +2,7 @@
 
 Phase D, engine. Gated on D01 and, for console-only blocks, on the owner's
 export (owner decision 8); the `GetParticipantInput` bullet below also needs
-C04 merged, which C11's release (D01's gate) carries. The Types here are the ones the 56 devguide pages
+C04 merged (#27, `1b674b1`, on main). The Types here are the ones the 56 devguide pages
 do not list but D00's census counts.
 
 ## Types

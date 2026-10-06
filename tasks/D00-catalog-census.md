@@ -125,8 +125,9 @@ check (if it has one) becomes per source; `oracle_test.go` expectations for
 `modeled` and `catalogOrder` move with the new entries (by hand here, or
 after D01's extended oracle). Re-vendor at the merge commit; record the
 provider commit here. This task changes nothing the published provider
-reads from an emitted tree, so it may land on main before C11's release
-(tasks/README.md, "How it relates to Phase C").
+reads from an emitted tree, so it may land on main before any release
+(tasks/README.md, "How it relates to Phase C"; the C11 release it was
+written against was folded into D10 on 2026-10-05).
 
 ## Record (2026-10-05)
 

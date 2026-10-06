@@ -36,3 +36,20 @@ Follow-up this task carries: C01, "Known timing-sensitive tests", records
 three tests that failed on timing on 2026-10-05 (one on a PR run, two on a
 loaded local run, none on main). Deflake each with the cause named, or
 record why its wait is correct, before closing; a retry is not a record.
+
+## Status (2026-10-05, later the same day): folded into D10
+
+By owner decision, Phase C and all of Phase D ship together as the next
+minor release, so nothing is released under this task. Every criterion
+above is now a D10 criterion (`tasks/D10-release-and-close.md`), with D10's
+order: the provider minor that reads FlowDoc 0.3 first, then the npm minor
+carrying every pending changeset of both phases, then the satellites adopt
+and C07's snapshot is re-synced. The provider re-vendor the Phase C tasks
+record as pending is `feat/revendor-phase-c` in the provider repository
+(head `34dda2f`, reviewed), which merges to the provider's main unreleased
+as the base for Phase D's provider work; D01's re-vendor lands on top of
+it. The C01 deflake follow-up above moves to D10 with the rest. This file
+stays as the record of what Phase C's close requires; D10 records what
+landed against each line, and "Where it ended" for Phase C is written at
+D10's closing commit. The reasoning is in `tasks/README.md`, Phase D, "How
+it relates to Phase C", and owner decision 9 there.
