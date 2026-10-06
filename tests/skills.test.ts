@@ -26,7 +26,7 @@ import { lint } from "@flow-as-code/core";
 import { parse, toFlowDoc } from "@flow-as-code/hcl";
 import { describe, expect, it } from "vitest";
 
-import { render } from "../scripts/build-skill-reference.mjs";
+import { constraintSentence, render } from "../scripts/build-skill-reference.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PLUGIN = join(ROOT, "plugins", "flow-as-code");
@@ -157,6 +157,22 @@ describe("the action reference", () => {
   it("is what the generator writes from the catalog", async () => {
     const path = join(SKILLS, "author-connect-flows-hcl", "references", "actions.md");
     expect(read(path)).toBe(await render());
+  });
+
+  // A constraint carries `keys` or, since D01's vocabulary, `groups`
+  // (packages/core/src/catalog.ts, CatalogConstraint). No entry carries
+  // groups until D03 models GetCustomerProfile, so this holds the rendering
+  // ahead of the first one rather than letting it throw on `keys.map`.
+  it("renders a constraint in either form", () => {
+    expect(constraintSentence({ rule: "exactlyOne", keys: ["ProfileId", "CustomerId"] })).toBe(
+      "exactly one of `ProfileId`, `CustomerId`",
+    );
+    expect(
+      constraintSentence({
+        rule: "atMostOne",
+        groups: [["ProfileRequestData", "ProfileSearchKey"], ["ProfileId"]],
+      }),
+    ).toBe("at most one of (`ProfileRequestData` and `ProfileSearchKey`), `ProfileId`");
   });
 });
 
