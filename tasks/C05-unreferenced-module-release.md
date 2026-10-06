@@ -106,3 +106,5 @@ reached main through #29, so neither #32 nor #34 moved main. Both reached
 main through #39 (`8b00b1b`, 21:22 UTC), opened from C13's branch and
 retargeted to main. `tasks/README.md`, "Lessons", records the rule. The
 provider re-vendor above is still pending and is C11's.
+
+- Provider re-vendor landed: terraform-provider-flowascode #10, merge commit d69bd14 (2026-10-06), vendoring flow-as-code 78b0a87 (conformance identical to main at fe3e3d6), unit and sandbox acceptance lanes green. Unreleased by owner decision: it ships with Phase D as the next minor (D10).

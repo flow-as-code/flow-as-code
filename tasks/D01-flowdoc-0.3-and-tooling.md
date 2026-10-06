@@ -1,15 +1,18 @@
 # D01 FlowDoc 0.3, catalog vocabulary, provider and oracle prep
 
-Phase D, contract. Gated on C11 released (which carries C03, whose
-`channels` field is the channel vocabulary every group here extends), on
-D00 (the census names every ref type the new Types need) and on ADR 0008
-(below). Nothing in D02 to D09 starts before this merges. The gate is on
-the release, not on C03's merge, because changesets are consumed all at
-once and `release.yml` refuses leftovers: this task's changeset on main
-before C11's release would make C11's release the one that writes FlowDoc
-0.3 (tasks/README.md, "How it relates to Phase C", amended 2026-10-05).
-Only the probe runner and the ADR, which change no format, may land ahead
-of the gate as commits of their own.
+Phase D, contract. Gated on D00 (the census names every ref type the new
+Types need) and on ADR 0008 (below), both merged. Nothing in D02 to D09
+starts before this merges. As planned on 2026-10-04 and amended on review
+the next day, this task was also gated on C11 released (which carries C03,
+whose `channels` field is the channel vocabulary every group here extends),
+on the release rather than on C03's merge, because changesets are consumed
+all at once and `release.yml` refuses leftovers: this task's changeset on
+main before C11's release would have made C11's release the one that
+writes FlowDoc 0.3. On 2026-10-05 the owner decided that Phase C and
+Phase D ship together as one npm minor (tasks/README.md, owner decision 9),
+so there is no C11 release to protect: C03 is on main (#26, `eb68746`),
+C11 is folded into D10, and the gate is gone. The probe runner and the ADR
+landed ahead of the former gate, as the plan allowed.
 
 Adding a reference type is a FlowDoc version change by precedent:
 `docs/01-flowdoc-spec.md`, "Versioning", records 0.1 to 0.2 as "a version
@@ -197,12 +200,14 @@ is exercised before any group needs it.
 ### Release hygiene
 
 - Changesets for every package whose behaviour changed, saying older tools
-  refuse 0.3 documents. Nothing is released by this task; C11 has released
-  before it merges (the gate above), so the next release that consumes
-  these changesets is D10's.
+  refuse 0.3 documents. Nothing is released by this task. The next release
+  that consumes these changesets is D10's, which consumes every Phase C
+  changeset still under `.changeset/` in the same run (owner decision 9,
+  2026-10-05: one minor for both phases, no C11 release before this merges).
 - The provider work lands on its main, unreleased, at this task's re-vendor
-  ("Provider tooling" above); its commits are recorded in this file. D10
-  releases it.
+  ("Provider tooling" above), on top of the Phase C re-vendor
+  (`feat/revendor-phase-c`, head `34dda2f`, merged to the provider's main
+  unreleased); its commits are recorded in this file. D10 releases it.
 
 ## Evidence
 
