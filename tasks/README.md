@@ -164,7 +164,7 @@ Settled by the owner on 2026-09-30; do not re-ask them.
 | C13 | Emit: per-flow outputs for a promotion gate                             | emitters    | none                          | merged, #32 into C12, main via #39 |
 | C14 | Simulate: a library entry point and an offline dry run                  | simulate    | none                          | merged, #31 `4ef9c91`              |
 | C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio | none                          | merged, #35 `78b0a87`              |
-| C11 | Release and close                                                       | release     | C01 to C09, C12 to C15        | open                               |
+| C11 | Release and close                                                       | release     | C01 to C09, C12 to C15        | folded into D10 (2026-10-05)       |
 
 C12 to C15 were added after the plan's first draft, from the showcase's build
 reports, and are numbered after C11 so no earlier number moves; they come
@@ -265,6 +265,15 @@ What remains: C07 to C09 wait on a commit and a public tag in the showcase
 repository, C10 is gated on Lex entering the showcase's scope, and C11
 releases and closes.
 
+Amended later on 2026-10-05, by owner decision: Phase C and all of Phase D
+ship together as the next minor release, so C11 is folded into D10 and
+there is no separate Phase C release. Phase C is code complete on main; its
+pending provider re-vendor (`feat/revendor-phase-c` in the provider
+repository, head `34dda2f`, reviewed) merges to the provider's main
+unreleased as the base for Phase D's provider work, and C07 to C09 keep
+their gates and close under D10. The Phase D section, "How it relates to
+Phase C", has the reasoning.
+
 Also merged on 2026-10-05, outside the C numbering: #36 (`f737583`, the rule
 40 probes in the runner's shape, which closed the one deterministic red run on
 main), #37 (`02bae32`, `TOKEN_SCAN` in `refs` made a single linear pass),
@@ -293,7 +302,9 @@ under `examples/vendored/hollow-hour-example/` matches its `COMMIT` and `MANIFES
 and lints clean against the current catalog in CI; the tutorial is on the site
 and links only to the satellite at a tag; C03 to C06 and C12 to C15 are
 released with fixtures and a provider re-vendor where `conformance/` changed;
-CI is green on main.
+CI is green on main. The release that meets this is D10's, which carries
+Phase C and Phase D together (owner decision 2026-10-05; C11 folded into
+D10).
 
 # Phase D: every Connect flow action modeled (planned 2026-10-04)
 
@@ -325,22 +336,29 @@ was already a workaround. A phase of its own can close on its own evidence.
 
 ## How it relates to Phase C
 
-- Phase C closes and releases on its own first, and its release carries no
-  format change. `changeset version` consumes every file under `.changeset/`
-  at once, the packages are `fixed`, and `release.yml` refuses to publish
-  while an unconsumed changeset remains, so a D01 changeset on main before
-  C11's release would make C11's release the one that writes FlowDoc 0.3,
-  ahead of any provider that reads it. D01 is therefore gated on C11
-  released, and D02 to D09 follow it; Phase D is serial behind Phase C.
-  Only D00, the two ADRs (0008 under D01, 0009 under D07) and D01's probe
-  runner, none of which changes the format or the catalog's shape as the
-  published provider reads it, may land on main before that gate. Phase D's
-  release is D10, the next npm minor after C11's; its number is read from
-  the registry after the fact, never written here. Folding D into C11 would
-  hold C's release on live evidence that needs owner actions (feature
-  enablement, quota tickets). An integration branch instead of the gate was
-  considered and not taken (below). (Amended 2026-10-05 on review.)
-- D01 needs C03, which C11's release carries. C03 adds the catalog's `channels` field, and several
+- Phase C and Phase D ship together as one npm minor (owner decision 9,
+  2026-10-05). As planned on 2026-10-04 and amended on review the next day,
+  Phase C was to close and release on its own first, with no format change:
+  `changeset version` consumes every file under `.changeset/` at once, the
+  packages are `fixed`, and `release.yml` refuses to publish while an
+  unconsumed changeset remains, so a D01 changeset on main before C11's
+  release would have made C11's release the one that writes FlowDoc 0.3,
+  ahead of any provider that reads it. D01 was therefore gated on C11
+  released, Phase D was serial behind Phase C, and only D00, the two ADRs
+  (0008 under D01, 0009 under D07) and D01's probe runner could land before
+  that gate; folding D into C11 was declined because it would hold C's
+  release on live evidence that needs owner actions (feature enablement,
+  quota tickets). The owner's decision takes that cost: there is one
+  release, D10's, carrying every pending changeset of both phases, and the
+  provider minor that reads 0.3 is published before it. With no C11 release
+  to protect, D01 is gated on D00 and ADR 0008 only, both merged, and C11
+  is folded into D10 (its file says so). The Phase C provider re-vendor
+  (`feat/revendor-phase-c` in the provider repository, head `34dda2f`,
+  reviewed) merges to the provider's main unreleased, as the base D01's
+  re-vendor builds on. The release's number is still read from the registry
+  after the fact, never written here. An integration branch instead of a
+  gate was considered and not taken (below), and stays not taken.
+- D01 needs C03, which is on main (#26, `eb68746`). C03 adds the catalog's `channels` field, and several
   types here are restricted by channel (media streaming, media processing,
   `CreateWisdomSession`, Voice ID, `UpdatePreviousContactParticipantState`,
   `StartOutboundChatContact`). D01 extends that vocabulary; it does not
@@ -358,19 +376,19 @@ was already a workaround. A phase of its own can close on its own evidence.
 
 ## Order
 
-| #   | Task                                                                 | Group    | Gate                                    |
-| --- | -------------------------------------------------------------------- | -------- | --------------------------------------- |
-| D00 | Catalog census: what "every action" is measured against              | contract | none                                    |
-| D01 | FlowDoc 0.3, catalog vocabulary, provider and oracle prep            | contract | C11 released (carries C03), D00         |
-| D02 | Contact state (4 types); re-author `roundtrip/unknown-actions`       | engine   | D01                                     |
-| D03 | Customer Profiles (6 types)                                          | engine   | D01, a Profiles domain on the sandbox   |
-| D04 | Outbound (3 types)                                                   | engine   | D01; deploy-only where quotas block     |
-| D05 | Tasks and AI agents (`CreateTask`, `CreateWisdomSession`)            | engine   | D01, an AI agents domain on the sandbox |
-| D06 | Cases (3 types); ADR on per-domain field ids                         | engine   | D01, D03's Profiles domain, a Cases one |
-| D07 | `UpdateRoutingCriteria`; ADR on the recursive expression             | engine   | D01                                     |
-| D08 | Voice ID (2 types), gated on the service still accepting them        | engine   | D01, a probe                            |
-| D09 | Types D00 adds from the admin guide and console exports              | engine   | D00 exports, D01 (C04 is before C11)    |
-| D10 | Release: provider minor, the next npm minor, pins, then the showcase | release  | D02 to D09                              |
+| #   | Task                                                                | Group    | Gate                                    |
+| --- | ------------------------------------------------------------------- | -------- | --------------------------------------- |
+| D00 | Catalog census: what "every action" is measured against             | contract | none                                    |
+| D01 | FlowDoc 0.3, catalog vocabulary, provider and oracle prep           | contract | D00, ADR 0008 (C03 is on main)          |
+| D02 | Contact state (4 types); re-author `roundtrip/unknown-actions`      | engine   | D01                                     |
+| D03 | Customer Profiles (6 types)                                         | engine   | D01, a Profiles domain on the sandbox   |
+| D04 | Outbound (3 types)                                                  | engine   | D01; deploy-only where quotas block     |
+| D05 | Tasks and AI agents (`CreateTask`, `CreateWisdomSession`)           | engine   | D01, an AI agents domain on the sandbox |
+| D06 | Cases (3 types); ADR on per-domain field ids                        | engine   | D01, D03's Profiles domain, a Cases one |
+| D07 | `UpdateRoutingCriteria`; ADR on the recursive expression            | engine   | D01                                     |
+| D08 | Voice ID (2 types), gated on the service still accepting them       | engine   | D01, a probe                            |
+| D09 | Types D00 adds from the admin guide and console exports             | engine   | D00 exports, D01 (C04 is on main)       |
+| D10 | Release of Phase C and D: provider minor, npm minor, pins, showcase | release  | D02 to D09, C07 to C09 (C11 folded in)  |
 
 D02 to D09 may run in any order once D01 is merged; the order above is
 cheapest evidence first. Each group follows B01's pattern: one commit per
@@ -439,7 +457,7 @@ ci.yml cache key), and `packages/hcl/src/validate.test.ts` holds every case
 to `"validate": "pass"`. The provider builds its typed sub-blocks and its
 `refs` key pattern from its vendored catalog, so a sub-block such as
 `create_case {}` or a `casefield:` key exists only in a provider release, and
-D10 is the one release of this phase. Without a mechanism the first group
+D10 is the one release of this phase and, since 2026-10-05, of Phase C too. Without a mechanism the first group
 merged after D01 turns the lane red until D10, and `release.yml`'s `gates`
 job runs all of ci.yml, so no npm release could pass meanwhile. Decided
 2026-10-05, implemented in D01:
@@ -512,7 +530,10 @@ types (outbound campaigns, SMS, Voice ID) may only ever be deployable.
   reader in both repositories migrates a 0.2 document on the way in.
 - The provider release that reads 0.3 and carries every typed sub-block and
   ref-type key of this phase is on both registries and was published before
-  the npm set that writes them. The mechanism is narrower than the format
+  the npm set that writes them. That npm set is one minor carrying every
+  changeset of Phase C and Phase D (owner decision 9, 2026-10-05), so Phase
+  C's definition of done is met at the same release and `tasks/README.md`
+  gains a "Where it ended" for Phase C as well. The mechanism is narrower than the format
   version: an emitted tree carries no FlowDoc version (the provider computes
   `flowdoc` from the HCL with its own constant), so an older provider
   refuses it only where it carries a typed sub-block or a ref-type key that
@@ -558,7 +579,9 @@ types (outbound campaigns, SMS, Voice ID) may only ever be deployable.
   only, bounded by C09's owner action (the satellite public at a tag), and the
   work that needs no format change (D00, the ADRs, the probe runner, and the
   sandbox sweeps themselves, whose inputs are kept) proceeds before it.
-  (2026-10-05)
+  (2026-10-05) Later the same day the owner removed the gate by shipping
+  both phases as one release (decision 9); the branch stays not taken, for
+  the conflict and canary reasons above, which the gate never answered.
 
 ## Owner decisions
 
@@ -617,6 +640,14 @@ otherwise. Record the answer and its date here when given.
    published before the npm minor that writes it, not after; both after
    C11's release. Neither number is predicted here: D10 reads them from the
    registries. FlowDoc 0.3 and an npm 0.3.0 need not coincide.
+   Decided 2026-10-05: Phase C and all of Phase D ship together as the next
+   minor release. There is no separate C11 release; C11 is folded into D10,
+   and D01 is no longer gated on it. The order within D10: the provider
+   minor that reads FlowDoc 0.3 first (from the provider's main, which
+   carries the Phase C re-vendor `feat/revendor-phase-c`, head `34dda2f`,
+   merged unreleased, and D01's on top of it), then the npm minor with every
+   pending changeset of both phases, then the showcase repositories adopt
+   the released versions. The numbers are still read from the registries.
 10. **The passthrough fixture once every Type is modeled.** Default: it keeps
     any console-only Type still unmodeled; if none remains, it holds a
     synthetic Type name, documented as such, and the codegen test asserts the
