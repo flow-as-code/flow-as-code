@@ -21,8 +21,8 @@ hcl/roundtrip/<case>/case.json         description, the document (a path relativ
 hcl/roundtrip/<case>/bindings.json     reference key -> terraform address expression; a key absent here is unbound
 hcl/roundtrip/<case>/expected.flow.tf  the resource, byte-exact, a `terraform fmt` fixed point
 hcl/roundtrip/<case>/*.flowdoc.json    optional; a document the case does not borrow from elsewhere in conformance/
-hcl/roundtrip/<case>/validate/stubs.tf what the golden's refs and instance_id refer to, declared minimally
-hcl/roundtrip/<case>/validate/providers.tf the providers at exact versions, for `tofu validate`
+hcl/roundtrip/<case>/validate/stubs.tf what the golden's refs and instance_id refer to, declared minimally (absent while the case awaits a provider release)
+hcl/roundtrip/<case>/validate/providers.tf the providers at exact versions, for `tofu validate` (likewise)
 hcl/regenerate/<case>/case.json        what the case shows (TypeScript only)
 hcl/regenerate/<case>/doc.flowdoc.json the document being written
 hcl/regenerate/<case>/previous.flow.tf the companion on disk before regeneration
@@ -66,8 +66,19 @@ lists the kept comment lines, for the resource and by action id. `options` in a 
 `lintDisable`: the values a companion carries that the document does not. A
 case's `validate` says what `tofu validate` does with it against the published
 provider, with the stubs in its `validate/` directory (`stubs.tf` for what its
-refs bind, `providers.tf` pinning exact versions); every case is `pass`, and
-packages/hcl/src/validate.test.ts runs them from OpenTofu 1.10 (task B03e).
+refs bind, `providers.tf` pinning exact versions). It is one of two values.
+`pass`: the case validates against the pinned provider, and
+packages/hcl/src/validate.test.ts runs it from OpenTofu 1.10 (task B03e).
+`awaits-provider` (since 2026-10-05, tasks/D01): the golden carries a typed
+sub-block or a `refs` key type the pinned provider's vendored catalog lacks,
+so no published provider accepts it yet; the case has no `validate/`
+directory, `tofu validate` is skipped for it, its golden is still byte-checked
+by the round-trip tests, and the release that reads FlowDoc 0.3 (tasks/D10)
+adds the directory and flips it to `pass`, leaving none. The provider's own
+conformance runner plans every `roundtrip` golden, so an `awaits-provider`
+case fails that runner until the provider's main reads 0.3; its first case is
+`roundtrip/casefield-key`, every FlowDoc 0.3 reference type as the generic
+blocks that hold them, a `casefield` token standing as a map key among them.
 
 ## The resource
 
