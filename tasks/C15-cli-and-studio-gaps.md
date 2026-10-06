@@ -283,3 +283,5 @@ found it and is never the evidence for it.
 
 Merged to main in #35 (`78b0a87`, 2026-10-05 21:44 UTC); its run,
 37377884054, passed.
+
+- Provider re-vendor landed: terraform-provider-flowascode #10, merge commit d69bd14 (2026-10-06), vendoring flow-as-code 78b0a87 (conformance identical to main at fe3e3d6), unit and sandbox acceptance lanes green. Unreleased by owner decision: it ships with Phase D as the next minor (D10).
