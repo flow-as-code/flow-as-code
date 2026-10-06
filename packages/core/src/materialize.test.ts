@@ -194,6 +194,50 @@ describe("A05 conformance fixtures", () => {
     expect(content).not.toContain("cdref");
   });
 
+  // FlowDoc 0.3: a casefield token stands as a whole map key of
+  // CaseRequestFields and as a list item of CaseResponseFields (invariant 4 as
+  // restated by docs/adr/0008-case-field-ids.md). Both resolve through the one
+  // token rule, on both backends; the map here mixes the three key forms.
+  it("casefield-key-with-map matches the committed golden byte for byte", () => {
+    const doc = JSON.parse(
+      fixture("conformance/materialize/casefield-key-with-map/doc.flowdoc.json"),
+    ) as FlowDoc;
+    const map = JSON.parse(
+      fixture("conformance/materialize/casefield-key-with-map/map.json"),
+    ) as Record<string, string>;
+    const content = serializeContent(materializeWithMap(doc, map));
+    expect(content).toBe(
+      fixture("conformance/materialize/casefield-key-with-map/expected.content.json"),
+    );
+    expect(content).not.toContain("cdref");
+    expect(content).toContain('"bbbbbbbb-1111-2222-3333-444444444444": "high"');
+  });
+
+  it("keeps the casefield-key-with-map doc in sync with the HCL golden", () => {
+    expect(fixture("conformance/materialize/casefield-key-with-map/doc.flowdoc.json")).toBe(
+      fixture("conformance/hcl/roundtrip/casefield-key/casefield-key.flowdoc.json"),
+    );
+  });
+
+  it("resolves a casefield map key through the binder as it resolves a value", () => {
+    const doc = JSON.parse(
+      fixture("conformance/materialize/casefield-key-with-map/doc.flowdoc.json"),
+    ) as FlowDoc;
+    const content = materializeWithBinder(doc, (r) => `BOUND(${r.type}:${r.name})`);
+    expect(content.Actions[0]!.Parameters).toEqual({
+      CaseRequestFields: {
+        "BOUND(casefield:priority)": "high",
+        "BOUND(casefield:summary)": "$.Attributes.summary",
+      },
+      CaseTemplateId: "BOUND(casetemplate:billing-dispute)",
+      LinkContactToCase: "true",
+    });
+    expect(content.Actions[1]!.Parameters.CaseResponseFields).toEqual([
+      "BOUND(casefield:priority)",
+    ]);
+    expect(JSON.stringify(content)).not.toContain("cdref");
+  });
+
   it("keeps the demo-with-map doc in sync with the canonical demo", () => {
     expect(fixture("conformance/materialize/demo-with-map/doc.flowdoc.json")).toBe(
       fixture("conformance/demo/appointment-line.flowdoc.json"),
@@ -287,6 +331,33 @@ describe("regression: a token must not survive materialization", () => {
   it("still materializes a well-formed document", () => {
     const doc = demo();
     expect(() => materializeWithMap(doc, demoMap())).not.toThrow();
+  });
+
+  // The binder path had no such check: an interpolated token passed through
+  // the CDK deploy path as literal text, since the binder is only asked about
+  // whole-string tokens. The check runs over the document, not the output,
+  // because a binder that returns the token itself (the CDK version hash) is
+  // legitimate output.
+  it("refuses an interpolated token on the binder path too", () => {
+    const doc = interpolated();
+    expect(() => materializeWithBinder(doc, (r) => r.token)).toThrow(MaterializeError);
+    expect(() => materializeWithBinder(doc, (r) => r.token)).toThrow(/entire field value/);
+  });
+
+  it("refuses a token embedded in a map key on either path", () => {
+    const doc = demo();
+    doc.content.Actions[1]!.Parameters.Attributes = { "x-${cdref:casefield:priority}": "high" };
+    doc.refs = [
+      ...(doc.refs ?? []),
+      { token: "${cdref:casefield:priority}", type: "casefield", name: "priority" },
+    ];
+    expect(() => materializeWithMap(doc, fullMap(doc))).toThrow(/entire map key/);
+    expect(() => materializeWithBinder(doc, (r) => r.token)).toThrow(/entire map key/);
+  });
+
+  it("lets a binder return the token itself for a whole-string token", () => {
+    const doc = demo();
+    expect(() => materializeWithBinder(doc, (r) => r.token)).not.toThrow();
   });
 
   it("scans a pathological string in linear time", () => {

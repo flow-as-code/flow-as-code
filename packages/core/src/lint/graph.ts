@@ -39,14 +39,22 @@ export function reachable(doc: FlowDoc): Set<string> {
   return seen;
 }
 
-/** Walks every string in a value, yielding [jsonPath, value] pairs. */
+/**
+ * Walks every string in a value, yielding [jsonPath, value] pairs. A map key
+ * is a string too, yielded at `<path>.<key>~` with the key as its value (the
+ * catalog's `*~` form, packages/core/src/paths.ts), because a `casefield`
+ * reference stands as a whole key of `CaseRequestFields` (FlowDoc invariant
+ * 4, docs/adr/0008-case-field-ids.md) and a rule that read values alone let a
+ * malformed or unindexed token in a key through.
+ */
 export function walkStrings(value: unknown, path = ""): [string, string][] {
   if (typeof value === "string") return [[path, value]];
   if (Array.isArray(value)) return value.flatMap((v, i) => walkStrings(v, `${path}[${i}]`));
   if (value !== null && typeof value === "object") {
-    return Object.entries(value).flatMap(([k, v]) =>
-      walkStrings(v, path === "" ? k : `${path}.${k}`),
-    );
+    return Object.entries(value).flatMap(([k, v]): [string, string][] => {
+      const at = path === "" ? k : `${path}.${k}`;
+      return [[`${at}~`, k], ...walkStrings(v, at)];
+    });
   }
   return [];
 }

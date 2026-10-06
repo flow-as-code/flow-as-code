@@ -23,6 +23,7 @@ Added 2026-09-01: `GetParticipantInput` models the DTMF menu form of the action 
 
 - `materializeWithMap(json, resourceMap)`: strict; missing keys listed all at once.
 - `materializeWithBinder(json, binder)`: binder returns opaque strings (CDK tokens); used by `@flow-as-code/cdk`. Output may contain CloudFormation intrinsic tokens and must not be linted for arn-shape.
+- Both resolve a token that stands as a whole string, a value anywhere or a map key (where a `casefield` reference sits since FlowDoc 0.3, docs/adr/0008-case-field-ids.md; `conformance/materialize/casefield-key-with-map/`), through one token-driven rule, and both refuse a token embedded in a longer key or value before anything is substituted (FlowDoc invariant 4), on the document rather than the output, since a binder may legitimately return the token itself (the CDK module version hash). Added 2026-10-06 on review of tasks/D01: the binder path had no such check and the CDK deploy path would have carried a key token as literal text.
 - Both return deployable content only: `layout`, `refs`, and `meta` are dropped, and `layout` is projected into `content.Metadata` (`EntryPointPosition` plus `ActionMetadata.<id>.Position`, per the Flow language example) first. `serializeContent(content)` emits the byte-stable deployable JSON. Fixtures live in conformance/materialize/.
 
 ## Lint rules (ids stable, fixtures in /conformance)
