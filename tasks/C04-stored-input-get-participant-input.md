@@ -166,3 +166,5 @@ Merged to main in #27 (`1b674b1`, 2026-10-05 17:26 UTC). Its own CI run was
 cancelled by the merge of #28 seven seconds later; the run for #28
 (37348490241) carried both and passed. The provider re-vendor above is still
 pending and is C11's.
+
+- Provider re-vendor landed: terraform-provider-flowascode #10, merge commit d69bd14 (2026-10-06), vendoring flow-as-code 78b0a87 (conformance identical to main at fe3e3d6), unit and sandbox acceptance lanes green. Unreleased by owner decision: it ships with Phase D as the next minor (D10).

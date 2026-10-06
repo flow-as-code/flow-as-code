@@ -225,3 +225,7 @@ change until D09 models one of these);`ActionCategory`'s comment learns
   false`rows like the 21 existing unmodeled ones;`catalogOrder`is
 unchanged). It has no doc-prefix check. Then`scripts/sync-conformance.sh <merge commit>`, and the provider commit
   recorded here.
+
+## Status
+
+- Provider re-vendor landed: terraform-provider-flowascode #10, merge commit d69bd14 (2026-10-06), vendoring flow-as-code 78b0a87 (conformance identical to main at fe3e3d6), unit and sandbox acceptance lanes green. Unreleased by owner decision: it ships with Phase D as the next minor (D10).
