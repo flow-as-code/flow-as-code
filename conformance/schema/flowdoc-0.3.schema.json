@@ -1901,6 +1901,7 @@
                   "CaseTemplateId": {
                     "type": "string",
                     "if": {
+                      "type": "string",
                       "pattern": "^\\$\\{"
                     },
                     "then": {
@@ -2267,6 +2268,7 @@
       "description": "A Cases field id where a key or list item names a field: a casefield token standing as the whole string, or a plain id (a system field id such as summary, or a domain's own field id, which the service accepts and nothing refuses). A string opening a token must be a whole casefield token (docs/adr/0008-case-field-ids.md).",
       "type": "string",
       "if": {
+        "type": "string",
         "pattern": "^\\$\\{"
       },
       "then": {

@@ -535,6 +535,35 @@ describe("FlowDoc schema rejections: cases", () => {
     return d;
   };
 
+  // A non-string id gets the type error alone: each clause's `if` holds a
+  // string to its token pattern, so a number no longer falls into `then` and
+  // a second, token-shaped error (fixed at the stack tip, tasks/D09, for
+  // D06's clauses; the provider's port found it).
+  it("reports a non-string template or field id by its type alone", () => {
+    const at = (doc: FlowDoc, path: string) => {
+      validate(doc);
+      return (validate.errors ?? [])
+        .filter((e) => e.instancePath.startsWith(path))
+        .map((e) => `${e.instancePath} ${e.keyword}`);
+    };
+    expect(
+      at(
+        mutate("open-case", (a) => {
+          a.Parameters.CaseTemplateId = 42;
+        }),
+        "/content/Actions/3/Parameters",
+      ),
+    ).toEqual(["/content/Actions/3/Parameters/CaseTemplateId type"]);
+    expect(
+      at(
+        mutate("find-case", (a) => {
+          a.Parameters.CaseResponseFields = [1];
+        }),
+        "/content/Actions/0/Parameters",
+      ),
+    ).toEqual(["/content/Actions/0/Parameters/CaseResponseFields/0 type"]);
+  });
+
   it("accepts the fixture as committed", () => {
     expect(validate(JSON.parse(raw))).toBe(true);
   });

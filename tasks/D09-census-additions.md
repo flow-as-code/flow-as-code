@@ -268,3 +268,20 @@ Refuted, each decision recorded here:
   `LoadContactContent` is the module alone and for the transfer the module
   and the unlisted types; the probes already include a hold and an
   outbound whisper flow beside them. No probe added.
+
+### A fix to D06's clauses, made at the stack tip (2026-10-12)
+
+The provider's port of the 0.3 schema found that two of D06's clauses, the
+`CreateCase` clause's `CaseTemplateId` and `$defs/caseFieldId`, each pair
+`"type": "string"` with an `if` holding only a `pattern`. A pattern passes
+any non-string, so a non-string value also took the `then` branch's token
+check, which no other FlowDoc clause does. Each `if` now carries
+`"type": "string"` as well, in both schema copies; this branch is the top
+of the stack, so the fix lands here rather than rewriting D06's history.
+Checked with Ajv: a `CaseTemplateId` of `42` was reported twice as a type
+error and once as a failed `then`, and is now one type error at that path;
+a response field of `1` was already one type error and still is. The two
+existing non-string rejection cases in `conformance.test.ts` still go red
+with either clause deleted (the document then validates), and a new case
+holds each message to the type error alone, which fails against the
+schema before the fix.
