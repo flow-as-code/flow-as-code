@@ -111,6 +111,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Check call progress | `CheckOutboundCallStatus` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html) |
 | Call phone number | `CompleteOutboundCall` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html) |
 | Send message (SMS) | `StartOutboundChatContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html) |
+| Get stored content | `LoadContactContent` | other | [doc](https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html) (admin guide; no Developer Guide page) |
 
 ## Reference-bearing parameters
 
@@ -2349,6 +2350,50 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
       https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
       https://docs.aws.amazon.com/connect/latest/adminguide/setup-sms-messaging.html
+47. Census additions (tasks/D09; the admin guide's block pages read
+    2026-10-05 for rule 40 and again on 2026-10-12). The Types D00's census
+    added from outside the Developer Guide are modeled where a page or a
+    kept console export shows their shape and the service has not refused
+    them by name; the rest are recorded here as not modeled, with what
+    would settle each. **Probe pending**: the create sweep the evidence rule
+    asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
+    sandbox's AWS credentials had expired. Its inputs are kept in
+    `probes/47/`, with `PENDING.md` saying what the run needs. Until the
+    sweep, every required key, error, `next` and flow-type entry below is
+    the page's or the export's reading, and each bullet names the probes
+    that settle it.
+    - `LoadContactContent`, modeled from the Get stored content block page
+      (its catalog `doc`, `source` `adminguide`). The page: "You can
+      configure the **Get stored content** block by using the Connect
+      Customer admin website or by using the `LoadContactContent` in the
+      Connect Customer Flow language"; its one option, Email message (Plain
+      text), "will download the plain text version of the email message
+      present in your S3 bucket and store it on the
+      `$.Email.EmailMessage.Plaintext` flow attribute", up to 64 KB. Its
+      Flow language example carries `"ContentType": enum "EmailMessage"`,
+      a `NextAction` and one error, `NoMatchingError`. Channels voice, chat
+      and task "No", email "Yes"; flow types inbound, customer queue,
+      customer hold, customer whisper, outbound whisper, agent hold, agent
+      whisper, transfer to agent, transfer to queue and disconnect. The
+      catalog records `ContentType` as an optional `enum` of the one value
+      (rule 40's create was accepted with `Parameters` empty), channels
+      `EMAIL`, `flowTypes` `unrestricted` (the ten listed are every FlowDoc
+      connect type, a disconnect flow being a `CONTACT_FLOW`, and only a
+      campaign flow, which FlowDoc does not model, is left out; a module by
+      the note above `IN_MODULE`), `next` required and the catch-all
+      required and wired by the builder. The class writes the page's form;
+      codegen reads back only that form, and an action without
+      `ContentType` stays generic. The 0.3 schema clause holds
+      `ContentType` to the page's one value.
+      Planned probes: `load-required-set-alone` (the catalog's required set
+      alone, `Parameters` empty; the accepted-set probe) and
+      `load-required` (the class's form); `load-no-catch-all` and
+      `load-no-next` (each a removal alone); `load-content-type-unknown`
+      and `load-content-type-jsonpath` (the schema clause's one value); and
+      `load-customer-hold`, `load-outbound-whisper` and `load-module` (flow
+      types no other probe covers, the last one the page does not name).
+      The type has no optional container.
+      https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
 
 ## Per-action parameter shapes
 
@@ -2471,6 +2516,7 @@ StartOutboundChatContact { SourceEndpoint: { Address: phonenumber, Type: "CONNEC
                            DestinationEndpoint: { Address, Type: "TELEPHONE_NUMBER" },   // E.164 or a JSONPath
                            ContactFlowArn: flow, ContactSubtype: "connect:SMS",
                            InitialSystemMessage?: { Content }, RelatedContact?: "CURRENT" }
+LoadContactContent       { ContentType?: "EmailMessage" }   // the admin guide's example; email only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2643,7 +2689,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-54 of the 61. Everything not in the modeled set above parses to a
+55 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only actions the builder does not model (with tokens inside their
@@ -2703,17 +2749,21 @@ fixture name both forms (`CompleteOutboundCall` with `VoiceConnector`,
 `StartOutboundChatContact` with `InitialTemplatedSystemMessage`) and allow
 no other modeled type.
 https://docs.aws.amazon.com/connect/latest/APIReference/API_StartOutboundChatContact.html
+On 2026-10-12, when D09 modeled `LoadContactContent`, the fixture dropped
+it: `CompleteOutboundCall` goes on to `TransferParticipantToThirdParty`,
+and `StartVoiceIdStream` loops back to that action instead.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
 | Developer Guide pages   | 56    | 54      | the four category lists in `catalog.json`                   |
-| Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
+| Administrator Guide     | 4     | 1       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 54      |                                                             |
+| Denominator             | 61    | 55      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the
-2026-10-05 create probes; each entry is `modeled: false` until its D09 task.
+2026-10-05 create probes, rule 47 what D09 modeled and why the rest wait;
+`LoadContactContent` is modeled, the others are `modeled: false`.
 Of the five, the service accepted `LoadContactContent` and
 `TransferParticipantToThirdParty`, refused `AuthenticateParticipant` naming
 its required keys and branch, and refused `CheckSegmentMembership` and

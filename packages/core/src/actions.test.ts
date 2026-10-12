@@ -40,6 +40,7 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   CreateWisdomSession: ["VOICE"],
   CheckOutboundCallStatus: ["VOICE"],
   CompleteOutboundCall: ["VOICE"],
+  LoadContactContent: ["EMAIL"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -217,6 +218,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "GetCustomerProfileObject",
       "GetMetricData",
       "InvokeLambdaFunction",
+      "LoadContactContent",
       "Loop",
       "ResumeContact",
       "StartOutboundChatContact",

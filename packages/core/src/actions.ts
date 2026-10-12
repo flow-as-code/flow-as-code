@@ -69,6 +69,7 @@ export const ActionType = {
   CheckOutboundCallStatus: "CheckOutboundCallStatus",
   CompleteOutboundCall: "CompleteOutboundCall",
   StartOutboundChatContact: "StartOutboundChatContact",
+  LoadContactContent: "LoadContactContent",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -756,6 +757,11 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
   [ActionType.CompleteOutboundCall]: ["VOICE"],
+  // The Get stored content block's channel table: voice, chat and task
+  // "No", email "Yes". The one content type it loads is an email message
+  // body. The admin guide is the only page (actions.md, rule 47).
+  // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+  [ActionType.LoadContactContent]: ["EMAIL"],
 };
 
 /**
@@ -884,6 +890,15 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
   ActionType.StartOutboundChatContact,
+  // No Developer Guide page. The Get stored content block lists inbound,
+  // customer queue, customer hold, customer whisper, outbound whisper, agent
+  // hold, agent whisper, transfer to agent, transfer to queue and disconnect
+  // flows: every FlowDoc connectType (a disconnect flow is a CONTACT_FLOW),
+  // and a module by the note above IN_MODULE. Only a campaign flow, which
+  // FlowDoc does not model, is not named. Rule 47's probes put a customer
+  // hold flow and a module to the service.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+  ActionType.LoadContactContent,
 ];
 
 /**
@@ -1128,6 +1143,15 @@ export const PREDEFINED_ATTRIBUTE_TEXT_MIN = 1;
 export const PREDEFINED_ATTRIBUTE_TEXT_MAX = 64;
 export const ROUTING_AND_MAX = 8;
 export const ROUTING_OR_MAX = 3;
+
+/**
+ * LoadContactContent.ContentType: the Get stored content block's one option,
+ * "Email message (Plain text)", written `"ContentType": enum "EmailMessage"`
+ * in the page's Flow language example. The block stores the message on
+ * `$.Email.EmailMessage.Plaintext`.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+ */
+export const STORED_CONTENT_TYPES = ["EmailMessage"] as const;
 
 /**
  * GetCustomerProfileObject.UseLatest, "true / false" on the page. The page

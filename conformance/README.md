@@ -208,7 +208,9 @@ caller ID, or through a Chime voice connector, a form that stays generic,
 then the call's progress checked on all four statuses, a person answering
 greeted, on voicemail an SMS from a claimed number and flow by reference,
 and with no detection an SMS whose number and flow are read from
-attributes).
+attributes); and a flow of the Types no Developer Guide category page
+lists (`census-additions`: an email message body loaded for a later
+branch).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

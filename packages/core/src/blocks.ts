@@ -74,6 +74,7 @@ import {
   PROFILE_SEARCH_CRITERIA_MAX,
   PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
+  STORED_CONTENT_TYPES,
   SYSTEM_TAG_PREFIX,
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
@@ -3567,6 +3568,46 @@ export class CreateCallbackContact extends Block {
 }
 
 // ---------------------------------------------------------------------------
+// Types the Developer Guide does not list (tasks/D09)
+// ---------------------------------------------------------------------------
+
+/**
+ * The Get stored content block: "retrieve stored data from your S3 bucket
+ * when you need to make branching decisions in your flows". Its one option,
+ * Email message (Plain text), downloads the plain text of the contact's email
+ * message, up to 64 KB, onto `$.Email.EmailMessage.Plaintext`, so a following
+ * Check contact attributes block can branch on it. No Developer Guide page
+ * documents the Type; the admin guide's block page does, with a Flow language
+ * example of one parameter, `"ContentType": enum "EmailMessage"`, and one
+ * error, the catch-all. Email only (voice, chat and task "No"); every flow
+ * type but a campaign's.
+ *
+ * The class takes no configuration but its wiring and always writes the
+ * page's `ContentType`. The service accepted the action with `Parameters`
+ * empty on 2026-10-05 (actions.md, rule 40), so the catalog does not require
+ * the key; codegen reads back only the page's form, and an action without
+ * `ContentType` stays a GenericBlock.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+ */
+export type LoadContactContentConfig = Wired;
+
+export class LoadContactContent extends Block {
+  readonly type = ActionType.LoadContactContent;
+
+  constructor(private readonly config: LoadContactContentConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { ContentType: STORED_CONTENT_TYPES[0] };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Passthrough
 // ---------------------------------------------------------------------------
 
@@ -3574,7 +3615,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 54.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 55.
  */
 export interface GenericBlockConfig {
   id: string;

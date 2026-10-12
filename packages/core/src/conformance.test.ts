@@ -862,6 +862,35 @@ describe("FlowDoc schema rejections: outbound", () => {
   });
 });
 
+// The census-additions round-trip fixture is the subject for the 0.3 clauses
+// of tasks/D09. LoadContactContent's clause holds the admin guide's one
+// content type; rule 47's probes (pending) put another to the service.
+// Each case below fails if its part of the clause is deleted.
+describe("FlowDoc schema rejections: census additions", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/census-additions/doc.flowdoc.json");
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(d.content.Actions.find((a) => a.Identifier === id) as unknown as Action);
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a stored content type the page does not list",
+      mutate("load-email", (a) => {
+        a.Parameters.ContentType = "EmailAttachment";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
 describe("FlowDoc schema rejections: flow control", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/flow-control/doc.flowdoc.json");

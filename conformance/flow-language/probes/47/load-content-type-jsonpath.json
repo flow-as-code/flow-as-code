@@ -1,0 +1,33 @@
+{
+  "description": "Rule 47: LoadContactContent with ContentType a JSONPath, a form the page does not show and the schema clause refuses.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "LoadContactContent",
+        "Parameters": {
+          "ContentType": "$.Attributes.contentType"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

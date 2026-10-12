@@ -696,9 +696,12 @@ describe("the action catalog", () => {
       "CheckSegmentMembership",
       "TransferParticipantToThirdParty",
     ]);
+    // tasks/D09 models the two the service took on 2026-10-05 (actions.md,
+    // rule 40) and leaves the three it refused or named keys of unmodeled.
+    const modeledOther = ["LoadContactContent"];
     for (const type of actionCatalog.categories.other.types) {
       const entry = actionCatalog.actions[type]!;
-      expect(entry.modeled).toBe(false);
+      expect(entry.modeled, type).toBe(modeledOther.includes(type));
       expect(entry.source).toBe(
         type === "TransferParticipantToThirdParty" ? "console-export" : "adminguide",
       );

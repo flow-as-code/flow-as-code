@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-54 modeled types follow. Any other type (7: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+55 modeled types follow. Any other type (6: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -933,3 +933,17 @@ Block `update_customer_profile`. [Action page](https://docs.aws.amazon.com/conne
 
 - `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
 - `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+
+## LoadContactContent
+
+Block `load_contact_content`. [Action page](https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html).
+
+- Legal in: every flow type.
+- Channels: EMAIL only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute  | Flow language key | Value            | Required |
+| -------------- | ----------------- | ---------------- | -------- |
+| `content_type` | `ContentType`     | `"EmailMessage"` | no       |

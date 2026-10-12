@@ -1,0 +1,47 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "census-additions",
+  "description": "The Types no Developer Guide category page lists (tasks/D09): an email message body loaded for a later branch.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "load-email",
+    "Actions": [
+      {
+        "Identifier": "load-email",
+        "Type": "LoadContactContent",
+        "Parameters": {
+          "ContentType": "EmailMessage"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 280,
+      "y": 20
+    },
+    "load-email": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

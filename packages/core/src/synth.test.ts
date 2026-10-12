@@ -52,6 +52,7 @@ import {
   InvokeLambdaFunction,
   jsonPath,
   lint,
+  LoadContactContent,
   Loop,
   materializeWithMap,
   MessageParticipant,
@@ -2811,5 +2812,39 @@ describe("the outbound actions", () => {
     ).toThrow(
       /branches only on CallAnswered, VoicemailBeep, VoicemailNoBeep, NotDetected, got Busy/,
     );
+  });
+});
+
+// conformance/roundtrip/census-additions, built with the typed builder: each
+// census-additions class writes exactly the fixture's bytes (tasks/D09).
+describe("the census additions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/census-additions/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the census-additions fixture", () => {
+    const flow = new Flow({
+      name: "census-additions",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new LoadContactContent({ id: "load-email", next: "bye", onError: "bye" }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write LoadContactContent with the page's one content type and the catch-all", () => {
+    expect(new LoadContactContent({ id: "l", next: "n", onError: "e" }).toAction()).toEqual({
+      Identifier: "l",
+      Type: "LoadContactContent",
+      Parameters: { ContentType: "EmailMessage" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
   });
 });

@@ -1203,6 +1203,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
     case ActionType.TransferContactToAgent:
     case ActionType.TransferContactToQueue:
     case ActionType.ResumeContact:
+    case ActionType.LoadContactContent:
       return [];
     default:
       // Unmodeled: GenericBlock, read-only raw JSON.

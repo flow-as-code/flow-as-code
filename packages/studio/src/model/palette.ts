@@ -73,6 +73,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.GetCustomerProfile]: "Integrate",
   [ActionType.GetCustomerProfileObject]: "Integrate",
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "Integrate",
+  [ActionType.LoadContactContent]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -162,6 +163,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.GetCustomerProfile]: "get-profile",
   [ActionType.GetCustomerProfileObject]: "get-profile-object",
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "calculated-attributes",
+  [ActionType.LoadContactContent]: "get-stored-content",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -391,6 +393,11 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // instance's own predefined attribute.
       // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
       return { RoutingCriteria: { Steps: [{ Expression: DEFAULT_ROUTING_EXPRESSION }] } };
+    case ActionType.LoadContactContent:
+      // The block's one option, Email message (Plain text), as the admin
+      // guide's Flow language example writes it.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+      return { ContentType: "EmailMessage" };
     case ActionType.UpdateContactRoutingBehavior:
       // "The default priority for new contacts is 5", so a fresh block starts
       // where the contact already is and the author moves it from there.

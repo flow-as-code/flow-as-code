@@ -1,0 +1,51 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "load-email",
+      "messageIncludes": "LoadContactContent does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "load-email-body",
+    "description": "Get stored content with no Error branch, which the admin guide's Flow language example carries.",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "load-email",
+      "Actions": [
+        {
+          "Identifier": "load-email",
+          "Type": "LoadContactContent",
+          "Parameters": {
+            "ContentType": "EmailMessage"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "bye": {
+        "x": 280,
+        "y": 20
+      },
+      "load-email": {
+        "x": 20,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

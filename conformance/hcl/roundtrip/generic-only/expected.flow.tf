@@ -41,7 +41,7 @@ resource "flowascode_contact_flow" "unknown_actions" {
 
   action {
     id   = "dial-connector"
-    next = "load-content"
+    next = "transfer-third-party"
     generic {
       type = "CompleteOutboundCall"
       parameters = jsonencode({
@@ -53,21 +53,6 @@ resource "flowascode_contact_flow" "unknown_actions" {
           VoiceConnectorType    = "ChimeConnector"
         }
       })
-    }
-  }
-
-  action {
-    id   = "load-content"
-    next = "transfer-third-party"
-    generic {
-      type = "LoadContactContent"
-      parameters = jsonencode({
-        ContentType = "EmailMessage"
-      })
-    }
-    error {
-      type = "NoMatchingError"
-      next = "hand-off"
     }
   }
 
@@ -98,13 +83,13 @@ resource "flowascode_contact_flow" "unknown_actions" {
 
   action {
     id   = "hand-off"
-    next = "load-content"
+    next = "transfer-third-party"
     generic {
       type = "StartVoiceIdStream"
     }
     error {
       type = "NoMatchingError"
-      next = "load-content"
+      next = "transfer-third-party"
     }
   }
 }

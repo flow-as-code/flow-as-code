@@ -3721,3 +3721,52 @@ describe("the outbound actions invert to their classes", () => {
     });
   });
 });
+
+describe("LoadContactContent inverts the admin guide's form", () => {
+  const action = (): FlowAction => ({
+    Identifier: "load-email",
+    Type: "LoadContactContent",
+    Parameters: { ContentType: "EmailMessage" },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "LoadContactContent"');
+    expect(out).not.toContain("new LoadContactContent(");
+  };
+
+  it("emits the class with its next and catch-all", () => {
+    const out = codegen(docWith([action(), bye]));
+    expect(out).toContain("new LoadContactContent({");
+    expect(out).toContain('next: "bye"');
+    expect(out).toContain('onError: "bye"');
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("falls back on no content type, another content type, an extra key, or other wiring", () => {
+    // The service took the action with Parameters empty (rule 40); the class
+    // never writes that form.
+    generic({ ...action(), Parameters: {} });
+    generic({ ...action(), Parameters: { ContentType: "EmailAttachment" } });
+    generic({ ...action(), Parameters: { ContentType: "EmailMessage", Format: "Plaintext" } });
+    const noNext = action();
+    delete noNext.Transitions.NextAction;
+    generic(noNext);
+    const noError = action();
+    noError.Transitions.Errors = [];
+    generic(noError);
+    const twoErrors = action();
+    twoErrors.Transitions.Errors!.push({ ErrorType: "ContentTooLarge", NextAction: "bye" });
+    generic(twoErrors);
+  });
+});

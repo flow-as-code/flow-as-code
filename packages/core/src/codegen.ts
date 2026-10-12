@@ -44,6 +44,7 @@ import {
   MEDIA_STREAMING_STATES,
   PREVIOUS_PARTICIPANT_STATES,
   QUEUE_CHANNELS,
+  STORED_CONTENT_TYPES,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
   TASK_DELAY_MAX,
@@ -125,6 +126,7 @@ import {
   GetCase,
   GetCustomerProfile,
   GetCustomerProfileObject,
+  LoadContactContent,
   GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
@@ -2480,6 +2482,25 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
 
   // One static state; a value outside the page's three, or a JSONPath, stays
   // generic.
+  // The Get stored content block in the admin guide's Flow language form:
+  // ContentType "EmailMessage", the catch-all and a next. The service took
+  // the action with no ContentType (rule 40), which the class never writes,
+  // so that form stays generic.
+  [ActionType.LoadContactContent]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, ["ContentType"])) return undefined;
+    if (a.Parameters.ContentType !== STORED_CONTENT_TYPES[0]) return undefined;
+    return {
+      cls: "LoadContactContent",
+      entries: [
+        ["id", a.Identifier],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new LoadContactContent({ id: a.Identifier, next: w.next, onError: w.onError }),
+    };
+  },
+
   [ActionType.UpdatePreviousContactParticipantState]: (a) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined || !paramKeysAre(a.Parameters, ["PreviousContactParticipantState"])) {
