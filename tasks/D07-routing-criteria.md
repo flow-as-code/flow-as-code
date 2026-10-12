@@ -89,7 +89,15 @@ takes rule 44, this task 45). It put rule 44 before 45 in actions.md and
 D06's line before this one in the probes README, raised the modeled count
 and the census table's Developer Guide row to 51, kept both groups' entries
 in `catalog.json`, its copy and the 0.3 schema, and regenerated the skill
-reference from the merged catalog. One
+reference from the merged catalog. Later the same day the stack was
+rebased onto D01's recheck (#44 at `007f9a7`), and this branch onto D06's
+new head `14a4b72`, which carries D06's review repairs. Only the studio's
+UI tests conflicted, both sides adding at the end of the file. D06's new
+head still holds the passthrough queue token in an `UpdateRoutingCriteria`
+attribute condition (the fixture is unchanged since `67d677a`); this
+branch's move to `CompleteOutboundCall` applied over it, and the `generic-only` golden and D01's recheck goldens
+(`phase-d-refs` under `hcl/emit`, `roundtrip` and `emit-tf`, and the
+export goldens) pass unchanged. One
 commit for the type, then this record, each green on `npm run build`,
 `npm test`, `npm run lint` and `npm run typecheck`:
 
