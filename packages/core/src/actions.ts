@@ -59,6 +59,7 @@ export const ActionType = {
   AssociateContactToCustomerProfile: "AssociateContactToCustomerProfile",
   CreateCustomerProfile: "CreateCustomerProfile",
   UpdateCustomerProfile: "UpdateCustomerProfile",
+  GetCustomerProfile: "GetCustomerProfile",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -182,6 +183,16 @@ export const CALLBACK_NUMBER_NOT_DIALABLE = "CallbackNumberNotDialable";
 
 /** Wait's second error, raised when no bot participant is on the contact. */
 export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
+
+/**
+ * The Customer Profiles lookups' branches: "MultipleFoundError - if
+ * multiple profiles were found for the associated profile search key." and
+ * "NoneFoundError - if no profiles were found for the associated profile
+ * search key."
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ */
+export const MULTIPLE_FOUND_ERROR = "MultipleFoundError";
+export const NONE_FOUND_ERROR = "NoneFoundError";
 
 /**
  * ShowView's error when the view is not answered within
@@ -340,6 +351,13 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // recording action.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
   [ActionType.UpdateContactMediaProcessing]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
+  // The order every published flow writes (actions.md, rule 43), the
+  // catch-all first; the page lists the two lookups' errors first. Only the
+  // catch-all is marked required: the page marks none "Must always be
+  // defined", and rule 43's probes decide whether either joins
+  // REQUIRED_EXTRAS. The published flows wire all three.
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+  [ActionType.GetCustomerProfile]: [NO_MATCHING_ERROR, MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
 };
 
 /**
@@ -707,6 +725,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.CreateCustomerProfile,
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
   ActionType.UpdateCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+  ActionType.GetCustomerProfile,
 ];
 
 /**
@@ -808,6 +828,17 @@ export const PROFILE_FIELDS = [
   "BillingState",
 ] as const;
 export const PROFILE_FIELD_PATTERNS: readonly string[] = ["^Attributes\\.[^.]+$"];
+
+/**
+ * GetCustomerProfile's SearchCriteria: "Retrieve a customer profile based
+ * any search identifier, up to five total", joined by a LogicalOperator "AND
+ * or OR" ("Required when using SearchCriteria").
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ */
+export const PROFILE_SEARCH_CRITERIA_MIN = 1;
+export const PROFILE_SEARCH_CRITERIA_MAX = 5;
+export const PROFILE_LOGICAL_OPERATORS = ["AND", "OR"] as const;
+export type ProfileLogicalOperator = (typeof PROFILE_LOGICAL_OPERATORS)[number];
 
 /**
  * Loop.LoopCount "must be between 0 and 100 (inclusive)", written as a decimal

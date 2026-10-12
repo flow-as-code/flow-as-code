@@ -44,6 +44,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.AssociateContactToCustomerProfile]: "Integrate",
   [ActionType.CreateCustomerProfile]: "Integrate",
   [ActionType.UpdateCustomerProfile]: "Integrate",
+  [ActionType.GetCustomerProfile]: "Integrate",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -122,6 +123,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.AssociateContactToCustomerProfile]: "associate-profile",
   [ActionType.CreateCustomerProfile]: "create-profile",
   [ActionType.UpdateCustomerProfile]: "update-profile",
+  [ActionType.GetCustomerProfile]: "get-profile",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -234,6 +236,17 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // containers, empty until a field is chosen.
       // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
       return { ProfileRequestData: {}, ProfileResponseData: [] };
+    case ActionType.GetCustomerProfile:
+      // The caller's phone number, the search the admin guide's example and
+      // most published flows make.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+      return {
+        ProfileRequestData: {
+          IdentifierName: "_phone",
+          IdentifierValue: "$.CustomerEndpoint.Address",
+        },
+        ProfileResponseData: [],
+      };
     case ActionType.UpdateCustomerProfile:
       // The same optional fields; the profile is the one a preceding Get or
       // Create profile left at $.Customer.ProfileId.

@@ -503,12 +503,27 @@ export function Inspector() {
     // A nested field edits one key of an object parameter (ShowView's
     // ViewResource.Id and ViewResource.Version) and leaves its other keys as
     // they are; every other field is the parameter itself.
-    const nested = field.kind === "text" || field.kind === "ref" ? field.nested : undefined;
+    const nested =
+      field.kind === "text" ||
+      field.kind === "ref" ||
+      field.kind === "select" ||
+      field.kind === "json"
+        ? field.nested
+        : undefined;
     const holder =
       stored !== null && typeof stored === "object" && !Array.isArray(stored)
         ? (stored as Record<string, unknown>)
         : undefined;
     const value = nested === undefined ? stored : holder?.[nested];
+    // One form of a `form` field: shown only while that form is the one set.
+    if (
+      nested !== undefined &&
+      "onlyWhenPresent" in field &&
+      field.onlyWhenPresent === true &&
+      value === undefined
+    ) {
+      return null;
+    }
     const fieldKey = nested === undefined ? field.key : `${field.key}.${nested}`;
     const write = (next: unknown, options?: { clears?: readonly string[] }) => {
       if (nested === undefined) return setParam(doc, selected, field.key, next, options);
@@ -602,40 +617,29 @@ export function Inspector() {
           // A listed name typed here lands in the select on the next render.
           return (
             <TextField
-              key={`${selected}:${field.key}:jsonpath`}
+              key={`${selected}:${fieldKey}:jsonpath`}
               label={`${field.label} (JSONPath)`}
-              testId={`jsonpath-${field.key}`}
+              testId={`jsonpath-${fieldKey}`}
               value={value}
               onCommit={(next) =>
                 mutate(() =>
-                  setParam(
-                    doc,
-                    selected,
-                    field.key,
-                    field.optional === true && next.trim() === "" ? undefined : next.trim(),
-                  ),
+                  write(field.optional === true && next.trim() === "" ? undefined : next.trim()),
                 )
               }
             />
           );
         }
         return (
-          <label key={`${selected}:${field.key}`} className="block">
+          <label key={`${selected}:${fieldKey}`} className="block">
             <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
               {field.label}
             </span>
             <select
               className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
+              data-testid={`select-${fieldKey}`}
               value={typeof value === "string" ? value : ""}
               onChange={(e) =>
-                mutate(() =>
-                  setParam(
-                    doc,
-                    selected,
-                    field.key,
-                    e.target.value === "" ? undefined : e.target.value,
-                  ),
-                )
+                mutate(() => write(e.target.value === "" ? undefined : e.target.value))
               }
             >
               {field.optional === true && <option value="">(not set)</option>}
@@ -687,14 +691,44 @@ export function Inspector() {
       case "json":
         return (
           <JsonField
-            key={`${selected}:${field.key}`}
+            key={`${selected}:${fieldKey}`}
             label={field.label}
             value={value}
-            onCommit={(parsed) =>
-              mutate(() => setParam(doc, selected, field.key, parsed, { clears: field.clears }))
-            }
+            onCommit={(parsed) => mutate(() => write(parsed, { clears: field.clears }))}
           />
         );
+      case "form": {
+        const present = (keys: readonly string[]) =>
+          holder !== undefined && keys.every((k) => holder[k] !== undefined);
+        const current = field.forms.findIndex((f) => present(f.keys));
+        return (
+          <label key={`${selected}:${field.key}:form`} className="block">
+            <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+              {field.label}
+            </span>
+            <select
+              data-testid={`form-${field.key}`}
+              className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
+              value={current === -1 ? "" : String(current)}
+              onChange={(e) => {
+                const chosen = field.forms[Number(e.target.value)];
+                if (chosen === undefined) return;
+                const object: Record<string, unknown> = { ...(holder ?? {}) };
+                for (const f of field.forms) for (const k of f.keys) delete object[k];
+                for (const k of chosen.keys) object[k] = holder?.[k] ?? chosen.defaults[k];
+                mutate(() => setParam(doc, selected, field.key, object));
+              }}
+            >
+              {current === -1 && <option value="">(neither form)</option>}
+              {field.forms.map((f, i) => (
+                <option key={f.label} value={String(i)}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        );
+      }
     }
   };
 

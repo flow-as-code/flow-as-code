@@ -1,0 +1,42 @@
+{
+  "description": "Rule 43: GetCustomerProfile with ProfileRequestData empty, as a published console export holds it; the catalog's exactlyOne refuses it.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {},
+          "ProfileResponseData": []
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "MultipleFoundError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

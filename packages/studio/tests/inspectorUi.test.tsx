@@ -254,6 +254,30 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
     expect(query('[data-testid="fieldmap-ProfileRequestData-FirstName"]')).toBeNull();
   });
 
+  it("switches GetCustomerProfile between its two search forms, clearing the other", async () => {
+    await addProfileBlock("GetCustomerProfile", "get-profile");
+    const form = testId<HTMLSelectElement>("form-ProfileRequestData");
+    expect(form.value).toBe("0");
+    expect(testId<HTMLInputElement>("text-ProfileRequestData.IdentifierName").value).toBe("_phone");
+    expect(query('[data-testid="select-ProfileRequestData.LogicalOperator"]')).toBeNull();
+
+    await selectOption(form, "1");
+    expect(testId<HTMLSelectElement>("form-ProfileRequestData").value).toBe("1");
+    expect(query('[data-testid="text-ProfileRequestData.IdentifierName"]')).toBeNull();
+    const operator = testId<HTMLSelectElement>("select-ProfileRequestData.LogicalOperator");
+    expect(operator.value).toBe("AND");
+    await selectOption(operator, "OR");
+    expect(testId<HTMLSelectElement>("select-ProfileRequestData.LogicalOperator").value).toBe("OR");
+    // The block stayed typed through the switch: no demotion notice.
+    expect(testId("inspector").textContent).not.toContain("read-only generic block");
+
+    await selectOption(testId<HTMLSelectElement>("form-ProfileRequestData"), "0");
+    expect(testId<HTMLInputElement>("text-ProfileRequestData.IdentifierValue").value).toBe(
+      "$.CustomerEndpoint.Address",
+    );
+    expect(query('[data-testid="select-ProfileRequestData.LogicalOperator"]')).toBeNull();
+  });
+
   it("ticks response fields from the page's list and holds typed ones to the pattern", async () => {
     await addProfileBlock("CreateCustomerProfile", "create-profile");
     const first = testId<HTMLInputElement>("names-ProfileResponseData-FirstName");

@@ -63,7 +63,9 @@ import {
   INPUT_MENU_ERRORS,
   INPUT_STORED_ERRORS,
   NO_MATCHING_CONDITION,
+  MULTIPLE_FOUND_ERROR,
   NO_MATCHING_ERROR,
+  NONE_FOUND_ERROR,
   REFERENCE_FIELDS,
 } from "./actions.js";
 import type {
@@ -97,6 +99,7 @@ import {
   EndFlowExecution,
   EndFlowModuleExecution,
   GenericBlock,
+  GetCustomerProfile,
   GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
@@ -2451,6 +2454,61 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
 
   [ActionType.CreateCustomerProfile]: (a) =>
     invertProfileFields(a, "CreateCustomerProfile", (c) => new CreateCustomerProfile(c)),
+  // One identifier or SearchCriteria with its operator, the three errors in
+  // the published flows' order, and the response names. A block in neither
+  // form (AWS's step-by-step flows search by a named field) stays generic.
+  [ActionType.GetCustomerProfile]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    const order = [NO_MATCHING_ERROR, MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR];
+    if (errors.length !== 3 || errors.some((e, i) => e.ErrorType !== order[i])) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData as Record<string, unknown> | null;
+    if (request === null || typeof request !== "object" || !isStringList(p.ProfileResponseData)) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (paramKeysAre(request, ["IdentifierName", "IdentifierValue"])) {
+      const identifier = { name: request.IdentifierName, value: request.IdentifierValue };
+      entries.push(["identifier", toV(identifier)]);
+      config.identifier = identifier;
+    } else if (paramKeysAre(request, ["SearchCriteria", "LogicalOperator"])) {
+      if (!Array.isArray(request.SearchCriteria)) return undefined;
+      const criteria = (request.SearchCriteria as Record<string, unknown>[]).map((c) => ({
+        name: c.IdentifierName,
+        value: c.IdentifierValue,
+      }));
+      const search = { criteria, operator: request.LogicalOperator };
+      entries.push(["search", toV(search)]);
+      config.search = search;
+    } else {
+      return undefined;
+    }
+    if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+    config.response = p.ProfileResponseData;
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onMultipleFound", errors[1]!.NextAction],
+      ["onNoneFound", errors[2]!.NextAction],
+    );
+    return {
+      cls: "GetCustomerProfile",
+      entries,
+      block: new GetCustomerProfile(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onMultipleFound: errors[1]!.NextAction,
+          onNoneFound: errors[2]!.NextAction,
+        }),
+      ),
+    };
+  },
   [ActionType.UpdateCustomerProfile]: (a) =>
     invertProfileFields(a, "UpdateCustomerProfile", (c) => new UpdateCustomerProfile(c)),
 

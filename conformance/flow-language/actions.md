@@ -101,6 +101,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Customer profiles (Associate contact to profile) | `AssociateContactToCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html) |
 | Customer profiles (Create profile) | `CreateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html) |
 | Customer profiles (Update profile) | `UpdateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html) |
+| Customer profiles (Get profile) | `GetCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html) |
 
 ## Reference-bearing parameters
 
@@ -1573,6 +1574,56 @@ is read rather than when the type is modeled.
       `update-profile-id-key`, `update-no-response-data` and
       `update-module`.
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+    - `GetCustomerProfile` "Retrieve a customer profile based any search
+      identifier, up to five total." "At least one search identifier must
+      be present." `ProfileRequestData` "Requires either IdentiferName and
+      IdentifierValue, or SearchCriteria": `"IdentifierName"`,
+      `"IdentiferValue"` (so spelled in the example; the prose misspells
+      the name key instead), or `"SearchCriteria"`, a list of
+      `IdentifierName` and `IdentifierValue`, with `"LogicalOperator": AND
+      or OR` "Required when using SearchCriteria"; `ProfileResponseData` as
+      `CreateCustomerProfile`'s; errors "MultipleFoundError - if multiple
+      profiles were found for the associated profile search key.",
+      "NoneFoundError - if no profiles were found for the associated
+      profile search key." and the catch-all. The admin guide's block asks
+      for "at least one search identifier, up to five total" and an
+      operator "If multiple search identifiers are provided", and names
+      Success, Error, Multiple Found and None Found branches. The
+      published flows hold eleven blocks of the type: every one spells
+      `IdentifierName`
+      and `IdentifierValue`; six search by one identifier (`_phone` or
+      `_email`), four by a named profile field (`{ "PhoneNumber": ... }`,
+      AWS's step-by-step guide flows), which is neither of the page's
+      forms, and one holds `{}` (an unconfigured block in a console export
+      of every block); none uses `SearchCriteria`; and every one wires
+      `NoMatchingError`, `MultipleFoundError` and `NoneFoundError` in that
+      order. The catalog records `ProfileRequestData` as a required object
+      of `IdentifierName` (a `string`), `IdentifierValue` (a
+      `stringOrJsonPath`), `SearchCriteria` (a `list` of one to five
+      objects of the same two, each required) and `LogicalOperator` (an
+      `enum` of `AND` and `OR`), with the first `groups` constraint:
+      `exactlyOne` of the pair and of `SearchCriteria` with
+      `LogicalOperator`, so half of either group, both, or neither breaks
+      it. The 0.3 schema clause does not hold it: the named-field form in
+      AWS's own flows would fail it, and no probe has shown the service
+      refusing either (owner decision 3); the class refuses both and
+      neither, and codegen leaves the named-field form generic. The three
+      errors are in the published flows' order, all wired by the builder;
+      only the catch-all is required, since the page marks neither of the
+      others "Must always be defined" (as `ChannelMismatch` on rule 41's
+      message processor), although every published flow wires both.
+      Planned probes: `get-identifier` (expected accepted),
+      `get-no-catch-all`, `get-no-multiple-found`, `get-no-none-found` and
+      `get-no-next` (each a removal alone), `get-identifer-spelling` (the
+      page's spelling, as `UnTagContact`'s was put to the service, rule
+      28), `get-search-and` and `get-search-or`, `get-both-forms` and
+      `get-neither-form` (the group alternative given both and neither),
+      `get-named-key` (the step-by-step flows' form),
+      `get-identifier-name-only`, `get-search-without-operator` and
+      `get-search-one-without-operator` (half a group, and the admin
+      guide's reading of a single criterion), `get-operator-lowercase`,
+      `get-six-criteria`, and `get-module` and `get-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
 
 ## Per-action parameter shapes
 
@@ -1660,6 +1711,10 @@ AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId }
 CreateCustomerProfile    { ProfileRequestData: { [field | Attributes.<name>]: string },   // static or a JSONPath
                            ProfileResponseData: (field | Attributes.<name>)[] }   // field: the page's 55 names
 UpdateCustomerProfile    { ProfileRequestData, ProfileResponseData }   // as CreateCustomerProfile; no profile id
+GetCustomerProfile       { ProfileRequestData: { IdentifierName, IdentifierValue }   // the page's example: IdentiferValue
+                                             | { SearchCriteria: { IdentifierName, IdentifierValue }[],   // 1 to 5
+                                                 LogicalOperator: "AND" | "OR" },
+                           ProfileResponseData: (field | Attributes.<name>)[] }
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1820,7 +1875,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-44 of the 61. Everything not in the modeled set above parses to a
+45 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1850,10 +1905,10 @@ type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 44      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 45      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 44      |                                                             |
+| Denominator             | 61    | 45      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

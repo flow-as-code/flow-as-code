@@ -1,0 +1,46 @@
+{
+  "description": "Rule 43: GetCustomerProfile without NextAction.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "IdentifierName": "_phone",
+            "IdentifierValue": "$.CustomerEndpoint.Address"
+          },
+          "ProfileResponseData": [
+            "FirstName"
+          ]
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "MultipleFoundError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

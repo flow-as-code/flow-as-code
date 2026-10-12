@@ -38,6 +38,8 @@ import {
   OPTIONAL_CATCH_ALL,
   PROFILE_FIELD_PATTERNS,
   PROFILE_FIELDS,
+  PROFILE_SEARCH_CRITERIA_MAX,
+  PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
   REQUIRED_EXTRAS,
   TAG_LIMIT,
@@ -152,6 +154,13 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
   Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
   CreateTask: { DelaySeconds: { min: TASK_DELAY_MIN, max: TASK_DELAY_MAX } },
+  // "up to five total"; at least one when the form is used.
+  GetCustomerProfile: {
+    "ProfileRequestData.SearchCriteria": {
+      min: PROFILE_SEARCH_CRITERIA_MIN,
+      max: PROFILE_SEARCH_CRITERIA_MAX,
+    },
+  },
   TagContact: { Tags: { max: TAG_LIMIT } },
   // The service refuses an empty key list (live check, tasks/B01).
   UntagContact: { TagKeys: { min: 1 } },
@@ -600,6 +609,7 @@ describe("the Customer Profiles names", () => {
     ["CreateCustomerProfile", "ProfileResponseData", PROFILE],
     ["UpdateCustomerProfile", "ProfileRequestData", PROFILE],
     ["UpdateCustomerProfile", "ProfileResponseData", PROFILE],
+    ["GetCustomerProfile", "ProfileResponseData", PROFILE],
   ])("agree for %s.%s", (type, key, expected) => {
     expect(named(type, key)).toEqual(expected);
   });
@@ -709,6 +719,15 @@ describe("the action catalog", () => {
       "ChannelMismatch",
     ]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
+    // The published flows' order, catch-all first; the page marks none
+    // "Must always be defined", so only the catch-all is required until
+    // rule 43's sweep says otherwise.
+    expect(builderErrors("GetCustomerProfile")).toEqual([
+      "NoMatchingError",
+      "MultipleFoundError",
+      "NoneFoundError",
+    ]);
+    expect(requiredErrors("GetCustomerProfile")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);
     // The page lists none; the service refuses the block without it.
@@ -1266,6 +1285,33 @@ describe("requiredErrorsOf", () => {
       requiredErrorsFor("UpdateContactRecordingAndAnalyticsBehavior", { ChatBehavior: {} }),
     ).toEqual(requiredErrorsOf(catalogErrors, { ChatBehavior: {} }));
     expect(requiredErrorsFor("CreateCase", { LinkContactToCase: "true" })).toEqual([]);
+  });
+});
+
+describe("GetCustomerProfile's request constraint", () => {
+  it("is the group alternative the page states, read by constraintViolations", () => {
+    const entry = actionCatalog.actions.GetCustomerProfile as unknown as {
+      parameters: { key: string; constraints?: CatalogConstraint[] }[];
+    };
+    const constraints = entry.parameters.find((p) => p.key === "ProfileRequestData")!.constraints!;
+    expect(constraints).toEqual([
+      {
+        rule: "exactlyOne",
+        groups: [
+          ["IdentifierName", "IdentifierValue"],
+          ["SearchCriteria", "LogicalOperator"],
+        ],
+      },
+    ]);
+    const one = { IdentifierName: "_phone", IdentifierValue: "$.CustomerEndpoint.Address" };
+    expect(constraintViolations(constraints, one)).toEqual([]);
+    expect(
+      constraintViolations(constraints, { SearchCriteria: [one], LogicalOperator: "AND" }),
+    ).toEqual([]);
+    expect(constraintViolations(constraints, { SearchCriteria: [one] })).toHaveLength(2);
+    expect(constraintViolations(constraints, { PhoneNumber: "+15550100" })).toEqual([
+      "exactly one of (IdentifierName and IdentifierValue), (SearchCriteria and LogicalOperator) is required; 0 present.",
+    ]);
   });
 });
 

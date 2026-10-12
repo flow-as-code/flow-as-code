@@ -1,0 +1,70 @@
+{
+  "description": "Rule 43: GetCustomerProfile with six SearchCriteria, past the page's \"up to five total\".",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "SearchCriteria": [
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.Attributes.p0"
+              },
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.Attributes.p1"
+              },
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.Attributes.p2"
+              },
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.Attributes.p3"
+              },
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.Attributes.p4"
+              },
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.Attributes.p5"
+              }
+            ],
+            "LogicalOperator": "OR"
+          },
+          "ProfileResponseData": []
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "MultipleFoundError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

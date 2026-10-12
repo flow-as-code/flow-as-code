@@ -154,6 +154,24 @@ export function constraintSentence(c) {
   return `${rule ?? c.rule} ${spelled}`;
 }
 
+/**
+ * Constraints on an object parameter's fields, which the top-level list
+ * does not show: `GetCustomerProfile`'s two search forms inside
+ * `profile_request_data` (tasks/D03), `GetParticipantInput`'s validation
+ * forms inside `input_validation`.
+ */
+function nestedConstraintLines(params, prefix = "") {
+  const out = [];
+  for (const p of params ?? []) {
+    const attr = `${prefix}${p.attr}`;
+    for (const c of p.constraints ?? []) {
+      out.push(`- Fields of \`${attr}\`: ${constraintSentence(c)}.`);
+    }
+    out.push(...nestedConstraintLines(p.fields, `${attr}.`));
+  }
+  return out;
+}
+
 function section(type, a) {
   const t = a.transitions;
   const lines = [`## ${type}`, ""];
@@ -180,6 +198,7 @@ function section(type, a) {
     );
   }
   for (const c of a.constraints ?? []) lines.push(`- Parameters: ${constraintSentence(c)}.`);
+  lines.push(...nestedConstraintLines(a.parameters));
   for (const s of a.shapes ?? []) {
     const when = whenOf(s.when);
     const parts = [];

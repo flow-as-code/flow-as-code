@@ -2993,6 +2993,44 @@ describe("the Customer Profiles actions invert their request and response data",
     });
   });
 
+  describe("GetCustomerProfile", () => {
+    const get = (
+      request: unknown,
+      response: unknown = ["FirstName"],
+      errors = ["NoMatchingError", "MultipleFoundError", "NoneFoundError"],
+    ) =>
+      action(
+        "GetCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+    const one = { IdentifierName: "_phone", IdentifierValue: "$.CustomerEndpoint.Address" };
+
+    it("emits one identifier or SearchCriteria with its operator, and every branch", () => {
+      const out = typed(get(one));
+      expect(out).toContain('identifier: { name: "_phone", value: "$.CustomerEndpoint.Address" }');
+      expect(out).toContain('onMultipleFound: "bye"');
+      expect(out).toContain('onNoneFound: "bye"');
+      const search = typed(get({ SearchCriteria: [one, one], LogicalOperator: "OR" }));
+      expect(search).toContain('operator: "OR"');
+      expect(search).toContain("criteria: [");
+    });
+
+    it("falls back on both forms, neither, half a group, a named field, the page's spelling, or the errors out of shape", () => {
+      generic(get({ ...one, SearchCriteria: [one], LogicalOperator: "AND" }));
+      generic(get({}));
+      generic(get({ IdentifierName: "_phone" }));
+      generic(get({ SearchCriteria: [one] }));
+      generic(get({ PhoneNumber: "$.CustomerEndpoint.Address" }));
+      generic(get({ IdentifierName: "_phone", IdentiferValue: "$.CustomerEndpoint.Address" }));
+      generic(get({ SearchCriteria: [one], LogicalOperator: "and" }));
+      generic(get({ SearchCriteria: [one, one, one, one, one, one], LogicalOperator: "OR" }));
+      generic(get(one, ["Nickname"]));
+      generic(get(one, ["FirstName"], ["NoMatchingError"]));
+      generic(get(one, ["FirstName"], ["NoMatchingError", "NoneFoundError", "MultipleFoundError"]));
+    });
+  });
+
   describe("UpdateCustomerProfile", () => {
     const update = (request: unknown, response: unknown = []) =>
       action("UpdateCustomerProfile", {

@@ -1,0 +1,47 @@
+{
+  "description": "Rule 43: GetCustomerProfile by one identifier, spelled IdentifierValue as every published flow spells it, with the three page errors; expected accepted.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "IdentifierName": "_phone",
+            "IdentifierValue": "$.CustomerEndpoint.Address"
+          },
+          "ProfileResponseData": [
+            "FirstName"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "MultipleFoundError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

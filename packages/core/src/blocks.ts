@@ -50,8 +50,13 @@ import {
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
   PREVIOUS_PARTICIPANT_STATES,
+  MULTIPLE_FOUND_ERROR,
+  NONE_FOUND_ERROR,
   PROFILE_FIELD_PATTERNS,
   PROFILE_FIELDS,
+  PROFILE_LOGICAL_OPERATORS,
+  PROFILE_SEARCH_CRITERIA_MAX,
+  PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
   SYSTEM_TAG_PREFIX,
   TASK_DELAY_MAX,
@@ -75,6 +80,7 @@ import type {
   MetricOperator,
   MetricType,
   PreviousParticipantState,
+  ProfileLogicalOperator,
   QueueChannel,
   TargetContact,
   TtsEngine,
@@ -2362,6 +2368,115 @@ export class UpdateCustomerProfile extends Block {
   }
 }
 
+/** One search identifier: a search key's name (`_phone`, `_email`, a custom key) and its value. */
+export interface ProfileIdentifier {
+  name: string;
+  /** Static or a JSONPath. */
+  value: string;
+}
+
+function requireIdentifier(where: string, what: string, id: ProfileIdentifier): void {
+  if (id === null || typeof id !== "object") {
+    throw new Error(`${where} ${what} must be { name, value }.`);
+  }
+  requireText(where, `${what} name`, id.name);
+  requireText(where, `${what} value`, id.value);
+}
+
+/**
+ * GetCustomerProfile searches by one identifier, or by SearchCriteria (one
+ * to five identifiers) joined by a logical operator: "Requires either
+ * IdentiferName and IdentifierValue, or SearchCriteria", and the operator is
+ * "Required when using SearchCriteria". The union makes giving both, or
+ * neither, a compile-time error; the constructor checks it too.
+ */
+export type ProfileSearch =
+  | { identifier: ProfileIdentifier; search?: never }
+  | {
+      search: { criteria: ProfileIdentifier[]; operator: ProfileLogicalOperator };
+      identifier?: never;
+    };
+
+/**
+ * "Retrieve a customer profile based any search identifier, up to five
+ * total." The page's two forms of `ProfileRequestData`, an `IdentifierName`
+ * and its value or `SearchCriteria` with a `LogicalOperator` of `AND` or
+ * `OR`, are D01's group alternatives (`exactlyOne` over the two groups). The
+ * page's prose writes "IdentiferName" and its example `"IdentiferValue"`;
+ * every published flow writes `IdentifierName` and `IdentifierValue`, which
+ * the class writes (actions.md, rule 43, probes `get-identifier` and
+ * `get-identifer-spelling`). `response` names the fields stored under
+ * `$.Customer`, as CreateCustomerProfile's do. Three errors, in the order
+ * every published flow writes them: the catch-all, MultipleFoundError and
+ * NoneFoundError; only the catch-all is required until the sweep says
+ * otherwise. AWS's step-by-step guide flows also search by a named profile
+ * field (`{ "PhoneNumber": ... }`), neither of the page's forms; such a
+ * block stays a GenericBlock until `get-named-key` is put to the service.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export type GetCustomerProfileConfig = Wired &
+  ProfileSearch & {
+    response?: string[];
+    onMultipleFound: Target;
+    onNoneFound: Target;
+  };
+
+export class GetCustomerProfile extends Block {
+  readonly type = ActionType.GetCustomerProfile;
+
+  constructor(private readonly config: GetCustomerProfileConfig) {
+    super(config.id);
+    const where = `GetCustomerProfile "${config.id}"`;
+    if ((config.identifier === undefined) === (config.search === undefined)) {
+      throw new Error(`${where} takes an identifier or a search, exactly one.`);
+    }
+    if (config.identifier !== undefined) requireIdentifier(where, "identifier", config.identifier);
+    if (config.search !== undefined) {
+      const { criteria, operator } = config.search;
+      if (
+        !Array.isArray(criteria) ||
+        criteria.length < PROFILE_SEARCH_CRITERIA_MIN ||
+        criteria.length > PROFILE_SEARCH_CRITERIA_MAX
+      ) {
+        throw new Error(
+          `${where} search takes ${PROFILE_SEARCH_CRITERIA_MIN} to ${PROFILE_SEARCH_CRITERIA_MAX} criteria.`,
+        );
+      }
+      criteria.forEach((c, i) => requireIdentifier(where, `search criterion ${i + 1}`, c));
+      if (!(PROFILE_LOGICAL_OPERATORS as readonly string[]).includes(operator)) {
+        throw new Error(
+          `${where} search operator must be one of ${PROFILE_LOGICAL_OPERATORS.join(", ")}.`,
+        );
+      }
+    }
+    requireNames(where, "response", config.response ?? [], PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const request =
+      c.identifier !== undefined
+        ? { IdentifierName: c.identifier.name, IdentifierValue: c.identifier.value }
+        : {
+            SearchCriteria: c.search!.criteria.map((x) => ({
+              IdentifierName: x.name,
+              IdentifierValue: x.value,
+            })),
+            LogicalOperator: c.search!.operator,
+          };
+    return { ProfileRequestData: request, ProfileResponseData: [...(c.response ?? [])] };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [MULTIPLE_FOUND_ERROR, this.config.onMultipleFound],
+      [NONE_FOUND_ERROR, this.config.onNoneFound],
+    ]);
+  }
+}
+
 /**
  * "Associate a contact to a customer profile." `ProfileRequestData` holds
  * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
@@ -2597,7 +2712,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 44.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 45.
  */
 export interface GenericBlockConfig {
   id: string;

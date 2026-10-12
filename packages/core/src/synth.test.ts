@@ -33,6 +33,7 @@ import {
   Flow,
   FlowModule,
   GenericBlock,
+  GetCustomerProfile,
   GetMetricData,
   GetParticipantInput,
   INPUT_MENU_ERRORS,
@@ -1784,6 +1785,30 @@ describe("the Customer Profiles actions", () => {
       description: expected.description,
       layout: expected.layout,
     }).add(
+      new GetCustomerProfile({
+        id: "find-caller",
+        identifier: { name: "_phone", value: "$.CustomerEndpoint.Address" },
+        response: ["FirstName", "LastName", "Attributes.loyaltyTier"],
+        next: "link-contact",
+        onError: "bye",
+        onMultipleFound: "find-by-account",
+        onNoneFound: "create-profile",
+      }),
+      new GetCustomerProfile({
+        id: "find-by-account",
+        search: {
+          criteria: [
+            { name: "_phone", value: "$.CustomerEndpoint.Address" },
+            { name: "_account", value: "$.Attributes.accountNumber" },
+          ],
+          operator: "AND",
+        },
+        response: ["AccountNumber", "FirstName"],
+        next: "link-contact",
+        onError: "bye",
+        onMultipleFound: "bye",
+        onNoneFound: "create-profile",
+      }),
       new CreateCustomerProfile({
         id: "create-profile",
         request: {
@@ -1907,6 +1932,75 @@ describe("the Customer Profiles actions", () => {
       () =>
         new UpdateCustomerProfile({ ...config, request: { ProfileId: "$.Customer.ProfileId" } }),
     ).toThrow(/request names "ProfileId"/);
+  });
+
+  it("write GetCustomerProfile in either form with its three branches in the published flows' order", () => {
+    const wired = { next: "n", onError: "e", onMultipleFound: "m", onNoneFound: "z" };
+    expect(
+      new GetCustomerProfile({
+        id: "g",
+        identifier: { name: "_email", value: "$.Attributes.email" },
+        ...wired,
+      }).toAction(),
+    ).toEqual({
+      Identifier: "g",
+      Type: "GetCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { IdentifierName: "_email", IdentifierValue: "$.Attributes.email" },
+        ProfileResponseData: [],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "MultipleFoundError", NextAction: "m" },
+          { ErrorType: "NoneFoundError", NextAction: "z" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new GetCustomerProfile({
+        id: "g",
+        search: { criteria: [{ name: "_phone", value: "+15550100" }], operator: "OR" },
+        ...wired,
+      }).toAction().Parameters.ProfileRequestData,
+    ).toEqual({
+      SearchCriteria: [{ IdentifierName: "_phone", IdentifierValue: "+15550100" }],
+      LogicalOperator: "OR",
+    });
+  });
+
+  it("refuse both search forms or neither, a search outside one to five criteria, or another operator", () => {
+    const base = { id: "g", next: "n", onError: "e", onMultipleFound: "m", onNoneFound: "z" };
+    const one = { name: "_phone", value: "$.CustomerEndpoint.Address" };
+    expect(() => new GetCustomerProfile(cast<never>(base))).toThrow(
+      /takes an identifier or a search, exactly one/,
+    );
+    expect(
+      () =>
+        new GetCustomerProfile(
+          cast<never>({ ...base, identifier: one, search: { criteria: [one], operator: "AND" } }),
+        ),
+    ).toThrow(/takes an identifier or a search, exactly one/);
+    for (const criteria of [[], [one, one, one, one, one, one]]) {
+      expect(
+        () => new GetCustomerProfile({ ...base, search: { criteria, operator: "AND" } }),
+      ).toThrow(/search takes 1 to 5 criteria/);
+    }
+    expect(
+      () =>
+        new GetCustomerProfile({
+          ...base,
+          search: { criteria: [one], operator: cast<never>("and") },
+        }),
+    ).toThrow(/search operator must be one of AND, OR/);
+    expect(() => new GetCustomerProfile({ ...base, identifier: { name: "", value: "x" } })).toThrow(
+      /identifier name must be a non-empty string/,
+    );
+    expect(
+      () => new GetCustomerProfile({ ...base, identifier: one, response: ["Nickname"] }),
+    ).toThrow(/response names "Nickname"/);
   });
 
   it("refuse an association without a profile or a contact", () => {

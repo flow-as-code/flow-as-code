@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-44 modeled types follow. Any other type (17: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+45 modeled types follow. Any other type (16: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -423,6 +423,7 @@ Block `get_participant_input`. [Action page](https://docs.aws.amazon.com/connect
 - Error branches: `InputTimeLimitExceeded`: StoreInput is "False" or absent, where the service refuses the action without it; with StoreInput "True" it refuses the branch (sandbox, 2026-09-29; the page does not say); `NoMatchingCondition`: StoreInput is "False": the service refused the action without it on 2026-09-29 (sandbox, us-west-2), with or without conditions, which the page does not say; with StoreInput "True" the page forbids it; `InvalidPhoneNumber`: StoreInput is "True" and PhoneNumberValidation is specified; `NoMatchingError` (required).
 - Conditions: Equals on one key each (0 to 9, * or #).
 - Parameters: at most one of `PromptId`, `Text`, `SSML`.
+- Fields of `input_validation`: exactly one of `PhoneNumberValidation`, `CustomValidation`.
 - Shape with `StoreInput` "True": needs `InputValidation`; must not wire `NoMatchingCondition`, `InputTimeLimitExceeded`; takes no conditions.
 - Shape with `StoreInput` not "True": needs `StoreInput`; needs branches `InputTimeLimitExceeded`, `NoMatchingCondition`; must not carry `InputValidation`; must not wire `InvalidPhoneNumber`.
 
@@ -728,6 +729,29 @@ Block `invoke_lambda_function`. [Action page](https://docs.aws.amazon.com/connec
 | `lambda_invocation_attributes`  | `LambdaInvocationAttributes` | map of strings                    | no       |
 | `response_validation`           | `ResponseValidation`         | object                            | no       |
 | .`response_type`                | `ResponseType`               | `"STRING_MAP"`, `"JSON"`          | yes      |
+
+## GetCustomerProfile
+
+Block `get_customer_profile`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `NoMatchingError` (required); `MultipleFoundError`; `NoneFoundError`.
+- Conditions: none.
+- Fields of `profile_request_data`: exactly one of (`IdentifierName` and `IdentifierValue`), (`SearchCriteria` and `LogicalOperator`).
+
+| HCL attribute           | Flow language key     | Value              | Required |
+| ----------------------- | --------------------- | ------------------ | -------- |
+| `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
+| .`identifier_name`      | `IdentifierName`      | string             | no       |
+| .`identifier_value`     | `IdentifierValue`     | string or JSONPath | no       |
+| .`search_criteria`      | `SearchCriteria`      | list               | no       |
+| .`identifier_name`      | `IdentifierName`      | string             | yes      |
+| .`identifier_value`     | `IdentifierValue`     | string or JSONPath | yes      |
+| .`logical_operator`     | `LogicalOperator`     | `"AND"`, `"OR"`    | no       |
+| `profile_response_data` | `ProfileResponseData` | list               | no       |
+
+- `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
 
 ## UpdateCustomerProfile
 

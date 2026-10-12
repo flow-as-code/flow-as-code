@@ -5,7 +5,64 @@ resource "flowascode_contact_flow" "customer_profiles" {
   instance_id = var.connect_instance_id
   name        = "customer-profiles"
   type        = "CONTACT_FLOW"
-  description = "The Customer Profiles actions: a profile created with named and custom attributes, the contact associated with the profile, and a custom attribute and an email address updated."
+  description = "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, and a custom attribute and an email address updated."
+
+  action {
+    id   = "find-caller"
+    next = "link-contact"
+    get_customer_profile {
+      profile_request_data = {
+        identifier_name  = "_phone"
+        identifier_value = "$.CustomerEndpoint.Address"
+      }
+      profile_response_data = ["FirstName", "LastName", "Attributes.loyaltyTier"]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "MultipleFoundError"
+      next = "find-by-account"
+    }
+    error {
+      type = "NoneFoundError"
+      next = "create-profile"
+    }
+  }
+
+  action {
+    id   = "find-by-account"
+    next = "link-contact"
+    get_customer_profile {
+      profile_request_data = {
+        logical_operator = "AND"
+        search_criteria = [
+          {
+            identifier_name  = "_phone"
+            identifier_value = "$.CustomerEndpoint.Address"
+          },
+          {
+            identifier_name  = "_account"
+            identifier_value = "$.Attributes.accountNumber"
+          },
+        ]
+      }
+      profile_response_data = ["AccountNumber", "FirstName"]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "MultipleFoundError"
+      next = "bye"
+    }
+    error {
+      type = "NoneFoundError"
+      next = "create-profile"
+    }
+  }
 
   action {
     id   = "create-profile"

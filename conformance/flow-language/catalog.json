@@ -3050,7 +3050,173 @@
     "GetCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "get_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "IdentifierName",
+              "attr": "identifier_name",
+              "kind": "string",
+              "required": false
+            },
+            {
+              "key": "IdentifierValue",
+              "attr": "identifier_value",
+              "kind": "stringOrJsonPath",
+              "required": false
+            },
+            {
+              "key": "SearchCriteria",
+              "attr": "search_criteria",
+              "kind": "list",
+              "required": false,
+              "of": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "IdentifierName",
+                    "attr": "identifier_name",
+                    "kind": "string",
+                    "required": true
+                  },
+                  {
+                    "key": "IdentifierValue",
+                    "attr": "identifier_value",
+                    "kind": "stringOrJsonPath",
+                    "required": true
+                  }
+                ]
+              },
+              "min": 1,
+              "max": 5
+            },
+            {
+              "key": "LogicalOperator",
+              "attr": "logical_operator",
+              "kind": "enum",
+              "required": false,
+              "values": [
+                "AND",
+                "OR"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "rule": "exactlyOne",
+              "groups": [
+                [
+                  "IdentifierName",
+                  "IdentifierValue"
+                ],
+                [
+                  "SearchCriteria",
+                  "LogicalOperator"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "FirstName",
+            "MiddleName",
+            "LastName",
+            "PhoneNumber",
+            "EmailAddress",
+            "AccountNumber",
+            "AdditionalInformation",
+            "PartyType",
+            "BusinessName",
+            "BirthDate",
+            "Gender",
+            "MobilePhoneNumber",
+            "HomePhoneNumber",
+            "BusinessPhoneNumber",
+            "BusinessEmailAddress",
+            "Address1",
+            "Address2",
+            "Address3",
+            "Address4",
+            "City",
+            "County",
+            "Country",
+            "PostalCode",
+            "Province",
+            "State",
+            "ShippingAddress1",
+            "ShippingAddress2",
+            "ShippingAddress3",
+            "ShippingAddress4",
+            "ShippingCity",
+            "ShippingCounty",
+            "ShippingCountry",
+            "ShippingPostalCode",
+            "ShippingProvince",
+            "ShippingState",
+            "MailingAddress1",
+            "MailingAddress2",
+            "MailingAddress3",
+            "MailingAddress4",
+            "MailingCity",
+            "MailingCounty",
+            "MailingCountry",
+            "MailingPostalCode",
+            "MailingProvince",
+            "MailingState",
+            "BillingAddress1",
+            "BillingAddress2",
+            "BillingAddress3",
+            "BillingAddress4",
+            "BillingCity",
+            "BillingCounty",
+            "BillingCountry",
+            "BillingPostalCode",
+            "BillingProvince",
+            "BillingState"
+          ],
+          "keyPatterns": [
+            "^Attributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "MultipleFoundError",
+            "required": false,
+            "builder": true
+          },
+          {
+            "type": "NoneFoundError",
+            "required": false,
+            "builder": true
+          }
+        ]
+      }
     },
     "GetCustomerProfileObject": {
       "category": "interaction",

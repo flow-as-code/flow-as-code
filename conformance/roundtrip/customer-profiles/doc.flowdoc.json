@@ -2,12 +2,86 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "customer-profiles",
-  "description": "The Customer Profiles actions: a profile created with named and custom attributes, the contact associated with the profile, and a custom attribute and an email address updated.",
+  "description": "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, and a custom attribute and an email address updated.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "create-profile",
+    "StartAction": "find-caller",
     "Actions": [
+      {
+        "Identifier": "find-caller",
+        "Type": "GetCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "IdentifierName": "_phone",
+            "IdentifierValue": "$.CustomerEndpoint.Address"
+          },
+          "ProfileResponseData": [
+            "FirstName",
+            "LastName",
+            "Attributes.loyaltyTier"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "link-contact",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "MultipleFoundError",
+              "NextAction": "find-by-account"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "create-profile"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "find-by-account",
+        "Type": "GetCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "LogicalOperator": "AND",
+            "SearchCriteria": [
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.CustomerEndpoint.Address"
+              },
+              {
+                "IdentifierName": "_account",
+                "IdentifierValue": "$.Attributes.accountNumber"
+              }
+            ]
+          },
+          "ProfileResponseData": [
+            "AccountNumber",
+            "FirstName"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "link-contact",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "MultipleFoundError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "create-profile"
+            }
+          ],
+          "Conditions": []
+        }
+      },
       {
         "Identifier": "create-profile",
         "Type": "CreateCustomerProfile",
@@ -87,19 +161,27 @@
   },
   "layout": {
     "bye": {
-      "x": 800,
+      "x": 1320,
       "y": 20
     },
     "create-profile": {
+      "x": 540,
+      "y": 20
+    },
+    "find-by-account": {
+      "x": 280,
+      "y": 20
+    },
+    "find-caller": {
       "x": 20,
       "y": 20
     },
     "link-contact": {
-      "x": 280,
+      "x": 800,
       "y": 20
     },
     "update-profile": {
-      "x": 540,
+      "x": 1060,
       "y": 20
     }
   },
