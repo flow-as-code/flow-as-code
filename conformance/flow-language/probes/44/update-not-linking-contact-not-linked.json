@@ -1,0 +1,41 @@
+{
+  "description": "Rule 44: UpdateCase not linking with ContactNotLinked wired anyway.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "status": "open"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

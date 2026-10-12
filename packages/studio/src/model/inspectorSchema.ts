@@ -746,6 +746,15 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           ...CASE_FIELD_NAMES,
         },
       ];
+    case ActionType.UpdateCase:
+      // "Case Id is the unique identifier of the case and the only field
+      // you can provide here"; the fields to update as CreateCase's.
+      // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+      return [
+        caseLinkField(),
+        { kind: "text", key: "CaseId", label: "Case ID (or JSONPath)" },
+        caseRequestField("Fields to update"),
+      ];
     case ActionType.CreateCustomerProfile:
     case ActionType.UpdateCustomerProfile:
       // The request fields are chosen from the page's list, and a custom

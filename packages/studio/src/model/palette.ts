@@ -42,6 +42,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.CreateTask]: "Integrate",
   [ActionType.CreateCase]: "Integrate",
   [ActionType.GetCase]: "Integrate",
+  [ActionType.UpdateCase]: "Integrate",
   [ActionType.CreateWisdomSession]: "Integrate",
   [ActionType.AssociateContactToCustomerProfile]: "Integrate",
   [ActionType.CreateCustomerProfile]: "Integrate",
@@ -125,6 +126,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.CreateTask]: "create-task",
   [ActionType.CreateCase]: "create-case",
   [ActionType.GetCase]: "get-case",
+  [ActionType.UpdateCase]: "update-case",
   [ActionType.CreateWisdomSession]: "connect-assistant",
   [ActionType.AssociateContactToCustomerProfile]: "associate-profile",
   [ActionType.CreateCustomerProfile]: "create-profile",
@@ -254,6 +256,16 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
         GetLastUpdatedCase: "true",
         CaseRequestFields: { customer_id: "$.Customer.ProfileARN" },
         CaseResponseFields: ["case_id", "status", "summary"],
+      };
+    case ActionType.UpdateCase:
+      // The case a preceding Get case stored ("Add a Get case block before
+      // an Update case"), and one field to update ("You must provide an
+      // update to at least one Request field").
+      // https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+      return {
+        LinkContactToCase: "false",
+        CaseId: "$.Case.case_id",
+        CaseRequestFields: { status: "open" },
       };
     case ActionType.CreateWisdomSession:
       // A JSONPath placeholder until the inspector's picker names an

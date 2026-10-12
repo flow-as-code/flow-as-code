@@ -210,6 +210,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "ResumeContact",
       "TagContact",
       "UntagContact",
+      "UpdateCase",
       "UpdateContactAttributes",
       "UpdateContactData",
       "UpdateContactEventHooks",

@@ -573,6 +573,12 @@ describe("FlowDoc schema rejections: cases", () => {
       }),
     ],
     [
+      "an update field key token of another type",
+      mutate("update-case", (a) => {
+        a.Parameters.CaseRequestFields = { "${cdref:casetemplate:billing-dispute}": "x" };
+      }),
+    ],
+    [
       "response fields that are not a list",
       mutate("find-case", (a) => {
         a.Parameters.CaseResponseFields = "case_id";

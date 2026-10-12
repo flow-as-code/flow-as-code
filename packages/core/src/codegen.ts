@@ -125,6 +125,7 @@ import {
   UntagContact,
   TransferContactToQueue,
   TransferToFlow,
+  UpdateCase,
   UpdateContactAttributes,
   UpdateContactCallbackNumber,
   UpdateContactData,
@@ -2755,6 +2756,47 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         onError: rest[2]!.NextAction,
         onMultipleFound: rest[0]!.NextAction,
         onNoneFound: rest[1]!.NextAction,
+      }),
+    };
+  },
+
+  // The case id, static or JSONPath, the fields as CreateCase's, the link,
+  // and the catch-all last.
+  [ActionType.UpdateCase]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["LinkContactToCase", "CaseId"], ["ContactToLink", "CaseRequestFields"])) {
+      return undefined;
+    }
+    if (typeof p.CaseId !== "string") return undefined;
+    const linked = invertCaseLink(p, t.Errors ?? []);
+    if (linked === undefined) return undefined;
+    const [catchAll, ...extra] = linked.rest;
+    if (catchAll?.ErrorType !== NO_MATCHING_ERROR || extra.length !== 0) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["caseId", p.CaseId],
+    ];
+    if (p.CaseRequestFields !== undefined) {
+      const fields = caseFieldsV(p.CaseRequestFields, ctx);
+      if (fields === undefined) return undefined;
+      entries.push(["fields", fields]);
+    }
+    if (linked.source !== undefined) entries.push(["link", linked.source]);
+    entries.push(["next", t.NextAction], ["onError", catchAll.NextAction]);
+    return {
+      cls: "UpdateCase",
+      entries,
+      block: new UpdateCase({
+        id: a.Identifier,
+        caseId: p.CaseId,
+        ...(p.CaseRequestFields === undefined
+          ? {}
+          : { fields: p.CaseRequestFields as Record<string, string> }),
+        ...(linked.link === undefined ? {} : { link: linked.link }),
+        next: t.NextAction,
+        onError: catchAll.NextAction,
       }),
     };
   },

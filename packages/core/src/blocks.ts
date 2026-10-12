@@ -2869,6 +2869,52 @@ export class GetCase extends Block {
   }
 }
 
+/**
+ * "Updates an existing case by providing the case's id and the fields that
+ * should be updated." `caseId` is `CaseId`, "the unique identifier of the
+ * case", static or a JSONPath (the published flows read `$.Case.case_id`,
+ * which a preceding Get case stores, or an attribute); the admin guide:
+ * "Case Id is the unique identifier of the case and the only field you can
+ * provide here." `fields` is `CaseRequestFields`, "An optional map of case
+ * fields to be updated", keyed as CreateCase's; the admin guide: "You must
+ * provide an update to at least one Request field. Otherwise, this block
+ * takes the Error branch." Results "None."; errors ContactNotLinked (when
+ * linking) and the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+ */
+export interface UpdateCaseConfig extends Wired {
+  caseId: string;
+  fields?: Readonly<Record<string, string>>;
+  link?: CaseLink;
+}
+
+export class UpdateCase extends Block {
+  readonly type = ActionType.UpdateCase;
+
+  constructor(private readonly config: UpdateCaseConfig) {
+    super(config.id);
+    const where = `UpdateCase "${config.id}"`;
+    requireText(where, "caseId", config.caseId);
+    if (config.fields !== undefined) requireCaseFields(where, config.fields);
+    requireCaseLink(where, config.link);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    return {
+      ...caseLinkParameters(c.link),
+      CaseId: c.caseId,
+      ...(c.fields === undefined ? {} : { CaseRequestFields: { ...c.fields } }),
+    };
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    return wire(c.next, [...caseLinkErrors(c.link), [NO_MATCHING_ERROR, c.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -3067,7 +3113,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 49.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 50.
  */
 export interface GenericBlockConfig {
   id: string;

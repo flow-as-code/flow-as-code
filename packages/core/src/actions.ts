@@ -64,6 +64,7 @@ export const ActionType = {
   GetCalculatedAttributesForCustomerProfile: "GetCalculatedAttributesForCustomerProfile",
   CreateCase: "CreateCase",
   GetCase: "GetCase",
+  UpdateCase: "UpdateCase",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -118,6 +119,8 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
     "CaseRequestFields.*~": "casefield",
     "CaseResponseFields[]": "casefield",
   },
+  // The keys of the fields to update, as CreateCase's.
+  [ActionType.UpdateCase]: { "CaseRequestFields.*~": "casefield" },
 };
 
 /**
@@ -421,6 +424,9 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
     CASE_NONE_FOUND,
     NO_MATCHING_ERROR,
   ],
+  // As CreateCase's: the order of every published flow (rule 44).
+  // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+  [ActionType.UpdateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
 };
 
 /**
@@ -802,6 +808,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.CreateCase,
   // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
   ActionType.GetCase,
+  // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+  ActionType.UpdateCase,
 ];
 
 /**

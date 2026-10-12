@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-49 modeled types follow. Any other type (12: `CompleteOutboundCall`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+50 modeled types follow. Any other type (11: `CompleteOutboundCall`, `StartOutboundChatContact`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -198,6 +198,24 @@ Block `untag_contact`. [Action page](https://docs.aws.amazon.com/connect/latest/
 | HCL attribute | Flow language key | Value | Required |
 | ------------- | ----------------- | ----- | -------- |
 | `tag_keys`    | `TagKeys`         | list  | yes      |
+
+## UpdateCase
+
+Block `update_case`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute          | Flow language key   | Value                    | Required |
+| ---------------------- | ------------------- | ------------------------ | -------- |
+| `link_contact_to_case` | `LinkContactToCase` | `"true"`, `"false"`      | yes      |
+| `contact_to_link`      | `ContactToLink`     | `"Current"`, `"Related"` | no       |
+| `case_id`              | `CaseId`            | string or JSONPath       | yes      |
+| `case_request_fields`  | `CaseRequestFields` | map of strings           | no       |
+
+- `case_request_fields` keys: `assigned_queue`, `assigned_user`, `case_id`, `case_reason`, `created_by`, `customer_id`, `last_closed_datetime`, `created_datetime`, `last_updated_datetime`, `last_updated_user`, `reference_number`, `reference_id`, `status`, `summary`, `title`, or a reference key (`casefield:<name>`).
 
 ## UpdateContactAttributes
 

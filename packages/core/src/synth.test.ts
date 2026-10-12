@@ -62,6 +62,7 @@ import {
   TagContact,
   TransferContactToAgent,
   UntagContact,
+  UpdateCase,
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
@@ -2171,8 +2172,8 @@ describe("the Cases actions", () => {
         lastUpdated: false,
         fields: { customer_id: "$.Customer.ProfileARN", status: "open" },
         response: ["case_id", "status", Refs.casefield("priority")],
-        link: { onContactNotLinked: "bye" },
-        next: "bye",
+        link: { onContactNotLinked: "update-case" },
+        next: "update-case",
         onError: "bye",
         onMultipleFound: "find-latest",
         onNoneFound: "open-case",
@@ -2182,10 +2183,21 @@ describe("the Cases actions", () => {
         lastUpdated: true,
         customerId: "$.Customer.ProfileARN",
         response: ["case_id"],
-        next: "bye",
+        next: "update-case",
         onError: "bye",
         onMultipleFound: "bye",
         onNoneFound: "open-case",
+      }),
+      new UpdateCase({
+        id: "update-case",
+        caseId: "$.Case.case_id",
+        fields: {
+          [Refs.casefield("priority")]: "high",
+          summary: "Called again: $.Attributes.reason",
+        },
+        link: { onContactNotLinked: "bye", contact: "Current" },
+        next: "bye",
+        onError: "bye",
       }),
       new CreateCase({
         id: "open-case",
@@ -2347,5 +2359,54 @@ describe("GetCase", () => {
     expect(() => new GetCase({ ...base, onNoneFound: cast<string>(undefined) })).toThrow(
       /needs onMultipleFound and onNoneFound/,
     );
+  });
+});
+
+describe("UpdateCase", () => {
+  it("writes the case id and fields, linking or not", () => {
+    expect(
+      new UpdateCase({
+        id: "u",
+        caseId: "$.Case.case_id",
+        fields: { status: "closed" },
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "u",
+      Type: "UpdateCase",
+      Parameters: {
+        LinkContactToCase: "false",
+        CaseId: "$.Case.case_id",
+        CaseRequestFields: { status: "closed" },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    expect(
+      new UpdateCase({
+        id: "u",
+        caseId: "$.Attributes.caseId",
+        link: { onContactNotLinked: "l" },
+        next: "n",
+        onError: "e",
+      }).toAction().Transitions.Errors,
+    ).toEqual([
+      { ErrorType: "ContactNotLinked", NextAction: "l" },
+      { ErrorType: "NoMatchingError", NextAction: "e" },
+    ]);
+  });
+
+  it("refuses an update without a case id or with a literal domain field id", () => {
+    const base = { id: "u", caseId: "$.Case.case_id", next: "n", onError: "e" };
+    expect(() => new UpdateCase({ ...base, caseId: "" })).toThrow(
+      /caseId must be a non-empty string or JSONPath/,
+    );
+    expect(
+      () => new UpdateCase({ ...base, fields: { "12345678-aaaa-bbbb-cccc-123456789012": "x" } }),
+    ).toThrow(/neither a Cases system field id nor a casefield reference/);
   });
 });

@@ -3254,6 +3254,32 @@ describe("the Cases actions invert their link, template and field ids", () => {
     });
   });
 
+  describe("UpdateCase", () => {
+    const update = (parameters: Record<string, unknown>, errors = linked) =>
+      action("UpdateCase", parameters, errors);
+    const base = { LinkContactToCase: "true", CaseId: "$.Case.case_id" };
+
+    it("emits the case id, the fields with computed reference keys, and the link", () => {
+      const out = typed(
+        update({ ...base, CaseRequestFields: { "${cdref:casefield:priority}": "high" } }),
+      );
+      expect(out).toContain('caseId: "$.Case.case_id"');
+      expect(out).toContain('[Refs.casefield("priority")]: "high"');
+      expect(out).toContain('link: { onContactNotLinked: "bye" }');
+      typed(update({ ...base, LinkContactToCase: "false", CaseId: "case-1" }, ["NoMatchingError"]));
+    });
+
+    it("falls back on a missing or non-string case id, a literal field id, or a link out of shape", () => {
+      generic(update({ LinkContactToCase: "true" }));
+      generic(update({ ...base, CaseId: 1 }));
+      generic(
+        update({ ...base, CaseRequestFields: { "12345678-aaaa-bbbb-cccc-123456789012": "x" } }),
+      );
+      generic(update(base, ["NoMatchingError"]));
+      generic(update({ ...base, CaseTemplateId: "${cdref:casetemplate:billing-dispute}" }));
+    });
+  });
+
   describe("CreateCase", () => {
     const create = (parameters: Record<string, unknown>, errors = linked) =>
       action("CreateCase", parameters, errors);

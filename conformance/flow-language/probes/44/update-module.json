@@ -1,0 +1,38 @@
+{
+  "description": "Rule 44: UpdateCase in a flow module; the page: \"can be used in any type of flow\".",
+  "type": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "status": "open"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

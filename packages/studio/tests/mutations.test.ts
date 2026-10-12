@@ -147,6 +147,7 @@ describe("addBlock", () => {
       "CreateTask",
       "CreateCase",
       "GetCase",
+      "UpdateCase",
       "CreateWisdomSession",
       "AssociateContactToCustomerProfile",
       "CreateCustomerProfile",
@@ -333,6 +334,11 @@ describe("setCaseLink (tasks/D06)", () => {
   it("wires ContactNotLinked first, aimed at the catch-all, when linking is switched on", () => {
     const doc = casesDoc();
     expect(demotedIds(doc).size).toBe(0);
+    expect(getAction(setCaseLink(doc, "update-case", "none"), "update-case")!.Transitions).toEqual({
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    });
     const linked = setCaseLink(doc, "log-case", "Related");
     const action = getAction(linked, "log-case")!;
     expect(action.Parameters.LinkContactToCase).toBe("true");

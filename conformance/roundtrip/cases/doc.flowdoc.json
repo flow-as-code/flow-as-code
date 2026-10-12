@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "cases",
-  "description": "The Cases actions: the caller's open cases searched by customer and status, linking the contact and storing three fields, the last updated case read by customer id when several match, and when none does a case opened from a template with a domain field by reference and three system fields, linking the current contact, then a call log case opened without linking.",
+  "description": "The Cases actions: the caller's open cases searched by customer and status, linking the contact and storing three fields, the last updated case read by customer id when several match, the case found updated with a domain field by reference and its summary, linking the current contact, and when none is found a case opened from a template with a domain field by reference and three system fields, linking the current contact, then a call log case opened without linking.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -25,11 +25,11 @@
           "LinkContactToCase": "true"
         },
         "Transitions": {
-          "NextAction": "bye",
+          "NextAction": "update-case",
           "Errors": [
             {
               "ErrorType": "ContactNotLinked",
-              "NextAction": "bye"
+              "NextAction": "update-case"
             },
             {
               "ErrorType": "MultipleFound",
@@ -59,7 +59,7 @@
           "LinkContactToCase": "false"
         },
         "Transitions": {
-          "NextAction": "bye",
+          "NextAction": "update-case",
           "Errors": [
             {
               "ErrorType": "MultipleFound",
@@ -68,6 +68,33 @@
             {
               "ErrorType": "NoneFound",
               "NextAction": "open-case"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "update-case",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "${cdref:casefield:priority}": "high",
+            "summary": "Called again: $.Attributes.reason"
+          },
+          "ContactToLink": "Current",
+          "LinkContactToCase": "true"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "bye"
             },
             {
               "ErrorType": "NoMatchingError",
@@ -154,6 +181,10 @@
       "y": 20
     },
     "open-case": {
+      "x": 540,
+      "y": 120
+    },
+    "update-case": {
       "x": 540,
       "y": 20
     }

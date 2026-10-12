@@ -106,6 +106,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Customer profiles (Get calculated attributes) | `GetCalculatedAttributesForCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html) |
 | Cases (Create case) | `CreateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createcase.html) |
 | Cases (Get case) | `GetCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/getcase.html) |
+| Cases (Update case) | `UpdateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html) |
 
 ## Reference-bearing parameters
 
@@ -135,6 +136,7 @@ is never interpolated into a longer string.
 | `CreateCase` | `CaseRequestFields.*~` (every key) | `casefield` (a system field id stays literal; docs/adr/0008) |
 | `GetCase` | `CaseRequestFields.*~` (every key) | `casefield` (as `CreateCase`'s) |
 | `GetCase` | `CaseResponseFields[]` (every item) | `casefield` (a system field id stays literal) |
+| `UpdateCase` | `CaseRequestFields.*~` (every key) | `casefield` (as `CreateCase`'s) |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -1869,6 +1871,33 @@ is read rather than when the type is modeled.
       (the Customer Profiles spellings), and `get-module` and
       `get-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+    - `UpdateCase` "Updates an existing case by providing the case's id and
+      the fields that should be updated." `LinkContactToCase`, `"CaseId":
+      the unique identifier of the case` and `"CaseRequestFields": An
+      optional map of case fields to be updated`; Results "None."; errors
+      `ContactNotLinked` and the catch-all, as `CreateCase`'s. The admin
+      guide's block: "Add a Get case block before an Update case", "Case Id
+      is the unique identifier of the case and the only field you can
+      provide here. Other fields will not work and produce errors.", "You
+      must provide an update to at least one Request field. Otherwise, this
+      block takes the Error branch.", and the branches Success, Contact not
+      linked and Error. The flows above hold four blocks of the type, each
+      linking, with `CaseId` read from `$.Case.case_id` or an attribute and
+      system fields to update (`status`, `summary`, `assigned_user`,
+      `case_reason`), each wiring `ContactNotLinked` and the catch-all in
+      that order. The catalog records `LinkContactToCase` and
+      `ContactToLink` as `CreateCase`'s, `CaseId` as a required
+      `stringOrJsonPath`, and `CaseRequestFields` as `CreateCase`'s, its
+      keys a `casefield` reference path; the transitions are `CreateCase`'s
+      (`fail-update-case-linking-without-contact-not-linked`). Planned
+      probes: `update-required` and `update-linking` (expected accepted),
+      `update-linking-no-contact-not-linked` and
+      `update-not-linking-contact-not-linked`, `update-no-catch-all` and
+      `update-no-next` (each a removal alone), `update-no-case-id`,
+      `update-no-fields`, `update-domain-fields` and `update-missing-field`,
+      `update-contact-to-link`, and `update-module` and
+      `update-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
 
 ## Per-action parameter shapes
 
@@ -1974,6 +2003,8 @@ GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase
                            CustomerId?,   // static or a JSONPath
                            CaseRequestFields?: { [system field id | casefield]: string },   // the search
                            CaseResponseFields?: (system field id | casefield)[] }   // at most 10, stored under $.Case
+UpdateCase               { LinkContactToCase, ContactToLink?, CaseId,   // static or a JSONPath ($.Case.case_id)
+                           CaseRequestFields?: { [system field id | casefield]: string } }
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2143,7 +2174,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-49 of the 61. Everything not in the modeled set above parses to a
+50 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -2169,14 +2200,19 @@ in `UpdateCase`'s `CaseRequestFields` (D06's table: `LinkContactToCase`
 `"false"`, `CaseId` a JSONPath, and the system field id `summary`, a key the
 Cases system defines on every domain and AWS's published flows write
 literally, so the document needs no `casefield` token); D06 models that
-type and re-authors the fixture again.
+type and re-authors the fixture again. On 2026-10-12, when D06 modeled
+`UpdateCase`, the queue token moved to the `Value` of an attribute
+condition in `UpdateRoutingCriteria`'s first routing step (D07's page
+shape, with the condition's `Name` and `Value`, the two string keys, and
+neither the float `ProficiencyLevel` nor `Expiry`, whose stored forms are
+unrecorded); D07 models that type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 49      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 50      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 49      |                                                             |
+| Denominator             | 61    | 50      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

@@ -657,6 +657,7 @@ describe("the Cases system field ids", () => {
     ["CreateCase", "CaseRequestFields"],
     ["GetCase", "CaseRequestFields"],
     ["GetCase", "CaseResponseFields"],
+    ["UpdateCase", "CaseRequestFields"],
   ])("agree for %s.%s", (type, key) => {
     expect(named(type, key)).toEqual({ keys: [...CASE_SYSTEM_FIELDS], keyPatterns: undefined });
   });

@@ -191,7 +191,9 @@ and a predefined and a custom calculated attribute read); and a flow of
 the Cases actions (`cases`: the caller's open cases searched by system
 fields, linking the contact and storing a domain field by `casefield`
 reference beside two system fields, the last updated case read by customer
-id when several match, and when none does a case opened from a template
+id when several match, the case found updated with a domain field by
+reference and its summary, linking the current contact, and when none is
+found a case opened from a template
 reference with a domain field by reference and three system fields,
 linking the current contact, then a call log case opened without
 linking).

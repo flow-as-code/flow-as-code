@@ -1,0 +1,36 @@
+{
+  "description": "Rule 44: UpdateCase without NextAction, a removal alone; the catalog requires it.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "status": "open"
+          }
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

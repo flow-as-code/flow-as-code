@@ -13,7 +13,7 @@ resource "flowascode_contact_flow" "unknown_actions" {
 
   action {
     id   = "text-back"
-    next = "remember-queue"
+    next = "route-to-queue"
     generic {
       type = "StartOutboundChatContact"
       parameters = jsonencode({
@@ -36,16 +36,23 @@ resource "flowascode_contact_flow" "unknown_actions" {
   }
 
   action {
-    id   = "remember-queue"
+    id   = "route-to-queue"
     next = "load-content"
     generic {
-      type = "UpdateCase"
+      type = "UpdateRoutingCriteria"
       parameters = jsonencode({
-        CaseId = "$.Case.CaseId"
-        CaseRequestFields = {
-          summary = "$${cdref:queue:support}"
+        RoutingCriteria = {
+          Steps = [
+            {
+              Expression = {
+                AttributeCondition = {
+                  Name  = "preferredQueue"
+                  Value = "$${cdref:queue:support}"
+                }
+              }
+            },
+          ]
         }
-        LinkContactToCase = "false"
       })
     }
     error {

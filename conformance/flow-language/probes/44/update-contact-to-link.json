@@ -1,0 +1,42 @@
+{
+  "description": "Rule 44: UpdateCase linking the current contact with ContactToLink \"Current\".",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "LinkContactToCase": "true",
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "status": "open"
+          },
+          "ContactToLink": "Current"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}
