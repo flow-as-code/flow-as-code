@@ -1313,6 +1313,7 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       `processing-unassociated-lambda` (a function the instance has not
       associated, to learn whether the create checks the association),
       `processing-disabled`, `processing-enabled-without-lambda`,
+      `processing-lowercase-flag` (a spelling outside the enum),
       `processing-module` and `processing-customer-hold`. They need a
       Lambda function associated as `MESSAGE_PROCESSOR` and one that is
       not.
