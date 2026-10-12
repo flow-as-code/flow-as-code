@@ -1,0 +1,31 @@
+{
+  "description": "Rule 47: CheckSegmentMembership (the Customer profiles block's Check segment membership) in an inbound flow with Parameters empty, on an instance with a Customer Profiles domain (rule 40's run had none and was refused as \"Invalid Action type\"). A refusal naming a required parameter shows the Type exists and names its first key.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CheckSegmentMembership",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

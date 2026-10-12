@@ -18,11 +18,27 @@ service's.
   claimed number and no outbound calling allowance is needed. The one
   static number, in `third-static-number`, is `+15555550100`, in the range
   reserved for fiction.
+- `route-keys`: a customer queue flow; nothing else is known to be needed.
+  The Interrupt agent page names no prerequisite. Run it on the sandbox
+  (us-west-2), not the us-east-1 development instance rule 40 used.
+- `segment-keys` and `authenticate-nested-keys`: a Customer Profiles domain
+  on the instance (tasks/D03's, owner decision 7). The Authenticate
+  Customer page also asks for the customer authentication capability and a
+  Cognito user pool; a create may not check either, and a refusal naming
+  one is recorded as such.
+- `dtmf-buffer-*`: nothing, except `dtmf-buffer-stop-store-encrypted`,
+  which needs an encryption key id and a key the instance accepts for
+  `InputEncryption`, as the Store customer input block's encryption does.
 
 ## Placeholders
 
 The run fills `{{ACCOUNT}}`, `{{REGION}}` and `{{INSTANCE}}` as the README
-says. No probe here needs any other.
+says. Only `dtmf-buffer-stop-store-encrypted` needs more:
+
+| Placeholder             | Filled from                | What it names                                       |
+| ----------------------- | -------------------------- | --------------------------------------------------- |
+| `{{ENCRYPTION_KEY_ID}}` | `PROBE_ENCRYPTION_KEY_ID`  | the key id the instance's input encryption uses     |
+| `{{ENCRYPTION_KEY}}`    | `PROBE_ENCRYPTION_KEY`     | the public key (certificate) that encrypts the input |
 
 ## Reading results that depend on another
 
@@ -53,6 +69,16 @@ says. No probe here needs any other.
   the service's; `third-time-limit-zero`, `third-time-limit-600` and
   `third-time-limit-jsonpath` look for a bound and a dynamic form the
   export does not show.
+
+- `route-keys`, `segment-keys` and `authenticate-nested-keys` model
+  nothing. Each is expected to be refused, and what matters is the
+  message: a refusal naming a parameter shows the Type exists on that
+  instance and names a key, which rule 47 records; the types stay generic
+  until a console export shows their shapes (owner decision 8).
+- `dtmf-buffer-enable` is the control for the other buffer probes. If it
+  is refused naming `InputTimeLimitSeconds` or `StoreInput`, the buffer
+  form shares the menu form's requirements, and the catalog's shapes need
+  no new form for it.
 
 When the set has run, its `results.json` replaces this file, rule 47 records
 what the service said, and the catalog changes only where a result says so.

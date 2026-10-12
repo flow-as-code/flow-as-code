@@ -2468,6 +2468,79 @@ is read rather than when the type is modeled.
       `third-customer-hold` (forbidden). The type has no optional
       container.
       https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+    - Not modeled, with what would settle each (owner decision 8 for the
+      exports; none was obtainable by 2026-10-12, and the sandbox's 20
+      default and sample flows carry none of these, rule 40):
+      - `RouteContactToAgent` (Interrupt agent): blocked on evidence. The
+        page (read again 2026-10-12) names the Type, the customer queue
+        flow alone ("If this block is used inside a Flow module that is
+        invoked from a flow type other than Customer queue flow, the block
+        takes the **Error** branch"), every channel, the Success and Error
+        branches and an agent "from the instance-level user list" or "as a
+        contact attribute" (User ARN, User ID or Username), with no
+        parameter key and no prerequisite feature. The service refused the
+        Type by name on 2026-10-05 ("Invalid Action type", rule 40) on an
+        instance in us-east-1. A type the service refused as unknown is not
+        modeled on page evidence alone. `route-keys` puts the same probe to
+        the sandbox in us-west-2: a refusal naming a parameter shows the
+        Type exists there and names its key; another "Invalid Action type"
+        leaves the spelling or a Region rollout as the question, which a
+        console export of the block settles. The agent would need a `user`
+        ref type, which FlowDoc 0.3 does not carry, so even with an export
+        the type waits for a format bump planned in tasks/D09 or stays
+        generic with the reason recorded.
+      - `CheckSegmentMembership` (Customer profiles, Check segment
+        membership): blocked on evidence. Refused as "Invalid Action type"
+        on 2026-10-05 on an instance with no Customer Profiles domain (rule
+        40). The page names a segment ("SegmentDefinitionName in the
+        ListSegmentDefinitions operation") and a required profile id, each
+        set manually or dynamically, and the branches In segment, Not in
+        segment and Error, with no key. `segment-keys` repeats the probe on
+        an instance with a domain. A static segment would need a `segment`
+        ref type, which 0.3 does not carry.
+        https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+      - `AuthenticateParticipant` (Authenticate Customer): blocked on an
+        export. The service named three required keys
+        (`CognitoConfiguration`, `CustomerProfilesConfiguration`,
+        `TimeLimitMinutes`), a required `TimeLimitExceeded` branch and a
+        `Conditions` shape the empty list did not meet (rule 40), but no
+        page or export shows what the two objects hold or what the
+        conditions are, so a model would be invented.
+        `authenticate-nested-keys` sends the three keys with empty objects
+        so the refusal names the nested keys; the shapes still need an
+        export.
+      - The console-only blocks (Agentic CX, External Tool, Data Table,
+        Create persistent contact association, Get profile
+        recommendations): no Type is known, and none is invented. Each
+        waits for the owner's export (owner decision 8) and is listed in
+        the table under "Unmodeled actions"; tasks/D10 names them in the
+        release notes.
+    - The Set Touchtone Buffer Behavior form of `GetParticipantInput`
+      (`EnableDTMFBuffer`, tasks/D09's last type bullet) is not typed yet.
+      The page (read again 2026-10-12) writes the Enable form as
+      `"EnableDTMFBuffer": "true"` alone, with no `InputTimeLimitSeconds`
+      and no `StoreInput`, both of which the catalog requires of every
+      `GetParticipantInput` (the second by a shape the service set on
+      2026-09-29). Typing it means a catalog shape conditioned on a key
+      being present, a form the vocabulary does not have, and its port to
+      the provider's lint, so it waits for the sweep to say which
+      requirements the buffer form is exempt from. The page's
+      `InputEncryption` (`EncryptionKeyId`, `Key`) matches what the catalog
+      records; nothing was re-added. Planned probes: `dtmf-buffer-enable`
+      (the page's form; the control), `dtmf-buffer-enable-capitalised`
+      (`"True"` against the page's `"true"`), `dtmf-buffer-stop`,
+      `dtmf-buffer-stop-store` and `dtmf-buffer-stop-store-encrypted` (the
+      Stop and Clear forms, the last the page's example), and
+      `dtmf-buffer-outbound-whisper` and `dtmf-buffer-module` (a flow type
+      the page lists and the catalog's `GetParticipantInput` does not, and
+      a module). A document carrying the form round-trips as a generic
+      block meanwhile, and `conditional-shape` reports the page's own
+      Enable example three times (it "needs StoreInput", and without
+      `StoreInput` `"True"` its `InputTimeLimitExceeded` and
+      `NoMatchingCondition` branches; checked 2026-10-12), so such a
+      document disables that rule until the sweep says whether the service
+      agrees.
+      https://docs.aws.amazon.com/connect/latest/adminguide/set-touchtone-buffer-behavior.html
 
 ## Per-action parameter shapes
 
@@ -2885,4 +2958,5 @@ console-only forms (rule 37's refused `Events` shape); and the Set
 Touchtone Buffer Behavior form of `GetParticipantInput`, which the admin
 guide writes with `EnableDTMFBuffer` (with `StoreInput` and
 `InputEncryption` for Stop and Clear), a parameter the catalog does not
-record. D09 types that form after C04 (rule 40 quotes the page).
+record. D09 left that form untyped pending rule 47's buffer probes (rule
+40 quotes the page; rule 47 says why).
