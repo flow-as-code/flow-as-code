@@ -56,6 +56,7 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactMediaStreamingBehavior,
   UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
@@ -1465,6 +1466,27 @@ describe("the contact-state actions", () => {
       new UpdatePreviousContactParticipantState({
         id: "conference",
         state: "OffHold",
+        next: "start-stream",
+        onError: "bye",
+      }),
+      new UpdateContactMediaStreamingBehavior({
+        id: "start-stream",
+        state: "Enabled",
+        directions: ["From", "To"],
+        next: "stream-from-customer",
+        onError: "bye",
+      }),
+      new UpdateContactMediaStreamingBehavior({
+        id: "stream-from-customer",
+        state: "Enabled",
+        directions: ["From"],
+        next: "stop-stream",
+        onError: "bye",
+      }),
+      new UpdateContactMediaStreamingBehavior({
+        id: "stop-stream",
+        state: "Disabled",
+        directions: ["From", "To"],
         next: "resume-task",
         onError: "bye",
       }),
@@ -1497,5 +1519,33 @@ describe("the contact-state actions", () => {
           onError: "e",
         }),
     ).toThrow(/must be one of AgentOnHold, CustomerOnHold, OffHold/);
+  });
+
+  it("write media streaming for the customer's audio and refuse an empty or repeated direction", () => {
+    expect(
+      new UpdateContactMediaStreamingBehavior({
+        id: "s",
+        state: "Enabled",
+        directions: ["To"],
+        next: "n",
+        onError: "e",
+      }).toAction().Parameters,
+    ).toEqual({
+      MediaStreamingState: "Enabled",
+      Participants: [{ ParticipantType: "Customer", MediaDirections: ["To"] }],
+      MediaStreamType: "Audio",
+    });
+    const make = (directions: unknown, state: unknown = "Enabled") =>
+      new UpdateContactMediaStreamingBehavior({
+        id: "s",
+        state: cast<never>(state),
+        directions: cast<never>(directions),
+        next: "n",
+        onError: "e",
+      });
+    expect(() => make([])).toThrow(/directions must name From, To or both/);
+    expect(() => make(["From", "From"])).toThrow(/directions must name From, To or both/);
+    expect(() => make(["Both"])).toThrow(/directions must name From, To or both/);
+    expect(() => make(["From"], "Paused")).toThrow(/state must be Enabled or Disabled/);
   });
 });

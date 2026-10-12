@@ -1,0 +1,57 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "whisper-stream",
+  "description": "Start media streaming in an agent whisper flow, which the action page and the admin guide both allow.",
+  "connectType": "AGENT_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "start-stream",
+    "Actions": [
+      {
+        "Identifier": "start-stream",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamingState": "Enabled",
+          "Participants": [
+            {
+              "ParticipantType": "Customer",
+              "MediaDirections": [
+                "From",
+                "To"
+              ]
+            }
+          ],
+          "MediaStreamType": "Audio"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "start-stream": {
+      "x": 0,
+      "y": 0
+    },
+    "done": {
+      "x": 200,
+      "y": 0
+    }
+  },
+  "refs": []
+}

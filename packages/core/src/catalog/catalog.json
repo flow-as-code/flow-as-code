@@ -656,7 +656,88 @@
     "UpdateContactMediaStreamingBehavior": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_media_streaming_behavior",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_WHISPER",
+        "AGENT_WHISPER",
+        "OUTBOUND_WHISPER",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "MediaStreamingState",
+          "attr": "media_streaming_state",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "Enabled",
+            "Disabled"
+          ]
+        },
+        {
+          "key": "Participants",
+          "attr": "participants",
+          "kind": "list",
+          "required": true,
+          "of": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "ParticipantType",
+                "attr": "participant_type",
+                "kind": "enum",
+                "required": true,
+                "values": [
+                  "Customer"
+                ]
+              },
+              {
+                "key": "MediaDirections",
+                "attr": "media_directions",
+                "kind": "list",
+                "required": true,
+                "of": {
+                  "kind": "enum",
+                  "values": [
+                    "From",
+                    "To"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "MediaStreamType",
+          "attr": "media_stream_type",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "Audio"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateContactRecordingAndAnalyticsBehavior": {
       "category": "contact",

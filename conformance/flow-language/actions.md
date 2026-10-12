@@ -94,6 +94,7 @@ The two differ, and the console name is what task A01 originally listed.
 | InvokeLambda | `InvokeLambdaFunction` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html) |
 | Resume contact | `ResumeContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html) |
 | Hold customer or agent | `UpdatePreviousContactParticipantState` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html) |
+| Start media streaming, Stop media streaming | `UpdateContactMediaStreamingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html) |
 
 ## Reference-bearing parameters
 
@@ -1239,6 +1240,41 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       decision 3).
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
       https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+    - `UpdateContactMediaStreamingBehavior` "Enables or disables contact
+      media streaming for a set of participants." `MediaStreamingState`
+      "One of "Enabled" or "Disabled". Must be specified statically.";
+      `Participants`, "A list of participants to include in the stream if
+      enabling the stream, or disable if disabling the stream", each with
+      `ParticipantType` ("Currently, only "Customer" is supported. Must be
+      defined statically.") and `MediaDirections` ("A list of the
+      directions of media to include in the stream - "From" and "To".
+      Must be defined statically."); `MediaStreamType` ("Currently, only
+      "Audio" is supported. Must be defined statically."). Results
+      "None."; errors "NoMatchingError - if no other Error matches.";
+      Restrictions "This is supported in contact flows, customer queue
+      flows, transfer flows, and whisper flows. It is not supported in hold
+      flows." and "This is supported only by the voice channel." The Start
+      and Stop media streaming blocks list the same seven flow types,
+      voice only, with Success and Error branches; the Stop block "doesn't
+      have any properties". Neither page names a module, which the catalog
+      allows where a page does not scope an action to modules (the note in
+      `actions.ts` above `IN_MODULE`); D02 names "the media streaming module
+      case" as one the service decides. The catalog records all three keys
+      required on both states (the page shows the same block for each), the
+      enums, `channels: ["VOICE"]`, the catch-all required and `next`
+      required. The class writes one Customer participant and Audio and
+      takes the directions. Planned probes: `stream-required`,
+      `stream-no-catch-all`, `stream-no-next`, `stream-stop` (the page's
+      shape for Disabled), `stream-stop-bare` (`MediaStreamingState` alone,
+      the Stop block's no properties), `stream-module`,
+      `stream-customer-hold` (the page excludes it), `stream-agent-whisper`,
+      `stream-agent-participant` (a value the page excludes) and
+      `stream-from-only`. They need live media streaming enabled on the
+      instance (a Kinesis Video Streams prefix, a KMS key and no data
+      retention).
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/stop-media-streaming.html
 
 ## Per-action parameter shapes
 
@@ -1312,6 +1348,9 @@ UpdateContactRecordingAndAnalyticsBehavior {                       // exactly on
 UpdateFlowLoggingBehavior { FlowLoggingBehavior: "Enabled" | "Disabled" }   // static; no errors
 ResumeContact            {}                         // no parameters; channels TASK (the admin guide)
 UpdatePreviousContactParticipantState { PreviousContactParticipantState: "AgentOnHold" | "CustomerOnHold" | "OffHold" }   // voice only
+UpdateContactMediaStreamingBehavior { MediaStreamingState: "Enabled" | "Disabled",
+                           Participants: { ParticipantType: "Customer", MediaDirections: ("From" | "To")[] }[],
+                           MediaStreamType: "Audio" }   // each static; voice only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1375,7 +1414,8 @@ page names any: `Wait` and `ShowView`, both `["CHAT"]` (added 2026-10-05,
 from the Restrictions sections quoted in rules 22 and 34), and
 `ResumeContact`, `["TASK"]`, from its admin guide block page's channel
 table because its action page names none, and
-`UpdatePreviousContactParticipantState`, `["VOICE"]` (rule 41). Absent means the
+`UpdatePreviousContactParticipantState` and
+`UpdateContactMediaStreamingBehavior`, each `["VOICE"]` (rule 41). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -1459,7 +1499,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-37 of the 61. Everything not in the modeled set above parses to a
+38 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1476,10 +1516,10 @@ the fixture's, not a console shape.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 37      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 38      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 37      |                                                             |
+| Denominator             | 61    | 38      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

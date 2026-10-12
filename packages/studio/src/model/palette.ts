@@ -37,6 +37,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactEventHooks]: "Set",
   [ActionType.ResumeContact]: "Set",
   [ActionType.UpdatePreviousContactParticipantState]: "Set",
+  [ActionType.UpdateContactMediaStreamingBehavior]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -108,6 +109,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactEventHooks]: "set-event-hook",
   [ActionType.ResumeContact]: "resume-contact",
   [ActionType.UpdatePreviousContactParticipantState]: "hold-participant",
+  [ActionType.UpdateContactMediaStreamingBehavior]: "media-streaming",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -189,6 +191,15 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // Agent on hold; the page states no console default.
       // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
       return { PreviousContactParticipantState: "AgentOnHold" };
+    case ActionType.UpdateContactMediaStreamingBehavior:
+      // Start media streaming with both of the console's checkboxes (from and
+      // to the customer); the pages state no console default.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+      return {
+        MediaStreamingState: "Enabled",
+        Participants: [{ ParticipantType: "Customer", MediaDirections: ["From", "To"] }],
+        MediaStreamType: "Audio",
+      };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html

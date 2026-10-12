@@ -319,6 +319,30 @@ describe("FlowDoc schema rejections: contact state", () => {
         a.Parameters.PreviousContactParticipantState = "OnHold";
       }),
     ],
+    [
+      "a media streaming state other than Enabled or Disabled",
+      mutate("start-stream", (a) => {
+        a.Parameters.MediaStreamingState = "Paused";
+      }),
+    ],
+    [
+      "an agent as the streamed participant, which the page does not support",
+      mutate("start-stream", (a) => {
+        (a.Parameters.Participants as Record<string, unknown>[])[0]!.ParticipantType = "Agent";
+      }),
+    ],
+    [
+      "a media direction other than From or To",
+      mutate("start-stream", (a) => {
+        (a.Parameters.Participants as Record<string, unknown>[])[0]!.MediaDirections = ["Both"];
+      }),
+    ],
+    [
+      "a stream type other than Audio",
+      mutate("start-stream", (a) => {
+        a.Parameters.MediaStreamType = "Video";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

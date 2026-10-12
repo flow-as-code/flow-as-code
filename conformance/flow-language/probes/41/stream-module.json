@@ -1,0 +1,44 @@
+{
+  "description": "Rule 41: in a flow module, which neither page names; the catalog allows MODULE wherever a page does not scope an action to modules.",
+  "type": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamingState": "Enabled",
+          "Participants": [
+            {
+              "ParticipantType": "Customer",
+              "MediaDirections": [
+                "From",
+                "To"
+              ]
+            }
+          ],
+          "MediaStreamType": "Audio"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

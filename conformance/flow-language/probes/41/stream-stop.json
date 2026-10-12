@@ -1,0 +1,43 @@
+{
+  "description": "Rule 41: Stop media streaming in the page's shape, Participants and MediaStreamType included.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamingState": "Disabled",
+          "Participants": [
+            {
+              "ParticipantType": "Customer",
+              "MediaDirections": [
+                "From",
+                "To"
+              ]
+            }
+          ],
+          "MediaStreamType": "Audio"
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

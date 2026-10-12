@@ -40,6 +40,8 @@ import {
   METRIC_TYPES,
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_THRESHOLD_MAX,
+  MEDIA_DIRECTIONS,
+  MEDIA_STREAMING_STATES,
   PREVIOUS_PARTICIPANT_STATES,
   QUEUE_CHANNELS,
   SYSTEM_TAG_PREFIX,
@@ -62,7 +64,12 @@ import {
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
 } from "./actions.js";
-import type { DtmfDigit, PreviousParticipantState } from "./actions.js";
+import type {
+  DtmfDigit,
+  MediaDirection,
+  MediaStreamingState,
+  PreviousParticipantState,
+} from "./actions.js";
 import type {
   Block,
   DtmfBranch,
@@ -103,6 +110,7 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactMediaStreamingBehavior,
   UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
@@ -2159,6 +2167,59 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       block: new UpdatePreviousContactParticipantState({
         id: a.Identifier,
         state: typed,
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
+  // One Customer participant with its directions, and Audio; any other
+  // participant, stream type, a second participant or a JSONPath stays
+  // generic.
+  [ActionType.UpdateContactMediaStreamingBehavior]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    const p = a.Parameters;
+    if (
+      w === undefined ||
+      !paramKeysAre(p, ["MediaStreamingState", "Participants", "MediaStreamType"])
+    ) {
+      return undefined;
+    }
+    const state = p.MediaStreamingState;
+    if (!(MEDIA_STREAMING_STATES as readonly unknown[]).includes(state)) return undefined;
+    if (p.MediaStreamType !== "Audio") return undefined;
+    const participants = p.Participants;
+    if (!Array.isArray(participants) || participants.length !== 1) return undefined;
+    const participant = participants[0] as Record<string, unknown> | null;
+    if (participant === null || typeof participant !== "object" || Array.isArray(participant)) {
+      return undefined;
+    }
+    if (!paramKeysAre(participant, ["ParticipantType", "MediaDirections"])) return undefined;
+    if (participant.ParticipantType !== "Customer") return undefined;
+    const directions = participant.MediaDirections;
+    if (
+      !Array.isArray(directions) ||
+      !directions.every((d) => (MEDIA_DIRECTIONS as readonly unknown[]).includes(d))
+    ) {
+      return undefined;
+    }
+    const typedState = state as MediaStreamingState;
+    const typedDirections = directions as MediaDirection[];
+    return {
+      cls: "UpdateContactMediaStreamingBehavior",
+      entries: [
+        ["id", a.Identifier],
+        ["state", typedState],
+        ["directions", new ArrV([...typedDirections])],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      // The constructor refuses an empty or repeated list, which the
+      // inversion then reports as inexpressible.
+      block: new UpdateContactMediaStreamingBehavior({
+        id: a.Identifier,
+        state: typedState,
+        directions: typedDirections,
         next: w.next,
         onError: w.onError,
       }),

@@ -2655,3 +2655,65 @@ describe("UpdatePreviousContactParticipantState inverts each of its three states
     generic(extra);
   });
 });
+
+describe("UpdateContactMediaStreamingBehavior inverts the start and stop forms", () => {
+  const stream = (state: unknown, directions: unknown): Record<string, unknown> => ({
+    MediaStreamingState: state,
+    Participants: [{ ParticipantType: "Customer", MediaDirections: directions }],
+    MediaStreamType: "Audio",
+  });
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "stream",
+    Type: "UpdateContactMediaStreamingBehavior",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactMediaStreamingBehavior"');
+    expect(out).not.toContain("new UpdateContactMediaStreamingBehavior(");
+  };
+
+  it("emits the class for each state and each set of directions", () => {
+    const out = codegen(docWith([action(stream("Enabled", ["From", "To"])), bye]));
+    expect(out).toContain("new UpdateContactMediaStreamingBehavior({");
+    expect(out).toContain('state: "Enabled"');
+    expect(out).toContain('directions: ["From", "To"]');
+    expect(out).not.toContain("GenericBlock");
+    expect(codegen(docWith([action(stream("Disabled", ["To"])), bye]))).toContain(
+      'directions: ["To"]',
+    );
+  });
+
+  it("falls back on the forms the class does not write", () => {
+    generic(action(stream("Paused", ["From"])));
+    generic(action(stream("$.Attributes.streaming", ["From"])));
+    generic(action(stream("Enabled", [])));
+    generic(action(stream("Enabled", ["From", "From"])));
+    generic(action(stream("Enabled", ["Both"])));
+    generic(action({ ...stream("Enabled", ["From"]), MediaStreamType: "Video" }));
+    generic(action({ MediaStreamingState: "Disabled" }));
+    const agent = stream("Enabled", ["From"]);
+    agent.Participants = [{ ParticipantType: "Agent", MediaDirections: ["From"] }];
+    generic(action(agent));
+    const two = stream("Enabled", ["From"]);
+    two.Participants = [
+      { ParticipantType: "Customer", MediaDirections: ["From"] },
+      { ParticipantType: "Customer", MediaDirections: ["To"] },
+    ];
+    generic(action(two));
+    const extraKey = stream("Enabled", ["From"]);
+    (extraKey.Participants as Record<string, unknown>[])[0]!.Track = "1";
+    generic(action(extraKey));
+  });
+});

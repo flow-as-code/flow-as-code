@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-37 modeled types follow. Any other type (24: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+38 modeled types follow. Any other type (23: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -190,6 +190,24 @@ Block `update_contact_event_hooks`. [Action page](https://docs.aws.amazon.com/co
 | HCL attribute | Flow language key | Value          | Required |
 | ------------- | ----------------- | -------------- | -------- |
 | `event_hooks` | `EventHooks`      | map of strings | yes      |
+
+## UpdateContactMediaStreamingBehavior
+
+Block `update_contact_media_streaming_behavior`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html).
+
+- Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_WHISPER, AGENT_WHISPER, OUTBOUND_WHISPER, MODULE.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute           | Flow language key     | Value                     | Required |
+| ----------------------- | --------------------- | ------------------------- | -------- |
+| `media_streaming_state` | `MediaStreamingState` | `"Enabled"`, `"Disabled"` | yes      |
+| `participants`          | `Participants`        | list                      | yes      |
+| .`participant_type`     | `ParticipantType`     | `"Customer"`              | yes      |
+| .`media_directions`     | `MediaDirections`     | list                      | yes      |
+| `media_stream_type`     | `MediaStreamType`     | `"Audio"`                 | yes      |
 
 ## UpdateContactRecordingAndAnalyticsBehavior
 

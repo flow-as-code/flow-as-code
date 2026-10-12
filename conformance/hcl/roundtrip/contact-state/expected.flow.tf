@@ -5,7 +5,7 @@ resource "flowascode_contact_flow" "contact_state" {
   instance_id = var.connect_instance_id
   name        = "contact-state"
   type        = "CONTACT_FLOW"
-  description = "The contact-state actions: the previous participants held and conferenced back, and a paused task resumed."
+  description = "The contact-state actions: the previous participants held and conferenced back, the customer's audio streamed and stopped, and a paused task resumed."
 
   action {
     id   = "hold-agent"
@@ -33,9 +33,66 @@ resource "flowascode_contact_flow" "contact_state" {
 
   action {
     id   = "conference"
-    next = "resume-task"
+    next = "start-stream"
     update_previous_contact_participant_state {
       previous_contact_participant_state = "OffHold"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "start-stream"
+    next = "stream-from-customer"
+    update_contact_media_streaming_behavior {
+      media_stream_type     = "Audio"
+      media_streaming_state = "Enabled"
+      participants = [
+        {
+          media_directions = ["From", "To"]
+          participant_type = "Customer"
+        },
+      ]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "stream-from-customer"
+    next = "stop-stream"
+    update_contact_media_streaming_behavior {
+      media_stream_type     = "Audio"
+      media_streaming_state = "Enabled"
+      participants = [
+        {
+          media_directions = ["From"]
+          participant_type = "Customer"
+        },
+      ]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "stop-stream"
+    next = "resume-task"
+    update_contact_media_streaming_behavior {
+      media_stream_type     = "Audio"
+      media_streaming_state = "Disabled"
+      participants = [
+        {
+          media_directions = ["From", "To"]
+          participant_type = "Customer"
+        },
+      ]
     }
     error {
       type = "NoMatchingError"

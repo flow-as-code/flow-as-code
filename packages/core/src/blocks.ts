@@ -39,6 +39,8 @@ import {
   LOOP_COUNT_MIN,
   LOOP_DONE,
   LAMBDA_TIMEOUT_MIN,
+  MEDIA_DIRECTIONS,
+  MEDIA_STREAMING_STATES,
   MESSAGES_INTERRUPTED,
   METRIC_OPERATORS,
   METRIC_TYPES,
@@ -64,6 +66,8 @@ import {
 import type {
   DtmfDigit,
   EventHook,
+  MediaDirection,
+  MediaStreamingState,
   MetricOperator,
   MetricType,
   PreviousParticipantState,
@@ -1971,6 +1975,66 @@ export class UpdatePreviousContactParticipantState extends Block {
   }
 }
 
+/**
+ * "Enables or disables contact media streaming for a set of participants":
+ * the console's Start media streaming and Stop media streaming blocks.
+ * `state` is MediaStreamingState, Enabled or Disabled; `directions` is the
+ * customer's MediaDirections, From (what the customer says) and To (what
+ * the customer hears), the console's two checkboxes. The page's one
+ * participant type and one stream type ("Currently, only "Customer"",
+ * "only "Audio"") are written by the class, not configured. The page shows
+ * the same three keys for disabling ("or disable if disabling the stream"),
+ * so the Stop form carries them too; whether the service takes the Stop
+ * form with MediaStreamingState alone is rule 41's `stream-stop-bare`
+ * probe. Results "None."; one error, the catch-all; voice only; contact,
+ * customer queue, transfer and whisper flows, not hold flows. The live
+ * media streaming feature must be enabled on the instance for audio to be
+ * captured.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/stop-media-streaming.html
+ */
+export interface UpdateContactMediaStreamingBehaviorConfig extends Wired {
+  state: MediaStreamingState;
+  directions: MediaDirection[];
+}
+
+export class UpdateContactMediaStreamingBehavior extends Block {
+  readonly type = ActionType.UpdateContactMediaStreamingBehavior;
+
+  constructor(private readonly config: UpdateContactMediaStreamingBehaviorConfig) {
+    super(config.id);
+    if (!MEDIA_STREAMING_STATES.includes(config.state)) {
+      throw new Error(
+        `UpdateContactMediaStreamingBehavior "${config.id}" state must be Enabled or Disabled, got ${String(config.state)}.`,
+      );
+    }
+    const d = config.directions;
+    if (
+      !Array.isArray(d) ||
+      d.length === 0 ||
+      new Set(d).size !== d.length ||
+      !d.every((x) => MEDIA_DIRECTIONS.includes(x))
+    ) {
+      throw new Error(
+        `UpdateContactMediaStreamingBehavior "${config.id}" directions must name From, To or both, once each.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      MediaStreamingState: this.config.state,
+      Participants: [{ ParticipantType: "Customer", MediaDirections: this.config.directions }],
+      MediaStreamType: "Audio",
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2169,7 +2233,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 37.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 38.
  */
 export interface GenericBlockConfig {
   id: string;

@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "contact-state",
-  "description": "The contact-state actions: the previous participants held and conferenced back, and a paused task resumed.",
+  "description": "The contact-state actions: the previous participants held and conferenced back, the customer's audio streamed and stopped, and a paused task resumed.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -49,6 +49,86 @@
           "PreviousContactParticipantState": "OffHold"
         },
         "Transitions": {
+          "NextAction": "start-stream",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "start-stream",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamType": "Audio",
+          "MediaStreamingState": "Enabled",
+          "Participants": [
+            {
+              "MediaDirections": [
+                "From",
+                "To"
+              ],
+              "ParticipantType": "Customer"
+            }
+          ]
+        },
+        "Transitions": {
+          "NextAction": "stream-from-customer",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "stream-from-customer",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamType": "Audio",
+          "MediaStreamingState": "Enabled",
+          "Participants": [
+            {
+              "MediaDirections": [
+                "From"
+              ],
+              "ParticipantType": "Customer"
+            }
+          ]
+        },
+        "Transitions": {
+          "NextAction": "stop-stream",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "stop-stream",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamType": "Audio",
+          "MediaStreamingState": "Disabled",
+          "Participants": [
+            {
+              "MediaDirections": [
+                "From",
+                "To"
+              ],
+              "ParticipantType": "Customer"
+            }
+          ]
+        },
+        "Transitions": {
           "NextAction": "resume-task",
           "Errors": [
             {
@@ -84,7 +164,7 @@
   },
   "layout": {
     "bye": {
-      "x": 1060,
+      "x": 1840,
       "y": 20
     },
     "conference": {
@@ -100,7 +180,19 @@
       "y": 20
     },
     "resume-task": {
+      "x": 1580,
+      "y": 20
+    },
+    "start-stream": {
       "x": 800,
+      "y": 20
+    },
+    "stop-stream": {
+      "x": 1320,
+      "y": 20
+    },
+    "stream-from-customer": {
+      "x": 1060,
       "y": 20
     }
   },

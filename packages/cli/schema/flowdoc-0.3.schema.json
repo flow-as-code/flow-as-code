@@ -1561,6 +1561,60 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactMediaStreamingBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "MediaStreamingState": {
+                    "enum": [
+                      "Enabled",
+                      "Disabled"
+                    ]
+                  },
+                  "Participants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "ParticipantType": {
+                          "enum": [
+                            "Customer"
+                          ]
+                        },
+                        "MediaDirections": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "From",
+                              "To"
+                            ]
+                          },
+                          "uniqueItems": true
+                        }
+                      }
+                    }
+                  },
+                  "MediaStreamType": {
+                    "enum": [
+                      "Audio"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

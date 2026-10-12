@@ -52,6 +52,7 @@ export const ActionType = {
   UpdateFlowLoggingBehavior: "UpdateFlowLoggingBehavior",
   ResumeContact: "ResumeContact",
   UpdatePreviousContactParticipantState: "UpdatePreviousContactParticipantState",
+  UpdateContactMediaStreamingBehavior: "UpdateContactMediaStreamingBehavior",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -515,6 +516,21 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // rule 41's probe in an outbound whisper flow settles it.
   // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
   [ActionType.UpdatePreviousContactParticipantState]: [...INBOUND, ...TRANSFER, ...IN_MODULE],
+  // "This is supported in contact flows, customer queue flows, transfer
+  // flows, and whisper flows. It is not supported in hold flows." The Start
+  // and Stop media streaming blocks list the same seven flow types. Neither
+  // page names a module, which the note above IN_MODULE allows; rule 41's
+  // probe puts a module and a hold flow to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/stop-media-streaming.html
+  [ActionType.UpdateContactMediaStreamingBehavior]: [
+    ...INBOUND,
+    ...CUSTOMER_QUEUE,
+    ...TRANSFER,
+    ...WHISPER,
+    ...IN_MODULE,
+  ],
 };
 
 /**
@@ -552,6 +568,12 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
   [ActionType.UpdatePreviousContactParticipantState]: ["VOICE"],
+  // "This is supported only by the voice channel." The Start and Stop media
+  // streaming blocks agree: voice "Yes", chat, task and email "No - Error
+  // branch".
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+  [ActionType.UpdateContactMediaStreamingBehavior]: ["VOICE"],
 };
 
 /**
@@ -808,6 +830,20 @@ export type EventHook = (typeof EVENT_HOOKS)[number];
  */
 export const PREVIOUS_PARTICIPANT_STATES = ["AgentOnHold", "CustomerOnHold", "OffHold"] as const;
 export type PreviousParticipantState = (typeof PREVIOUS_PARTICIPANT_STATES)[number];
+
+/**
+ * UpdateContactMediaStreamingBehavior: `MediaStreamingState` is "One of
+ * "Enabled" or "Disabled". Must be specified statically."; each participant's
+ * `MediaDirections` is "A list of the directions of media to include in the
+ * stream - "From" and "To". Must be defined statically."; `ParticipantType`
+ * "Currently, only "Customer" is supported" and `MediaStreamType`
+ * "Currently, only "Audio" is supported", each static.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+ */
+export const MEDIA_STREAMING_STATES = ["Enabled", "Disabled"] as const;
+export type MediaStreamingState = (typeof MEDIA_STREAMING_STATES)[number];
+export const MEDIA_DIRECTIONS = ["From", "To"] as const;
+export type MediaDirection = (typeof MEDIA_DIRECTIONS)[number];
 
 /**
  * MessageParticipantIteratively's one run result: "When the timeout elapses,

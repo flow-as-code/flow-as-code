@@ -18,6 +18,7 @@ import {
   LAMBDA_TIMEOUT_MIN,
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
+  MEDIA_STREAMING_STATES,
   METRIC_TYPES,
   PREVIOUS_PARTICIPANT_STATES,
   QUEUE_CHANNELS,
@@ -408,6 +409,24 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.UpdateFlowAttributes:
       return [{ kind: "json", key: "FlowAttributes", label: "Flow attributes" }];
+    case ActionType.UpdateContactMediaStreamingBehavior:
+      // Enabled is Start media streaming and Disabled Stop. The participant
+      // is always the customer and the stream audio (the page supports no
+      // other), so the list is edited as JSON for its MediaDirections.
+      return [
+        {
+          kind: "select",
+          key: "MediaStreamingState",
+          label: "Media streaming",
+          options: MEDIA_STREAMING_STATES,
+        },
+        {
+          kind: "json",
+          key: "Participants",
+          label: "Participants (Customer, MediaDirections From and To)",
+        },
+        { kind: "select", key: "MediaStreamType", label: "Stream type", options: ["Audio"] },
+      ];
     case ActionType.UpdatePreviousContactParticipantState:
       // AgentOnHold keeps the customer on the call, CustomerOnHold the
       // agent, and OffHold is the console's Conference all.
