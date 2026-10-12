@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-36 modeled types follow. Any other type (25: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `UpdatePreviousContactParticipantState`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+37 modeled types follow. Any other type (24: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -285,6 +285,20 @@ Block `update_contact_text_to_speech_voice`. [Action page](https://docs.aws.amaz
 | `text_to_speech_voice`  | `TextToSpeechVoice`  | string or JSONPath                           | yes      |
 | `text_to_speech_engine` | `TextToSpeechEngine` | `"Standard"`, `"Neural"`, `"Generative"`     | no       |
 | `text_to_speech_style`  | `TextToSpeechStyle`  | `"None"`, `"Conversational"`, `"Newscaster"` | no       |
+
+## UpdatePreviousContactParticipantState
+
+Block `update_previous_contact_participant_state`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html).
+
+- Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute                        | Flow language key                 | Value                                            | Required |
+| ------------------------------------ | --------------------------------- | ------------------------------------------------ | -------- |
+| `previous_contact_participant_state` | `PreviousContactParticipantState` | `"AgentOnHold"`, `"CustomerOnHold"`, `"OffHold"` | yes      |
 
 ## ConnectParticipantWithLexBot
 

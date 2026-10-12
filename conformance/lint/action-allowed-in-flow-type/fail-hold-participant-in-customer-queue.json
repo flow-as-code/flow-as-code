@@ -1,0 +1,55 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "hold-agent",
+      "messageIncludes": "UpdatePreviousContactParticipantState is not allowed in a CUSTOMER_QUEUE"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "queue-hold",
+    "connectType": "CUSTOMER_QUEUE",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "hold-agent",
+      "Actions": [
+        {
+          "Identifier": "hold-agent",
+          "Type": "UpdatePreviousContactParticipantState",
+          "Parameters": {
+            "PreviousContactParticipantState": "AgentOnHold"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "hold-agent": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

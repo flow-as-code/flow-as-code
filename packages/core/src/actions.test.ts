@@ -34,6 +34,7 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   Wait: ["CHAT"],
   ShowView: ["CHAT"],
   ResumeContact: ["TASK"],
+  UpdatePreviousContactParticipantState: ["VOICE"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -139,6 +140,12 @@ const EXPECTED: Record<string, string[]> = {
     "QUEUE_TRANSFER",
     "OUTBOUND_WHISPER",
     "CUSTOMER_QUEUE",
+    "MODULE",
+  ],
+  UpdatePreviousContactParticipantState: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
     "MODULE",
   ],
 };

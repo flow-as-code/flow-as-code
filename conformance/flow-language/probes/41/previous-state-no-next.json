@@ -1,0 +1,32 @@
+{
+  "description": "Rule 41: the same without NextAction.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdatePreviousContactParticipantState",
+        "Parameters": {
+          "PreviousContactParticipantState": "AgentOnHold"
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

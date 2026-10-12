@@ -62,6 +62,7 @@ import {
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
+  UpdatePreviousContactParticipantState,
   Wait,
   WITHOUT_CATCH_ALL,
 } from "./index.js";
@@ -1449,6 +1450,24 @@ describe("the contact-state actions", () => {
       description: expected.description,
       layout: expected.layout,
     }).add(
+      new UpdatePreviousContactParticipantState({
+        id: "hold-agent",
+        state: "AgentOnHold",
+        next: "hold-customer",
+        onError: "bye",
+      }),
+      new UpdatePreviousContactParticipantState({
+        id: "hold-customer",
+        state: "CustomerOnHold",
+        next: "conference",
+        onError: "bye",
+      }),
+      new UpdatePreviousContactParticipantState({
+        id: "conference",
+        state: "OffHold",
+        next: "resume-task",
+        onError: "bye",
+      }),
       new ResumeContact({ id: "resume-task", next: "bye", onError: "bye" }),
       new DisconnectParticipant({ id: "bye" }),
     );
@@ -1466,5 +1485,17 @@ describe("the contact-state actions", () => {
         Conditions: [],
       },
     });
+  });
+
+  it("refuse a previous-participant state the page does not list", () => {
+    expect(
+      () =>
+        new UpdatePreviousContactParticipantState({
+          id: "hold",
+          state: cast<never>("OnHold"),
+          next: "n",
+          onError: "e",
+        }),
+    ).toThrow(/must be one of AgentOnHold, CustomerOnHold, OffHold/);
   });
 });

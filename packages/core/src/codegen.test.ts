@@ -2613,3 +2613,45 @@ describe("ResumeContact inverts its one shape", () => {
     generic({ ...action(), Transitions: {} });
   });
 });
+
+describe("UpdatePreviousContactParticipantState inverts each of its three states", () => {
+  const action = (state: unknown): FlowAction => ({
+    Identifier: "hold-agent",
+    Type: "UpdatePreviousContactParticipantState",
+    Parameters: { PreviousContactParticipantState: state },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdatePreviousContactParticipantState"');
+    expect(out).not.toContain("new UpdatePreviousContactParticipantState(");
+  };
+
+  it.each(["AgentOnHold", "CustomerOnHold", "OffHold"])("emits the class for %s", (state) => {
+    const out = codegen(docWith([action(state), bye]));
+    expect(out).toContain("new UpdatePreviousContactParticipantState({");
+    expect(out).toContain(`state: "${state}"`);
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("falls back on another value, a JSONPath, a missing catch-all, or an extra key", () => {
+    generic(action("OnHold"));
+    generic(action("$.Attributes.holdState"));
+    const noError = action("OffHold");
+    noError.Transitions.Errors = [];
+    generic(noError);
+    const extra = action("OffHold");
+    extra.Parameters.TargetContact = "Current";
+    generic(extra);
+  });
+});

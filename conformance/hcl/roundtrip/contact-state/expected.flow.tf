@@ -5,7 +5,43 @@ resource "flowascode_contact_flow" "contact_state" {
   instance_id = var.connect_instance_id
   name        = "contact-state"
   type        = "CONTACT_FLOW"
-  description = "The contact-state actions: a paused task resumed."
+  description = "The contact-state actions: the previous participants held and conferenced back, and a paused task resumed."
+
+  action {
+    id   = "hold-agent"
+    next = "hold-customer"
+    update_previous_contact_participant_state {
+      previous_contact_participant_state = "AgentOnHold"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "hold-customer"
+    next = "conference"
+    update_previous_contact_participant_state {
+      previous_contact_participant_state = "CustomerOnHold"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "conference"
+    next = "resume-task"
+    update_previous_contact_participant_state {
+      previous_contact_participant_state = "OffHold"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
 
   action {
     id   = "resume-task"

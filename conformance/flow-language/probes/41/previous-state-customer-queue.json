@@ -1,0 +1,33 @@
+{
+  "description": "Rule 41: in a customer queue flow, which neither page allows; a refusal shows the service enforces the restriction at create.",
+  "type": "CUSTOMER_QUEUE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdatePreviousContactParticipantState",
+        "Parameters": {
+          "PreviousContactParticipantState": "AgentOnHold"
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

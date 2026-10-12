@@ -2,12 +2,63 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "contact-state",
-  "description": "The contact-state actions: a paused task resumed.",
+  "description": "The contact-state actions: the previous participants held and conferenced back, and a paused task resumed.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "resume-task",
+    "StartAction": "hold-agent",
     "Actions": [
+      {
+        "Identifier": "hold-agent",
+        "Type": "UpdatePreviousContactParticipantState",
+        "Parameters": {
+          "PreviousContactParticipantState": "AgentOnHold"
+        },
+        "Transitions": {
+          "NextAction": "hold-customer",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "hold-customer",
+        "Type": "UpdatePreviousContactParticipantState",
+        "Parameters": {
+          "PreviousContactParticipantState": "CustomerOnHold"
+        },
+        "Transitions": {
+          "NextAction": "conference",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "conference",
+        "Type": "UpdatePreviousContactParticipantState",
+        "Parameters": {
+          "PreviousContactParticipantState": "OffHold"
+        },
+        "Transitions": {
+          "NextAction": "resume-task",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
       {
         "Identifier": "resume-task",
         "Type": "ResumeContact",
@@ -33,11 +84,23 @@
   },
   "layout": {
     "bye": {
+      "x": 1060,
+      "y": 20
+    },
+    "conference": {
+      "x": 540,
+      "y": 20
+    },
+    "hold-agent": {
+      "x": 20,
+      "y": 20
+    },
+    "hold-customer": {
       "x": 280,
       "y": 20
     },
     "resume-task": {
-      "x": 20,
+      "x": 800,
       "y": 20
     }
   },

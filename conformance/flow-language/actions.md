@@ -93,6 +93,7 @@ The two differ, and the console name is what task A01 originally listed.
 | (module return) | `EndFlowModuleExecution` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/endflowmoduleexecution.html) |
 | InvokeLambda | `InvokeLambdaFunction` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html) |
 | Resume contact | `ResumeContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html) |
+| Hold customer or agent | `UpdatePreviousContactParticipantState` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html) |
 
 ## Reference-bearing parameters
 
@@ -1212,6 +1213,32 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       everywhere".
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
       https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+    - `UpdatePreviousContactParticipantState` "is primarily used to prevent
+      previous participants on the contact from observing the contact".
+      One parameter, `"PreviousContactParticipantState": One of
+      ["AgentOnHold", "CustomerOnHold", "OffHold"], which are only
+      supported for voice contacts.` Results "None."; errors
+      "NoMatchingError - if no other Error matches."; Restrictions "This
+      action is supported only in inbound contact flows and transfer
+      flows." The admin guide's Hold customer or agent block lists the
+      inbound, outbound whisper, transfer to agent and transfer to queue
+      flows, routes chat, task and email down its Error branch, names the
+      three values Agent on hold ("customer is on the call"), Customer on
+      hold ("agent is on the call") and Conference all, and its configured
+      block has Success and Error branches. The pages disagree on the
+      outbound whisper flow; the catalog follows the action page, as every
+      other row does, until the probe settles it (D02 asks that the service
+      decide). The catalog records the enum, `channels: ["VOICE"]`, the
+      catch-all required, `next` required, and flow types inbound, the two
+      transfers and a module. Planned probes: `previous-state-required`,
+      `previous-state-no-catch-all`, `previous-state-no-next`, one per
+      flow type the two pages name (`-agent-transfer`, `-queue-transfer`,
+      `-outbound-whisper`), one neither names (`-customer-queue`), and a
+      value outside the enum (`-other-value`, `OnHold`), whose result
+      decides whether the 0.3 schema clause may hold the enum (owner
+      decision 3).
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
 
 ## Per-action parameter shapes
 
@@ -1284,6 +1311,7 @@ UpdateContactRecordingAndAnalyticsBehavior {                       // exactly on
 }
 UpdateFlowLoggingBehavior { FlowLoggingBehavior: "Enabled" | "Disabled" }   // static; no errors
 ResumeContact            {}                         // no parameters; channels TASK (the admin guide)
+UpdatePreviousContactParticipantState { PreviousContactParticipantState: "AgentOnHold" | "CustomerOnHold" | "OffHold" }   // voice only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1346,7 +1374,8 @@ service's Channel vocabulary (`VOICE`, `CHAT`, `TASK`, `EMAIL`), when the
 page names any: `Wait` and `ShowView`, both `["CHAT"]` (added 2026-10-05,
 from the Restrictions sections quoted in rules 22 and 34), and
 `ResumeContact`, `["TASK"]`, from its admin guide block page's channel
-table because its action page names none (rule 41). Absent means the
+table because its action page names none, and
+`UpdatePreviousContactParticipantState`, `["VOICE"]` (rule 41). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -1430,7 +1459,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-36 of the 61. Everything not in the modeled set above parses to a
+37 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1447,10 +1476,10 @@ the fixture's, not a console shape.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 36      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 37      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 36      |                                                             |
+| Denominator             | 61    | 37      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

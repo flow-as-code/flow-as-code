@@ -19,6 +19,7 @@ import {
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
   METRIC_TYPES,
+  PREVIOUS_PARTICIPANT_STATES,
   QUEUE_CHANNELS,
   TTS_ENGINES,
   TTS_STYLES,
@@ -407,6 +408,17 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.UpdateFlowAttributes:
       return [{ kind: "json", key: "FlowAttributes", label: "Flow attributes" }];
+    case ActionType.UpdatePreviousContactParticipantState:
+      // AgentOnHold keeps the customer on the call, CustomerOnHold the
+      // agent, and OffHold is the console's Conference all.
+      return [
+        {
+          kind: "select",
+          key: "PreviousContactParticipantState",
+          label: "Hold (AgentOnHold, CustomerOnHold, or OffHold to conference all)",
+          options: PREVIOUS_PARTICIPANT_STATES,
+        },
+      ];
     case ActionType.TagContact:
       return [{ kind: "json", key: "Tags", label: "Tags (up to six, no aws: keys)" }];
     case ActionType.UntagContact:

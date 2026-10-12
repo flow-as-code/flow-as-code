@@ -47,6 +47,7 @@ import {
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
+  PREVIOUS_PARTICIPANT_STATES,
   QUEUE_PRIORITY_MIN,
   SYSTEM_TAG_PREFIX,
   VOICE_ID_RESPONSE_TIME_MAX,
@@ -65,6 +66,7 @@ import type {
   EventHook,
   MetricOperator,
   MetricType,
+  PreviousParticipantState,
   QueueChannel,
   TargetContact,
   TtsEngine,
@@ -1930,6 +1932,45 @@ export class ResumeContact extends Block {
   }
 }
 
+/**
+ * Puts the contact's previous participants on or off hold: "primarily used
+ * to prevent previous participants on the contact from observing the
+ * contact", such as putting the agent on hold while a quick connect
+ * gathers card numbers. One parameter, `PreviousContactParticipantState`:
+ * AgentOnHold, CustomerOnHold or OffHold (the console's Conference all),
+ * "only supported for voice contacts". Results "None."; one error, the
+ * catch-all. Restricted to inbound and transfer flows by the action page;
+ * the admin guide's block adds the outbound whisper flow, which rule 41's
+ * probe settles. The admin guide's configured block has Success and Error
+ * branches, written as NextAction and the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+ */
+export interface UpdatePreviousContactParticipantStateConfig extends Wired {
+  state: PreviousParticipantState;
+}
+
+export class UpdatePreviousContactParticipantState extends Block {
+  readonly type = ActionType.UpdatePreviousContactParticipantState;
+
+  constructor(private readonly config: UpdatePreviousContactParticipantStateConfig) {
+    super(config.id);
+    if (!PREVIOUS_PARTICIPANT_STATES.includes(config.state)) {
+      throw new Error(
+        `UpdatePreviousContactParticipantState "${config.id}" state must be one of ${PREVIOUS_PARTICIPANT_STATES.join(", ")}, got ${String(config.state)}.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { PreviousContactParticipantState: this.config.state };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2128,7 +2169,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 36.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 37.
  */
 export interface GenericBlockConfig {
   id: string;

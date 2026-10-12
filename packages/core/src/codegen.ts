@@ -40,6 +40,7 @@ import {
   METRIC_TYPES,
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_THRESHOLD_MAX,
+  PREVIOUS_PARTICIPANT_STATES,
   QUEUE_CHANNELS,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
@@ -61,7 +62,7 @@ import {
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
 } from "./actions.js";
-import type { DtmfDigit } from "./actions.js";
+import type { DtmfDigit, PreviousParticipantState } from "./actions.js";
 import type {
   Block,
   DtmfBranch,
@@ -109,6 +110,7 @@ import {
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
+  UpdatePreviousContactParticipantState,
   Wait,
 } from "./blocks.js";
 import type {
@@ -2133,6 +2135,33 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         ["onError", w.onError],
       ],
       block: new ResumeContact({ id: a.Identifier, next: w.next, onError: w.onError }),
+    };
+  },
+
+  // One static state; a value outside the page's three, or a JSONPath, stays
+  // generic.
+  [ActionType.UpdatePreviousContactParticipantState]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, ["PreviousContactParticipantState"])) {
+      return undefined;
+    }
+    const state = a.Parameters.PreviousContactParticipantState;
+    if (!(PREVIOUS_PARTICIPANT_STATES as readonly unknown[]).includes(state)) return undefined;
+    const typed = state as PreviousParticipantState;
+    return {
+      cls: "UpdatePreviousContactParticipantState",
+      entries: [
+        ["id", a.Identifier],
+        ["state", typed],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UpdatePreviousContactParticipantState({
+        id: a.Identifier,
+        state: typed,
+        next: w.next,
+        onError: w.onError,
+      }),
     };
   },
 

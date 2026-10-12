@@ -51,6 +51,7 @@ export const ActionType = {
   UpdateContactRecordingAndAnalyticsBehavior: "UpdateContactRecordingAndAnalyticsBehavior",
   UpdateFlowLoggingBehavior: "UpdateFlowLoggingBehavior",
   ResumeContact: "ResumeContact",
+  UpdatePreviousContactParticipantState: "UpdatePreviousContactParticipantState",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -506,6 +507,14 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
     ...CUSTOMER_QUEUE,
     ...IN_MODULE,
   ],
+  // "This action is supported only in inbound contact flows and transfer
+  // flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+  // The admin guide's Hold customer or agent block also lists the outbound
+  // whisper flow; the action page governs, as for every other row, until
+  // rule 41's probe in an outbound whisper flow settles it.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+  [ActionType.UpdatePreviousContactParticipantState]: [...INBOUND, ...TRANSFER, ...IN_MODULE],
 };
 
 /**
@@ -537,6 +546,12 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
   [ActionType.ResumeContact]: ["TASK"],
+  // "One of ["AgentOnHold", "CustomerOnHold", "OffHold"], which are only
+  // supported for voice contacts." The admin guide's Hold customer or agent
+  // block agrees: voice "Yes", chat, task and email "No - Error branch".
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+  [ActionType.UpdatePreviousContactParticipantState]: ["VOICE"],
 };
 
 /**
@@ -782,6 +797,17 @@ export const EVENT_HOOKS = [
   "ResumeContact",
 ] as const;
 export type EventHook = (typeof EVENT_HOOKS)[number];
+
+/**
+ * UpdatePreviousContactParticipantState.PreviousContactParticipantState, "One
+ * of ["AgentOnHold", "CustomerOnHold", "OffHold"]". The console's Hold
+ * customer or agent block names them Agent on hold ("customer is on the
+ * call"), Customer on hold ("agent is on the call") and Conference all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+ */
+export const PREVIOUS_PARTICIPANT_STATES = ["AgentOnHold", "CustomerOnHold", "OffHold"] as const;
+export type PreviousParticipantState = (typeof PREVIOUS_PARTICIPANT_STATES)[number];
 
 /**
  * MessageParticipantIteratively's one run result: "When the timeout elapses,

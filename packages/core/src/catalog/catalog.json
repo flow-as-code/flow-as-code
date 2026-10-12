@@ -1026,7 +1026,43 @@
     "UpdatePreviousContactParticipantState": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_previous_contact_participant_state",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "PreviousContactParticipantState",
+          "attr": "previous_contact_participant_state",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "AgentOnHold",
+            "CustomerOnHold",
+            "OffHold"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "ConnectParticipantWithLexBot": {
       "category": "participant",

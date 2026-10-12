@@ -36,6 +36,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactData]: "Set",
   [ActionType.UpdateContactEventHooks]: "Set",
   [ActionType.ResumeContact]: "Set",
+  [ActionType.UpdatePreviousContactParticipantState]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -106,6 +107,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactData]: "set-contact-data",
   [ActionType.UpdateContactEventHooks]: "set-event-hook",
   [ActionType.ResumeContact]: "resume-contact",
+  [ActionType.UpdatePreviousContactParticipantState]: "hold-participant",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -182,6 +184,11 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // inspector's picker names one. The page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
       return { ViewResource: { Id: "$.Attributes.view" }, InvocationTimeLimitSeconds: "300" };
+    case ActionType.UpdatePreviousContactParticipantState:
+      // The admin guide's Hold customer or agent example is configured for
+      // Agent on hold; the page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+      return { PreviousContactParticipantState: "AgentOnHold" };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html

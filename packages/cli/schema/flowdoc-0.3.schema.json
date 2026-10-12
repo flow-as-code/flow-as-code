@@ -1534,6 +1534,33 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdatePreviousContactParticipantState"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PreviousContactParticipantState": {
+                    "enum": [
+                      "AgentOnHold",
+                      "CustomerOnHold",
+                      "OffHold"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
