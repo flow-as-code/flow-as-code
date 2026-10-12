@@ -1,0 +1,28 @@
+{
+  "description": "Rule 42: CreateWisdomSession without NoMatchingError, the one error the page lists.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "arn:aws:wisdom:{{REGION}}:{{ACCOUNT}}:assistant/{{ASSISTANT_ID}}"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

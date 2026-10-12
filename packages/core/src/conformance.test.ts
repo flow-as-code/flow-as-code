@@ -404,6 +404,13 @@ describe("FlowDoc schema rejections: tasks and AI agents", () => {
       }),
     ],
     [
+      "a literal ARN as the AI agents assistant",
+      mutate("assist", (a) => {
+        a.Parameters.WisdomAssistantArn =
+          "arn:aws:wisdom:us-east-1:111122223333:assistant/agent-help";
+      }),
+    ],
+    [
       "a JSONPath as the task template, which the page says is static",
       mutate("templated", (a) => {
         a.Parameters.TaskTemplateId = "$.Attributes.template";

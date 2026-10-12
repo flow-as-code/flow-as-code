@@ -1,0 +1,55 @@
+{
+  "expect": [
+    {
+      "rule": "no-literal-arn",
+      "blockId": "assist",
+      "messageIncludes": "Parameter \"WisdomAssistantArn\" contains a literal ARN"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "agent-assist",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "assist",
+      "Actions": [
+        {
+          "Identifier": "assist",
+          "Type": "CreateWisdomSession",
+          "Parameters": {
+            "WisdomAssistantArn": "arn:aws:wisdom:us-east-1:111122223333:assistant/aaaaaaaa-1111-2222-3333-444444444444"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "assist": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

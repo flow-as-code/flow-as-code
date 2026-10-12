@@ -97,6 +97,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Start media streaming, Stop media streaming | `UpdateContactMediaStreamingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html) |
 | Set recording, analytics and processing behavior (Set message processor) | `UpdateContactMediaProcessing` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html) |
 | Create task | `CreateTask` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createtask.html) |
+| Connect assistant (formerly Amazon Q in Connect) | `CreateWisdomSession` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html) |
 
 ## Reference-bearing parameters
 
@@ -121,6 +122,7 @@ is never interpolated into a longer string.
 | `UpdateContactMediaProcessing` | `ChatProcessor.LambdaProcessorARN` | `lambda` (static: a token, never a JSONPath) |
 | `CreateTask` | `ContactFlowId` | `flow` |
 | `CreateTask` | `TaskTemplateId` | `tasktemplate` (static: a token, never a JSONPath) |
+| `CreateWisdomSession` | `WisdomAssistantArn` | `assistant` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -851,7 +853,8 @@ SPEC.md lists the current set.
 
 Two modeled pages restrict by channel instead of, or as well as, by flow type:
 `Wait` (rule 22) and `ShowView` (rule 34), both "only ... the chat channel".
-Since 2026-10-12 the contact-state types carry channels too (rule 41).
+Since 2026-10-12 the contact-state types carry channels too (rule 41), and
+so does `CreateWisdomSession` (rule 42).
 The catalog records that as `channels` and `channel-restricted-action` (added
 2026-10-05) reports it, at severity warning: a document does not record which
 channels its flow serves, since that is the contact's to decide, so the rule
@@ -1406,6 +1409,46 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
       https://docs.aws.amazon.com/connect/latest/adminguide/create-task-block.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_StartTaskContact.html
+    - `CreateWisdomSession` "Associates a Wisdom domain to a contact that is
+      being executed in a Flow to enable real-time recommendations on the
+      current contact." One parameter, `WisdomAssistantArn`, "ARN for the
+      Wisdom Assistant. May be specified statically or dynamically."
+      Results "None. No conditions are supported."; errors
+      "NoMatchingError - if no other Error matches."; Restrictions "This
+      action is only supported on the voice channel. This action can be
+      used in all contact flow types." The admin guide's Connect assistant
+      block disagrees on both: its channel table reads voice, chat, task
+      and email "Yes" (and "Conversational analytics is not required to
+      use AI agents with chats"), and it lists five flow types, inbound,
+      customer queue, outbound whisper, transfer to agent and transfer to
+      queue. Its Config tab also names "the Orchestration AI agent to use
+      for Agent Assistance", whose key no export has recorded, and its
+      configured block has Success and Error branches. The catalog follows
+      the action page, as every earlier row does where the two disagree:
+      `channels: ["VOICE"]`, so `channel-restricted-action` warns wherever
+      the type appears, and the type unrestricted by flow type. It records
+      `WisdomAssistantArn` as a required `assistant` reference (the ARN is
+      a `wisdom` ARN, which export maps through D01's inventory and
+      `materialize` resolves back; a JSONPath stays allowed, as a reference
+      admits one), `next` required and the catch-all required and wired by
+      the builder. The schema clause holds the reference's form and nothing
+      else. Codegen leaves a block carrying any other key generic, so an
+      Orchestration AI agent setting round-trips verbatim. Planned probes:
+      `wisdom-required` (expected accepted; run before an assistant is
+      linked, it is also the "no assistant linked" case),
+      `wisdom-no-catch-all` and `wisdom-no-next` (each a removal alone),
+      `wisdom-jsonpath`, `wisdom-unlinked-assistant` (an assistant the
+      instance has not linked), `wisdom-customer-queue` (a flow type both
+      pages allow, the control), and `wisdom-customer-hold`,
+      `wisdom-agent-hold`, `wisdom-customer-whisper`,
+      `wisdom-agent-whisper` and `wisdom-module` (the flow types the action
+      page allows and the admin guide does not list). The channel cannot
+      be probed at create; a voice-only `channels` stays until a live chat
+      contact is seen to take the success branch, and that observation is
+      recorded here when the showcase makes it.
+      https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/ai-agent-initial-setup.html
 
 ## Per-action parameter shapes
 
@@ -1487,6 +1530,7 @@ UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "Fal
 CreateTask               { ContactFlowId?: flow, Attributes?: { [key]: string }, Name: string,
                            Description?: string, References?: json, DelaySeconds?: "1".."518400",
                            ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both
+CreateWisdomSession      { WisdomAssistantArn: assistant }   // static or JSONPath; voice only (the action page)
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1553,7 +1597,9 @@ table because its action page names none, and
 `UpdatePreviousContactParticipantState` and
 `UpdateContactMediaStreamingBehavior`, each `["VOICE"]`, and
 `UpdateContactMediaProcessing`, `["CHAT"]`, read from its ChannelMismatch
-error since its page has no Restrictions section (rule 41). Absent means the
+error since its page has no Restrictions section (rule 41), and
+`CreateWisdomSession`, `["VOICE"]`, from its Restrictions section where the
+admin guide's block allows every channel (rule 42). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -1637,7 +1683,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-40 of the 61. Everything not in the modeled set above parses to a
+41 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1661,10 +1707,10 @@ re-authors the fixture again (owner decision 10).
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 40      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 41      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 40      |                                                             |
+| Denominator             | 61    | 41      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

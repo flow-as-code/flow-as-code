@@ -1,0 +1,33 @@
+{
+  "description": "Rule 42: CreateWisdomSession naming an assistant in the account that is not linked to the instance through CreateIntegrationAssociation (WISDOM_ASSISTANT), to learn whether the create checks the link; run before the owner links one, wisdom-required answers the same for an instance with none.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "arn:aws:wisdom:{{REGION}}:{{ACCOUNT}}:assistant/{{UNLINKED_ASSISTANT_ID}}"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

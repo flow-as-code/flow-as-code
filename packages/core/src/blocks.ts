@@ -2184,6 +2184,43 @@ export class CreateTask extends Block {
   }
 }
 
+/**
+ * "Associates a Wisdom domain to a contact that is being executed in a Flow
+ * to enable real-time recommendations on the current contact": the
+ * console's Connect assistant block (AI agents, formerly Amazon Q in
+ * Connect and Wisdom). One parameter, `WisdomAssistantArn`, "ARN for the
+ * Wisdom Assistant. May be specified statically or dynamically", here an
+ * `assistant` reference or a JSONPath. Results "None."; one error, the
+ * catch-all. The action page restricts it to voice and allows every flow
+ * type; the admin guide's block allows every channel and five flow types,
+ * and rule 42's probes put the disagreement to the service. On voice it
+ * needs real-time conversational analytics, set by a recording and
+ * analytics block elsewhere in the flow. The admin guide's Config tab also
+ * names an Orchestration AI agent, whose key no export has recorded; a
+ * block carrying any other key stays a GenericBlock.
+ * https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
+ */
+export interface CreateWisdomSessionConfig extends Wired {
+  assistant: Ref<"assistant"> | JsonPath;
+}
+
+export class CreateWisdomSession extends Block {
+  readonly type = ActionType.CreateWisdomSession;
+
+  constructor(private readonly config: CreateWisdomSessionConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { WisdomAssistantArn: this.config.assistant };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2382,7 +2419,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 40.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 41.
  */
 export interface GenericBlockConfig {
   id: string;

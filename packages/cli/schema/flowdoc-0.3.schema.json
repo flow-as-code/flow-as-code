@@ -1685,6 +1685,29 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CreateWisdomSession"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "WisdomAssistantArn": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

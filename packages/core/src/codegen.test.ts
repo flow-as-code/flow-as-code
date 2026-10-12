@@ -2871,3 +2871,53 @@ describe("CreateTask inverts the page's form less References", () => {
     generic(action(full, ["NoMatchingError", "NoMatchingError"]));
   });
 });
+
+describe("CreateWisdomSession inverts its assistant by reference or JSONPath", () => {
+  const action = (
+    parameters: Record<string, unknown>,
+    errors = ["NoMatchingError"],
+  ): FlowAction => ({
+    Identifier: "assist",
+    Type: "CreateWisdomSession",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "CreateWisdomSession"');
+    expect(out).not.toContain("new CreateWisdomSession(");
+  };
+
+  it("emits the class with the assistant as a reference or a JSONPath", () => {
+    const out = codegen(
+      docWith([action({ WisdomAssistantArn: "${cdref:assistant:agent-help}" }), bye]),
+    );
+    expect(out).toContain("new CreateWisdomSession({");
+    expect(out).toContain('assistant: Refs.assistant("agent-help")');
+    expect(out).not.toContain("GenericBlock");
+    const dynamic = codegen(docWith([action({ WisdomAssistantArn: "$.Attributes.a" }), bye]));
+    expect(dynamic).toContain('assistant: jsonPath("$.Attributes.a")');
+  });
+
+  it("falls back on a literal ARN, another reference type, an extra key, or the errors out of shape", () => {
+    generic(
+      action({
+        WisdomAssistantArn: "arn:aws:wisdom:us-east-1:111122223333:assistant/agent-help",
+      }),
+    );
+    generic(action({ WisdomAssistantArn: "${cdref:lambda:agent-help}" }));
+    generic(action({ WisdomAssistantArn: "${cdref:assistant:agent-help}", AiAgent: "x" }));
+    generic(action({}));
+    generic(action({ WisdomAssistantArn: "${cdref:assistant:agent-help}" }, []));
+  });
+});

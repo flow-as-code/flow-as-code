@@ -83,11 +83,8 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "assist"
     next = "text-back"
-    generic {
-      type = "CreateWisdomSession"
-      parameters = jsonencode({
-        WisdomAssistantArn = "$${cdref:assistant:agent-help}"
-      })
+    create_wisdom_session {
+      wisdom_assistant_arn = "assistant:agent-help"
     }
     error {
       type = "NoMatchingError"

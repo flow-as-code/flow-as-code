@@ -5,11 +5,36 @@ resource "flowascode_contact_flow" "tasks_and_assistants" {
   instance_id = var.connect_instance_id
   name        = "tasks-and-assistants"
   type        = "CONTACT_FLOW"
-  description = "The task actions: a task created from a flow after a delay, from a template, on a schedule and with its flow and delay read from attributes, and a paused task resumed."
+  description = "The task and AI agent actions: an AI agents assistant associated by reference and by attribute, a task created from a flow after a delay, from a template, on a schedule and with its flow and delay read from attributes, and a paused task resumed."
 
   refs = {
+    "assistant:agent-help"   = awscc_wisdom_assistant.agent_help.assistant_arn
     "flow:task-line"         = flowascode_contact_flow.task_line.arn
     "tasktemplate:follow-up" = awscc_connect_task_template.follow_up.arn
+  }
+
+  action {
+    id   = "assist"
+    next = "assist-by-attribute"
+    create_wisdom_session {
+      wisdom_assistant_arn = "assistant:agent-help"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "assist-by-attribute"
+    next = "follow-up"
+    create_wisdom_session {
+      wisdom_assistant_arn = "$.Attributes.assistantArn"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
   }
 
   action {
@@ -57,6 +82,10 @@ resource "flowascode_contact_flow" "tasks_and_assistants" {
       type = "NoMatchingError"
       next = "bye"
     }
+    position {
+      x = 20
+      y = 220
+    }
   }
 
   action {
@@ -71,6 +100,10 @@ resource "flowascode_contact_flow" "tasks_and_assistants" {
       type = "NoMatchingError"
       next = "bye"
     }
+    position {
+      x = 280
+      y = 220
+    }
   }
 
   action {
@@ -82,7 +115,7 @@ resource "flowascode_contact_flow" "tasks_and_assistants" {
       next = "bye"
     }
     position {
-      x = 20
+      x = 540
       y = 220
     }
   }
@@ -91,7 +124,7 @@ resource "flowascode_contact_flow" "tasks_and_assistants" {
     id = "bye"
     disconnect_participant {}
     position {
-      x = 280
+      x = 800
       y = 220
     }
   }

@@ -88,6 +88,7 @@ import {
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
   CreateTask,
+  CreateWisdomSession,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   DistributeByPercentage,
@@ -2375,6 +2376,31 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       cls: "CreateTask",
       entries,
       block: new CreateTask(cast<never>({ ...config, next: w.next, onError: w.onError })),
+    };
+  },
+
+  // The assistant by reference or JSONPath, the catch-all and nothing else;
+  // the Orchestration AI agent the admin guide's block names has no
+  // recorded key, so any other parameter stays generic.
+  [ActionType.CreateWisdomSession]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, ["WisdomAssistantArn"])) return undefined;
+    const ref = refSource(a.Parameters.WisdomAssistantArn, "assistant", ctx);
+    if (ref === undefined) return undefined;
+    return {
+      cls: "CreateWisdomSession",
+      entries: [
+        ["id", a.Identifier],
+        ["assistant", ref],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new CreateWisdomSession({
+        id: a.Identifier,
+        assistant: cast<never>(a.Parameters.WisdomAssistantArn),
+        next: w.next,
+        onError: w.onError,
+      }),
     };
   },
 

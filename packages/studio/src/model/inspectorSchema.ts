@@ -413,6 +413,15 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           clears: ["DelaySeconds"],
         },
       ];
+    case ActionType.CreateWisdomSession:
+      return [
+        {
+          kind: "ref",
+          key: "WisdomAssistantArn",
+          label: "AI agents assistant",
+          refType: "assistant",
+        },
+      ];
     case ActionType.UpdateContactAttributes:
       return [
         { kind: "json", key: "Attributes", label: "Attributes" },

@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-40 modeled types follow. Any other type (21: `CompleteOutboundCall`, `CreateCase`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+41 modeled types follow. Any other type (20: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -62,6 +62,20 @@ Block `create_task`. [Action page](https://docs.aws.amazon.com/connect/latest/de
 | `delay_seconds`    | `DelaySeconds`    | number                                | no       |
 | `scheduled_time`   | `ScheduledTime`   | string or JSONPath                    | no       |
 | `task_template_id` | `TaskTemplateId`  | reference key (`tasktemplate:<name>`) | no       |
+
+## CreateWisdomSession
+
+Block `create_wisdom_session`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html).
+
+- Legal in: every flow type.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute          | Flow language key    | Value                              | Required |
+| ---------------------- | -------------------- | ---------------------------------- | -------- |
+| `wisdom_assistant_arn` | `WisdomAssistantArn` | reference key (`assistant:<name>`) | yes      |
 
 ## DequeueContactAndTransferToQueue
 

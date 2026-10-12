@@ -22,6 +22,7 @@ import {
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
   CreateTask,
+  CreateWisdomSession,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   DistributeByPercentage,
@@ -1641,6 +1642,18 @@ describe("the task and AI agent actions", () => {
       description: expected.description,
       layout: expected.layout,
     }).add(
+      new CreateWisdomSession({
+        id: "assist",
+        assistant: Refs.assistant("agent-help"),
+        next: "assist-by-attribute",
+        onError: "bye",
+      }),
+      new CreateWisdomSession({
+        id: "assist-by-attribute",
+        assistant: jsonPath("$.Attributes.assistantArn"),
+        next: "follow-up",
+        onError: "bye",
+      }),
       new CreateTask({
         id: "follow-up",
         name: "Call back",
@@ -1679,6 +1692,26 @@ describe("the task and AI agent actions", () => {
       new DisconnectParticipant({ id: "bye" }),
     );
     expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write CreateWisdomSession with its assistant and the catch-all", () => {
+    expect(
+      new CreateWisdomSession({
+        id: "a",
+        assistant: Refs.assistant("agent-help"),
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "a",
+      Type: "CreateWisdomSession",
+      Parameters: { WisdomAssistantArn: "${cdref:assistant:agent-help}" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
   });
 
   it("write CreateTask in the page's key order, its delay as a decimal string", () => {
