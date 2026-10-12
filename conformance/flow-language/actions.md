@@ -1236,7 +1236,9 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       transfers and a module. Planned probes: `previous-state-required`,
       `previous-state-no-catch-all`, `previous-state-no-next`, one per
       flow type the two pages name (`-agent-transfer`, `-queue-transfer`,
-      `-outbound-whisper`), one neither names (`-customer-queue`), and a
+      `-outbound-whisper`), a module, which the catalog allows and neither
+      page names (`-module`), one neither names nor the catalog allows
+      (`-customer-queue`), and a
       value outside the enum (`-other-value`, `OnHold`), whose result
       decides whether the 0.3 schema clause may hold the enum (owner
       decision 3).
@@ -1270,7 +1272,9 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       shape for Disabled), `stream-stop-bare` (`MediaStreamingState` alone,
       the Stop block's no properties), `stream-module`,
       `stream-customer-hold` (the page excludes it), `stream-agent-whisper`,
-      `stream-agent-participant` (a value the page excludes) and
+      `stream-agent-participant` (a value the page excludes),
+      `stream-duplicate-direction` (`From` twice, which the 0.3 schema
+      clause does not refuse unless the service does) and
       `stream-from-only`. They need live media streaming enabled on the
       instance (a Kinesis Video Streams prefix, a KMS key and no data
       retention).
@@ -1559,9 +1563,11 @@ modeled (rule 36). On 2026-10-12, when D02 modeled `ResumeContact` and
 `LoadContactContent` (the admin guide's Flow language example: `ContentType`
 `EmailMessage` and the catch-all) and `StartVoiceIdStream` (no parameters)
 in their places, beside `CreateTask`, which keeps the flow and queue tokens,
-and `TransferParticipantToThirdParty`. Its last action keeps the empty
-`Transitions` the old one had: no unmodeled type is terminal, so that end is
-the fixture's, not a console shape.
+and `TransferParticipantToThirdParty`. Every action is in the console's
+shape, the last included: no unmodeled type is terminal, so
+`StartVoiceIdStream` takes its `NextAction` and catch-all (the shape the
+D08 probe `start-stream` sent) back to `load-content`, a loop rather than an
+end.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |

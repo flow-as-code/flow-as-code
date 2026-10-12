@@ -78,7 +78,16 @@
         "Identifier": "hand-off",
         "Type": "StartVoiceIdStream",
         "Parameters": {},
-        "Transitions": {}
+        "Transitions": {
+          "NextAction": "load-content",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "load-content"
+            }
+          ],
+          "Conditions": []
+        }
       }
     ]
   },

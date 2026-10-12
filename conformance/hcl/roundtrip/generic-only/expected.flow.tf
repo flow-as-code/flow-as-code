@@ -73,9 +73,14 @@ resource "flowascode_contact_flow" "unknown_actions" {
   }
 
   action {
-    id = "hand-off"
+    id   = "hand-off"
+    next = "load-content"
     generic {
       type = "StartVoiceIdStream"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "load-content"
     }
   }
 }

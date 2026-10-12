@@ -1,5 +1,5 @@
 {
-  "description": "The contact-state actions as typed sub-blocks: a paused task resumed. Awaits the provider release that carries these blocks (tasks/D10), so it has no validate directory yet.",
+  "description": "The four contact-state actions as typed sub-blocks, each with its catch-all: the previous participants held in each of the three states (update_previous_contact_participant_state), the customer's audio streamed both ways and from the customer alone and the stream stopped (update_contact_media_streaming_behavior, its participants a list of objects), chat messages processed with and without delivering what fails processing and processing stopped (update_contact_media_processing, with ChannelMismatch, and its lambda_processor_arn a lambda reference inside chat_processor bound in refs), and a paused task resumed (resume_contact {}). Awaits the provider release that carries these blocks (tasks/D10), so it has no validate directory yet.",
   "doc": "../../../roundtrip/contact-state/doc.flowdoc.json",
   "validate": "awaits-provider"
 }

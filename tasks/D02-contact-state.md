@@ -93,8 +93,9 @@ removed alone refused, no `NextAction` refused; and:
 ## Record (2026-10-12)
 
 Implemented on branch `feat/d02-contact-state`, begun from
-`feat/d01-flowdoc-0.3` (#44) while D01 was in review and rebased onto main
-once #44 merged. One commit per type, each green on `npm run build`,
+`feat/d01-flowdoc-0.3` (#44) while D01 was in review, and opened as #46
+stacked on that branch. It is rebased onto main and retargeted there once
+#44 merges; this sentence is updated when it is. One commit per type, each green on `npm run build`,
 `npm test`, `npm run lint` and `npm run typecheck`, then this record:
 
 1. `feat(core): model ResumeContact and re-author the passthrough fixture`
@@ -157,7 +158,11 @@ and nothing about it is known to be enforced by the service. Decision 3
 lets a 0.3 clause encode only what the service enforces at create, and
 without the sweep that is not known for any of these enums. Each has an
 out-of-range probe in set 41 (`previous-state-other-value`,
-`stream-agent-participant`, `processing-lowercase-flag`); the processor's
+`stream-agent-participant`, `processing-lowercase-flag`). The media
+streaming clause does not hold `MediaDirections` unique: the page does not
+say so, so on review of #46 that was dropped and `stream-duplicate-direction`
+added (the class still refuses a repeated direction, and codegen leaves one
+generic); the processor's
 token-only Lambda is this repository's invariant (no literal ARN, a static
 field), whatever the service accepts. If the service
 accepts a value a clause refuses, the clause loses it in the commit that
@@ -169,11 +174,14 @@ sweep, and the reviewer should weigh it.
 `conformance/roundtrip/unknown-actions` now holds `CreateTask` (with the
 flow and queue tokens), `LoadContactContent` in the admin guide's Flow
 language example shape, `TransferParticipantToThirdParty`, and
-`StartVoiceIdStream` with no parameters as the last action. That last
-action keeps the empty `Transitions` its predecessor (`ResumeContact`) had:
-every terminal type is modeled, so no unmodeled type can end the flow in a
-console shape, and the HCL `generic-only` case needs one block that
-carries only its type. `StartVoiceIdStream` is D08's; if D08 models it,
+`StartVoiceIdStream` with no parameters as the last action, every one in
+the console's shape. Every terminal type is modeled, so no unmodeled type
+can end the flow: `StartVoiceIdStream` carries a `NextAction` and the
+catch-all (the shape D08's `start-stream` probe sent) back to
+`load-content`, a loop. As first committed it kept the empty `Transitions`
+its predecessor had; the review of #46 asked for the console shape, and the
+HCL `generic-only` golden still writes it as a generic block carrying only
+its type. `StartVoiceIdStream` is D08's; if D08 models it,
 D08 re-authors the fixture again (owner decision 10 governs the end
 state). The hold-flow lint fixture that used an unmodeled `ResumeContact`
 as its sink now ends in a loop of prompts. The studio's detachable helper
@@ -185,8 +193,8 @@ Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
 and the instance had neither live media streaming nor a Lambda associated
 as `MESSAGE_PROCESSOR` (owner actions under "Sandbox prerequisites and
 cost"). No AWS call was made and no result is recorded. The inputs are
-kept in `conformance/flow-language/probes/41/` (33 probes: five for
-`ResumeContact`, eight for the hold block, ten for media streaming, ten
+kept in `conformance/flow-language/probes/41/` (35 probes: five for
+`ResumeContact`, nine for the hold block, eleven for media streaming, ten
 for media processing) with `PENDING.md`, which names the two extra
 placeholders (`PROBE_MESSAGE_PROCESSOR_NAME`,
 `PROBE_UNASSOCIATED_LAMBDA_NAME`). `tests/probeCreate.test.ts` now holds
@@ -200,6 +208,17 @@ When the sweep runs: the runner writes `results.json`, `PENDING.md` is
 removed, rule 41 records each result with its UTC time and Region, and the
 catalog, `actions.ts`, the schema clauses and the lint fixtures change
 only where a result says so.
+
+### A D01 follow-up found in review
+
+The provider's Go port of materialize (reviewing #46) found that since D01
+`materializeWithMap` no longer scans its finished output, so a token string
+in `layout` would pass into `Metadata` where it used to be refused. A valid
+document cannot carry one (the schema's `layout` holds only `{x, y}`
+numbers), and lint does not walk `layout`. The guard belongs in materialize,
+not lint: `refuseInterpolated` (or a scan of the output) should cover the
+projected `Metadata` as well as the document's. Recorded for D01's owner;
+no D01 code changes in this PR.
 
 ### Not done here
 
