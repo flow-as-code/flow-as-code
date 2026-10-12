@@ -100,7 +100,9 @@ Implemented on branch `feat/d04-outbound`, stacked on
 `feat/d07-routing-criteria` (#49), as tasks/README.md orders Phase D (D02,
 D05, D03, D06, D07, then D04). It was begun at `ae5f4b9`, before D07 was
 rebased onto D06, and rebased onto D07's tip `c6c455f` (on D06) before the
-pull request opened. One commit per type, then this record, each green on
+pull request opened. After the review it was rebased again, onto
+`fe90a60`, D07 on D06's review head; the `hcl/emit/phase-d-refs` golden's
+SMS block became typed then, as the `casefield-key` golden's had. One commit per type, then this record, each green on
 `npm run build`, `npm test`, `npm run lint` and `npm run typecheck`:
 
 1. `feat(core): model CheckOutboundCallStatus`
@@ -172,8 +174,9 @@ for `CompleteOutboundCall`).
 ### Schema clauses and owner decision 3
 
 `CompleteOutboundCall`'s clause holds `CallerId` an object whose `Number`
-is a string, `ConnectionTimeLimitSeconds` a string and `VoiceConnector` an
-object. `StartOutboundChatContact`'s holds `SourceEndpoint.Address` and
+is a string, `ConnectionTimeLimitSeconds` a string or an integer (the
+page's integer beside the catalog's decimal string, until a probe settles
+the spelling) and `VoiceConnector` an object. `StartOutboundChatContact`'s holds `SourceEndpoint.Address` and
 `ContactFlowArn` to a token or a JSONPath (this repository's invariant),
 the endpoints and the message to objects and the destination address to a
 string. The single-value enums and the time limit's bounds stay in the
@@ -254,19 +257,73 @@ Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
 and the claimed DID and the probe flow the sweep names come from a sandbox
 root that had not been applied. No AWS call was made and no result is
 recorded. The inputs are kept in `conformance/flow-language/probes/46/`
-(63 probes: 18 for `CheckOutboundCallStatus`, 22 for
-`CompleteOutboundCall`, 23 for `StartOutboundChatContact`) with
+(75 probes: 19 for `CheckOutboundCallStatus`, 23 for
+`CompleteOutboundCall`, 33 for `StartOutboundChatContact`) with
 `PENDING.md`, which names the three placeholders the run fills (the DID's
 number and id, a published flow's id). Each type's `<type>-required-set-alone`
 probe sends the catalog's required set and nothing optional and is named
 in rule 46 as its accepted-set probe. Each evidence item above has its
-probes: every flow type for each type; `sms-required-set-alone` and
-`sms-required` with the voice DID, against `sms-source-jsonpath`, for the
-number's capability; `complete-voice-connector` with an invented
+probes: every flow type for each type (and `status-campaign`);
+`sms-source-did-set-alone` and `sms-required` with the voice DID, against
+`sms-required-set-alone` and `sms-source-jsonpath`, for the number's
+capability; `complete-voice-connector` with an invented
 connector ARN; and `status-required` and `status-required-set-alone`, run
 on the sandbox, which has no outbound campaigns. A create refused for a
 missing campaigns or SMS feature is recorded as such, and the type then
 stays generic until the owner opens the gate.
+
+### Review (2026-10-12)
+
+Seven confirmed findings on #51 (head `4b1d9a6`), each repaired:
+
+- No rejection case held `StartOutboundChatContact`'s `DestinationEndpoint`
+  to an object. One does now, and every part of both outbound clauses was
+  deleted in turn and each turned a case red (ten parts, ten cases), which
+  this record had claimed before it was true.
+- No probe left out a required key. `sms-no-source-endpoint`,
+  `sms-no-destination-endpoint`, `sms-no-contact-flow`, `sms-no-subtype`,
+  `sms-no-source-address`, `sms-no-source-type`,
+  `sms-no-destination-address`, `sms-no-destination-type`,
+  `sms-no-message-content` and `complete-caller-id-empty` do, and rule 46
+  names each.
+- The clause held `ConnectionTimeLimitSeconds` to a string, a spelling no
+  observation supports, against the page's "An integer". It now admits a
+  string or an integer until `complete-time-limit-number` and
+  `complete-time-limit` run; the catalog keeps `integerString` as the
+  console's convention, and a test accepts both spellings.
+- The studio appended a re-added status after the ones still wired, which
+  the class does not write, so the guard refused the drag. The studio now
+  sorts a status check's branches into the page's order on a drag and on
+  an edit, and a test removes and re-adds a status (failing without the
+  change).
+- Every SMS shape and removal probe sent the voice DID as its source, so a
+  capability refusal would have hidden what each tests. Each now reads the
+  source from an attribute, and the accepted-set probe with it; the DID is
+  in three probes that ask about the source (`sms-source-did-set-alone`,
+  new, `sms-required` and `sms-source-number`).
+- Four passages still said the passthrough fixture holds only unmodeled
+  Types (the `generic-only` case, `conformance/README.md`, rule 36's
+  note in actions.md, a test comment). Each now names the two forms.
+- The fixture's tests no longer required an unmodeled Type to remain.
+  Both do again (owner decision 10).
+
+Three findings refuted but close, each decided here:
+
+- "Every flow type" for `CheckOutboundCallStatus` omits `CAMPAIGN`, the
+  flow type campaigns use. FlowDoc has no `CAMPAIGN` connect type, so the
+  catalog cannot record it; `status-campaign` puts the type to the service
+  in a `CAMPAIGN` flow and rule 46 will record the result.
+- The fixture's `InitialTemplatedSystemMessage` carries `KnowledgeBaseId`
+  and `MessageTemplateId` but not `TemplateAttributes`, which the API marks
+  required. The fixture is a passthrough Flow language action, never an
+  API request, and the console's key for the template is unrecorded; it is
+  kept as is, the record saying the key is the API's and the shape a
+  guess.
+- The passthrough `CompleteOutboundCall` sits in a `CONTACT_FLOW`, which
+  the catalog's restriction to outbound whisper flows makes a lint error.
+  Nothing lints round-trip fixtures, and this one already fails
+  `terminal-blocks` by its loop; it stays, and `complete-contact-flow`
+  settles whether the service refuses the type there.
 
 ### Not done here
 
@@ -279,7 +336,6 @@ stays generic until the owner opens the gate.
   library writes the same shapes for all three and records the call
   refused in an inbound flow; rule 46 cites both and treats neither as a
   create recorded here.
-- The review round tasks/README.md asks of each group.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists, with `export/arn.go` and the inventory fake given a
   phone-number case.

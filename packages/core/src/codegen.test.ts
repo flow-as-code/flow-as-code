@@ -2345,6 +2345,10 @@ describe("the unknown-actions fixture holds only actions the builder does not mo
         "utf8",
       ),
     ) as FlowDoc;
+    // At least one Type the builder does not model stays (owner decision 10).
+    expect(
+      doc.content.Actions.some((a) => !(Object.values(ActionType) as string[]).includes(a.Type)),
+    ).toBe(true);
     for (const a of doc.content.Actions) {
       if ((Object.values(ActionType) as string[]).includes(a.Type)) {
         expect(UNMODELED_FORMS[a.Type], a.Type).toBeDefined();

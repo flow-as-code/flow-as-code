@@ -493,6 +493,39 @@ describe("C3 a new block can be wired up", () => {
     expect(codegen(wired)).toContain("new CheckOutboundCallStatus({");
   });
 
+  it("a call-progress status removed and added again lands in the page's order, and the block stays typed", () => {
+    // Review of #51: the drag adds the first status not yet wired, which
+    // after a removal sits before the ones still wired; the class writes the
+    // page's order, so the branch must land there or the guard refuses it.
+    const { doc, id } = addBlock(demoDoc(), "CheckOutboundCallStatus", { x: 0, y: 900 });
+    let wired = connectNodes(doc, id, "welcome", "primary")!;
+    wired = connectNodes(wired, id, "hang-up", "primary")!;
+    wired = connectNodes(wired, id, "announce-closed", "primary")!;
+    wired = connectNodes(wired, id, "apologize", "error")!;
+    const operands = (d: FlowDoc) =>
+      getAction(d, id)?.Transitions.Conditions?.map((c) => c.Condition.Operands[0]);
+    // Remove VoicemailBeep (the second), then add it back.
+    wired = removeCondition(wired, id, 1)!;
+    expect(operands(wired)).toEqual(["CallAnswered", "VoicemailNoBeep"]);
+    expect([...demotedIds(wired)]).toEqual([]);
+    wired = connectNodes(wired, id, "hang-up", "primary")!;
+    expect(operands(wired)).toEqual(["CallAnswered", "VoicemailBeep", "VoicemailNoBeep"]);
+    expect(getAction(wired, id)?.Transitions.Conditions?.[1]?.NextAction).toBe("hang-up");
+    expect([...demotedIds(wired)]).toEqual([]);
+    // Remove the first; the drag re-adds CallAnswered ahead of the others.
+    wired = removeCondition(wired, id, 0)!;
+    wired = connectNodes(wired, id, "welcome", "primary")!;
+    expect(operands(wired)).toEqual(["CallAnswered", "VoicemailBeep", "VoicemailNoBeep"]);
+    expect([...demotedIds(wired)]).toEqual([]);
+    // Editing a branch into a status that belongs earlier moves it there.
+    wired = removeCondition(wired, id, 0)!;
+    wired = setCondition(wired, id, 1, { Operator: "Equals", Operands: ["CallAnswered"] })!;
+    expect(operands(wired)).toEqual(["CallAnswered", "VoicemailBeep"]);
+    expect([...demotedIds(wired)]).toEqual([]);
+    expectSchemaValid(wired);
+    expect(codegen(wired)).toContain("new CheckOutboundCallStatus({");
+  });
+
   it("moving a Loop's next edge away takes its mirrored done branch along, and the reverse", () => {
     // An unfinished Loop (only the done branch wired, as a file can carry
     // it) is generic, so the guard has nothing to refuse and what is left is

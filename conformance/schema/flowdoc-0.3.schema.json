@@ -2053,7 +2053,10 @@
                     }
                   },
                   "ConnectionTimeLimitSeconds": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
                   },
                   "VoiceConnector": {
                     "type": "object"

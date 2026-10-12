@@ -125,8 +125,10 @@ describe("demo flow invariants", () => {
   // GenericBlock passthrough is what makes a small modeled set survivable.
   // The demo carried it (UpdateFlowLoggingBehavior) until the builder gained
   // that type on 2026-09-11; the unknown-actions fixture holds it now, with
-  // only types the builder does not model, so a newly modeled type is caught
-  // there rather than quietly ending the guarantee.
+  // only actions the builder does not model, so a newly modeled type is
+  // caught there rather than quietly ending the guarantee. Since tasks/D04
+  // that is unmodeled Types and two named forms of modeled ones, and at
+  // least one Type must stay unmodeled (owner decision 10).
   it("is modeled end to end, with passthrough exercised by the unknown-actions fixture", () => {
     const modeled = new Set<string>(Object.values(ActionType));
     expect(actions.filter((a) => !modeled.has(a.Type)).map((a) => a.Type)).toEqual([]);
@@ -142,6 +144,7 @@ describe("demo flow invariants", () => {
     expect(types.filter((t) => modeled.has(t))).toEqual(
       types.filter((t) => t === "CompleteOutboundCall" || t === "StartOutboundChatContact"),
     );
+    expect(types.filter((t) => !modeled.has(t)).length).toBeGreaterThan(0);
   });
 });
 
@@ -790,9 +793,9 @@ describe("FlowDoc schema rejections: outbound", () => {
       }),
     ],
     [
-      "a connection time limit written as a JSON number, not the decimal string",
+      "a connection time limit that is neither a string nor an integer",
       mutate("place-call-via-sip", (a) => {
-        a.Parameters.ConnectionTimeLimitSeconds = 30;
+        a.Parameters.ConnectionTimeLimitSeconds = true;
       }),
     ],
     [
@@ -824,6 +827,12 @@ describe("FlowDoc schema rejections: outbound", () => {
       }),
     ],
     [
+      "a destination endpoint that is not an object",
+      mutate("text-from-attributes", (a) => {
+        a.Parameters.DestinationEndpoint = "+15555550101";
+      }),
+    ],
+    [
       "a destination address that is not a string",
       mutate("text-from-attributes", (a) => {
         a.Parameters.DestinationEndpoint = { Address: 15555550101, Type: "TELEPHONE_NUMBER" };
@@ -837,6 +846,19 @@ describe("FlowDoc schema rejections: outbound", () => {
     ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
+  });
+
+  // The page writes the time limit as "An integer between 1 and 600"; the
+  // catalog's integerString is the console's spelling of every other
+  // seconds field, not an observation. Until complete-time-limit-number
+  // runs, the clause admits both (owner decision 3).
+  it("still accepts a connection time limit as the page's integer or the decimal string", () => {
+    for (const value of [30, "30", "$.Attributes.connectionLimit"]) {
+      const doc = mutate("place-call-via-sip", (a) => {
+        a.Parameters.ConnectionTimeLimitSeconds = value;
+      });
+      expect(validate(doc), String(value)).toBe(true);
+    }
   });
 });
 

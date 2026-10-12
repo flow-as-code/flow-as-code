@@ -1,0 +1,28 @@
+{
+  "description": "Rule 46: CompleteOutboundCall with CallerId present and empty, its required Number removed.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "CallerId": {}
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

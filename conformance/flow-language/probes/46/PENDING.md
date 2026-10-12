@@ -25,16 +25,23 @@ never releases it. `complete-caller-id-unclaimed` uses the fictional
 an invented Chime voice connector ARN (`vc/fac-probe-invented`), so neither
 needs a resource.
 
-`StartOutboundChatContact`'s probes name the same DID as the SMS source,
-by ARN, and a published contact flow the sandbox root creates as the flow
-the new chat would run. The DID is a voice number and the sandbox has no
-SMS messaging (owner decision 6), so `sms-required-set-alone` and
-`sms-required` are also the probes of a source that is not SMS-enabled
-that tasks/D04 asks for. If they are refused naming the number and
-`sms-source-jsonpath` is accepted, the create validates the capability:
-record that, and the type stays deployable only with the source as a
-JSONPath until the SMS gate is opened. Every flow-type probe sends the
-source as a JSONPath so that it answers the flow-type question alone.
+`StartOutboundChatContact`'s probes name a published contact flow the
+sandbox root creates as the flow the new chat would run. Five ask about
+the source. Three name the same DID as the SMS source, a voice number on a
+sandbox with no SMS messaging (owner decision 6): `sms-source-did-set-alone`
+and `sms-required` by its ARN and `sms-source-number` by its number; the
+first two are the probes of a source that is not SMS-enabled that
+tasks/D04 asks for. `sms-no-source-address` and `sms-no-source-endpoint`
+leave the source out. Every other SMS probe reads the source from an
+attribute, so if the create checks the number's capability, only the three
+can be refused for it: compare `sms-source-did-set-alone` with `sms-required-set-alone`, which
+differ only in the source. If the DID is refused naming the number, the
+create validates the capability; record that, and the type stays
+deployable only with the source as a JSONPath until the SMS gate is opened.
+
+`status-campaign` creates a `CAMPAIGN` flow. On an instance without
+outbound campaigns a refusal of the flow type itself is recorded as what it
+was, not as a refusal of the action.
 
 ## Placeholders
 

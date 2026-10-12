@@ -1,5 +1,5 @@
 {
-  "description": "Rule 46: StartOutboundChatContact in the class's full form: the required set with InitialSystemMessage and RelatedContact CURRENT; expected accepted unless the create validates the source number's SMS capability.",
+  "description": "Rule 46: StartOutboundChatContact in the class's full form with the sandbox's claimed voice DID as the source by ARN: the required set with InitialSystemMessage and RelatedContact. With sms-source-did-set-alone, the probe of a number that is not SMS-enabled; sms-source-jsonpath is the same form with the source read from an attribute.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",

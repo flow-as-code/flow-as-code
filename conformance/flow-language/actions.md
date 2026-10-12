@@ -858,7 +858,10 @@ individual action pages linked above.
     (checked live 2026-09-15), and the `NextAction` spelling is to be
     confirmed against a console export. It was the demo's passthrough exemplar until this entry;
     passthrough now lives in the `unknown-actions` fixture, which holds only
-    types the builder does not model and is held to that by test.
+    actions the builder does not model and is held to that by test: Types it
+    does not model, and since 2026-10-12 (tasks/D04) two named forms of
+    modeled Types that their classes do not write ("Unmodeled actions"
+    below).
     https://docs.aws.amazon.com/connect/latest/adminguide/set-logging-behavior.html
 
 ### Flow-type restrictions are a rule category, not a rule
@@ -2145,8 +2148,10 @@ is read rather than when the type is modeled.
       channel, as for `ResumeContact` (rule 41). The class takes one path
       per status, at least one, written in the page's order, and codegen
       leaves any other order, a repeated or unlisted operand, another
-      operator or a `NextAction` off the catch-all generic. The 0.3 schema
-      has no clause for it: the type has no parameter, and nothing about
+      operator or a `NextAction` off the catch-all generic. The studio
+      inserts a status added by a drag, or edited from another, at its
+      place in that order, so a branch removed and added again leaves the
+      block typed (review of #51). The 0.3 schema has no clause for it: the type has no parameter, and nothing about
       its conditions is known to be enforced at create (owner decision 3).
       Deployable; not exercised: a live contact needs outbound campaigns
       (outbound calling, a dedicated queue, a KMS key, campaigns enabled
@@ -2165,9 +2170,14 @@ is read rather than when the type is modeled.
       `status-customer-whisper`, `status-agent-whisper`,
       `status-outbound-whisper`, `status-agent-transfer`,
       `status-queue-transfer` and `status-module` (every flow type, with
-      `status-required` the inbound one). If the service refuses the type
-      in some, the catalog's `flowTypes` becomes the list it accepts, and
-      this bullet records that the restriction is the service's.
+      `status-required` the inbound one); and `status-campaign`, in a
+      `CAMPAIGN` flow, the `CreateContactFlow` type outbound campaigns use.
+      FlowDoc has no `CAMPAIGN` connect type (export warns and skips such
+      a flow), so "every flow type" here means FlowDoc's ten and the
+      catalog cannot record that probe's result; this bullet will. If the
+      service refuses the type in some, the catalog's `flowTypes` becomes
+      the list it accepts, and this bullet records that the restriction is
+      the service's.
       https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
       https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
       https://docs.aws.amazon.com/connect/latest/adminguide/enable-outbound-campaigns.html
@@ -2225,7 +2235,12 @@ is read rather than when the type is modeled.
       the studio and HCL, as Lex V1's `LexBot` is, and the group fixture
       holds one. The 0.3 clause holds JSON types only: `CallerId` an
       object whose `Number` is a string, `ConnectionTimeLimitSeconds` a
-      string and `VoiceConnector` an object. Deployable; not exercised: an
+      string or an integer, and `VoiceConnector` an object. The time
+      limit admits both because the page writes "An integer" and the
+      catalog's `integerString` is the console's convention for seconds,
+      not an observation of this key; `complete-time-limit-number` and
+      `complete-time-limit` settle it, and the clause narrows only then
+      (owner decision 3, review of #51). Deployable; not exercised: an
       outbound whisper flow runs on an agent's outbound call or a callback,
       and the sandbox places neither; the voice connector form needs a
       Chime voice connector, which no task here creates.
@@ -2234,7 +2249,8 @@ is read rather than when the type is modeled.
       are each optional, so it is also the probe of each absent) and
       `complete-required` (the class's form with the claimed DID; expected
       accepted); `complete-with-catch-all` (decides the error branch) and
-      `complete-no-next`; `complete-caller-id-jsonpath`,
+      `complete-no-next`; `complete-caller-id-empty` (`CallerId` present
+      without its required `Number`); `complete-caller-id-jsonpath`,
       `complete-caller-id-unclaimed` (whether the number is validated) and
       `complete-caller-id-arn` (whether the field could hold a reference);
       `complete-time-limit`, `complete-time-limit-number`,
@@ -2306,22 +2322,30 @@ is read rather than when the type is modeled.
       User Messaging SMS number with two-way messaging imported into
       Connect, the account out of the SMS sandbox, and US registration
       ("can take up to 15 business days"), none taken (owner decision 6).
-      Planned probes: `sms-required-set-alone` (the catalog's required set
-      alone, no optional key: the accepted-set probe) and `sms-required`
-      (the class's full form), both with the sandbox's voice DID as the
-      source, which are the probes of a number that is not SMS-enabled;
-      `sms-source-jsonpath` (the full form with the source dynamic, so no
-      number is checked; expected accepted) and `sms-flow-jsonpath`;
-      `sms-no-catch-all` and `sms-no-next` (each a removal alone);
-      `sms-no-initial-message` (the one optional container absent, from
-      the full form); `sms-message-string`, `sms-subtype-whatsapp`,
+      Planned probes. Every probe but the five that ask about the source
+      reads the source from an attribute, so that a create which checks
+      the number's SMS capability cannot hide what the probe tests (review
+      of #51): `sms-required-set-alone` (the catalog's required set
+      alone, no optional key: the accepted-set probe) and
+      `sms-source-jsonpath` (the class's full form; expected accepted);
+      `sms-source-did-set-alone` and `sms-required` (the same two with the
+      sandbox's voice DID as the source by ARN: the probes of a number
+      that is not SMS-enabled), `sms-source-number` (the DID's number in
+      place of its ARN) and `sms-no-source-address`; `sms-no-catch-all`
+      and `sms-no-next` (each a removal alone); `sms-no-source-endpoint`,
+      `sms-no-destination-endpoint`, `sms-no-contact-flow`,
+      `sms-no-subtype`, `sms-no-source-type`, `sms-no-destination-address`,
+      `sms-no-destination-type` and `sms-no-message-content` (each required
+      key, or a required key inside its object, removed alone; the source
+      address's is above); `sms-no-initial-message` (the one optional
+      container absent, from the full form); `sms-flow-jsonpath`,
+      `sms-message-string`, `sms-subtype-whatsapp`,
       `sms-source-type-other`, `sms-destination-not-e164`,
-      `sms-destination-static`, `sms-related-other` and
-      `sms-source-number` (the page's shapes and constants, and the ARN
-      against the number); and `sms-customer-queue`, `sms-customer-hold`,
-      `sms-agent-hold`, `sms-customer-whisper`, `sms-agent-whisper`,
-      `sms-outbound-whisper`, `sms-agent-transfer`, `sms-queue-transfer`
-      and `sms-module` (every other flow type, the source a JSONPath).
+      `sms-destination-static` and `sms-related-other` (the dynamic flow,
+      and the page's shapes and constants); and `sms-customer-queue`,
+      `sms-customer-hold`, `sms-agent-hold`, `sms-customer-whisper`,
+      `sms-agent-whisper`, `sms-outbound-whisper`, `sms-agent-transfer`,
+      `sms-queue-transfer` and `sms-module` (every other flow type).
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
       https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
       https://docs.aws.amazon.com/connect/latest/adminguide/setup-sms-messaging.html

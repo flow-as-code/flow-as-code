@@ -1,5 +1,5 @@
 {
-  "description": "Rule 46: StartOutboundChatContact with the catalog's required set alone: the claimed DID as the source, a JSONPath destination, the probe flow, the SMS subtype, a NextAction and the catch-all, and neither optional key; the accepted-set probe. The DID is a voice number, not SMS-enabled, so this is also the probe of a source without SMS: if it is refused, sms-source-jsonpath separates the capability from the shape.",
+  "description": "Rule 46: StartOutboundChatContact with the catalog's required set alone: the source read from an attribute, a JSONPath destination, the probe flow, the SMS subtype, a NextAction and the catch-all, and neither optional key; the accepted-set probe. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -10,7 +10,7 @@
         "Type": "StartOutboundChatContact",
         "Parameters": {
           "SourceEndpoint": {
-            "Address": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:phone-number/{{DID_ID}}",
+            "Address": "$.Attributes.smsNumberArn",
             "Type": "CONNECT_PHONENUMBER_ARN"
           },
           "DestinationEndpoint": {

@@ -1,5 +1,5 @@
 {
-  "description": "Rule 46: StartOutboundChatContact in the required set without a NextAction, removed alone.",
+  "description": "Rule 46: StartOutboundChatContact in the required set without a NextAction, removed alone. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -10,7 +10,7 @@
         "Type": "StartOutboundChatContact",
         "Parameters": {
           "SourceEndpoint": {
-            "Address": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:phone-number/{{DID_ID}}",
+            "Address": "$.Attributes.smsNumberArn",
             "Type": "CONNECT_PHONENUMBER_ARN"
           },
           "DestinationEndpoint": {
