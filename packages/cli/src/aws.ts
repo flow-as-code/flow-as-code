@@ -69,6 +69,17 @@ export const SDK_PACKAGE = "@aws-sdk/client-connect";
  */
 export const QCONNECT_PACKAGE = "@aws-sdk/client-qconnect";
 
+/**
+ * The optional peer that lets `export` and `diff` name a Cases template and
+ * a domain's own fields (`casetemplate` and `casefield` references since
+ * FlowDoc 0.3, tasks/D06), read with ListTemplates and ListFields for the
+ * domain the instance's CASES_DOMAIN association names. Without it the
+ * inventory has no Cases domain, and a template or field id in flow content
+ * stays the literal id the service holds.
+ * https://docs.aws.amazon.com/connect/latest/APIReference/API_connect-cases_ListFields.html
+ */
+export const CASES_PACKAGE = "@aws-sdk/client-connectcases";
+
 export const MISSING_SDK_MESSAGE =
   `Connecting to an instance needs the optional peer dependency ${SDK_PACKAGE}. ` +
   `Install it beside flow-cli (npm install ${SDK_PACKAGE}).`;
@@ -112,6 +123,11 @@ export interface QConnectSdk {
   QConnectClient: new (config: { region: string }) => AwsCommandSender;
 }
 
+/** The slice of @aws-sdk/client-connectcases the CLI touches. */
+export interface CasesSdk {
+  ConnectCasesClient: new (config: { region: string }) => AwsCommandSender;
+}
+
 /**
  * Whether `error` is Node failing to find the package `name` itself: the ESM
  * resolver's ERR_MODULE_NOT_FOUND, whose message quotes the bare specifier it
@@ -151,6 +167,23 @@ export async function loadQConnectSdk(
   }
 }
 
+/**
+ * Loads @aws-sdk/client-connectcases if it is installed, as loadQConnectSdk
+ * loads its peer: absent is not an error, present but broken is.
+ */
+export async function loadCasesSdk(
+  load: () => Promise<unknown> = () => import("@aws-sdk/client-connectcases"),
+): Promise<CasesSdk | undefined> {
+  try {
+    return (await load()) as CasesSdk;
+  } catch (error) {
+    if (isPackageNotFound(error, CASES_PACKAGE)) return undefined;
+    throw new CliError(`${CASES_PACKAGE} could not be loaded: ${messageOf(error)}`, 1, {
+      cause: error,
+    });
+  }
+}
+
 async function loadSdk(): Promise<ConnectSdk> {
   try {
     return (await import("@aws-sdk/client-connect")) as unknown as ConnectSdk;
@@ -174,15 +207,19 @@ async function connectClient(
 export const SDK_CLIENTS: LiveClients = {
   async inventory(target) {
     const { connect } = await connectClient(target);
-    // FlowDoc 0.3's assistant references, when the optional peer is there
-    // (tasks/D05). The Cases client is D06's, with the CreateCase family.
+    // FlowDoc 0.3's assistant references (tasks/D05) and Cases template
+    // and field references (tasks/D06), each when its optional peer is there.
     const qconnect = await loadQConnectSdk();
+    const cases = await loadCasesSdk();
     return createConnectInventoryClient({
       connect,
       instanceId: target.instanceId,
       ...(qconnect === undefined
         ? {}
         : { qconnect: new qconnect.QConnectClient({ region: target.region }) }),
+      ...(cases === undefined
+        ? {}
+        : { cases: new cases.ConnectCasesClient({ region: target.region }) }),
     });
   },
   async test(target) {

@@ -1,0 +1,74 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "find-case",
+  "Actions": [
+    {
+      "Identifier": "find-case",
+      "Type": "GetCase",
+      "Parameters": {
+        "LinkContactToCase": "false",
+        "GetLastUpdatedCase": "true",
+        "CaseResponseFields": [
+          "case_id",
+          "status",
+          "ffff0000-0000-4000-8000-000000000002"
+        ],
+        "CaseRequestFields": {
+          "customer_id": "$.Customer.ProfileARN",
+          "status": "open"
+        }
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "NextAction": "done",
+            "ErrorType": "MultipleFound"
+          },
+          {
+            "NextAction": "open-case",
+            "ErrorType": "NoneFound"
+          },
+          {
+            "NextAction": "done",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "open-case",
+      "Type": "CreateCase",
+      "Parameters": {
+        "LinkContactToCase": "true",
+        "CaseTemplateId": "eeee9999-0000-4000-8000-000000000002",
+        "ContactToLink": "Current",
+        "CaseRequestFields": {
+          "ffff0000-0000-4000-8000-000000000002": "high",
+          "ffff0000-0000-4000-8000-000000000003": "$.Attributes.orderNumber",
+          "customer_id": "$.Customer.ProfileARN",
+          "summary": "$.Attributes.summary"
+        }
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "NextAction": "done",
+            "ErrorType": "ContactNotLinked"
+          },
+          {
+            "NextAction": "done",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "done",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

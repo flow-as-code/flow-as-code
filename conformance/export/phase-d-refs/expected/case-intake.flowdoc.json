@@ -13,7 +13,7 @@
         "Type": "CreateCase",
         "Parameters": {
           "CaseRequestFields": {
-            "ffff0000-0000-4000-8000-000000000001": "high"
+            "${cdref:casefield:priority}": "high"
           },
           "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
           "LinkContactToCase": "false"

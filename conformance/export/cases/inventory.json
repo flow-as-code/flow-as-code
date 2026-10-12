@@ -1,0 +1,62 @@
+{
+  "contactFlows": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000051",
+      "id": "cccc3333-0000-4000-8000-000000000051",
+      "name": "Case Desk",
+      "contactFlowType": "CONTACT_FLOW",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    }
+  ],
+  "contactFlowModules": [],
+  "queues": [],
+  "hoursOfOperations": [],
+  "prompts": [],
+  "lambdaFunctions": [],
+  "lexBots": [],
+  "views": [],
+  "casesDomain": {
+    "domainArn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000002",
+    "domainId": "dddd8888-0000-4000-8000-000000000002",
+    "templates": [
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000002/template/eeee9999-0000-4000-8000-000000000002",
+        "id": "eeee9999-0000-4000-8000-000000000002",
+        "name": "Billing Dispute"
+      }
+    ],
+    "fields": [
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000002/field/ffff0000-0000-4000-8000-000000000002",
+        "id": "ffff0000-0000-4000-8000-000000000002",
+        "name": "Priority",
+        "namespace": "Custom"
+      },
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000002/field/ffff0000-0000-4000-8000-000000000003",
+        "id": "ffff0000-0000-4000-8000-000000000003",
+        "name": "Order Number",
+        "namespace": "Custom"
+      },
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000002/field/summary",
+        "id": "summary",
+        "name": "Summary",
+        "namespace": "System"
+      },
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000002/field/status",
+        "id": "status",
+        "name": "Status",
+        "namespace": "System"
+      },
+      {
+        "arn": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000002/field/customer_id",
+        "id": "customer_id",
+        "name": "Customer",
+        "namespace": "System"
+      }
+    ]
+  }
+}
