@@ -50,6 +50,7 @@ export const ActionType = {
   ShowView: "ShowView",
   UpdateContactRecordingAndAnalyticsBehavior: "UpdateContactRecordingAndAnalyticsBehavior",
   UpdateFlowLoggingBehavior: "UpdateFlowLoggingBehavior",
+  ResumeContact: "ResumeContact",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -515,7 +516,7 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * reaches it, not by the document, and FlowDoc does not record it.
  *
  * An action absent from this table has no channel restriction recorded: the
- * modeled pages were read for conformance/flow-language/actions.md, these two
+ * modeled pages were read for conformance/flow-language/actions.md, these
  * are the ones that name a channel, and where another page mentions channels
  * at all it says "all channels" (quoted beside FLOW_TYPE_UNRESTRICTED and in
  * FLOW_TYPE_RESTRICTIONS above).
@@ -528,6 +529,14 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // "This action is only supported on the chat channel."
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
   [ActionType.ShowView]: ["CHAT"],
+  // The action page has no channel restriction ("None. This action can be
+  // used everywhere."); the Resume contact block's channel table does: task
+  // "Yes", voice, chat and email "No - Error branch". The block resumes a
+  // paused task, which no other channel can be, so the admin guide's table
+  // is recorded (actions.md, rule 41).
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+  [ActionType.ResumeContact]: ["TASK"],
 };
 
 /**
@@ -588,6 +597,11 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // "This action is available in every type of flow."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
   ActionType.UpdateFlowLoggingBehavior,
+  // "None. This action can be used everywhere."; the admin guide: "You can
+  // use this block on all flow types."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+  ActionType.ResumeContact,
 ];
 
 /**

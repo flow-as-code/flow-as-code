@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-35 modeled types follow. Any other type (26: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `ResumeContact`, `UpdatePreviousContactParticipantState`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+36 modeled types follow. Any other type (25: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `UpdateContactMediaStreamingBehavior`, `UpdatePreviousContactParticipantState`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -228,6 +228,18 @@ Block `update_contact_recording_behavior`. [Action page](https://docs.aws.amazon
 | .`screen_recorded_participants` | `ScreenRecordedParticipants` | list                      | no       |
 | .`ivr_recording_behavior`       | `IVRRecordingBehavior`       | `"Enabled"`, `"Disabled"` | no       |
 | `analytics_behavior`            | `AnalyticsBehavior`          | jsonencode(...)           | no       |
+
+## ResumeContact
+
+Block `resume_contact`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html).
+
+- Legal in: every flow type.
+- Channels: TASK only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+No parameters: `resume_contact {}`.
 
 ## UpdateContactRoutingBehavior
 

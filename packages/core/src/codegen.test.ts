@@ -2559,3 +2559,57 @@ describe("conformance/export goldens", () => {
     expect(await prettier.format(source, { ...config, parser: "typescript" })).toBe(source);
   });
 });
+
+describe("ResumeContact inverts its one shape", () => {
+  const action = (): FlowAction => ({
+    Identifier: "resume-task",
+    Type: "ResumeContact",
+    Parameters: {},
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "ResumeContact"');
+    expect(out).not.toContain("new ResumeContact(");
+  };
+
+  it("emits the class with its next and catch-all", () => {
+    const out = codegen(docWith([action(), bye]));
+    expect(out).toContain("new ResumeContact({");
+    expect(out).toContain('next: "bye"');
+    expect(out).toContain('onError: "bye"');
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("falls back on a parameter, a missing next or catch-all, a second error, or a condition", () => {
+    const withParam = action();
+    withParam.Parameters.ContactId = "$.ContactId";
+    generic(withParam);
+    const noNext = action();
+    delete noNext.Transitions.NextAction;
+    generic(noNext);
+    const noError = action();
+    noError.Transitions.Errors = [];
+    generic(noError);
+    const twoErrors = action();
+    twoErrors.Transitions.Errors!.push({ ErrorType: "ChannelMismatch", NextAction: "bye" });
+    generic(twoErrors);
+    const withCondition = action();
+    withCondition.Transitions.Conditions = [
+      { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["Resumed"] } },
+    ];
+    generic(withCondition);
+    // The terminal shape the passthrough fixture once gave the type.
+    generic({ ...action(), Transitions: {} });
+  });
+});

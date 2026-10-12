@@ -26,13 +26,14 @@ import {
 const RULE = "action-allowed-in-flow-type";
 
 /**
- * Transcribed from the Restrictions section of the two pages that name a
- * channel; the URLs are in actions.ts beside each entry. Spelled out so that
- * deleting or widening an entry fails here.
+ * Transcribed from the pages that name a channel (ResumeContact's from its
+ * admin guide block page); the URLs are in actions.ts beside each entry.
+ * Spelled out so that deleting or widening an entry fails here.
  */
 const EXPECTED_CHANNELS: Record<string, string[]> = {
   Wait: ["CHAT"],
   ShowView: ["CHAT"],
+  ResumeContact: ["TASK"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -177,6 +178,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "GetMetricData",
       "InvokeLambdaFunction",
       "Loop",
+      "ResumeContact",
       "TagContact",
       "UntagContact",
       "UpdateContactAttributes",

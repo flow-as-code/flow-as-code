@@ -1,0 +1,5 @@
+{
+  "description": "The contact-state actions as typed sub-blocks: a paused task resumed. Awaits the provider release that carries these blocks (tasks/D10), so it has no validate directory yet.",
+  "doc": "../../../roundtrip/contact-state/doc.flowdoc.json",
+  "validate": "awaits-provider"
+}

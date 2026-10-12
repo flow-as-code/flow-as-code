@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { appointmentLine } from "./__fixtures__/appointment-line.js";
 import type {
   DtmfBranch,
+  FlowDoc,
   GetParticipantInputConfig,
   InvokeLambdaFunctionConfig,
   MessageParticipantConfig,
@@ -44,6 +45,7 @@ import {
   NO_MATCHING_ERROR,
   parseToken,
   Refs,
+  ResumeContact,
   serialize,
   serializeContent,
   ShowView,
@@ -1430,5 +1432,39 @@ describe("module Settings", () => {
     const doc = synth(mod());
     delete doc.content.Settings;
     expect(materializeWithMap(doc, {}).Settings).toEqual({});
+  });
+});
+
+// conformance/roundtrip/contact-state, built with the typed builder: each
+// contact-state class writes exactly the fixture's bytes (tasks/D02).
+describe("the contact-state actions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/contact-state/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the contact-state fixture", () => {
+    const flow = new Flow({
+      name: "contact-state",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new ResumeContact({ id: "resume-task", next: "bye", onError: "bye" }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write ResumeContact with no parameters and the catch-all", () => {
+    expect(new ResumeContact({ id: "r", next: "n", onError: "e" }).toAction()).toEqual({
+      Identifier: "r",
+      Type: "ResumeContact",
+      Parameters: {},
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
   });
 });

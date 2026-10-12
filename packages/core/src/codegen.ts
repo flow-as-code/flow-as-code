@@ -91,6 +91,7 @@ import {
   MessageParticipant,
   MessageParticipantIteratively,
   PHONE_NUMBER_FORMATS,
+  ResumeContact,
   ShowView,
   TagContact,
   TransferContactToAgent,
@@ -2117,6 +2118,21 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         ["next", t.NextAction],
       ],
       block: new UpdateFlowLoggingBehavior({ id: a.Identifier, behavior, next: t.NextAction }),
+    };
+  },
+
+  // No parameters; the catch-all is the one error the page lists.
+  [ActionType.ResumeContact]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, [])) return undefined;
+    return {
+      cls: "ResumeContact",
+      entries: [
+        ["id", a.Identifier],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new ResumeContact({ id: a.Identifier, next: w.next, onError: w.onError }),
     };
   },
 

@@ -69,9 +69,18 @@
         },
         {
           "Identifier": "resume",
-          "Type": "ResumeContact",
-          "Parameters": {},
-          "Transitions": {}
+          "Type": "MessageParticipantIteratively",
+          "Parameters": {
+            "Messages": [
+              {
+                "Text": "Please continue to hold."
+              }
+            ]
+          },
+          "Transitions": {
+            "Errors": [],
+            "Conditions": []
+          }
         }
       ]
     },

@@ -170,7 +170,8 @@ analytics form the builder leaves generic, with its third error); and a flow
 of the stored-input form of `GetParticipantInput` (`stored-input`: digits
 kept by length, a local phone number with its country code and its
 `InvalidPhoneNumber` branch, and an E.164 number, with Text, PromptId and
-SSML bodies; the menu form stays in `dtmf-menu`).
+SSML bodies; the menu form stays in `dtmf-menu`); and a flow of the
+contact-state actions (`contact-state`: a paused task resumed).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

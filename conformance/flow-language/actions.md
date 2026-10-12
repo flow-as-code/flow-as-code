@@ -92,6 +92,7 @@ The two differ, and the console name is what task A01 originally listed.
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
 | (module return) | `EndFlowModuleExecution` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/endflowmoduleexecution.html) |
 | InvokeLambda | `InvokeLambdaFunction` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html) |
+| Resume contact | `ResumeContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html) |
 
 ## Reference-bearing parameters
 
@@ -843,6 +844,7 @@ SPEC.md lists the current set.
 
 Two modeled pages restrict by channel instead of, or as well as, by flow type:
 `Wait` (rule 22) and `ShowView` (rule 34), both "only ... the chat channel".
+Since 2026-10-12 the contact-state types carry channels too (rule 41).
 The catalog records that as `channels` and `channel-restricted-action` (added
 2026-10-05) reports it, at severity warning: a document does not record which
 channels its flow serves, since that is the contact's to decide, so the rule
@@ -1181,6 +1183,35 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       in the census as not decided, not as the service refusing the Type.
       The inputs for `AuthenticateParticipant` are re-authored once an
       export shows the three keys' shapes.
+41. Contact state (tasks/D02; the Developer Guide pages read 2026-10-04
+    and again 2026-10-12 with the admin guide's block pages). The group's
+    types are modeled from their pages. **Probe pending**: the create
+    sweep the evidence rule asks for (tasks/README.md, Phase D) has not
+    run. On 2026-10-12 the sandbox's AWS credentials had expired, and the
+    instance had neither live media streaming nor a Lambda function
+    associated as `MESSAGE_PROCESSOR`. Its inputs are kept in
+    `probes/41/`, with `PENDING.md` saying what the run needs. Until it
+    runs, every required error, `next` and flow-type entry below is the
+    pages' reading, and each bullet names the probes that settle it.
+    - `ResumeContact` "Resumes a contact from a paused state." "No
+      parameters are expected." Results "None."; errors "NoMatchingError -
+      if no other Error matches."; Restrictions "None. This action can be
+      used everywhere." The catalog records no parameters, the catch-all
+      required and wired by the builder, `next` required, and the type
+      unrestricted. The admin guide's Resume contact block "Resumes a task
+      contact from a paused state", "You can use this block on all flow
+      types", and its channel table reads task "Yes" and voice, chat and
+      email "No - Error branch"; the action page names no channel, so the
+      catalog's `channels: ["TASK"]` is read from the block page, the one
+      entry whose channels come from there, and `channel-restricted-action`
+      warns wherever the type appears. The configured block has an Error
+      branch and the path a resumed task takes, which the class writes as
+      `NextAction`. Planned probes: `resume-required` (expected accepted),
+      `resume-no-catch-all` and `resume-no-next` (each a removal alone),
+      and `resume-module` and `resume-customer-hold` for the page's "used
+      everywhere".
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
 
 ## Per-action parameter shapes
 
@@ -1252,6 +1283,7 @@ UpdateContactRecordingAndAnalyticsBehavior {                       // exactly on
   // VoiceBehavior.VoiceAnalyticsBehavior and ChatBehavior: GenericBlock
 }
 UpdateFlowLoggingBehavior { FlowLoggingBehavior: "Enabled" | "Disabled" }   // static; no errors
+ResumeContact            {}                         // no parameters; channels TASK (the admin guide)
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1312,7 +1344,9 @@ non-blank value means the participant hears something, and
 `channels` lists the channels an action's page says it supports, in the
 service's Channel vocabulary (`VOICE`, `CHAT`, `TASK`, `EMAIL`), when the
 page names any: `Wait` and `ShowView`, both `["CHAT"]` (added 2026-10-05,
-from the Restrictions sections quoted in rules 22 and 34). Absent means the
+from the Restrictions sections quoted in rules 22 and 34), and
+`ResumeContact`, `["TASK"]`, from its admin guide block page's channel
+table because its action page names none (rule 41). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -1396,20 +1430,27 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-35 of the 61. Everything not in the modeled set above parses to a
+36 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
 is exercised by the conformance suite; the demo flow carried an unmodeled
 action for that purpose until 2026-09-11, when its logging block was
-modeled (rule 36).
+modeled (rule 36). On 2026-10-12, when D02 modeled `ResumeContact` and
+`UpdatePreviousContactParticipantState`, the fixture took
+`LoadContactContent` (the admin guide's Flow language example: `ContentType`
+`EmailMessage` and the catch-all) and `StartVoiceIdStream` (no parameters)
+in their places, beside `CreateTask`, which keeps the flow and queue tokens,
+and `TransferParticipantToThirdParty`. Its last action keeps the empty
+`Transitions` the old one had: no unmodeled type is terminal, so that end is
+the fixture's, not a console shape.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 35      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 36      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 35      |                                                             |
+| Denominator             | 61    | 36      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

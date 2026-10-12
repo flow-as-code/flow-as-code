@@ -1895,6 +1895,41 @@ export class UpdateContactRecordingAndAnalyticsBehavior extends Block {
   }
 }
 
+/**
+ * "Resumes a contact from a paused state." No parameters, results "None.",
+ * one error, "NoMatchingError - if no other Error matches", and no
+ * restriction on the action page ("None. This action can be used
+ * everywhere."). The admin guide's Resume contact block resumes a paused
+ * task and routes voice, chat and email down its Error branch, which the
+ * catalog records as the channel restriction; its configured block has an
+ * Error branch beside the path a resumed task takes, written here as the
+ * block's own NextAction. That the service refuses the block without
+ * NextAction or without the catch-all is rule 41's to settle (probe pending).
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+ */
+export interface ResumeContactConfig {
+  id: string;
+  next: Target;
+  onError: Target;
+}
+
+export class ResumeContact extends Block {
+  readonly type = ActionType.ResumeContact;
+
+  constructor(private readonly config: ResumeContactConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2093,7 +2128,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 35.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 36.
  */
 export interface GenericBlockConfig {
   id: string;

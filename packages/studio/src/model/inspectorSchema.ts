@@ -587,6 +587,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
     case ActionType.EndFlowModuleExecution:
     case ActionType.TransferContactToAgent:
     case ActionType.TransferContactToQueue:
+    case ActionType.ResumeContact:
       return [];
     default:
       // Unmodeled: GenericBlock, read-only raw JSON.

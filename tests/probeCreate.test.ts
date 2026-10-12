@@ -9,6 +9,7 @@
 // description, a type and content with placeholders, and no committed probe
 // file carries a 12-digit account id or a UUID.
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -149,7 +150,22 @@ describe("committed probe sets", () => {
         }
       });
 
-      it("has a results entry per probe with the fields the record needs", () => {
+      // A set whose sweep has not run yet says so in PENDING.md, and has no
+      // results file until it runs; one that has run has no PENDING.md. A
+      // set with neither is an input nobody accounted for.
+      const pending = existsSync(join(dir, "PENDING.md"));
+
+      it("is either run, with results, or pending, saying why", () => {
+        const resultFiles = files.filter((f) => RESULTS_FILE.test(f));
+        if (pending) {
+          expect(resultFiles, "a pending set has no results file").toEqual([]);
+          expect(readFileSync(join(dir, "PENDING.md"), "utf8")).toMatch(/\S/);
+        } else {
+          expect(resultFiles.length, "a set with no PENDING.md has results").toBeGreaterThan(0);
+        }
+      });
+
+      it.skipIf(pending)("has a results entry per probe with the fields the record needs", () => {
         const resultFiles = files.filter((f) => RESULTS_FILE.test(f));
         expect(resultFiles.length).toBeGreaterThan(0);
         const results = resultFiles.flatMap(

@@ -20,7 +20,7 @@
           "Name": "Follow up"
         },
         "Transitions": {
-          "NextAction": "resume-participant",
+          "NextAction": "load-content",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
@@ -31,10 +31,10 @@
         }
       },
       {
-        "Identifier": "resume-participant",
-        "Type": "UpdatePreviousContactParticipantState",
+        "Identifier": "load-content",
+        "Type": "LoadContactContent",
         "Parameters": {
-          "PreviousContactParticipantState": "OffHold"
+          "ContentType": "EmailMessage"
         },
         "Transitions": {
           "NextAction": "transfer-third-party",
@@ -76,7 +76,7 @@
       },
       {
         "Identifier": "hand-off",
-        "Type": "ResumeContact",
+        "Type": "StartVoiceIdStream",
         "Parameters": {},
         "Transitions": {}
       }
@@ -91,7 +91,7 @@
       "x": 800,
       "y": 20
     },
-    "resume-participant": {
+    "load-content": {
       "x": 280,
       "y": 20
     },
