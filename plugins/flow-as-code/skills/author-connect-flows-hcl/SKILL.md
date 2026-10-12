@@ -83,15 +83,21 @@ Rules:
 
 ## References: keys in actions, addresses in refs
 
-- A field that names a Connect resource (queue, hours, Lambda function,
-  prompt, flow, module, Lex bot alias, view, and since FlowDoc 0.3 a task
-  template, a Cases template or field, an Amazon Q in Connect assistant and a
-  phone number) holds a reference key, `"<type>:<name>"`: `"queue:support"`,
-  `"hours:main-line"`, `"lambda:customer-lookup"`, `"prompt:welcome"`,
-  `"flow:after-hours"`, `"module:greeting@live"`, `"view:form@1"`,
-  `"tasktemplate:follow-up"`, `"casetemplate:billing"`,
-  `"casefield:priority"`, `"assistant:agent-help"`, `"phonenumber:main-did"`.
-  A JSONPath (`"$.Attributes.x"`) is also accepted there.
+- A field of a typed block that names a Connect resource (queue, hours,
+  Lambda function, prompt, flow, module, Lex bot alias, view) holds a
+  reference key, `"<type>:<name>"`: `"queue:support"`, `"hours:main-line"`,
+  `"lambda:customer-lookup"`, `"prompt:welcome"`, `"flow:after-hours"`,
+  `"module:greeting@live"`, `"view:form@1"`. A JSONPath (`"$.Attributes.x"`)
+  is also accepted there.
+- FlowDoc 0.3 adds five types: a task template, a Cases template or field, an
+  Amazon Q in Connect assistant and a phone number. The actions that take them
+  have no typed block yet, so they are `generic` blocks, and a reference
+  inside `jsonencode` is the full token with its `$` doubled:
+  `TaskTemplateId = "$${cdref:tasktemplate:follow-up}"`, or as a whole key,
+  `CaseRequestFields = { "$${cdref:casefield:priority}" = "high" }`. A bare
+  key such as `"tasktemplate:follow-up"` there is literal text, not a
+  reference. `refs` binds the key, `"tasktemplate:follow-up" = ...`, as for
+  every type.
 - The resource's `refs` map binds each key once to a Terraform expression:
   a resource attribute, a data source, remote state output or module variable.
 - Never write an ARN in an action (the plan fails with `LITERAL_ARN`) or in
