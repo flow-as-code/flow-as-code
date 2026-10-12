@@ -24,13 +24,13 @@ know. So one bump, landed first, carries every new ref type at once.
 
 From the research of 2026-10-04 and D00's census:
 
-| Proposed name  | Used by                                                        | Address form                                       | Inventory API                 |
-| -------------- | -------------------------------------------------------------- | -------------------------------------------------- | ----------------------------- |
-| `tasktemplate` | `CreateTask.TaskTemplateId`                                    | an id, possibly an ARN; an export settles which    | `ListTaskTemplates`           |
-| `casetemplate` | `CreateCase.CaseTemplateId`                                    | a Cases template id (not a Connect ARN)            | Cases `ListTemplates`         |
-| `casefield`    | map keys of `CaseRequestFields`, items of `CaseResponseFields` | a per-domain field id (owner decision 5)           | Cases `ListFields`            |
-| `assistant`    | `CreateWisdomSession.WisdomAssistantArn`                       | a `wisdom` service ARN, not a Connect ARN          | Q in Connect `ListAssistants` |
-| `phonenumber`  | `StartOutboundChatContact.SourceEndpoint.Address`              | `phone-number/<id>`, not nested under the instance | `ListPhoneNumbersV2`          |
+| Proposed name  | Used by                                                        | Address form                                                  | Inventory API                 |
+| -------------- | -------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------- |
+| `tasktemplate` | `CreateTask.TaskTemplateId`                                    | an id, possibly an ARN; an export settles which               | `ListTaskTemplates`           |
+| `casetemplate` | `CreateCase.CaseTemplateId`                                    | a Cases template id (not a Connect ARN)                       | Cases `ListTemplates`         |
+| `casefield`    | map keys of `CaseRequestFields`, items of `CaseResponseFields` | a per-domain field id (owner decision 5)                      | Cases `ListFields`            |
+| `assistant`    | `CreateWisdomSession.WisdomAssistantArn`                       | a `wisdom` service ARN, not a Connect ARN                     | Q in Connect `ListAssistants` |
+| `phonenumber`  | `StartOutboundChatContact.SourceEndpoint.Address`              | `phone-number/<id>`; the legacy form nests under the instance | `ListPhoneNumbersV2`          |
 
 Names are settled in this task and recorded in the spec.
 `docs/adr/0008-case-field-ids.md` is written and merged under this task,
@@ -102,7 +102,13 @@ review is added here.
   `reversemap.go`; `connectapi/inventory.go` and the fake;
   `schema/schema.go` (`Versions`, today `0.1` and `0.2`), `regexp.go` and
   `serialize.go` (which name 0.2); any data source that needs a sibling for
-  a new type; the IAM policy in its docs for the new List calls.
+  a new type; the IAM policy in its docs for the new List calls. (Corrected
+  on the recheck of 2026-10-12: `regexp.go` names 0.2 in a comment only,
+  `serialize.go` is `internal/flowdoc/serialize.go`, the list beside it is
+  `internal/flowdoc/migrate.go` `SupportedFlowDocVersions`, the refs key
+  pattern is `internal/flowmodel/read.go` `RefKeyPattern`, the materialize
+  port is `internal/materialize/`, and the provider documents no IAM policy;
+  "The next provider batch" below is the accurate list.)
 - the vendored showcase snapshot (`examples/vendored/`, C07): its lint test
   reads each document through `migrateFlowDoc`, so a 0.2 snapshot lints
   against the current catalog without an edit; held by the sweep exclusion
@@ -207,7 +213,8 @@ is exercised before any group needs it.
 - The provider work lands on its main, unreleased, at this task's re-vendor
   ("Provider tooling" above), on top of the Phase C re-vendor
   (`feat/revendor-phase-c`, head `34dda2f`, merged to the provider's main
-  unreleased); its commits are recorded in this file. D10 releases it.
+  unreleased as `d69bd14`, its #10, on 2026-10-05); its commits are recorded
+  in this file. D10 releases it.
 
 ## Evidence
 
@@ -274,8 +281,8 @@ tests can fail; the vocabulary's checks are each proven by a mutation in
   `tests/flowdocVersion.test.ts` sweeps for `0.1` and `0.2`, with
   `examples/vendored/` skipped for the reason beside the other skips (the
   snapshot is written by `scripts/sync-example.mjs` from one satellite
-  commit and never edited in place; C07's test reads it through
-  `migrateFlowDoc`; D10 records when it moves). `core@0.2` stamps in goldens
+  commit and never edited in place; C07's test, not yet written, reads it
+  through `migrateFlowDoc`; D10 records when it moves). `core@0.2` stamps in goldens
   became `core@0.3`, since the stamp is the format version
   (docs/01-flowdoc-spec.md).
 - `docs/06-terraform-provider.md` carries the 0.3 row with "none released;
@@ -468,20 +475,28 @@ recorded here when they exist.
   every existing state's computed `flowdoc` attribute and every 0.1.x export
   carries. `Version` also stamps a document at `internal/flowmodel/read.go:225`
   (the computed attribute) and `internal/export/flow.go:503,520` (export's
-  `flowdoc` and `core@` generator), so the stamp moves with it. The embedded
-  schema set under `internal/schema/` gains `flowdoc-0.3.schema.json` and
-  `schema.go` selects it for 0.3; migration returns 0.3 for 0.1 and 0.2
-  (`TestOracleMigrateFlowDoc` re-recorded). There is no `serialize.go`
-  under `internal/schema/`.
-- `internal/flowdoc`'s materialize port resolves a token standing as a map
-  key through the rule it resolves a value with, and refuses a token
-  embedded in a longer key or value on both backends before substituting;
-  the vendored `conformance/materialize/casefield-key-with-map/` holds it.
-  `internal/lint`'s string walk visits keys at `<path>.<key>~` so its
-  `no-unresolved-token` and `no-literal-arn` ports pass the four key
+  `flowdoc` and `core@` generator), so the stamp moves with it. A third list
+  is separate again: `internal/schema/schema.go` `Versions` (today
+  `{"0.1", "0.2"}`, SUPPORTED_FLOWDOC_VERSIONS's port) gains `"0.3"`. The
+  schema files themselves need no embed step: `schema.go` reads
+  `schema/flowdoc-<version>.schema.json` from the vendored conformance tree,
+  so the re-vendor brings `flowdoc-0.3.schema.json`, and `regexp.go`'s
+  ECMA-to-RE2 translation covers it (the 0.3 schema adds no construct 0.2
+  lacks). Migration returns 0.3 for 0.1 and 0.2 (`TestOracleMigrateFlowDoc`
+  re-recorded). There is no `serialize.go` under `internal/schema/`.
+- The materialize port, `internal/materialize/materialize.go`, resolves a
+  token standing as a map key through the rule it resolves a value with,
+  and refuses a token embedded in a longer key or value on both backends
+  before substituting; the vendored
+  `conformance/materialize/casefield-key-with-map/` holds it.
+  `internal/lint/graph.go` `WalkStrings` visits keys at `<path>.<key>~` so
+  the `no-unresolved-token` and `no-literal-arn` ports pass the four key
   fixtures vendored with them.
 - `internal/export/arn.go`: the `phone-number/<id>` form, `task-template` in
-  the keyword tables, and `parseCasesArn` and `parseAssistantArn`;
+  the keyword tables, `parseCasesArn` and `parseAssistantArn`, and the
+  `normalizeArn` port folding the legacy
+  `instance/<id>/phone-number/<id>` form onto `phone-number/<id>` (added on
+  the recheck; `conformance/export/phase-d-refs` holds a flow with it);
   `reversemap.go`: the four lists, a phone number named by description or
   digits; `connectapi/inventory.go` and the fake: `ListTaskTemplates`,
   `ListPhoneNumbersV2`, `ListIntegrationAssociations(CASES_DOMAIN)` with the
@@ -490,10 +505,11 @@ recorded here when they exist.
   `conformance/export/phase-d-refs`. The Cases and Q in Connect listings are
   other services: `go.mod` carries `aws-sdk-go-v2/service/connect` alone,
   `connectapi.API` is a Connect-only interface and `NewInventory(api API,
-instanceID)` takes one client, so the batch adds
+instanceID)` and `NewInventoryWithOptions(api, instanceID, InventoryOptions)`
+  take one Connect client, so the batch adds
   `aws-sdk-go-v2/service/connectcases` and `aws-sdk-go-v2/service/qconnect`,
-  an interface and a fake for each, and optional clients on the inventory
-  constructor, absent meaning the lists are not read, as `cases` and
+  an interface and a fake for each, and optional clients in
+  `InventoryOptions`, absent meaning the lists are not read, as `cases` and
   `qconnect` on `createConnectInventoryClient` mean here.
 - No data source is added: the provider serves `NewView` only
   (`provider.go:268`) and the golden binds the new types to awscc resources
@@ -545,7 +561,10 @@ instanceID)` takes one client, so the batch adds
   provider's conformance runner with `REF_KEY_MALFORMED` on
   `casefield:priority` until both `TokenPattern` and `RefKeyPattern` know
   the five types (the first item names both); it stays `awaits-provider`
-  here until D10 pins the release.
+  here until D10 pins the release. `conformance/hcl/emit/phase-d-refs`
+  (added on the recheck) is the second such case, and the new
+  `conformance/hcl/refuse/refuse-sugar-wrong-type` expects
+  `REF_EXPRESSION_REFUSED` of the provider, as every sugar case does.
 
 The recorder, in full (the provider's
 `internal/flowdoc/testdata/catalog-oracle.mjs`; `node catalog-oracle.mjs
@@ -681,6 +700,20 @@ is if they remain in `perType`.
   moved here on review.
 - The tasks/README.md order table and CLAUDE.md, amended by #43 (merged
   2026-10-06).
+- Every provider-side criterion: "Provider tooling", the Go support under
+  "Catalog vocabulary", lines 11 to 14 of the checklist under "Both
+  repositories", and the provider commits "Release hygiene" asks for. None
+  exists at this merge; "The next provider batch" is the list, the lead
+  opens that PR, and D02 starts only once the provider's main reads 0.3 and
+  passes the re-vendored `casefield-key` golden.
+- A conformance fixture for `requiredWhenValue`: no catalog entry carries it,
+  so no lint fixture can exercise it and the provider's recorder records
+  nothing for it. It lands with D06's `CreateCase` entry; until then
+  `catalog.test.ts` holds it over a synthetic error list. The criterion's
+  "with fixtures" is met there, not here.
+- The showcase snapshot and C07's test of it: neither exists yet. C07's
+  test lints each document read through `migrateFlowDoc` (tasks/C07, noted
+  on the recheck).
 
 ### Review (2026-10-06)
 
@@ -689,7 +722,7 @@ Findings on #44 and what each changed, on top of the four commits:
 - A `casefield` token in a map key passed through `materializeWithBinder`
   unresolved and unreported: `resolveDeep` rewrote values only, the binder
   path had no leaked-token check and `walkStrings` never visited keys, so
-  `FlowSet` would have deployed `"${cdref:casefield:priority"` as a literal
+  `FlowSet` would have deployed `"${cdref:casefield:priority}"` as a literal
   key and `flow-cli lint` said "No findings". Fixed as ADR 0008 specifies
   rather than guarded: keys resolve through the one token rule on both
   backends, both backends refuse an interpolated token before substituting
@@ -700,9 +733,11 @@ Findings on #44 and what each changed, on top of the four commits:
   the key as `"${casefield_priority_arn}"` in key position instead of
   refusing with a message that contradicted the restated invariant 4.
 - The provider batch named `TokenPattern` but not `RefKeyPattern`, and named
-  a `Versions` list in a file that does not exist while the list that
-  matters, `SupportedFlowDocVersions`, would have lost 0.2 on a constant
-  bump; both items are rewritten above with the files and lines.
+  `serialize.go` under `internal/schema/`, where none exists, while the list
+  that matters, `internal/flowdoc/migrate.go` `SupportedFlowDocVersions`,
+  would have lost 0.2 on a constant bump; both items are rewritten above with
+  the files and lines. (The recheck corrected this bullet: `internal/schema/schema.go`
+  `Versions` does exist and also gains 0.3.)
 - The skill reference generator read `c.keys.map` and would have thrown on
   the first `groups` constraint (D03); it renders both forms through an
   exported `constraintSentence`, held by `tests/skills.test.ts`.
@@ -722,3 +757,53 @@ Findings on #44 and what each changed, on top of the four commits:
   `"flowdoc": "0.2"` versus `"0.3"` for the 12 hand-authored documents, and
   `npm run generate` rewrites the 7 generated ones. Owner action there, a
   comment on that issue; tasks/D10 carries it.
+
+### Recheck (2026-10-12)
+
+The review commits above were not rechecked when they landed. An
+independent review of the tip before them was. On the recheck, every
+confirmed finding from both was checked against the current tip. These held
+on arrival: the casefield key resolves on both materialize backends, lint
+walks keys, the skill reference generator renders `groups` (`--check`
+passes), and the studio opens a 0.3 document. The rest were still open and
+are fixed here:
+
+- `d9b1f0e`: the service reference
+  (https://servicereference.us-east-1.amazonaws.com/v1/connect/connect.json)
+  lists a `legacy-phone-number` ARN, `instance/<id>/phone-number/<id>`.
+  `parseConnectArn` read it, but the reverse map keyed only the un-nested
+  form, so export failed with an unknown ARN. `normalizeArn` folds the legacy
+  form onto the un-nested one. `conformance/export/phase-d-refs` gains a
+  third flow holding it, with its goldens. The reverse-map comment's example
+  number moved into the 555-0100 block.
+- `88b3392`: tests that an unmapped casefield key fails `materializeWithMap`
+  as unmapped, naming the key and its key forms, and that the CDK binder
+  resolves the key through `casefield()` or names the token without one.
+- `387315f`: `conformance/hcl/refuse/refuse-sugar-wrong-type` exercises the
+  `aws_connect_phone_number` sugar entry. A test holds `ADDRESS_SUGAR` to
+  `address-sugar.json`.
+- `a114214`: the HCL skill told agents to write a 0.3 reference as a bare
+  key, which a `generic` block keeps as literal text. It now says to write
+  the full token with its `$` doubled, as the `casefield-key` golden does.
+- `287d4ff`: the changeset said `flow-cli synth` stamps `core@0.3`, but the
+  CLI and the studio bridge stamp `cli@<version>`. It and SPEC.md now say
+  export needs `connect:ListTaskTemplates` and `connect:ListPhoneNumbersV2`,
+  which the SDK adapter calls on every export. actions.md no longer states
+  `CreateCase`'s `CaseRequestFields.*~` refs as present.
+- `1725078` and `77f1c79`: `conformance/roundtrip/phase-d-refs`,
+  `conformance/emit-tf/phase-d-refs` (`validate: skip`) and
+  `conformance/hcl/emit/phase-d-refs` (`awaits-provider`) carry every 0.3
+  token through codegen and synth and through both emitters. Before this,
+  only export and the HCL round trip held one.
+- `061c15a`: docs/01 says the grammar admits an alias on every type and
+  that only `module` and `view` give it a meaning. That is 0.1's grammar,
+  kept, not a 0.3 change.
+- This commit corrects the provider batch against the provider's main at
+  `d69bd14`. `internal/schema/schema.go` `Versions` exists and also gains
+  0.3, and schemas are read from the vendored tree. The materialize port is
+  `internal/materialize/`, the walk is `internal/lint/graph.go` `WalkStrings`,
+  and `NewInventoryWithOptions` takes the optional clients. It also amends
+  the criteria's provider line, adds the provider batch, the
+  `requiredWhenValue` fixture and C07's test to "Not done here", and
+  corrects the version sweep's comment, which described C07's test as
+  existing.

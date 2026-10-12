@@ -35,8 +35,10 @@ const ALLOWED = new Set([
  * `scripts/sync-example.mjs` from one satellite commit and never edited in
  * place (CLAUDE.md, "Showcase examples"), so it stays at the version the
  * satellite wrote until the satellite adopts the npm release that writes 0.3
- * (tasks/D10). C07's lint test reads it through `migrateFlowDoc`, so an older
- * snapshot lints against the current catalog without an edit.
+ * (tasks/D10). Neither the directory nor C07's test of it exists yet: that
+ * test (tasks/C07) validates each document against the schema of the version
+ * it names and lints it against the current catalog, so it reads an older
+ * snapshot through `migrateFlowDoc`, and nothing here checks it meanwhile.
  */
 const SKIPPED_PREFIXES = ["conformance/migrate/", "tasks/", "examples/vendored/"];
 
