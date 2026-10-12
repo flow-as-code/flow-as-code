@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-50 modeled types follow. Any other type (11: `CompleteOutboundCall`, `StartOutboundChatContact`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+51 modeled types follow. Any other type (10: `CompleteOutboundCall`, `StartOutboundChatContact`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -700,6 +700,23 @@ Block `update_flow_logging_behavior`. [Action page](https://docs.aws.amazon.com/
 | HCL attribute           | Flow language key     | Value                     | Required |
 | ----------------------- | --------------------- | ------------------------- | -------- |
 | `flow_logging_behavior` | `FlowLoggingBehavior` | `"Enabled"`, `"Disabled"` | yes      |
+
+## UpdateRoutingCriteria
+
+Block `update_routing_criteria`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html).
+
+- Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute          | Flow language key   | Value           | Required |
+| ---------------------- | ------------------- | --------------- | -------- |
+| `routing_criteria`     | `RoutingCriteria`   | object          | yes      |
+| .`steps`               | `Steps`             | list            | yes      |
+| .`expression`          | `Expression`        | jsonencode(...) | yes      |
+| .`expiry`              | `Expiry`            | object          | no       |
+| .`duration_in_seconds` | `DurationInSeconds` | number          | yes      |
 
 ## Wait
 

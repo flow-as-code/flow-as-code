@@ -23,7 +23,8 @@ the run needs; `tests/probeCreate.test.ts` holds every set to one or the
 other, and the file is removed by the run that writes the results. `41`,
 the contact-state set (tasks/D02), is the first, `42`, the tasks and
 AI agents set (tasks/D05), the second, `43`, the Customer Profiles set
-(tasks/D03), the third, and `44`, the Cases set (tasks/D06), the fourth.
+(tasks/D03), the third, `44`, the Cases set (tasks/D06), the fourth, and
+`45`, the routing criteria set (tasks/D07), the fifth.
 
 A results file is `results.json`, or `results-<run>.json` with the UTC date
 and the Region in the name (`results-2026-10-05-us-west-2.json`) when a set

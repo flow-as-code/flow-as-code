@@ -3336,3 +3336,134 @@ describe("the Cases actions invert their link, template and field ids", () => {
     });
   });
 });
+
+describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
+  const condition = (Name: string, Value: string, ProficiencyLevel: unknown = 4) => ({
+    AttributeCondition: {
+      ComparisonOperator: "NumberGreaterOrEqualTo",
+      Name,
+      ProficiencyLevel,
+      Value,
+    },
+  });
+  const routing = (
+    criteria: unknown,
+    errors = ["NoMatchingError"],
+    extra: Record<string, unknown> = {},
+  ): FlowAction => ({
+    Identifier: "routing",
+    Type: "UpdateRoutingCriteria",
+    Parameters: { RoutingCriteria: criteria, ...extra },
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const steps = (...list: unknown[]) => routing({ Steps: list });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new UpdateRoutingCriteria({");
+    expect(out).not.toContain("GenericBlock");
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateRoutingCriteria"');
+    expect(out).not.toContain("new UpdateRoutingCriteria(");
+  };
+
+  it("emits an OR of an AND and a requirement, an expiry, and imports the helpers it calls", () => {
+    const out = typed(
+      steps(
+        {
+          Expiry: { DurationInSeconds: "30" },
+          Expression: {
+            OrExpression: [
+              {
+                AndExpression: [condition("Language", "English"), condition("Skill", "Billing", 2)],
+              },
+              condition("Language", "Spanish", 5),
+            ],
+          },
+        },
+        { Expression: condition("Language", "English", 1) },
+      ),
+    );
+    expect(out).toContain('attributeCondition("Language", "Spanish", 5)');
+    expect(out).toContain("expression: or(");
+    expect(out).toContain("expiresAfterSeconds: 30,");
+    expect(out).toContain('{ expression: attributeCondition("Language", "English", 1) }');
+    expect(out).toMatch(/import \{[^}]*\band,[^}]*\battributeCondition,[^}]*\bor,/s);
+  });
+
+  it("imports only the helpers a document calls", () => {
+    const out = typed(steps({ Expression: condition("Language", "English") }));
+    expect(out).toContain("attributeCondition,");
+    expect(out).not.toMatch(/\band,|\bor,/);
+  });
+
+  it("emits a JSONPath for the steps", () => {
+    const out = typed(routing({ Steps: "$.External.routingSteps" }));
+    expect(out).toContain('steps: jsonPath("$.External.routingSteps")');
+  });
+
+  it("names the factory around a flow named after a helper", () => {
+    const doc = {
+      ...docWith([steps({ Expression: condition("A", "B") }), bye]),
+      name: "attribute-condition",
+    };
+    expect(codegen(doc)).toContain("export function flowAttributeCondition(): Flow");
+  });
+
+  it("leaves generic what the helpers would not write", () => {
+    // The whole of RoutingCriteria as a JSONPath, an AWS sample's form.
+    generic(routing("$.External.RoutingCriteria"));
+    // A level the page does not list, or spelled as a string.
+    generic(steps({ Expression: condition("Language", "English", 2.5) }));
+    generic(steps({ Expression: condition("Language", "English", "4.0") }));
+    // An expiry spelled as a number, or a step before the last without one.
+    generic(steps({ Expiry: { DurationInSeconds: 30 }, Expression: condition("A", "B") }));
+    generic(steps({ Expression: condition("A", "B") }, { Expression: condition("C", "D") }));
+    // A tag the helpers do not write, an AND around an OR, an OR below the top.
+    generic(steps({ Expression: { NotAttributeCondition: { Name: "A", Value: "B" } } }));
+    generic(steps({ Expression: { AndExpression: [{ OrExpression: [condition("A", "B")] }] } }));
+    generic(
+      steps({
+        Expression: { OrExpression: [{ OrExpression: [condition("A", "B")] }] },
+      }),
+    );
+    // Two tags in one expression, an extra key on a requirement or a step,
+    // the page's Range operator.
+    generic(
+      steps({ Expression: { ...condition("A", "B"), AndExpression: [condition("C", "D")] } }),
+    );
+    generic(
+      steps({
+        Expression: { AttributeCondition: { ...condition("A", "B").AttributeCondition, Extra: 1 } },
+      }),
+    );
+    generic(steps({ Expression: condition("A", "B"), Note: "x" }));
+    generic(
+      steps({
+        Expression: {
+          AttributeCondition: {
+            ...condition("A", "B").AttributeCondition,
+            ComparisonOperator: "Range",
+          },
+        },
+      }),
+    );
+    // An empty list, a key beside Steps or beside RoutingCriteria, errors out of shape.
+    generic(routing({ Steps: [] }));
+    generic(routing({ Steps: [{ Expression: condition("A", "B") }], Extra: 1 }));
+    generic(routing({ Steps: [{ Expression: condition("A", "B") }] }, undefined, { Other: "x" }));
+    generic(routing({ Steps: [{ Expression: condition("A", "B") }] }, []));
+  });
+});

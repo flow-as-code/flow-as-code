@@ -151,6 +151,13 @@ const EXPECTED: Record<string, string[]> = {
     "QUEUE_TRANSFER",
     "MODULE",
   ],
+  UpdateRoutingCriteria: [
+    "CONTACT_FLOW",
+    "CUSTOMER_QUEUE",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "MODULE",
+  ],
   UpdateContactMediaStreamingBehavior: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",

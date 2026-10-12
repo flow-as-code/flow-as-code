@@ -1,0 +1,93 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "routing",
+      "messageIncludes": "UpdateRoutingCriteria is not allowed in a CUSTOMER_WHISPER"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "whisper-routing",
+    "connectType": "CUSTOMER_WHISPER",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "routing",
+      "Actions": [
+        {
+          "Identifier": "routing",
+          "Type": "UpdateRoutingCriteria",
+          "Parameters": {
+            "RoutingCriteria": {
+              "Steps": [
+                {
+                  "Expiry": {
+                    "DurationInSeconds": "30"
+                  },
+                  "Expression": {
+                    "AndExpression": [
+                      {
+                        "AttributeCondition": {
+                          "ComparisonOperator": "NumberGreaterOrEqualTo",
+                          "Name": "Language",
+                          "ProficiencyLevel": 4,
+                          "Value": "English"
+                        }
+                      },
+                      {
+                        "AttributeCondition": {
+                          "ComparisonOperator": "NumberGreaterOrEqualTo",
+                          "Name": "Technology",
+                          "ProficiencyLevel": 2,
+                          "Value": "AWS Kinesis"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "Expression": {
+                    "AttributeCondition": {
+                      "ComparisonOperator": "NumberGreaterOrEqualTo",
+                      "Name": "Language",
+                      "ProficiencyLevel": 1,
+                      "Value": "English"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "Transitions": {
+            "NextAction": "end",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "end"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "end",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "routing": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

@@ -13,7 +13,7 @@ resource "flowascode_contact_flow" "unknown_actions" {
 
   action {
     id   = "text-back"
-    next = "route-to-queue"
+    next = "dial-connector"
     generic {
       type = "StartOutboundChatContact"
       parameters = jsonencode({
@@ -36,28 +36,19 @@ resource "flowascode_contact_flow" "unknown_actions" {
   }
 
   action {
-    id   = "route-to-queue"
+    id   = "dial-connector"
     next = "load-content"
     generic {
-      type = "UpdateRoutingCriteria"
+      type = "CompleteOutboundCall"
       parameters = jsonencode({
-        RoutingCriteria = {
-          Steps = [
-            {
-              Expression = {
-                AttributeCondition = {
-                  Name  = "preferredQueue"
-                  Value = "$${cdref:queue:support}"
-                }
-              }
-            },
-          ]
+        VoiceConnector = {
+          FromUser              = "$.Attributes.fromUser"
+          ToUser                = "$.CustomerEndpoint.Address"
+          UserToUserInformation = "$${cdref:queue:support}"
+          VoiceConnectorArn     = "$.Attributes.voiceConnectorArn"
+          VoiceConnectorType    = "ChimeConnector"
         }
       })
-    }
-    error {
-      type = "NoMatchingError"
-      next = "hand-off"
     }
   }
 

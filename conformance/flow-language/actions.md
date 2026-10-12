@@ -107,6 +107,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Cases (Create case) | `CreateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createcase.html) |
 | Cases (Get case) | `GetCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/getcase.html) |
 | Cases (Update case) | `UpdateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html) |
+| Set routing criteria | `UpdateRoutingCriteria` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
 
 ## Reference-bearing parameters
 
@@ -1918,6 +1919,125 @@ is read rather than when the type is modeled.
       `update-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
 
+45. Routing criteria (tasks/D07; the Developer Guide page read 2026-10-04
+    and again 2026-10-12 with the admin guide's Set routing criteria block
+    page). The type is modeled from its page, with the expression a `json`
+    value (docs/adr/0009). **Probe pending**: the create sweep the evidence
+    rule asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
+    sandbox's AWS credentials had expired, and the predefined attribute the
+    sweep names is created by a sandbox root that had not been applied. Its
+    inputs are kept in `probes/45/`, with `PENDING.md` saying what the run
+    needs. No console export of the block has been taken (owner decision
+    8). Until the sweep and an export, the Type spelling and every required
+    key, error, `next`, spelling, limit and flow-type entry below is the
+    pages' reading, and each bullet names the probes that settle it.
+    - `UpdateRoutingCriteria` "Sets the routing criteria for the contact."
+      The page's parameter object: `RoutingCriteria` "Required.
+      RoutingCriteria is a JSON object."; `Steps` "Required. List of
+      routing steps. ... May be set statically or dynamically"; each step's
+      `Expression` "Required. An object to specify the expression of a
+      routing step. It is a tagged union", holding an `AttributeCondition`
+      (`Name` and `Value` each "a string and has length constraints between
+      1-64", `ProficiencyLevel` "a float value. Valid values are: 1.0, 2.0,
+      3.0, 4.0 and 5.0", `ComparisonOperator` "Valid values:
+      NumberGreaterOrEqualTo") or an `AndExpression` ("List of routing
+      expressions (attribute conditions) which will be AND-ed together");
+      and each step's `Expiry`, "An object to specify the expiration of a
+      routing step", whose `DurationInSeconds` "Can be set only
+      statically". Results "None. No conditions are supported."; errors
+      "NoMatchingError - if no other Error matches."; Restrictions "This
+      action is supported on all channels and in only in Inbound flow,
+      Customer Queue flow, Transfer to Agent flow, and Transfer to Queue
+      flow types." The admin guide's block agrees on flow types and
+      channels (voice, chat, task and email "Yes") and adds: "Up to eight
+      attributes using the `AND` condition", "Up to three OR conditions in
+      a routing step ... You can only use OR when setting attributes
+      dynamically", a `NOT` operator and a proficiency range likewise only
+      dynamically, "OR expressions must be at the top level. You can place
+      an AND inside an OR, but not the other way around", "Each step of the
+      criteria must have a timed expiration timer. The last step of the
+      criteria can have a timed or non-expiring expiration timer", and a
+      requirement's value may be a JSONPath. Its Lambda examples write
+      `OrExpression`, `NotAttributeCondition` with `ComparisonOperator`
+      `"Range"` and a `Range` object, `ProficiencyLevel` as the JSON
+      integers `4`, `2` and `1`, and `DurationInSeconds` as the number `30`.
+    - The Type spelling is in doubt, and it is the first thing the sweep
+      settles. An AWS sample
+      (https://github.com/aws-samples/sample-apj-sup-sa/blob/main/connect/multi-tenant-agentic-contact-center/connect-routing/lib/flows.ts,
+      read 2026-10-12) writes `Type: "UpdateContactRoutingCriteria"` with
+      the comment "Flow-language type is UpdateContactRoutingCriteria (the
+      dev guide page is titled "UpdateRoutingCriteria", which Connect
+      rejects as an action type)", and writes the whole of
+      `RoutingCriteria` as a JSONPath (`"$.External.RoutingCriteria"`). A
+      third-party library
+      (https://github.com/mgaffigan/pulumi-amazon-connect/blob/05a26ef747118fe685f4ffadfb99ab3d5afd2af2/docs/wire-format-checks.md,
+      read 2026-10-12, not an AWS publication) lists `UpdateRoutingCriteria`
+      among `CreateContactFlow` rejections ("the action type is
+      **`UpdateContactRoutingCriteria`**; the documented name is rejected as
+      unknown"), beside `UntagContact` and `Wait`'s `TimeLimitSeconds`,
+      which rules 28 and 22 record the same way; its emitter writes
+      `ProficiencyLevel` as the string `"4.0"` and `DurationInSeconds` as
+      the string `"30"`. Neither is a create recorded here, so the catalog
+      keeps the page's Type until `routing-required-set-alone` and
+      `routing-contact-type-set-alone` run; if the first is refused as an
+      unknown type and the second accepted, the type is renamed in the
+      catalog, the builder and every fixture in one commit, the page's
+      spelling is recorded here as refused, and the census (rule 40)
+      gains the note.
+    - The catalog records `RoutingCriteria` as a required `object` whose
+      `Steps` is a required `list` of objects with `dynamic` (a JSONPath
+      for the whole list, the first `dynamic` on a list); each step's
+      `Expression` a required `json` value and its `Expiry` an optional
+      object of `DurationInSeconds`, an `integerString` (the decimal string
+      the console writes for every other seconds field recorded so far,
+      and the third-party emitter's spelling); the type restricted to
+      `CONTACT_FLOW`, `CUSTOMER_QUEUE`, `AGENT_TRANSFER`, `QUEUE_TRANSFER`
+      and `MODULE` (a module by the note above `IN_MODULE` in
+      `actions.ts`), on every channel, `next` required and the catch-all
+      required and wired by the builder. The whole of `RoutingCriteria` as
+      a JSONPath has no catalog form (an `object` is never `dynamic`); a
+      document holding it is generic in every view, and the schema clause
+      admits it. The `Name` and `Value` bounds, the five levels, the one
+      operator and the admin guide's limits (eight in an AND, three in an
+      OR, OR at the top, an expiry on every step but the last) are not in
+      the catalog or the schema, which hold JSON types only, recursively
+      through `$defs` (owner decision 3): they are the builder's checks,
+      in `attributeCondition`, `and`, `or` and the class, until the sweep
+      shows the service enforcing them. The builder writes `ProficiencyLevel`
+      as a JSON integer, the one spelling a parsed document keeps
+      (docs/adr/0009), and accepts a `Value` that is a JSONPath without the
+      length bound. Codegen inverts only what the helpers write and leaves
+      a string level, a numeric expiry, a `NotAttributeCondition` or a
+      `Range` generic.
+    - Planned probes: `routing-required-set-alone` (the catalog's
+      required set alone: one step, its `Expression` alone, the accepted-set
+      probe) and `routing-required` (the class's form; expected accepted);
+      `routing-no-catch-all` and `routing-no-next` (each a removal alone);
+      `routing-contact-type` and `routing-contact-type-set-alone` (the Type
+      spelling); `routing-or` (a static OR), `routing-or-inside-and`,
+      `routing-and-nine` and `routing-or-four` (the admin guide's nesting
+      and limits); `routing-level-0-5`, `routing-level-2-5`,
+      `routing-level-5-5` and `routing-level-string` (the levels and their
+      spelling; every other probe sends the integer spelling, which is the
+      integer probe); `routing-unknown-attribute` (a name the instance has
+      not predefined) and `routing-unknown-value`; `routing-name-65`,
+      `routing-value-65` and `routing-value-jsonpath` (the bounds);
+      `routing-operator-range` and `routing-not-condition` (the admin
+      guide's dynamic-only forms, written statically);
+      `routing-steps-jsonpath` and `routing-criteria-jsonpath` (the two
+      dynamic forms); `routing-empty-steps` and `routing-no-expression`
+      (the page's Required marks); `routing-expiry-number`,
+      `routing-expiry-jsonpath` and `routing-first-step-no-expiry` (the
+      expiry's spelling, its static rule and the admin guide's
+      every-step-but-the-last); and `routing-customer-queue`,
+      `routing-agent-transfer`, `routing-queue-transfer` and
+      `routing-module` (allowed) against `routing-customer-whisper` and
+      `routing-customer-hold` (forbidden). The step without an `Expiry`
+      is the one optional container, and `routing-required-set-alone`
+      leaves it out.
+      https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -2024,6 +2144,14 @@ GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase
                            CaseResponseFields?: (system field id | casefield)[] }   // at most 10, stored under $.Case
 UpdateCase               { LinkContactToCase, ContactToLink?, CaseId,   // static or a JSONPath ($.Case.case_id)
                            CaseRequestFields?: { [system field id | casefield]: string } }
+UpdateRoutingCriteria    { RoutingCriteria: { Steps: { Expression: RoutingExpression,   // json; required
+                                                       Expiry?: { DurationInSeconds } }[]   // decimal string, static
+                                                     | JSONPath } }
+RoutingExpression        { AttributeCondition: { Name, Value,   // 1 to 64 each; Value may be a JSONPath
+                                                 ProficiencyLevel: 1 | 2 | 3 | 4 | 5,
+                                                 ComparisonOperator: "NumberGreaterOrEqualTo" } }
+                         | { AndExpression: AttributeCondition[] }   // 1 to 8
+                         | { OrExpression: (AttributeCondition | AndExpression)[] }   // 1 to 3, top only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2193,7 +2321,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-50 of the 61. Everything not in the modeled set above parses to a
+51 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -2224,14 +2352,22 @@ type and re-authors the fixture again. On 2026-10-12, when D06 modeled
 condition in `UpdateRoutingCriteria`'s first routing step (D07's page
 shape, with the condition's `Name` and `Value`, the two string keys, and
 neither the float `ProficiencyLevel` nor `Expiry`, whose stored forms are
-unrecorded); D07 models that type and re-authors the fixture again.
+unrecorded); D07 models that type and re-authors the fixture again. On
+2026-10-12, when D07 modeled `UpdateRoutingCriteria`, the queue token moved
+to the `UserToUserInformation` of `CompleteOutboundCall`'s `VoiceConnector`
+form (D04's table: `VoiceConnectorType` `ChimeConnector`, the connector's
+ARN, `FromUser` and `ToUser` each a JSONPath, so the document needs no
+`voiceconnector` reference, which owner decision 4 does not add). Owner
+decision 4 also keeps a block carrying `VoiceConnector` generic once D04
+models the type's caller-id form, so the token stays in passthrough until a
+task takes that form up.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 50      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 51      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 50      |                                                             |
+| Denominator             | 61    | 51      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

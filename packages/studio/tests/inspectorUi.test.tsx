@@ -13,9 +13,17 @@ import type { FlowDoc } from "@flow-as-code/core";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import casesFixture from "../../../conformance/roundtrip/cases/doc.flowdoc.json";
 import profilesFixture from "../../../conformance/roundtrip/customer-profiles/doc.flowdoc.json";
+import routingFixture from "../../../conformance/roundtrip/routing-criteria/doc.flowdoc.json";
 import { App } from "../src/App.js";
 import { ErrorBoundary } from "../src/components/ErrorBoundary.js";
-import { mergeTypedNames, switchForm, type FieldDesc } from "../src/model/inspectorSchema.js";
+import {
+  addRoutingStep,
+  mergeTypedNames,
+  removeRoutingStep,
+  setRoutingStep,
+  switchForm,
+  type FieldDesc,
+} from "../src/model/inspectorSchema.js";
 import { schemaErrorsFor } from "../src/model/validate.js";
 import { MemoryStore } from "../src/store/memoryStore.js";
 import {
@@ -558,5 +566,123 @@ describe("the Cases link wires ContactNotLinked in the saved document (tasks/D06
     expect(unlinked.Transitions.Errors).toEqual([
       { ErrorType: "NoMatchingError", NextAction: "bye" },
     ]);
+  });
+});
+
+describe("routing criteria steps (tasks/D07)", () => {
+  // The wired group fixture, so the block is typed and the guard refuses an
+  // edit that would leave it generic; the saved document is what the
+  // assertions read.
+  const openFixture = async () => {
+    const store = new MemoryStore("opened", [
+      structuredClone(routingFixture) as unknown as FlowDoc,
+    ]);
+    vi.useFakeTimers();
+    await render(<App store={store} />);
+    await settleLint();
+    return store;
+  };
+  const saved = async (store: MemoryStore, id: string) => {
+    await settleLint();
+    expect(button("save-button").disabled).toBe(false);
+    await click(button("save-button"));
+    const { doc } = await store.read("routing-criteria");
+    const criteria = doc.content.Actions.find((a) => a.Identifier === id)!.Parameters
+      .RoutingCriteria as { Steps: unknown };
+    return criteria.Steps;
+  };
+  const condition = (Name: string, Value: string, ProficiencyLevel: number) => ({
+    AttributeCondition: {
+      ComparisonOperator: "NumberGreaterOrEqualTo",
+      Name,
+      ProficiencyLevel,
+      Value,
+    },
+  });
+
+  it("shows each step's expression and expiry, and edits them", async () => {
+    const store = await openFixture();
+    await click(present('[data-testid="node-by-proficiency"]'));
+    expect(testId<HTMLSelectElement>("steps-RoutingCriteria-mode").value).toBe("list");
+    expect(testId<HTMLInputElement>("steps-RoutingCriteria-0-expiry").value).toBe("30");
+    expect(testId<HTMLInputElement>("steps-RoutingCriteria-2-expiry").value).toBe("");
+    expect(testId<HTMLTextAreaElement>("steps-RoutingCriteria-0-expression").value).toContain(
+      '"OrExpression"',
+    );
+
+    await typeAndBlur(testId<HTMLInputElement>("steps-RoutingCriteria-1-expiry"), "45");
+    await typeAndBlur(
+      testId<HTMLTextAreaElement>("steps-RoutingCriteria-2-expression"),
+      JSON.stringify(condition("Language", "Spanish", 2)),
+    );
+    const steps = (await saved(store, "by-proficiency")) as { Expiry?: unknown }[];
+    expect(steps[1]!.Expiry).toEqual({ DurationInSeconds: "45" });
+    expect(steps[2]).toEqual({ Expression: condition("Language", "Spanish", 2) });
+  });
+
+  it("refuses seconds that are not a positive integer, and an expiry removed before the last step", async () => {
+    const store = await openFixture();
+    await click(present('[data-testid="node-by-proficiency"]'));
+    await typeAndBlur(testId<HTMLInputElement>("steps-RoutingCriteria-0-expiry"), "1.5");
+    expect(testId("inspector").textContent).toContain("Seconds must be a positive integer.");
+    await typeAndBlur(testId<HTMLInputElement>("steps-RoutingCriteria-0-expiry"), "");
+    expect(query('[data-testid="mutation-notice"]')?.textContent ?? "").toContain("generic block");
+    // The refused edits leave the document as it was: a later edit saves it
+    // with the first step's expiry still in place.
+    await typeAndBlur(testId<HTMLInputElement>("steps-RoutingCriteria-1-expiry"), "61");
+    const steps = (await saved(store, "by-proficiency")) as { Expiry?: unknown }[];
+    expect(steps[0]!.Expiry).toEqual({ DurationInSeconds: "30" });
+    expect(steps[1]!.Expiry).toEqual({ DurationInSeconds: "61" });
+  });
+
+  it("adds a step after one that never expired, removes one, and switches to a JSONPath", async () => {
+    const store = await openFixture();
+    await click(present('[data-testid="node-by-proficiency"]'));
+    await click(testId("steps-RoutingCriteria-add"));
+    expect(testId<HTMLInputElement>("steps-RoutingCriteria-2-expiry").value).toBe("30");
+    expect(testId<HTMLInputElement>("steps-RoutingCriteria-3-expiry").value).toBe("");
+    await click(testId("steps-RoutingCriteria-0-remove"));
+    expect((await saved(store, "by-proficiency")) as unknown[]).toHaveLength(3);
+
+    await selectOption(testId<HTMLSelectElement>("steps-RoutingCriteria-mode"), "jsonpath");
+    await typeAndBlur(
+      testId<HTMLInputElement>("steps-RoutingCriteria-jsonpath"),
+      "$.External.criteria",
+    );
+    expect(await saved(store, "by-proficiency")).toBe("$.External.criteria");
+  });
+});
+
+describe("the routing step edits, as functions", () => {
+  const step = (seconds?: string) => ({
+    Expression: { AttributeCondition: { Name: "A" } },
+    ...(seconds === undefined ? {} : { Expiry: { DurationInSeconds: seconds } }),
+  });
+
+  it("gives a last step that never expired the default seconds before appending one", () => {
+    const added = addRoutingStep([step("10"), step()]);
+    expect(added).toHaveLength(3);
+    expect(added[1]!.Expiry).toEqual({ DurationInSeconds: "30" });
+    expect(added[2]!.Expiry).toBeUndefined();
+    expect(addRoutingStep([step("10")])[0]!.Expiry).toEqual({ DurationInSeconds: "10" });
+    expect(addRoutingStep(undefined)).toHaveLength(1);
+  });
+
+  it("removes a step but never the only one, and leaves the input untouched", () => {
+    const steps = [step("10"), step()];
+    expect(removeRoutingStep(steps, 0)).toEqual([step()]);
+    expect(removeRoutingStep([step()], 0)).toBeUndefined();
+    expect(removeRoutingStep(steps, 5)).toBeUndefined();
+    expect(steps).toHaveLength(2);
+  });
+
+  it("sets an expression, sets seconds as a decimal string, and removes an expiry", () => {
+    const steps = [step("10"), step()];
+    expect(setRoutingStep(steps, 1, { seconds: 20 })[1]).toEqual(step("20"));
+    expect(setRoutingStep(steps, 0, { seconds: null })[0]).toEqual(step());
+    expect(setRoutingStep(steps, 0, { expression: { AndExpression: [] } })[0]!.Expression).toEqual({
+      AndExpression: [],
+    });
+    expect(steps[0]).toEqual(step("10"));
   });
 });

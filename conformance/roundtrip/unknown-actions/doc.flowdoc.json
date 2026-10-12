@@ -23,7 +23,7 @@
           }
         },
         "Transitions": {
-          "NextAction": "route-to-queue",
+          "NextAction": "dial-connector",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
@@ -34,30 +34,20 @@
         }
       },
       {
-        "Identifier": "route-to-queue",
-        "Type": "UpdateRoutingCriteria",
+        "Identifier": "dial-connector",
+        "Type": "CompleteOutboundCall",
         "Parameters": {
-          "RoutingCriteria": {
-            "Steps": [
-              {
-                "Expression": {
-                  "AttributeCondition": {
-                    "Name": "preferredQueue",
-                    "Value": "${cdref:queue:support}"
-                  }
-                }
-              }
-            ]
+          "VoiceConnector": {
+            "FromUser": "$.Attributes.fromUser",
+            "ToUser": "$.CustomerEndpoint.Address",
+            "UserToUserInformation": "${cdref:queue:support}",
+            "VoiceConnectorArn": "$.Attributes.voiceConnectorArn",
+            "VoiceConnectorType": "ChimeConnector"
           }
         },
         "Transitions": {
           "NextAction": "load-content",
-          "Errors": [
-            {
-              "ErrorType": "NoMatchingError",
-              "NextAction": "hand-off"
-            }
-          ],
+          "Errors": [],
           "Conditions": []
         }
       },
@@ -123,16 +113,16 @@
     ]
   },
   "layout": {
+    "dial-connector": {
+      "x": 280,
+      "y": 20
+    },
     "hand-off": {
       "x": 1060,
       "y": 20
     },
     "load-content": {
       "x": 540,
-      "y": 20
-    },
-    "route-to-queue": {
-      "x": 280,
       "y": 20
     },
     "text-back": {

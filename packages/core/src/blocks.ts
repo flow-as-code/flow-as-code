@@ -56,6 +56,12 @@ import {
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
   PREVIOUS_PARTICIPANT_STATES,
+  PREDEFINED_ATTRIBUTE_TEXT_MAX,
+  PREDEFINED_ATTRIBUTE_TEXT_MIN,
+  PROFICIENCY_LEVELS,
+  ROUTING_AND_MAX,
+  ROUTING_COMPARISON_OPERATOR,
+  ROUTING_OR_MAX,
   CALCULATED_ATTRIBUTE_FIELDS,
   CALCULATED_ATTRIBUTE_PATTERNS,
   MULTIPLE_FOUND_ERROR,
@@ -92,6 +98,7 @@ import type {
   MetricOperator,
   MetricType,
   PreviousParticipantState,
+  ProficiencyLevel,
   ProfileLogicalOperator,
   QueueChannel,
   TargetContact,
@@ -103,6 +110,7 @@ import type { Condition, ConditionOperator, FlowAction, Transitions } from "./fl
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
 import { parseToken } from "./refs.js";
+import { jsonPath } from "./refs.js";
 
 /** A transition target: another block, or its Identifier. */
 export type Target = string | Block;
@@ -1438,6 +1446,247 @@ export class UpdateContactRoutingBehavior extends Block {
 
   protected transitions(): Transitions {
     return wire(this.config.next, []);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Routing criteria (tasks/D07, docs/adr/0009)
+//
+// The expression is a tagged union, recursive on the action page, which the
+// catalog holds as a `json` value. TypeScript expresses the union directly,
+// so the builder offers it typed: `attributeCondition`, `and` and `or` build
+// the Flow language objects the action page shows, and the block class
+// checks the whole tree. The narrowing below (an AND holds conditions only,
+// an OR sits at the top) is the admin guide's, not the action page's: "OR
+// expressions must be at the top level. You can place an AND inside an OR,
+// but not the other way around."
+// https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
+// https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+// ---------------------------------------------------------------------------
+
+/**
+ * One requirement: a predefined attribute's name and value, and the
+ * proficiency an agent needs in it, at least. `Name` and `Value` are each 1
+ * to 64 characters on the action page; the admin guide lets the value be a
+ * JSONPath ("you can specify `$.External.language` JSONPath reference
+ * instead of hard coding a value"), which the length does not bound here.
+ * The predefined attribute is the instance's, named by a string, as the
+ * console names it; it is not a reference (tasks/D07).
+ */
+export interface AttributeConditionExpression {
+  AttributeCondition: {
+    Name: string;
+    Value: string;
+    ProficiencyLevel: ProficiencyLevel;
+    ComparisonOperator: typeof ROUTING_COMPARISON_OPERATOR;
+  };
+}
+
+/** Requirements AND-ed together, up to eight. */
+export interface AndExpression {
+  AndExpression: AttributeConditionExpression[];
+}
+
+/** Alternatives OR-ed together, up to three, each a requirement or an AND of them. */
+export interface OrExpression {
+  OrExpression: (AttributeConditionExpression | AndExpression)[];
+}
+
+/** A routing step's `Expression`, one of the three tags. */
+export type RoutingExpression = AttributeConditionExpression | AndExpression | OrExpression;
+
+/**
+ * A requirement, written as the action page spells it: `ProficiencyLevel`
+ * one of the five levels and `ComparisonOperator` its one valid value. The
+ * level is written as a JSON number, the integer spelling, since `2.0`
+ * cannot survive a JSON parse in any reader (docs/adr/0009); the admin
+ * guide's own examples write `"ProficiencyLevel": 4`. Rule 45 (pending) puts
+ * the integer and the string spellings to the service.
+ */
+export function attributeCondition(
+  name: string,
+  value: string,
+  level: ProficiencyLevel,
+): AttributeConditionExpression {
+  const where = `attributeCondition("${name}", "${value}")`;
+  requireAttributeText(where, "name", name, false);
+  requireAttributeText(where, "value", value, true);
+  if (!(PROFICIENCY_LEVELS as readonly unknown[]).includes(level)) {
+    throw new Error(
+      `${where} level must be one of ${PROFICIENCY_LEVELS.join(", ")}, got ${String(level)}.`,
+    );
+  }
+  return {
+    AttributeCondition: {
+      Name: name,
+      Value: value,
+      ProficiencyLevel: level,
+      ComparisonOperator: ROUTING_COMPARISON_OPERATOR,
+    },
+  };
+}
+
+/** Requirements an agent must all meet: one to eight. */
+export function and(...conditions: AttributeConditionExpression[]): AndExpression {
+  requireCount("and", conditions.length, ROUTING_AND_MAX);
+  conditions.forEach((c) => requireCondition("and", c));
+  return { AndExpression: conditions };
+}
+
+/** Alternatives, any of which an agent may meet: one to three, each a requirement or an AND. */
+export function or(
+  ...alternatives: (AttributeConditionExpression | AndExpression)[]
+): OrExpression {
+  requireCount("or", alternatives.length, ROUTING_OR_MAX);
+  for (const a of alternatives) {
+    if (isTagged(a, "AndExpression")) requireExpression("or", a, false);
+    else requireCondition("or", a);
+  }
+  return { OrExpression: alternatives };
+}
+
+function requireAttributeText(where: string, what: string, text: unknown, dynamic: boolean): void {
+  if (typeof text !== "string") throw new Error(`${where} ${what} must be a string.`);
+  if (dynamic && text.startsWith("$.")) return;
+  if (
+    [...text].length < PREDEFINED_ATTRIBUTE_TEXT_MIN ||
+    [...text].length > PREDEFINED_ATTRIBUTE_TEXT_MAX
+  ) {
+    throw new Error(
+      `${where} ${what} must be ${PREDEFINED_ATTRIBUTE_TEXT_MIN} to ${PREDEFINED_ATTRIBUTE_TEXT_MAX} characters.`,
+    );
+  }
+}
+
+function requireCount(where: string, n: number, max: number): void {
+  if (n < 1 || n > max) throw new Error(`${where}(...) takes 1 to ${max} expressions, got ${n}.`);
+}
+
+function isTagged(e: unknown, tag: string): boolean {
+  return (
+    e !== null &&
+    typeof e === "object" &&
+    !Array.isArray(e) &&
+    Object.keys(e).length === 1 &&
+    tag in e
+  );
+}
+
+function requireCondition(where: string, e: unknown): void {
+  if (!isTagged(e, "AttributeCondition")) {
+    throw new Error(`${where}: an AND holds requirements only (attributeCondition).`);
+  }
+  const c = (e as AttributeConditionExpression).AttributeCondition as unknown;
+  const keys = ["ComparisonOperator", "Name", "ProficiencyLevel", "Value"];
+  if (c === null || typeof c !== "object" || Object.keys(c).sort().join() !== keys.join()) {
+    throw new Error(
+      `${where}: a requirement is written by attributeCondition(name, value, level).`,
+    );
+  }
+  const r = c as AttributeConditionExpression["AttributeCondition"];
+  if (r.ComparisonOperator !== ROUTING_COMPARISON_OPERATOR) {
+    throw new Error(`${where}: a requirement's operator is ${ROUTING_COMPARISON_OPERATOR}.`);
+  }
+  attributeCondition(r.Name, r.Value, r.ProficiencyLevel);
+}
+
+/** A whole expression, as the builder writes it; `top` is whether an OR may stand here. */
+function requireExpression(where: string, e: unknown, top: boolean): void {
+  if (isTagged(e, "AttributeCondition")) return requireCondition(where, e);
+  if (isTagged(e, "AndExpression")) {
+    const items = (e as AndExpression).AndExpression as unknown;
+    if (!Array.isArray(items)) throw new Error(`${where}: AndExpression must be a list.`);
+    requireCount("and", items.length, ROUTING_AND_MAX);
+    for (const item of items) requireCondition(where, item);
+    return;
+  }
+  if (top && isTagged(e, "OrExpression")) {
+    const items = (e as OrExpression).OrExpression as unknown;
+    if (!Array.isArray(items)) throw new Error(`${where}: OrExpression must be a list.`);
+    requireCount("or", items.length, ROUTING_OR_MAX);
+    for (const item of items) requireExpression(where, item, false);
+    return;
+  }
+  throw new Error(
+    `${where}: an expression is attributeCondition(...), and(...)${top ? " or or(...)" : ""}.`,
+  );
+}
+
+/**
+ * One routing step: the expression an agent must meet, and the seconds the
+ * step waits for one before the next step takes over. "If an expiration
+ * duration is not specified on the routing step, the routing step never
+ * expires", which the admin guide allows on the last step only.
+ */
+export interface RoutingStep {
+  expression: RoutingExpression;
+  expiresAfterSeconds?: number;
+}
+
+/**
+ * "Sets the routing criteria for the contact." `RoutingCriteria.Steps` is a
+ * list of steps, "set statically or dynamically", so `steps` is the list or a
+ * JSONPath to one (the admin guide's Set dynamically option reads a Lambda's
+ * response). Each step's `Expiry.DurationInSeconds` "Can be set only
+ * statically", written as a decimal string, the spelling the console gives
+ * every other seconds field. One error, the catch-all; no conditions.
+ * Inbound, customer queue and transfer flows, every channel.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+ */
+export interface UpdateRoutingCriteriaConfig extends Wired {
+  steps: RoutingStep[] | JsonPath;
+}
+
+export class UpdateRoutingCriteria extends Block {
+  readonly type = ActionType.UpdateRoutingCriteria;
+
+  constructor(private readonly config: UpdateRoutingCriteriaConfig) {
+    super(config.id);
+    const where = `UpdateRoutingCriteria "${config.id}"`;
+    const steps = config.steps;
+    if (typeof steps === "string") {
+      jsonPath(steps);
+      return;
+    }
+    if (!Array.isArray(steps) || steps.length === 0) {
+      throw new Error(`${where} needs at least one step, or a JSONPath to the steps.`);
+    }
+    steps.forEach((step, i) => {
+      const at = `${where} step ${i + 1}`;
+      requireExpression(at, step.expression, true);
+      const seconds = step.expiresAfterSeconds;
+      if (seconds === undefined) {
+        if (i < steps.length - 1) {
+          throw new Error(`${at} needs expiresAfterSeconds: only the last step may never expire.`);
+        }
+      } else if (!Number.isSafeInteger(seconds) || seconds < 1) {
+        throw new Error(`${at} expiresAfterSeconds must be a positive integer, got ${seconds}.`);
+      }
+    });
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const steps = this.config.steps;
+    return {
+      RoutingCriteria: {
+        Steps:
+          typeof steps === "string"
+            ? steps
+            : steps.map((step) =>
+                step.expiresAfterSeconds === undefined
+                  ? { Expression: step.expression }
+                  : {
+                      Expression: step.expression,
+                      Expiry: { DurationInSeconds: String(step.expiresAfterSeconds) },
+                    },
+              ),
+      },
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
   }
 }
 
@@ -3113,7 +3362,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 50.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 51.
  */
 export interface GenericBlockConfig {
   id: string;

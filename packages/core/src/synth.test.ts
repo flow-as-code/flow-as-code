@@ -61,6 +61,7 @@ import {
   synth,
   TagContact,
   TransferContactToAgent,
+  TransferContactToQueue,
   UntagContact,
   UpdateCase,
   UpdateContactCallbackNumber,
@@ -71,6 +72,11 @@ import {
   UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
+  UpdateContactTargetQueue,
+  UpdateRoutingCriteria,
+  and,
+  attributeCondition,
+  or,
   UpdateContactTextToSpeechVoice,
   UpdateCustomerProfile,
   UpdateFlowAttributes,
@@ -2408,5 +2414,182 @@ describe("UpdateCase", () => {
     expect(
       () => new UpdateCase({ ...base, fields: { "12345678-aaaa-bbbb-cccc-123456789012": "x" } }),
     ).toThrow(/neither a Cases system field id nor a casefield reference/);
+  });
+});
+
+describe("the routing criteria action", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/routing-criteria/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("builds the routing-criteria fixture", () => {
+    const flow = new Flow({
+      name: "routing-criteria",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new UpdateContactTargetQueue({
+        id: "set-queue",
+        queue: jsonPath("$.Attributes.queueId"),
+        next: "from-lambda",
+        onError: "bye",
+      }),
+      new UpdateRoutingCriteria({
+        id: "from-lambda",
+        steps: jsonPath("$.External.routingSteps"),
+        next: "transfer",
+        onError: "by-proficiency",
+      }),
+      new UpdateRoutingCriteria({
+        id: "by-proficiency",
+        steps: [
+          {
+            expression: or(
+              and(
+                attributeCondition("Language", "English", 4),
+                attributeCondition("Technology", "AWS Kinesis", 2),
+              ),
+              attributeCondition("Language", "Spanish", 5),
+            ),
+            expiresAfterSeconds: 30,
+          },
+          {
+            expression: and(
+              attributeCondition("Language", "English", 3),
+              attributeCondition("Technology", "AWS Kinesis", 1),
+            ),
+            expiresAfterSeconds: 60,
+          },
+          { expression: attributeCondition("Language", "$.Attributes.language", 1) },
+        ],
+        next: "transfer",
+        onError: "bye",
+      }),
+      new TransferContactToQueue({
+        id: "transfer",
+        next: "bye",
+        onQueueAtCapacity: "bye",
+        onError: "bye",
+      }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("writes the expression as the page spells it, and each expiry as a decimal string", () => {
+    expect(
+      new UpdateRoutingCriteria({
+        id: "r",
+        steps: [
+          { expression: attributeCondition("Language", "English", 4), expiresAfterSeconds: 30 },
+          { expression: and(attributeCondition("Language", "English", 1)) },
+        ],
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "r",
+      Type: "UpdateRoutingCriteria",
+      Parameters: {
+        RoutingCriteria: {
+          Steps: [
+            {
+              Expression: {
+                AttributeCondition: {
+                  Name: "Language",
+                  Value: "English",
+                  ProficiencyLevel: 4,
+                  ComparisonOperator: "NumberGreaterOrEqualTo",
+                },
+              },
+              Expiry: { DurationInSeconds: "30" },
+            },
+            {
+              Expression: {
+                AndExpression: [
+                  {
+                    AttributeCondition: {
+                      Name: "Language",
+                      Value: "English",
+                      ProficiencyLevel: 1,
+                      ComparisonOperator: "NumberGreaterOrEqualTo",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuses a level, a name or a value the action page does not allow", () => {
+    expect(() => attributeCondition("Language", "English", 2.5 as 2)).toThrow(
+      /level must be one of 1, 2, 3, 4, 5, got 2.5/,
+    );
+    expect(() => attributeCondition("Language", "English", 0 as 1)).toThrow(/got 0/);
+    expect(() => attributeCondition("", "English", 1)).toThrow(/name must be 1 to 64 characters/);
+    expect(() => attributeCondition("x".repeat(65), "English", 1)).toThrow(
+      /name must be 1 to 64 characters/,
+    );
+    expect(() => attributeCondition("Language", "y".repeat(65), 1)).toThrow(
+      /value must be 1 to 64 characters/,
+    );
+    // A JSONPath value is the admin guide's dynamic form, not bound by the length.
+    expect(() => attributeCondition("Language", `$.Attributes.${"z".repeat(64)}`, 1)).not.toThrow();
+    expect(() => attributeCondition("x".repeat(64), "y".repeat(64), 5)).not.toThrow();
+  });
+
+  it("holds an AND to one to eight requirements and an OR to one to three, with OR at the top", () => {
+    const c = attributeCondition("Language", "English", 1);
+    expect(() => and()).toThrow(/and\(...\) takes 1 to 8 expressions, got 0/);
+    expect(() => and(...Array.from({ length: 9 }, () => c))).toThrow(/got 9/);
+    expect(() => and(...Array.from({ length: 8 }, () => c))).not.toThrow();
+    expect(() => or()).toThrow(/or\(...\) takes 1 to 3 expressions, got 0/);
+    expect(() => or(c, c, c, c)).toThrow(/got 4/);
+    expect(() => or(and(c, c), c, and(c))).not.toThrow();
+    expect(() => and(and(c) as never)).toThrow(/an AND holds requirements only/);
+    expect(() => or(or(c) as never)).toThrow(/an AND holds requirements only/);
+    expect(
+      () =>
+        new UpdateRoutingCriteria({
+          id: "r",
+          steps: [{ expression: { AndExpression: [or(c)] } as never }],
+          next: "n",
+          onError: "e",
+        }),
+    ).toThrow(/an AND holds requirements only/);
+  });
+
+  it("refuses no steps, a step before the last without an expiry, and a bad expiry or JSONPath", () => {
+    const expression = attributeCondition("Language", "English", 1);
+    const make = (steps: ConstructorParameters<typeof UpdateRoutingCriteria>[0]["steps"]) =>
+      new UpdateRoutingCriteria({ id: "r", steps, next: "n", onError: "e" });
+    expect(() => make([])).toThrow(/needs at least one step/);
+    expect(() => make([{ expression }, { expression }])).toThrow(
+      /step 1 needs expiresAfterSeconds: only the last step may never expire/,
+    );
+    expect(() => make([{ expression, expiresAfterSeconds: 0 }])).toThrow(/positive integer, got 0/);
+    expect(() => make([{ expression, expiresAfterSeconds: 1.5 }])).toThrow(/got 1.5/);
+    expect(() => make("External.steps" as never)).toThrow(/Invalid JSONPath/);
+    expect(make(jsonPath("$.External.steps")).toAction().Parameters).toEqual({
+      RoutingCriteria: { Steps: "$.External.steps" },
+    });
+    expect(() =>
+      make([
+        {
+          expression: {
+            AttributeCondition: { ...expression.AttributeCondition, ComparisonOperator: "Range" },
+          } as never,
+        },
+      ]),
+    ).toThrow(/operator is NumberGreaterOrEqualTo/);
   });
 });
