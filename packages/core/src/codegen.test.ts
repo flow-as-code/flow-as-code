@@ -3173,3 +3173,94 @@ describe("the Customer Profiles actions invert their request and response data",
     });
   });
 });
+
+describe("the Cases actions invert their link, template and field ids", () => {
+  const action = (
+    type: string,
+    parameters: Record<string, unknown>,
+    errors: string[],
+  ): FlowAction => ({
+    Identifier: "case",
+    Type: type,
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain(`new ${a.Type}({`);
+    expect(out).not.toContain("GenericBlock");
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain(`type: "${a.Type}"`);
+    expect(out).not.toContain(`new ${a.Type}(`);
+  };
+  const linked = ["ContactNotLinked", "NoMatchingError"];
+
+  describe("CreateCase", () => {
+    const create = (parameters: Record<string, unknown>, errors = linked) =>
+      action("CreateCase", parameters, errors);
+    const base = {
+      LinkContactToCase: "true",
+      CaseTemplateId: "${cdref:casetemplate:billing-dispute}",
+    };
+
+    it("emits the template, a field map with computed reference keys, and the link", () => {
+      const out = typed(
+        create({
+          ...base,
+          ContactToLink: "Related",
+          CaseRequestFields: {
+            "${cdref:casefield:priority}": "high",
+            customer_id: "$.Customer.ProfileARN",
+          },
+        }),
+      );
+      expect(out).toContain('template: Refs.casetemplate("billing-dispute")');
+      expect(out).toContain('[Refs.casefield("priority")]: "high"');
+      expect(out).toContain('customer_id: "$.Customer.ProfileARN"');
+      expect(out).toContain('link: { onContactNotLinked: "bye", contact: "Related" }');
+    });
+
+    it("emits a block that does not link with no link and no ContactNotLinked", () => {
+      const out = typed(create({ ...base, LinkContactToCase: "false" }, ["NoMatchingError"]));
+      expect(out).not.toContain("link:");
+      expect(out).not.toContain("fields:");
+    });
+
+    it("falls back on a literal or JSONPath template, a literal field id, or a link out of shape", () => {
+      generic(create({ ...base, CaseTemplateId: "f9b90c5f-5cc6-4d9b-a18d-fc14f601ef88" }));
+      generic(create({ ...base, CaseTemplateId: "$.Attributes.template" }));
+      generic(create({ ...base, CaseTemplateId: "${cdref:tasktemplate:follow-up}" }));
+      generic(
+        create({ ...base, CaseRequestFields: { "12345678-aaaa-bbbb-cccc-123456789012": "x" } }),
+      );
+      generic(create({ ...base, CaseRequestFields: { "${cdref:queue:front-desk}": "x" } }));
+      generic(create({ ...base, CaseRequestFields: { summary: 1 } }));
+      // Linking without its branch, or the branch without linking.
+      generic(create(base, ["NoMatchingError"]));
+      generic(create({ ...base, LinkContactToCase: "false" }));
+      generic(
+        create({ ...base, LinkContactToCase: "false", ContactToLink: "Current" }, [
+          "NoMatchingError",
+        ]),
+      );
+      generic(create({ ...base, LinkContactToCase: "$.Attributes.link" }, ["NoMatchingError"]));
+      generic(create({ ...base, ContactToLink: "Initial" }));
+      // The catch-all first, or an unknown key.
+      generic(create(base, ["NoMatchingError", "ContactNotLinked"]));
+      generic(create({ ...base, CustomerId: "$.Customer.ProfileARN" }));
+    });
+  });
+});

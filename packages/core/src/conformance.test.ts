@@ -508,6 +508,74 @@ describe("FlowDoc schema rejections: customer profiles", () => {
   });
 });
 
+// The cases round-trip fixture is the subject for the 0.3 clauses of
+// tasks/D06. Each clause holds what docs/adr/0008 states: a string that
+// opens a token in CaseTemplateId is a whole casetemplate token, and one in
+// a CaseRequestFields key a whole casefield token. A literal template or
+// field id, which the service accepts and every published flow writes,
+// still validates (owner decision 3); codegen leaves it generic. The enums,
+// the link's branch and the system field list stay in the catalog and the
+// builder until rule 44's probes (pending) show the service refusing them.
+describe("FlowDoc schema rejections: cases", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/cases/doc.flowdoc.json");
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(d.content.Actions.find((a) => a.Identifier === id) as unknown as Action);
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a template token of another type",
+      mutate("open-case", (a) => {
+        a.Parameters.CaseTemplateId = "${cdref:tasktemplate:follow-up}";
+      }),
+    ],
+    [
+      "a template token interpolated into a longer string",
+      mutate("open-case", (a) => {
+        a.Parameters.CaseTemplateId = "${cdref:casetemplate:billing-dispute}-v2";
+      }),
+    ],
+    [
+      "a field key token of another type",
+      mutate("open-case", (a) => {
+        a.Parameters.CaseRequestFields = { "${cdref:queue:front-desk}": "x" };
+      }),
+    ],
+    [
+      "a malformed field key token",
+      mutate("open-case", (a) => {
+        a.Parameters.CaseRequestFields = { "${cdref:casefield:priority": "x" };
+      }),
+    ],
+    [
+      "request fields that are not an object",
+      mutate("open-case", (a) => {
+        a.Parameters.CaseRequestFields = ["summary"];
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+
+  it("still accepts a literal template id and a literal field id, as published flows write them", () => {
+    expect(
+      validate(
+        mutate("open-case", (a) => {
+          a.Parameters.CaseTemplateId = "f9b90c5f-5cc6-4d9b-a18d-fc14f601ef88";
+          a.Parameters.CaseRequestFields = { "12345678-aaaa-bbbb-cccc-123456789012": "x" };
+        }),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("FlowDoc schema rejections: flow control", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/flow-control/doc.flowdoc.json");

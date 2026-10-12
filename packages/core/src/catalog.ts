@@ -135,7 +135,9 @@ export interface CatalogError {
    * (`CreateCase`'s `ContactNotLinked` when `LinkContactToCase` is `"true"`),
    * where presence alone says nothing. FlowDoc 0.3 vocabulary (tasks/D01);
    * read by `requiredErrorsFor` beside `requiredWhenKey`, and carried by an
-   * error that is not also `required` or `requiredWhenKey`.
+   * error that is not also `required` or `requiredWhenKey`. Since tasks/D06
+   * `builderErrorsFor` reads it too: the builder wires such a branch only on
+   * an action holding the value.
    */
   requiredWhenValue?: { key: string; equals: string };
 }
@@ -388,6 +390,15 @@ export function builderErrors(type: string): string[] {
  * PhoneNumberValidation is specified"), which no shape records because the
  * deciding value is nested.
  * https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-getparticipantinput.html
+ *
+ * An error the catalog requires by a parameter's value (`requiredWhenValue`)
+ * is the builder's only on an action holding that value: the Cases classes
+ * wire `ContactNotLinked` on a linking block and on no other, as the
+ * console's export and every published flow do (actions.md, rule 44). The
+ * catalog's shapes could have said so with a `forbids`, but conditional-shape
+ * would then report the branch on a non-linking block, which no page and no
+ * probe says the service refuses (tasks/D06).
+ * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
  */
 export function builderErrorsFor(action: {
   Type: string;
@@ -404,6 +415,10 @@ export function builderErrorsFor(action: {
         : value !== shape.when.notEquals;
     if (!holds) continue;
     for (const type of shape.forbids?.errors ?? []) forbidden.add(type);
+  }
+  for (const e of entry.transitions.errors) {
+    const when = e.requiredWhenValue;
+    if (when !== undefined && action.Parameters[when.key] !== when.equals) forbidden.add(e.type);
   }
   if (action.Type === "GetParticipantInput") {
     const validation = action.Parameters.InputValidation;

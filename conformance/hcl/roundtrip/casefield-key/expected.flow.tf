@@ -19,16 +19,13 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "open-case"
     next = "read-case"
-    generic {
-      type = "CreateCase"
-      parameters = jsonencode({
-        CaseRequestFields = {
-          "$${cdref:casefield:priority}" = "high"
-          "$${cdref:casefield:summary}"  = "$.Attributes.summary"
-        }
-        CaseTemplateId    = "$${cdref:casetemplate:billing-dispute}"
-        LinkContactToCase = "true"
-      })
+    create_case {
+      case_request_fields = {
+        "casefield:priority" = "high"
+        "casefield:summary"  = "$.Attributes.summary"
+      }
+      case_template_id     = "casetemplate:billing-dispute"
+      link_contact_to_case = "true"
     }
     error {
       type = "ContactNotLinked"

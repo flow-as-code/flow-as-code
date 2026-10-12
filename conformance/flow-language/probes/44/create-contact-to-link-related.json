@@ -1,0 +1,39 @@
+{
+  "description": "Rule 44: CreateCase linking the related contact, ContactToLink \"Related\" (the admin guide's Related contact; the spelling is unrecorded).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCase",
+        "Parameters": {
+          "LinkContactToCase": "true",
+          "CaseTemplateId": "{{CASE_TEMPLATE_ID}}",
+          "ContactToLink": "Related"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

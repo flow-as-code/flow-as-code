@@ -42,11 +42,13 @@ import type {
 import {
   builderErrorsFor,
   ActionType,
+  CONTACT_NOT_LINKED,
   MAX_ACTIONS_PER_FLOW,
   MESSAGES_INTERRUPTED,
   PARTICIPANT_NOT_FOUND,
   WAIT_COMPLETED,
   WAIT_EVENTS,
+  NO_MATCHING_ERROR,
   canonicalize,
   collectRefs,
 } from "@flow-as-code/core";
@@ -425,6 +427,57 @@ export const setMessageBody = guard(
     const others = MESSAGE_BODY_KEYS.filter((k) => k !== kind);
     return setParamImpl(doc, id, kind, value, { clears: others });
   },
+);
+
+/**
+ * A Cases block's link (tasks/D06): not linking, linking with no contact
+ * named, or linking the current or the related contact (`ContactToLink`).
+ */
+export type CaseLinkChoice = "none" | "link" | "Current" | "Related";
+
+/**
+ * Switches a Cases block's link in one mutation, so the block never passes
+ * through a shape the class refuses. Linking writes `LinkContactToCase:
+ * "true"` and gives the block its ContactNotLinked branch, first, aimed
+ * where the catch-all goes until the author rewires it: the error the
+ * catalog requires on a linking block (`requiredWhenValue`) appears the
+ * moment linking is switched on. Not linking writes `"false"` and removes
+ * the branch and `ContactToLink`, which the class writes only when linking.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+ */
+export const setCaseLink = guard(
+  "setCaseLink",
+  {
+    label: "That link change",
+    hint: "Wire the block's Error branch first, so the ContactNotLinked branch has somewhere to go.",
+  },
+  (doc: FlowDoc, id: string, choice: CaseLinkChoice): FlowDoc =>
+    normalize(
+      withAction(doc, id, (a) => {
+        const params: Record<string, unknown> = { ...a.Parameters };
+        delete params.ContactToLink;
+        const wired = a.Transitions.Errors ?? [];
+        const others = wired.filter((e) => e.ErrorType !== CONTACT_NOT_LINKED);
+        if (choice === "none") {
+          params.LinkContactToCase = "false";
+          return { ...a, Parameters: params, Transitions: { ...a.Transitions, Errors: others } };
+        }
+        params.LinkContactToCase = "true";
+        if (choice !== "link") params.ContactToLink = choice;
+        const target =
+          wired.find((e) => e.ErrorType === CONTACT_NOT_LINKED)?.NextAction ??
+          others.find((e) => e.ErrorType === NO_MATCHING_ERROR)?.NextAction;
+        const errors =
+          target === undefined
+            ? others
+            : [{ ErrorType: CONTACT_NOT_LINKED, NextAction: target }, ...others];
+        const linked = { ...a, Parameters: params };
+        return {
+          ...linked,
+          Transitions: { ...a.Transitions, Errors: inBuilderOrder(linked, errors) },
+        };
+      }),
+    ),
 );
 
 export interface AddBlockResult {

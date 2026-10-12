@@ -142,7 +142,92 @@
     "CreateCase": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/createcase.html",
-      "modeled": false
+      "modeled": true,
+      "block": "create_case",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "LinkContactToCase",
+          "attr": "link_contact_to_case",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "true",
+            "false"
+          ]
+        },
+        {
+          "key": "ContactToLink",
+          "attr": "contact_to_link",
+          "kind": "enum",
+          "required": false,
+          "values": [
+            "Current",
+            "Related"
+          ]
+        },
+        {
+          "key": "CaseTemplateId",
+          "attr": "case_template_id",
+          "kind": "ref",
+          "required": true,
+          "ref": "casetemplate"
+        },
+        {
+          "key": "CaseRequestFields",
+          "attr": "case_request_fields",
+          "kind": "map",
+          "required": false,
+          "keys": [
+            "assigned_queue",
+            "assigned_user",
+            "case_id",
+            "case_reason",
+            "created_by",
+            "customer_id",
+            "last_closed_datetime",
+            "created_datetime",
+            "last_updated_datetime",
+            "last_updated_user",
+            "reference_number",
+            "reference_id",
+            "status",
+            "summary",
+            "title"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "CaseTemplateId",
+          "ref": "casetemplate"
+        },
+        {
+          "path": "CaseRequestFields.*~",
+          "ref": "casefield"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "ContactNotLinked",
+            "required": false,
+            "builder": true,
+            "requiredWhenValue": {
+              "key": "LinkContactToCase",
+              "equals": "true"
+            }
+          },
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "CreateTask": {
       "category": "contact",

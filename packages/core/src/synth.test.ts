@@ -22,6 +22,7 @@ import {
   collectRefs,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateCase,
   CreateCustomerProfile,
   CreateTask,
   CreateWisdomSession,
@@ -2151,5 +2152,115 @@ describe("the Customer Profiles actions", () => {
     expect(
       () => new AssociateContactToCustomerProfile({ ...base, contactId: cast<never>(undefined) }),
     ).toThrow(/contactId must be a non-empty string or JSONPath/);
+  });
+});
+
+describe("the Cases actions", () => {
+  const expected = JSON.parse(fixture("conformance/roundtrip/cases/doc.flowdoc.json")) as FlowDoc;
+
+  it("build the cases fixture", () => {
+    const flow = new Flow({
+      name: "cases",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new CreateCase({
+        id: "open-case",
+        template: Refs.casetemplate("billing-dispute"),
+        fields: {
+          [Refs.casefield("priority")]: "high",
+          customer_id: "$.Customer.ProfileARN",
+          summary: "$.Attributes.summary",
+          title: "Billing dispute",
+        },
+        link: { onContactNotLinked: "log-case", contact: "Current" },
+        next: "log-case",
+        onError: "bye",
+      }),
+      new CreateCase({
+        id: "log-case",
+        template: Refs.casetemplate("call-log"),
+        fields: { [Refs.casefield("channel")]: "$.Channel", status: "open" },
+        next: "bye",
+        onError: "bye",
+      }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write CreateCase with ContactNotLinked first only when linking", () => {
+    const base = {
+      id: "c",
+      template: Refs.casetemplate("billing-dispute"),
+      next: "n",
+      onError: "e",
+    };
+    expect(new CreateCase({ ...base, link: { onContactNotLinked: "l" } }).toAction()).toEqual({
+      Identifier: "c",
+      Type: "CreateCase",
+      Parameters: {
+        LinkContactToCase: "true",
+        CaseTemplateId: "${cdref:casetemplate:billing-dispute}",
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "ContactNotLinked", NextAction: "l" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(new CreateCase({ ...base, fields: { status: "open" } }).toAction()).toEqual({
+      Identifier: "c",
+      Type: "CreateCase",
+      Parameters: {
+        LinkContactToCase: "false",
+        CaseTemplateId: "${cdref:casetemplate:billing-dispute}",
+        CaseRequestFields: { status: "open" },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuse CreateCase with a template or a field id that is not a reference or a system field", () => {
+    const base = {
+      id: "c",
+      template: Refs.casetemplate("billing-dispute"),
+      next: "n",
+      onError: "e",
+    };
+    expect(
+      () =>
+        new CreateCase({ ...base, template: cast<never>("f9b90c5f-5cc6-4d9b-a18d-fc14f601ef88") }),
+    ).toThrow(/template must be a casetemplate reference/);
+    expect(
+      () => new CreateCase({ ...base, template: cast<never>(Refs.tasktemplate("t")) }),
+    ).toThrow(/template must be a casetemplate reference/);
+    expect(
+      () => new CreateCase({ ...base, fields: { "12345678-aaaa-bbbb-cccc-123456789012": "x" } }),
+    ).toThrow(/neither a Cases system field id nor a casefield reference/);
+    expect(() => new CreateCase({ ...base, fields: { [Refs.queue("q")]: "x" } })).toThrow(
+      /neither a Cases system field id nor a casefield reference/,
+    );
+    expect(() => new CreateCase({ ...base, fields: { summary: cast<string>(1) } })).toThrow(
+      /must be a string or JSONPath/,
+    );
+    expect(
+      () =>
+        new CreateCase({
+          ...base,
+          link: { onContactNotLinked: "l", contact: cast<never>("Initial") },
+        }),
+    ).toThrow(/link contact must be one of Current, Related/);
+    expect(() => new CreateCase({ ...base, link: cast<never>({}) })).toThrow(
+      /link needs onContactNotLinked/,
+    );
   });
 });

@@ -35,6 +35,8 @@ import {
   banner,
   MODULE_RESOURCE,
   REF_KEY,
+  refPositions,
+  type RefPosition,
   RESOURCE_ATTRIBUTES,
   byAttr,
   entryByBlock,
@@ -667,6 +669,7 @@ class Reader {
     { type, entry }: { type: string; entry: ModeledAction },
   ): { type: string; parameters: Record<string, unknown> } {
     const params = byAttr(entry.parameters);
+    const positions = refPositions(entry);
     const out: Record<string, unknown> = {};
     const given = new Map<string, Attribute>();
     for (const item of b.body.items) {
@@ -680,13 +683,16 @@ class Reader {
       // Terraform reads an attribute set to null as unset, so the provider's
       // document has no such key; neither does this one.
       if (isNull(item.expr)) continue;
-      out[p.key] = this.value(item.expr, p, `${path}.${n}`);
+      out[p.key] = this.value(item.expr, p, `${path}.${n}`, positions.get(p.key));
     }
     return { type, parameters: out };
   }
 
-  /** One value by its catalog shape (rule 11, read backwards). */
-  value(expr: Expr, e: CatalogElement, path: string): unknown {
+  /**
+   * One value by its catalog shape (rule 11, read backwards). `at` names a
+   * top-level map whose keys, or list whose items, hold references.
+   */
+  value(expr: Expr, e: CatalogElement, path: string, at?: RefPosition): unknown {
     while (expr.kind === "paren") expr = expr.inner;
     switch (e.kind) {
       case "ref":
@@ -727,18 +733,31 @@ class Reader {
         }
         return out;
       }
-      case "list":
+      case "list": {
         if (expr.kind !== "tuple") return this.shapeRefused(expr, path, "a list");
-        if (e.of === undefined)
-          return expr.items.map((x, k) => this.stringScalar(x, `${path}[${k}]`));
-        return expr.items.map((x, k) => this.value(x, e.of!, `${path}[${k}]`));
+        const items = expr.items.map((x, k) =>
+          e.of === undefined
+            ? this.stringScalar(x, `${path}[${k}]`)
+            : this.value(x, e.of, `${path}[${k}]`),
+        );
+        if (at?.items === undefined) return items;
+        return items.map((v, k) =>
+          typeof v === "string"
+            ? this.refOrLiteral(v, at.items!, expr.items[k]!, `${path}[${k}]`)
+            : v,
+        );
+      }
       case "map": {
         if (expr.kind !== "object") return this.shapeRefused(expr, path, "a map");
         const out: Record<string, unknown> = {};
         const keys = new Map<string, Expr>();
         for (const item of expr.items) {
-          const k = this.objectKey(item, path);
-          if (keys.has(k)) this.duplicate(item.key, `${path}.${k}`, keys.get(k)!);
+          const written = this.objectKey(item, path);
+          const k =
+            at?.keys === undefined
+              ? written
+              : this.refOrLiteral(written, at.keys, item.key, `${path}.${written}`);
+          if (keys.has(k)) this.duplicate(item.key, `${path}.${written}`, keys.get(k)!);
           keys.set(k, item.key);
           if (isNull(item.value)) continue;
           out[k] =
@@ -798,6 +817,30 @@ class Reader {
     return item.bareKey && item.key.kind === "traversal"
       ? item.key.root
       : this.string(item.key, path);
+  }
+
+  /**
+   * A string at a reference key or item position (rules 11 and 20): a
+   * reference key of the type or the full token reads as the token, and any
+   * other string holding neither a reference key nor `${` as the literal it
+   * is (a Cases system field id). A key of another type, or a token of
+   * another type or malformed, is refused (`REF_KEY_MALFORMED`).
+   */
+  refOrLiteral(s: string, type: RefType, node: { first: number }, path: string): string {
+    const token = parseToken(s);
+    const key = token === undefined ? s : s.slice("${cdref:".length, -1);
+    const m = REF_KEY.exec(key);
+    if (m === null && token === undefined && !s.includes("${")) return s;
+    if (m === null || m[1] !== type) {
+      this.fail(
+        "REF_KEY_MALFORMED",
+        node,
+        path,
+        `${path} must be a ${type} reference key such as "${type}:<name>", the full token, or a literal holding neither; got ${JSON.stringify(s)}.`,
+      );
+    }
+    if (token !== undefined) this.normalized.push({ attribute: path, from: s, to: key });
+    return `\${cdref:${key}}`;
   }
 
   /** A reference attribute (rules 20 and 21): a key, a JSONPath, the full token, or sugar. */

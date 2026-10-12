@@ -126,6 +126,54 @@ export function isRefFieldValue(value: string, type: RefType): boolean {
   return entry !== undefined && entry.type === type;
 }
 
+/**
+ * Where a typed sub-block's top-level parameter holds references in key or
+ * item position (docs/adr/0008-case-field-ids.md): `keys` when the catalog
+ * names every key of the map (`CaseRequestFields.*~`), `items` when it names
+ * every item of a list of strings (`CaseResponseFields[]`). A string there is
+ * a reference of that type or a literal (a Cases system field id), so the
+ * writer writes a token as its reference key and a literal as itself, and
+ * the reader reads a reference key back to the token (rule 11).
+ */
+export interface RefPosition {
+  keys?: RefType;
+  items?: RefType;
+}
+
+export function refPositions(entry: ModeledAction): Map<string, RefPosition> {
+  const out = new Map<string, RefPosition>();
+  const at = (key: string): RefPosition => {
+    const found = out.get(key) ?? {};
+    out.set(key, found);
+    return found;
+  };
+  const byKey = new Map(entry.parameters.map((p) => [p.key, p]));
+  for (const r of entry.refs) {
+    const keys = /^([A-Za-z0-9_$-]+)\.\*~$/.exec(r.path);
+    if (keys !== null && byKey.get(keys[1]!)?.kind === "map") at(keys[1]!).keys = r.ref;
+    const items = /^([A-Za-z0-9_$-]+)\[\]$/.exec(r.path);
+    const list = items === null ? undefined : byKey.get(items[1]!);
+    if (list?.kind === "list" && (list.of === undefined || list.of.kind === "string")) {
+      at(items![1]!).items = r.ref;
+    }
+  }
+  return out;
+}
+
+/**
+ * How a string at a reference key or item position is written (rule 11): a
+ * token of the type as its reference key, a literal holding no `${` that no
+ * reader would take for a reference key as itself, and anything else not at
+ * all (undefined), which writes the action generic.
+ */
+export function writeRefOrLiteral(value: string, type: RefType): string | undefined {
+  const entry = parseToken(value);
+  if (entry !== undefined)
+    return entry.type === type ? value.slice("${cdref:".length, -1) : undefined;
+  if (value.includes("${") || REF_KEY.test(value)) return undefined;
+  return value;
+}
+
 /** The modeled catalog entries, by their HCL block name. */
 export function entryByBlock(): Map<string, { type: string; entry: ModeledAction }> {
   const out = new Map<string, { type: string; entry: ModeledAction }>();

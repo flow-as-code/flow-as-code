@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-47 modeled types follow. Any other type (14: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+48 modeled types follow. Any other type (13: `CompleteOutboundCall`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -41,6 +41,24 @@ generic {
   parameters = jsonencode({ ... })
 }
 ```
+
+## CreateCase
+
+Block `create_case`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/createcase.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute          | Flow language key   | Value                                 | Required |
+| ---------------------- | ------------------- | ------------------------------------- | -------- |
+| `link_contact_to_case` | `LinkContactToCase` | `"true"`, `"false"`                   | yes      |
+| `contact_to_link`      | `ContactToLink`     | `"Current"`, `"Related"`              | no       |
+| `case_template_id`     | `CaseTemplateId`    | reference key (`casetemplate:<name>`) | yes      |
+| `case_request_fields`  | `CaseRequestFields` | map of strings                        | no       |
+
+- `case_request_fields` keys: `assigned_queue`, `assigned_user`, `case_id`, `case_reason`, `created_by`, `customer_id`, `last_closed_datetime`, `created_datetime`, `last_updated_datetime`, `last_updated_user`, `reference_number`, `reference_id`, `status`, `summary`, `title`, or a reference key (`casefield:<name>`).
 
 ## CreateTask
 

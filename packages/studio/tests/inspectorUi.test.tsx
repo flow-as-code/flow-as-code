@@ -452,3 +452,50 @@ describe("the profile form switch and typed names, as functions", () => {
     ]);
   });
 });
+
+describe("Cases link and field picker (tasks/D06)", () => {
+  const addCaseBlock = async () => {
+    await renderApp();
+    await click(present('button[title="Add CreateCase"]'));
+    await click(present('[data-testid="node-create-case"]'));
+  };
+
+  it("writes the link and its contact from one select", async () => {
+    await addCaseBlock();
+    const link = testId<HTMLSelectElement>("caselink-LinkContactToCase");
+    expect(link.value).toBe("none");
+    await selectOption(link, "Related");
+    expect(testId<HTMLSelectElement>("caselink-LinkContactToCase").value).toBe("Related");
+    await selectOption(testId<HTMLSelectElement>("caselink-LinkContactToCase"), "link");
+    expect(testId<HTMLSelectElement>("caselink-LinkContactToCase").value).toBe("link");
+    await selectOption(testId<HTMLSelectElement>("caselink-LinkContactToCase"), "none");
+    expect(testId<HTMLSelectElement>("caselink-LinkContactToCase").value).toBe("none");
+  });
+
+  it("adds a system field from the list and a domain field as a casefield reference", async () => {
+    await addCaseBlock();
+    const add = testId<HTMLSelectElement>("fieldmap-CaseRequestFields-add");
+    expect([...add.options].map((o) => o.value)).toContain("summary");
+    await selectOption(add, "summary");
+    expect(query('[data-testid="fieldmap-CaseRequestFields-summary"]')).not.toBeNull();
+
+    const picker = testId("fieldmap-CaseRequestFields-ref");
+    await selectOption(picker.querySelector("select")!, "__custom__");
+    await typeAndBlur(picker.querySelector("input")!, "$.Attributes.field");
+    expect(testId("inspector").textContent).toContain("Only a casefield reference can stand here");
+    await typeAndBlur(
+      testId("fieldmap-CaseRequestFields-ref").querySelector("input")!,
+      "${cdref:casefield:priority}",
+    );
+    expect(
+      query('[data-testid="fieldmap-CaseRequestFields-${cdref:casefield:priority}"]'),
+    ).not.toBeNull();
+
+    // A literal domain field id is not a key the inspector writes.
+    await typeAndBlur(
+      testId<HTMLInputElement>("fieldmap-CaseRequestFields-custom"),
+      "12345678-aaaa-bbbb-cccc-123456789012",
+    );
+    expect(testId("inspector").textContent).toContain("is not spelled ${cdref:casefield:<name>}");
+  });
+});

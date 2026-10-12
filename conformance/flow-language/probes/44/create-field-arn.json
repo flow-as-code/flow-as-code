@@ -1,0 +1,37 @@
+{
+  "description": "Rule 44: CreateCase with a field's ARN as the request key in place of its id.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseTemplateId": "{{CASE_TEMPLATE_ID}}",
+          "CaseRequestFields": {
+            "arn:aws:cases:{{REGION}}:{{ACCOUNT}}:domain/{{CASES_DOMAIN_ID}}/field/{{CASE_TEXT_FIELD_ID}}": "x"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

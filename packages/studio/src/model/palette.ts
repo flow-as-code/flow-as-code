@@ -40,6 +40,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactMediaStreamingBehavior]: "Set",
   [ActionType.UpdateContactMediaProcessing]: "Set",
   [ActionType.CreateTask]: "Integrate",
+  [ActionType.CreateCase]: "Integrate",
   [ActionType.CreateWisdomSession]: "Integrate",
   [ActionType.AssociateContactToCustomerProfile]: "Integrate",
   [ActionType.CreateCustomerProfile]: "Integrate",
@@ -121,6 +122,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactMediaStreamingBehavior]: "media-streaming",
   [ActionType.UpdateContactMediaProcessing]: "message-processor",
   [ActionType.CreateTask]: "create-task",
+  [ActionType.CreateCase]: "create-case",
   [ActionType.CreateWisdomSession]: "connect-assistant",
   [ActionType.AssociateContactToCustomerProfile]: "associate-profile",
   [ActionType.CreateCustomerProfile]: "create-profile",
@@ -230,6 +232,16 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // names a flow or a template. The page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
       return { ContactFlowId: "$.Attributes.taskFlow", Name: "Follow up" };
+    case ActionType.CreateCase:
+      // "You must provide a case template", a casetemplate reference the
+      // refs panel then asks to bind; the contact is not linked until the
+      // inspector says so, which also wires ContactNotLinked.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+      return {
+        LinkContactToCase: "false",
+        CaseTemplateId: "${cdref:casetemplate:case-template}",
+        CaseRequestFields: { customer_id: "$.Customer.ProfileARN" },
+      };
     case ActionType.CreateWisdomSession:
       // A JSONPath placeholder until the inspector's picker names an
       // assistant; the page allows either form.

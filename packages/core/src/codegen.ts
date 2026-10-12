@@ -67,6 +67,9 @@ import {
   NO_MATCHING_ERROR,
   NONE_FOUND_ERROR,
   REFERENCE_FIELDS,
+  CASE_CONTACTS_TO_LINK,
+  CASE_SYSTEM_FIELDS,
+  CONTACT_NOT_LINKED,
 } from "./actions.js";
 import type {
   DtmfDigit,
@@ -76,6 +79,7 @@ import type {
 } from "./actions.js";
 import type {
   Block,
+  CaseLink,
   DtmfBranch,
   GenericBlockConfig,
   MessageBody,
@@ -90,6 +94,7 @@ import {
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateCase,
   CreateCustomerProfile,
   CreateTask,
   CreateWisdomSession,
@@ -226,9 +231,15 @@ class Raw {
   constructor(readonly code: string) {}
 }
 
+/**
+ * An object key: a name, or a computed key holding builder source (a Cases
+ * field map keyed by `[Refs.casefield("priority")]`, docs/adr/0008).
+ */
+type Key = string | Raw;
+
 /** An object literal with a fixed entry order. */
 class ObjV {
-  constructor(readonly entries: [string, V][]) {}
+  constructor(readonly entries: [Key, V][]) {}
 }
 
 class ArrV {
@@ -293,7 +304,8 @@ function quoteString(s: string): string {
   return out + q;
 }
 
-function keySource(key: string): string {
+function keySource(key: Key): string {
+  if (key instanceof Raw) return `[${key.code}]`;
   return IDENTIFIER.test(key) ? key : quoteString(key);
 }
 
@@ -343,7 +355,7 @@ function printV(v: V, col: number, indent: string): string {
   return flat ?? "";
 }
 
-function printBrokenObject(entries: [string, V][], indent: string): string {
+function printBrokenObject(entries: [Key, V][], indent: string): string {
   const inner = `${indent}  `;
   const lines = entries.map(([k, val]) => {
     const key = keySource(k);
@@ -555,6 +567,66 @@ function storedValidation(value: unknown): StoredInputValidation | undefined {
 /** A list of strings, as ProfileResponseData holds its names. */
 function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
+
+/**
+ * A case field id as builder source: a system field id as itself, a
+ * casefield token as `Refs.casefield(...)` (docs/adr/0008-case-field-ids.md).
+ * Anything else, a domain's literal UUID among them, is undefined, which
+ * leaves the block generic.
+ */
+function caseFieldSource(id: string, ctx: Ctx): Key | undefined {
+  if ((CASE_SYSTEM_FIELDS as readonly string[]).includes(id)) return id;
+  const entry = parseToken(id);
+  if (entry === undefined || entry.type !== "casefield" || entry.alias !== undefined) {
+    return undefined;
+  }
+  ctx.refs = true;
+  return new Raw(`Refs.casefield(${quoteString(entry.name)})`);
+}
+
+/** CaseRequestFields as a field map with computed keys for the references. */
+function caseFieldsV(fields: unknown, ctx: Ctx): ObjV | undefined {
+  if (!isStringMap(fields)) return undefined;
+  const entries: [Key, V][] = [];
+  for (const [k, v] of Object.entries(fields)) {
+    const key = caseFieldSource(k, ctx);
+    if (key === undefined) return undefined;
+    entries.push([key, v]);
+  }
+  return new ObjV(entries);
+}
+
+/**
+ * A Cases action's link: `LinkContactToCase` "true" with ContactNotLinked
+ * as its first error and an optional ContactToLink, or "false" with
+ * neither. Returns the config, its source and the errors after the link's.
+ */
+function invertCaseLink(
+  p: Record<string, unknown>,
+  errors: readonly ErrorTransition[],
+): { link?: CaseLink; source?: ObjV; rest: readonly ErrorTransition[] } | undefined {
+  if (p.LinkContactToCase === "false") {
+    return p.ContactToLink === undefined ? { rest: errors } : undefined;
+  }
+  if (p.LinkContactToCase !== "true" || errors[0]?.ErrorType !== CONTACT_NOT_LINKED) {
+    return undefined;
+  }
+  const target = errors[0].NextAction;
+  const contact = p.ContactToLink;
+  if (contact !== undefined && !(CASE_CONTACTS_TO_LINK as readonly unknown[]).includes(contact)) {
+    return undefined;
+  }
+  const entries: [Key, V][] = [["onContactNotLinked", target]];
+  if (contact !== undefined) entries.push(["contact", contact as string]);
+  return {
+    link: cast<CaseLink>({
+      onContactNotLinked: target,
+      ...(contact === undefined ? {} : { contact }),
+    }),
+    source: new ObjV(entries),
+    rest: errors.slice(1),
+  };
 }
 
 /**
@@ -2608,6 +2680,58 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
   [ActionType.UpdateCustomerProfile]: (a) =>
     invertProfileFields(a, "UpdateCustomerProfile", (c) => new UpdateCustomerProfile(c)),
+
+  // A casetemplate token, field keys that are system ids or casefield
+  // tokens, the link, and the catch-all last. A literal template or field
+  // id, a JSONPath template, or ContactToLink without linking stays generic.
+  [ActionType.CreateCase]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const p = a.Parameters;
+    if (
+      !paramKeysAre(
+        p,
+        ["LinkContactToCase", "CaseTemplateId"],
+        ["ContactToLink", "CaseRequestFields"],
+      )
+    ) {
+      return undefined;
+    }
+    const linked = invertCaseLink(p, t.Errors ?? []);
+    if (linked === undefined) return undefined;
+    const [catchAll, ...extra] = linked.rest;
+    if (catchAll?.ErrorType !== NO_MATCHING_ERROR || extra.length !== 0) return undefined;
+    if (typeof p.CaseTemplateId !== "string" || parseToken(p.CaseTemplateId) === undefined) {
+      return undefined;
+    }
+    const template = refSource(p.CaseTemplateId, "casetemplate", ctx);
+    if (template === undefined) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["template", template],
+    ];
+    if (p.CaseRequestFields !== undefined) {
+      const fields = caseFieldsV(p.CaseRequestFields, ctx);
+      if (fields === undefined) return undefined;
+      entries.push(["fields", fields]);
+    }
+    if (linked.source !== undefined) entries.push(["link", linked.source]);
+    entries.push(["next", t.NextAction], ["onError", catchAll.NextAction]);
+    return {
+      cls: "CreateCase",
+      entries,
+      block: new CreateCase({
+        id: a.Identifier,
+        template: cast<never>(p.CaseTemplateId),
+        ...(p.CaseRequestFields === undefined
+          ? {}
+          : { fields: p.CaseRequestFields as Record<string, string> }),
+        ...(linked.link === undefined ? {} : { link: linked.link }),
+        next: t.NextAction,
+        onError: catchAll.NextAction,
+      }),
+    };
+  },
 
   // ProfileRequestData's two ids, static or JSONPath, and the empty
   // response list the console writes; anything else stays generic.

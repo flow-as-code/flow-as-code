@@ -115,9 +115,12 @@ function rows(params, depth = 0) {
  * The names a map's keys or a list's strings may take, where the catalog
  * lists them (`keys`) or spells them as patterns (`keyPatterns`), one line
  * per parameter, nested fields included: a Customer Profiles action's
- * request fields and response names (tasks/D03).
+ * request fields and response names (tasks/D03). `refAt` names the
+ * top-level parameters whose every key or item is a reference position
+ * (`CaseRequestFields.*~`, `CaseResponseFields[]`, tasks/D06), where a
+ * reference key of that type stands beside the listed names.
  */
-function nameLines(params, prefix = "") {
+function nameLines(params, prefix = "", refAt = new Map()) {
   const out = [];
   for (const p of params ?? []) {
     const attr = `${prefix}${p.attr}`;
@@ -125,9 +128,12 @@ function nameLines(params, prefix = "") {
       const what = p.kind === "map" ? "keys" : "values";
       const listed = (p.keys ?? []).map((k) => `\`${k}\``).join(", ");
       const patterns = (p.keyPatterns ?? []).map((k) => `\`${k}\``).join(" or ");
-      const parts = [listed, patterns === "" ? "" : `a name matching ${patterns}`].filter(
-        (x) => x !== "",
-      );
+      const ref = prefix === "" ? refAt.get(p.key) : undefined;
+      const parts = [
+        listed,
+        patterns === "" ? "" : `a name matching ${patterns}`,
+        ref === undefined ? "" : `a reference key (\`${ref}:<name>\`)`,
+      ].filter((x) => x !== "");
       out.push(`- \`${attr}\` ${what}: ${parts.join(", or ")}.`);
     }
     out.push(...nameLines(p.fields, `${attr}.`));
@@ -187,9 +193,14 @@ function section(type, a) {
     lines.push("- Terminal: no `next`, no branches.");
   } else {
     lines.push(`- \`next\`: ${nextOf(t.next, a.shapes)}.`);
-    const errors = t.errors.map(
-      (e) => `\`${e.type}\`${e.required ? " (required)" : ""}${e.when ? `: ${e.when}` : ""}`,
-    );
+    const attrOf = (key) => a.parameters.find((p) => p.key === key)?.attr ?? key;
+    const errors = t.errors.map((e) => {
+      const whenValue =
+        e.requiredWhenValue === undefined
+          ? ""
+          : ` (required when \`${attrOf(e.requiredWhenValue.key)}\` is \`"${e.requiredWhenValue.equals}"\`)`;
+      return `\`${e.type}\`${e.required ? " (required)" : ""}${whenValue}${e.when ? `: ${e.when}` : ""}`;
+    });
     lines.push(
       `- Error branches: ${errors.length === 0 ? "none; the service refuses any" : errors.join("; ")}.`,
     );
@@ -218,7 +229,12 @@ function section(type, a) {
   } else {
     lines.push("", "| HCL attribute | Flow language key | Value | Required |", "|---|---|---|---|");
     lines.push(...rows(a.parameters));
-    const names = nameLines(a.parameters);
+    const refAt = new Map();
+    for (const r of a.refs ?? []) {
+      const m = /^([A-Za-z0-9_$-]+)(?:\.\*~|\[\])$/.exec(r.path);
+      if (m !== null) refAt.set(m[1], r.ref);
+    }
+    const names = nameLines(a.parameters, "", refAt);
     if (names.length > 0) lines.push("", ...names);
   }
   return lines.join("\n");

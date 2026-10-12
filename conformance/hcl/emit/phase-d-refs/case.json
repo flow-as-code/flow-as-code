@@ -1,5 +1,5 @@
 {
-  "description": "Every FlowDoc 0.3 reference type in the blocks that hold them: a flow and a tasktemplate reference in the typed create_task sub-block and an assistant reference in create_wisdom_session (tasks/D05), the rest in generic blocks until their types are modeled, a casefield token as a whole map key and as a list item, with an address for every reference: the emit-tf case of the same name, as provider-shaped HCL. awaits-provider: the published provider's refs key pattern does not know the five types until the release that reads 0.3 (tasks/D10).",
+  "description": "Every FlowDoc 0.3 reference type in the blocks that hold them: a flow and a tasktemplate reference in the typed create_task sub-block and an assistant reference in create_wisdom_session (tasks/D05), a casetemplate reference and casefield reference keys in the typed create_case sub-block (tasks/D06, conformance/hcl/README.md rule 11), the rest in generic blocks until their types are modeled, a casefield token as a list item among them, with an address for every reference: the emit-tf case of the same name, as provider-shaped HCL. awaits-provider: the published provider's refs key pattern does not know the five types until the release that reads 0.3 (tasks/D10).",
   "docs": [
     "../../../roundtrip/phase-d-refs/doc.flowdoc.json"
   ],

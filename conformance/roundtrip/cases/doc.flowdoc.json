@@ -1,0 +1,106 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "cases",
+  "description": "The Cases actions: a case opened from a template with a domain field by reference and three system fields, linking the current contact, then a call log case opened without linking.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "open-case",
+    "Actions": [
+      {
+        "Identifier": "open-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "${cdref:casefield:priority}": "high",
+            "customer_id": "$.Customer.ProfileARN",
+            "summary": "$.Attributes.summary",
+            "title": "Billing dispute"
+          },
+          "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
+          "ContactToLink": "Current",
+          "LinkContactToCase": "true"
+        },
+        "Transitions": {
+          "NextAction": "log-case",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "log-case"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "log-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "${cdref:casefield:channel}": "$.Channel",
+            "status": "open"
+          },
+          "CaseTemplateId": "${cdref:casetemplate:call-log}",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 540,
+      "y": 20
+    },
+    "log-case": {
+      "x": 280,
+      "y": 20
+    },
+    "open-case": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:casefield:channel}",
+      "type": "casefield",
+      "name": "channel"
+    },
+    {
+      "token": "${cdref:casefield:priority}",
+      "type": "casefield",
+      "name": "priority"
+    },
+    {
+      "token": "${cdref:casetemplate:billing-dispute}",
+      "type": "casetemplate",
+      "name": "billing-dispute"
+    },
+    {
+      "token": "${cdref:casetemplate:call-log}",
+      "type": "casetemplate",
+      "name": "call-log"
+    }
+  ]
+}

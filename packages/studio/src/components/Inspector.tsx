@@ -9,7 +9,8 @@
 // Every commit goes through a mutation in src/model, which is where legality
 // is enforced. This file may show an error, never decide what is legal.
 
-import type { FlowDoc } from "@flow-as-code/core";
+import type { FlowDoc, RefType } from "@flow-as-code/core";
+import { parseToken } from "@flow-as-code/core";
 import { useEffect, useState } from "react";
 import {
   CONDITION_OPERATORS,
@@ -38,6 +39,8 @@ import {
   removeCondition,
   setCondition,
   setMessageBody,
+  setCaseLink,
+  type CaseLinkChoice,
   setNumberParam,
   type SetNumberResult,
   setParam,
@@ -100,15 +103,67 @@ function asStringRecord(value: unknown): Record<string, string> {
 }
 
 /**
+ * Adds a reference of `refType` to a field map's keys or a names list (a
+ * Cases domain's own field, docs/adr/0008-case-field-ids.md): the same
+ * RefPicker a reference value uses, refusing a JSONPath, which cannot stand
+ * as a key or a name.
+ */
+function RefNameAdder({
+  doc,
+  refType,
+  label,
+  testId,
+  onAdd,
+}: {
+  doc: FlowDoc;
+  refType: RefType;
+  label: string;
+  testId: string;
+  onAdd: (token: string) => void;
+}) {
+  const [error, setError] = useState<string | undefined>(undefined);
+  return (
+    <div data-testid={testId}>
+      <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+        {label}
+      </span>
+      <RefPicker
+        doc={doc}
+        refType={refType}
+        value={undefined}
+        optional
+        onChange={(v) => {
+          if (v === undefined) return;
+          if (parseToken(v)?.type !== refType) {
+            setError(`Only a ${refType} reference can stand here, not a JSONPath.`);
+            return;
+          }
+          setError(undefined);
+          onAdd(v);
+        }}
+      />
+      {error !== undefined && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * An object of strings whose keys come from the page's list (a select, never
- * typed) or match a pattern (typed, `Attributes.<name>`). Each value is free
- * text or a JSONPath; a new key starts empty.
+ * typed) or match a pattern (typed, `Attributes.<name>`), or, where the field
+ * names a reference type, are references picked beside them. Each value is
+ * free text or a JSONPath; a new key starts empty.
  */
 function FieldMapField({
+  doc,
   field,
   value,
   onCommit,
 }: {
+  doc: FlowDoc;
   field: Extract<FieldDesc, { kind: "fieldMap" }>;
   value: unknown;
   onCommit: (next: Record<string, string>) => void;
@@ -163,6 +218,17 @@ function FieldMapField({
           </option>
         ))}
       </select>
+      {field.refType !== undefined && (
+        <RefNameAdder
+          doc={doc}
+          refType={field.refType}
+          label={`Add a ${field.refType} reference`}
+          testId={`${id}-ref`}
+          onAdd={(token) => {
+            if (!Object.hasOwn(entries, token)) onCommit({ ...entries, [token]: "" });
+          }}
+        />
+      )}
       <TextField
         key={Object.keys(entries).join("\n")}
         label={`Add a custom field (${field.patternHint})`}
@@ -192,10 +258,12 @@ function FieldMapField({
  * set is the one stored, so a blur that changed nothing changes nothing.
  */
 function NamesField({
+  doc,
   field,
   value,
   onCommit,
 }: {
+  doc: FlowDoc;
   field: Extract<FieldDesc, { kind: "names" }>;
   value: unknown;
   onCommit: (next: string[]) => void;
@@ -227,6 +295,17 @@ function NamesField({
           </label>
         ))}
       </div>
+      {field.refType !== undefined && (
+        <RefNameAdder
+          doc={doc}
+          refType={field.refType}
+          label={`Add a ${field.refType} reference`}
+          testId={`${id}-ref`}
+          onAdd={(token) => {
+            if (!stored.includes(token)) onCommit([...stored, token]);
+          }}
+        />
+      )}
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
           {`Custom fields, one per line (${field.patternHint})`}
@@ -678,6 +757,7 @@ export function Inspector() {
         return (
           <FieldMapField
             key={`${selected}:${field.key}`}
+            doc={doc}
             field={field}
             value={value}
             onCommit={(next) => mutate(() => setParam(doc, selected, field.key, next))}
@@ -687,11 +767,41 @@ export function Inspector() {
         return (
           <NamesField
             key={`${selected}:${field.key}`}
+            doc={doc}
             field={field}
             value={value}
             onCommit={(next) => mutate(() => setParam(doc, selected, field.key, next))}
           />
         );
+      case "caseLink": {
+        const choice: CaseLinkChoice =
+          action.Parameters.LinkContactToCase !== "true"
+            ? "none"
+            : action.Parameters.ContactToLink === "Current" ||
+                action.Parameters.ContactToLink === "Related"
+              ? action.Parameters.ContactToLink
+              : "link";
+        return (
+          <label key={`${selected}:${field.key}:link`} className="block">
+            <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+              {field.label}
+            </span>
+            <select
+              data-testid={`caselink-${field.key}`}
+              className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
+              value={choice}
+              onChange={(e) =>
+                mutate(() => setCaseLink(doc, selected, e.target.value as CaseLinkChoice))
+              }
+            >
+              <option value="none">No</option>
+              <option value="link">Yes</option>
+              <option value="Current">Yes, the current contact</option>
+              <option value="Related">Yes, the related contact</option>
+            </select>
+          </label>
+        );
+      }
       case "json":
         return (
           <JsonField

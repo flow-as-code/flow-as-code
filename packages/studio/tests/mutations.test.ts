@@ -2,7 +2,9 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
+import type { FlowDoc } from "@flow-as-code/core";
 import { serialize } from "@flow-as-code/core";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   MutationRefused,
@@ -13,9 +15,11 @@ import {
   incomingCount,
   moveNode,
   rewireEdge,
+  setCaseLink,
   setMessageBody,
   setParam,
 } from "../src/model/mutations.js";
+import { demotedIds } from "../src/model/demotion.js";
 import { demoDoc, detachableDoc, expectByteStable, expectSchemaValid } from "./helpers.js";
 
 describe("moveNode", () => {
@@ -141,6 +145,7 @@ describe("addBlock", () => {
       "UpdateContactMediaStreamingBehavior",
       "UpdateContactMediaProcessing",
       "CreateTask",
+      "CreateCase",
       "CreateWisdomSession",
       "AssociateContactToCustomerProfile",
       "CreateCustomerProfile",
@@ -312,5 +317,56 @@ describe("determinism", () => {
       return serialize(doc);
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe("setCaseLink (tasks/D06)", () => {
+  const casesDoc = (): FlowDoc =>
+    JSON.parse(
+      readFileSync(
+        new URL("../../../conformance/roundtrip/cases/doc.flowdoc.json", import.meta.url),
+        "utf8",
+      ),
+    ) as FlowDoc;
+
+  it("wires ContactNotLinked first, aimed at the catch-all, when linking is switched on", () => {
+    const doc = casesDoc();
+    expect(demotedIds(doc).size).toBe(0);
+    const linked = setCaseLink(doc, "log-case", "Related");
+    const action = getAction(linked, "log-case")!;
+    expect(action.Parameters.LinkContactToCase).toBe("true");
+    expect(action.Parameters.ContactToLink).toBe("Related");
+    expect(action.Transitions.Errors).toEqual([
+      { ErrorType: "ContactNotLinked", NextAction: "bye" },
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ]);
+    expect(demotedIds(linked).size).toBe(0);
+    expectSchemaValid(linked);
+    expectByteStable(linked);
+  });
+
+  it("keeps the branch's target when the contact changes, and removes it with linking", () => {
+    const doc = casesDoc();
+    const plain = setCaseLink(doc, "open-case", "link");
+    const open = getAction(plain, "open-case")!;
+    expect(open.Parameters.ContactToLink).toBeUndefined();
+    expect(open.Transitions.Errors?.[0]).toEqual({
+      ErrorType: "ContactNotLinked",
+      NextAction: "log-case",
+    });
+    const off = setCaseLink(plain, "open-case", "none");
+    const closed = getAction(off, "open-case")!;
+    expect(closed.Parameters.LinkContactToCase).toBe("false");
+    expect(closed.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ]);
+    expect(demotedIds(off).size).toBe(0);
+    expectSchemaValid(off);
+  });
+
+  it("is refused by the guard where setParam alone would demote the block", () => {
+    expect(() => setParam(casesDoc(), "log-case", "LinkContactToCase", "true")).toThrow(
+      MutationRefused,
+    );
   });
 });

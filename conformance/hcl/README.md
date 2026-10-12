@@ -236,6 +236,18 @@ resource "flowascode_contact_flow" "appointment_line" {
     - `string`, `enum`, `jsonPath`, `stringOrJsonPath`: a quoted string.
     - `ref`: the reference key, quoted (`"queue:front-desk"`); a JSONPath is
       written as itself.
+    - A reference in key or item position (since tasks/D06,
+      docs/adr/0008-case-field-ids.md): where the catalog's `refs` name
+      every key of a top-level `map` parameter (`CaseRequestFields.*~`) or
+      every item of a top-level list of strings (`CaseResponseFields[]`), a
+      token of that path's type is written as its reference key, quoted
+      (`"casefield:priority" = "high"`, `["casefield:priority", "status"]`),
+      and any other string as itself (`summary = ...`, a Cases system field
+      id). The map's entries are in byte order of the keys as written. A
+      string there that is a token of another type, holds `${`, or reads as
+      a reference key makes the action generic, as rule 10 does for a `ref`
+      kind. The key is bound in `refs` like any other
+      (`awscc_connectcases_field.priority.field_id`).
     - `integer`: a number; an `integer` parameter holding anything else (a
       JSONPath) makes the action generic, since the provider's attribute is
       a number. `integerString`: a number when the value is a
@@ -341,6 +353,12 @@ resource "flowascode_contact_flow" "appointment_line" {
     is therefore `typescriptOnly`; the provider's lint still refuses an ARN
     in the flow's content. A key of the wrong type, or
     one that is not a reference key, is refused (`REF_KEY_MALFORMED`).
+    A string in reference key or item position (rule 11) reads as the
+    token when it is a reference key of the path's type or the full token,
+    and as itself when it holds neither a reference key nor `${`; a
+    reference key of another type, or a token of another type or
+    malformed, is refused (`REF_KEY_MALFORMED`,
+    `refuse/refuse-wrong-key-type-in-map-key`).
 21. A reference attribute holding a bare expression is refused with
     `REF_EXPRESSION_REFUSED`, naming the file, line and attribute, and the
     `refs` entry to write instead. The one exception is the TypeScript

@@ -1,5 +1,5 @@
 {
-  "description": "Every FlowDoc 0.3 reference type, in the blocks that hold them: a tasktemplate and a flow reference in the typed create_task sub-block and an assistant reference in create_wisdom_session (tasks/D05), and the rest in generic blocks until their types are modeled, a casefield token standing as a map key and as a list item, each bound in refs like any key. The first awaits-provider case: the published provider's refs key pattern does not know the five types until the release that reads 0.3 (tasks/D10), so it has no validate directory yet.",
+  "description": "Every FlowDoc 0.3 reference type, in the blocks that hold them: a tasktemplate and a flow reference in the typed create_task sub-block and an assistant reference in create_wisdom_session (tasks/D05), a casetemplate reference and casefield reference keys in the typed create_case sub-block (tasks/D06, the map key rule of conformance/hcl/README.md, rule 11), and the rest in generic blocks until their types are modeled, a casefield token standing as a list item, each bound in refs like any key. The first awaits-provider case: the published provider's refs key pattern does not know the five types until the release that reads 0.3 (tasks/D10), so it has no validate directory yet.",
   "doc": "casefield-key.flowdoc.json",
   "validate": "awaits-provider"
 }

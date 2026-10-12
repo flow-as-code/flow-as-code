@@ -1882,6 +1882,41 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CreateCase"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "CaseTemplateId": {
+                    "type": "string",
+                    "if": {
+                      "pattern": "^\\$\\{"
+                    },
+                    "then": {
+                      "$ref": "#/$defs/casetemplateToken"
+                    }
+                  },
+                  "CaseRequestFields": {
+                    "type": "object",
+                    "propertyNames": {
+                      "$ref": "#/$defs/caseFieldId"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -1975,6 +2010,21 @@
           "$ref": "#/$defs/jsonPath"
         }
       ]
+    },
+    "casetemplateToken": {
+      "description": "A casetemplate reference token (docs/adr/0008-case-field-ids.md).",
+      "type": "string",
+      "pattern": "^\\$\\{cdref:casetemplate:[a-z0-9]+(-[a-z0-9]+)*\\}$"
+    },
+    "caseFieldId": {
+      "description": "A Cases field id where a key or list item names a field: a casefield token standing as the whole string, or a plain id (a system field id such as summary, or a domain's own field id, which the service accepts and nothing refuses). A string opening a token must be a whole casefield token (docs/adr/0008-case-field-ids.md).",
+      "type": "string",
+      "if": {
+        "pattern": "^\\$\\{"
+      },
+      "then": {
+        "pattern": "^\\$\\{cdref:casefield:[a-z0-9]+(-[a-z0-9]+)*\\}$"
+      }
     }
   },
   "allOf": [

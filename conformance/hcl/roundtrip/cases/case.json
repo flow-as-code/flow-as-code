@@ -1,0 +1,5 @@
+{
+  "description": "The Cases actions as typed sub-blocks, each with its catch-all: create_case with case_template_id a casetemplate reference key and case_request_fields a map whose keys are casefield reference keys (\"casefield:priority\") beside literal system field ids (customer_id, summary), the linking block with contact_to_link and its ContactNotLinked branch before the catch-all, the other without either. The template and fields are bound in refs to awscc_connectcases resources (hashicorp/aws has none). Awaits the provider release that carries these blocks and the reference key rule (tasks/D10), so it has no validate directory yet.",
+  "doc": "../../../roundtrip/cases/doc.flowdoc.json",
+  "validate": "awaits-provider"
+}
