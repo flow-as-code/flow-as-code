@@ -80,15 +80,15 @@ for this phase"; and:
 
 ## Record (2026-10-12)
 
-Implemented on branch `feat/d07-routing-criteria`, stacked on
-`feat/d03-customer-profiles` (#48) at `ebda6e3`, as tasks/README.md orders
-Phase D (D02, D05, D03, D06, then D07); D06 was being built beside it and
-had no branch on origin when this was opened, so the branch is not yet
-rebased onto D06. That rebase renumbers nothing here (D06 takes rule 44,
-this task 45) but reorders rule 44 before 45 in actions.md, adds D06's line
-to the probes README beside this one, moves the modeled count (48 here) and
-the Developer Guide row of the census table up by D06's types, merges both
-types' entries into `catalog.json` and its copy, and regenerates the skill
+Implemented on branch `feat/d07-routing-criteria`, first stacked on
+`feat/d03-customer-profiles` (#48) at `ebda6e3`, because D06, built beside
+it, had no branch on origin when #49 was opened. On 2026-10-12 it was
+rebased onto `feat/d06-cases` (#50) at `67d677a`, as tasks/README.md orders
+Phase D (D02, D05, D03, D06, then D07). The rebase renumbered nothing (D06
+takes rule 44, this task 45). It put rule 44 before 45 in actions.md and
+D06's line before this one in the probes README, raised the modeled count
+and the census table's Developer Guide row to 51, kept both groups' entries
+in `catalog.json`, its copy and the 0.3 schema, and regenerated the skill
 reference from the merged catalog. One
 commit for the type, then this record, each green on `npm run build`,
 `npm test`, `npm run lint` and `npm run typecheck`:
@@ -97,8 +97,8 @@ commit for the type, then this record, each green on `npm run build`,
 
 The action page and the admin guide's Set routing criteria block page were
 read again on 2026-10-12 and say what the table above says; rule 45 in
-`conformance/flow-language/actions.md` quotes them. The builder now models
-48 of the 61 Types.
+`conformance/flow-language/actions.md` quotes them. With D06's three Cases
+types beneath it, the builder now models 51 of the 61 Types.
 
 ### The Type spelling is in doubt
 
@@ -183,6 +183,17 @@ to a JSONPath. Adding a step after one that never expired gives that step
 30 seconds, so the block stays typed. The palette's default is one step of
 one requirement on the admin guide's example attribute.
 
+### The passthrough fixture
+
+D06 left the fixture's queue token in `UpdateRoutingCriteria`, which this
+task models. The rebase onto D06 moved it to the `UserToUserInformation` of
+`CompleteOutboundCall`'s `VoiceConnector` form, with the connector's ARN
+and both users JSONPaths, and the `generic-only` golden follows. That form
+stays generic after D04 models `CompleteOutboundCall`'s caller-id form
+(owner decision 4), so no later task in this phase has to move the token
+again; its value is a slot for a token, not a claim about what the
+connector's user-to-user information carries.
+
 ### Group fixture and goldens
 
 `conformance/roundtrip/routing-criteria` holds a target queue set by
@@ -243,8 +254,8 @@ The confirmed findings on #49 (at `b17fd55`), each repaired:
   empty list that any edit replaced. It now reads a number, and shows and
   edits the whole-criteria JSONPath as a third form, replaced only when
   the author picks another; a UI test holds each.
-- This record now says the branch is not rebased onto D06 and what that
-  rebase changes.
+- This record now said the branch was not yet rebased onto D06 and what
+  that rebase would change; the rebase has since been made (above).
 - `routing-name-65` and `routing-value-65` are also unknown names: no
   65-character name exists on the instance. `PENDING.md` and rule 45 say
   how to read them against the two unknown probes.
