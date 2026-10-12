@@ -1,14 +1,15 @@
 # Console exports
 
-Flow language content the console wrote, kept as the evidence for a Type no
-AWS page documents (tasks/README.md, Phase D, owner decision 8). A catalog
-entry with `source` `console-export` points its `doc` at a file here. Every
-account, instance and resource id is replaced by a placeholder or a
-JSONPath, as in `probes/`.
+Flow language content kept as the evidence for a Type no AWS page
+documents (tasks/README.md, Phase D, owner decision 8): a console export,
+or, until one is taken, the closest record of one, which the table below
+says. A catalog entry with `source` `console-export` points its `doc` at a
+file here. Every account, instance and resource id is replaced by a
+placeholder or a JSONPath, as in `probes/`.
 
 | File                                       | Type                              | Provenance |
 | ------------------------------------------ | --------------------------------- | ---------- |
-| `transfer-participant-to-third-party.json` | `TransferParticipantToThirdParty` | See below. |
+| `transfer-participant-to-third-party.json` | `TransferParticipantToThirdParty` | Not verbatim; see below. |
 
 `transfer-participant-to-third-party.json` is not a file the console wrote
 as it stands. It is the action `conformance/roundtrip/unknown-actions` held

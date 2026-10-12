@@ -125,9 +125,10 @@ non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 executes it, synthesizes the result, and must get the same document back
 (ignoring `meta`). The cases cover the demo flow (`appointment-line`), a
 flow of actions the builder does not model, with tokens inside parameters
-(`unknown-actions`: unmodeled Types, and since tasks/D04 two forms of
-modeled Types that their classes do not write, `CompleteOutboundCall` with
-`VoiceConnector` and `StartOutboundChatContact`'s WhatsApp form), a module invoking another module by alias
+(`unknown-actions`: one unmodeled Type, `StartVoiceIdStream`, since tasks/D09,
+and since tasks/D04 two forms of modeled Types that their classes do not
+write, `CompleteOutboundCall` with `VoiceConnector` and
+`StartOutboundChatContact`'s WhatsApp form), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
 user of `jsonPath` (`compare-only`, so the import is emitted for it), the
 same Compare with a `NextAction` that is a condition's target rather than

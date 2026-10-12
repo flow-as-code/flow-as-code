@@ -3836,6 +3836,7 @@ describe("TransferParticipantToThirdParty inverts the kept export's form", () =>
     generic(set("ThirdPartyPhoneNumber", "+15555550100"));
     generic(set("ThirdPartyConnectionTimeLimitSeconds", 30));
     generic(set("ThirdPartyConnectionTimeLimitSeconds", "0"));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", "99999999999999999999"));
     generic(set("ThirdPartyConnectionTimeLimitSeconds", "$.Attributes.ring"));
     generic(set("ContinueFlowExecution", "true"));
     generic(set("CallerId", "$.Attributes.callerId"));

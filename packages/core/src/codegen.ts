@@ -899,6 +899,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     if ((seconds !== undefined) !== (interrupt !== undefined)) return undefined;
     if (seconds !== undefined) {
       if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+      // The class takes a safe integer only.
+      if (!Number.isSafeInteger(Number(seconds))) return undefined;
       const n = Number(seconds);
       if (!Number.isSafeInteger(n)) return undefined;
       entries.push(["interruptFrequencySeconds", n], ["onInterrupt", interrupt!.NextAction]);
@@ -2483,8 +2485,6 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
-  // One static state; a value outside the page's three, or a JSONPath, stays
-  // generic.
   // The Get stored content block in the admin guide's Flow language form:
   // ContentType "EmailMessage", the catch-all and a next. The service took
   // the action with no ContentType (rule 40), which the class never writes,
@@ -2563,6 +2563,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
+  // One static state; a value outside the page's three, or a JSONPath, stays
+  // generic.
   [ActionType.UpdatePreviousContactParticipantState]: (a) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined || !paramKeysAre(a.Parameters, ["PreviousContactParticipantState"])) {

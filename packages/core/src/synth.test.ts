@@ -2912,7 +2912,7 @@ describe("the census additions", () => {
     ]);
   });
 
-  it("refuse a static number, a time limit that is not a positive integer, or no flag", () => {
+  it("refuse a static number, a time limit that is not a positive safe integer, no flag, or a resuming form without its two branches", () => {
     const base = { id: "t", next: "n", onError: "e", continueFlow: false as const };
     expect(
       () =>
@@ -2922,7 +2922,7 @@ describe("the census additions", () => {
           timeLimitSeconds: 30,
         }),
     ).toThrow(/must be a JSONPath/);
-    for (const t of [0, -5, 2.5]) {
+    for (const t of [0, -5, 2.5, 1e21, Number.MAX_SAFE_INTEGER + 1]) {
       expect(
         () =>
           new TransferParticipantToThirdParty({
@@ -2930,7 +2930,7 @@ describe("the census additions", () => {
             number: jsonPath("$.Attributes.deskPhone"),
             timeLimitSeconds: t,
           }),
-      ).toThrow(/positive integer/);
+      ).toThrow(/positive safe integer/);
     }
     expect(
       () =>
@@ -2941,6 +2941,26 @@ describe("the census additions", () => {
           timeLimitSeconds: 30,
         }),
     ).toThrow(/true or false/);
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: true,
+          number: jsonPath("$.Attributes.deskPhone"),
+          timeLimitSeconds: 30,
+          onTimeout: "o",
+        } as never),
+    ).toThrow(/needs onCallFailed and onTimeout/);
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: true,
+          number: jsonPath("$.Attributes.deskPhone"),
+          timeLimitSeconds: 30,
+          onCallFailed: "f",
+        } as never),
+    ).toThrow(/needs onCallFailed and onTimeout/);
   });
 
   it("write LoadContactContent with the page's one content type and the catch-all", () => {

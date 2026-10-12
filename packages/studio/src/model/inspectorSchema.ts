@@ -946,7 +946,8 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       // The number is a JSONPath (codegen leaves a static one generic until
       // rule 47 records whether the service takes it). Resume flow after
       // disconnect True carries the Call failed and Timeout branches, which
-      // the service requires in that form; False carries the catch-all alone.
+      // the service requires in that form; False requires only the catch-all
+      // and keeps either of the other two when wired.
       return [
         {
           kind: "text",

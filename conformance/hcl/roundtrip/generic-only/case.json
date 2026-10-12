@@ -1,5 +1,5 @@
 {
-  "description": "Only actions the builder does not model, every one a generic block: unmodeled Types, and two forms of modeled Types that their classes do not write (tasks/D04), CompleteOutboundCall carrying VoiceConnector (owner decision 4) and StartOutboundChatContact in the WhatsApp form with InitialTemplatedSystemMessage, a key the catalog lacks (conformance/hcl/README.md, rule 10). Parameters are jsonencode with the reference tokens escaped, and one action with no parameters carries only its type.",
+  "description": "Only actions the builder does not model, every one a generic block: one unmodeled Type, StartVoiceIdStream (since tasks/D09 modeled the census additions), and two forms of modeled Types that their classes do not write (tasks/D04), CompleteOutboundCall carrying VoiceConnector (owner decision 4) and StartOutboundChatContact in the WhatsApp form with InitialTemplatedSystemMessage, a key the catalog lacks (conformance/hcl/README.md, rule 10). Parameters are jsonencode with the reference tokens escaped, and the one action with no parameters carries only its type.",
   "doc": "../../../roundtrip/unknown-actions/doc.flowdoc.json",
   "validate": "pass"
 }

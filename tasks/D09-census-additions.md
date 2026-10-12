@@ -85,7 +85,8 @@ kept.
 ## Record (2026-10-12)
 
 Implemented on branch `feat/d09-census-additions`, stacked on
-`feat/d04-outbound` (#51) at `4b1d9a6`, as the Phase D order ends D07,
+`feat/d04-outbound` (#51), at `e78970f` after D04's own rebase onto the
+rebased D07 (first at `4b1d9a6`, then `2781587` with the review below), as the Phase D order ends D07,
 D04, D09, D08. It was first written on `feat/d07-routing-criteria` at
 `b6f9b24` and rebased once D04's pull request was open; the rebase put
 rule 47 after D04's rule 46, the probes README line after D04's, merged
@@ -206,3 +207,64 @@ optional container.
   merge commit exists; the provider's typed blocks for the two Types come
   with it, and `conditional-shape`'s port meets its first shape with no
   `requires.parameters`.
+
+### Review (2026-10-12)
+
+The review of #52 (at `30e499b`) confirmed ten findings, each repaired:
+
+- An error drag on a `TransferParticipantToThirdParty` that ends the flow
+  wired `CallFailed` first, so the catch-all-alone form could not be
+  reached by dragging. A drag now wires the branches the form requires
+  (the catalog's required ones and those a holding shape requires) before
+  any optional one; studio tests hold the order on both forms and the
+  flag switching with no demotion.
+- The class now refuses `continueFlow: true` without `onCallFailed` or
+  `onTimeout` at run time, not only in its type, and takes
+  `timeLimitSeconds` as a positive safe integer, since `String()` of a
+  larger one is exponent notation codegen cannot read back; codegen
+  leaves an unsafe digit string generic. Tests hold each.
+- The catalog's `when` text, the generated skill reference and the
+  inspector comment said the `"False"` form writes only the catch-all;
+  they now say what the code does (the other two optional, written when
+  wired).
+- The skill reference linked a kept export by its repository path, which
+  resolves against the reference's own directory in the plugin and on the
+  site. The generator now writes it as an absolute URL on the repository's
+  main branch, labelled "Kept export", the form the site gives every
+  repository file it does not render; a commit pin would go stale at each
+  re-export. A test holds every link in the reference absolute.
+- `generic-only/case.json` and the conformance README described the
+  passthrough fixture as entirely unmodeled Types; they now name its one
+  unmodeled Type and D04's two generic forms. D04's repair rewords the
+  same two lines, so the chain rebase re-checks them.
+- The `"False"` reading's source, the cookbook comment this branch removes,
+  is cited in rule 47 at main's `8a7c3d7` (lines 4 to 6), with
+  `third-required-set-alone` and `third-end-all-branches` named as the
+  probes that settle it.
+- The changeset said the service had not been asked about these types;
+  rule 40 accepted a create of each, and VERIFY 16.8 is where the
+  resuming form's branch requirement comes from. It now says so.
+- `packages/core/SPEC.md` says `channel-restricted-action` names the kept
+  export's path, not a page, for this type.
+- An inverter comment for `UpdatePreviousContactParticipantState` had been
+  left above the new `LoadContactContent` inverter; it is back above its
+  own.
+
+Refuted, each decision recorded here:
+
+- VERIFY 16.8 without a pinned commit: rule 47 cites it at `84db5c0`, and
+  the catalog shape's `source` now names that commit too.
+- The exports README's opening line and `source` `console-export` for a
+  hand-written action: `console-export` is the vocabulary's one value for
+  a Type no page documents, and the README's table and paragraph say the
+  file is not verbatim. The opening line now says the directory holds a
+  console export or, until one is taken, the closest record of one.
+- `ContentType` optional on a rule 40 input that was not kept: rule 40
+  records that the run's input was `Parameters` empty and that the kept
+  file differs, and `load-required-set-alone` re-sends the empty form.
+  Kept as it is.
+- Flow-type probes covering four of ten listed types: the evidence rule
+  asks for a probe where the catalog and the pages disagree, which for
+  `LoadContactContent` is the module alone and for the transfer the module
+  and the unlisted types; the probes already include a hold and an
+  outbound whisper flow beside them. No probe added.

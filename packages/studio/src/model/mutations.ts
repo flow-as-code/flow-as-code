@@ -52,6 +52,8 @@ import {
   NO_MATCHING_ERROR,
   canonicalize,
   collectRefs,
+  modeledEntry,
+  requiredErrorsFor,
 } from "@flow-as-code/core";
 import {
   acceptsConditions,
@@ -786,6 +788,28 @@ function appendCondition(doc: FlowDoc, action: FlowAction, target: string): Flow
   );
 }
 
+/**
+ * The error branches this action must wire in the form it is in: the
+ * catalog's required ones (requiredErrorsFor) and those a holding shape
+ * requires (a GetParticipantInput menu's two, a resuming
+ * TransferParticipantToThirdParty's CallFailed and
+ * ConnectionTimeLimitExceeded). A drag wires these before any optional
+ * branch, so a TransferParticipantToThirdParty that ends the flow gets its
+ * catch-all first and its one required form is reached by dragging.
+ */
+function requiredBranches(action: FlowAction): Set<string> {
+  const required = new Set(requiredErrorsFor(action.Type, action.Parameters));
+  for (const shape of modeledEntry(action.Type)?.shapes ?? []) {
+    const value = action.Parameters[shape.when.key];
+    const holds =
+      shape.when.equals !== undefined
+        ? value === shape.when.equals
+        : value !== shape.when.notEquals;
+    if (holds) for (const e of shape.requires?.errors ?? []) required.add(e);
+  }
+  return required;
+}
+
 function wireMissingError(doc: FlowDoc, action: FlowAction, target: string): FlowDoc | undefined {
   // Only modeled types have a known error vocabulary; an unmodeled block keeps
   // whatever errors it came with. This is intent, not legality: it picks WHICH
@@ -802,7 +826,11 @@ function wireMissingError(doc: FlowDoc, action: FlowAction, target: string): Flo
     (e) => !(action.Type === ActionType.Wait && e === PARTICIPANT_NOT_FOUND),
   );
   const wired = new Set((action.Transitions.Errors ?? []).map((e) => e.ErrorType));
-  const missing = wanted.find((e) => !wired.has(e));
+  // Required branches first, then the optional ones, each in the class's
+  // order; inBuilderOrder below puts the new branch in its place either way.
+  const required = requiredBranches(action);
+  const missing =
+    wanted.find((e) => required.has(e) && !wired.has(e)) ?? wanted.find((e) => !wired.has(e));
   if (missing === undefined) return undefined;
   // In the class's order, not appended: a Wait whose bot branch was dragged
   // before its catch-all already holds ParticipantNotFound, and the

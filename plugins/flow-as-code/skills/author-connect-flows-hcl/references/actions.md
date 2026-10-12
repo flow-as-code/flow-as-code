@@ -950,12 +950,12 @@ Block `load_contact_content`. [Action page](https://docs.aws.amazon.com/connect/
 
 ## TransferParticipantToThirdParty
 
-Block `transfer_participant_to_third_party`. [Action page](conformance/flow-language/exports/transfer-participant-to-third-party.json).
+Block `transfer_participant_to_third_party`. [Kept export](https://github.com/flow-as-code/flow-as-code/blob/main/conformance/flow-language/exports/transfer-participant-to-third-party.json).
 
 - Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
 - Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required.
-- Error branches: `CallFailed`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the builder writes only the catch-all, and rule 47's probes decide what that form takes; `ConnectionTimeLimitExceeded`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the builder writes only the catch-all, and rule 47's probes decide what that form takes; `NoMatchingError` (required).
+- Error branches: `CallFailed`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" it is optional, the builder writing it only when wired, and rule 47's probes decide what that form takes; `ConnectionTimeLimitExceeded`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" it is optional, the builder writing it only when wired, and rule 47's probes decide what that form takes; `NoMatchingError` (required).
 - Conditions: none.
 - Shape with `ContinueFlowExecution` "True": needs branches `CallFailed`, `ConnectionTimeLimitExceeded`.
 

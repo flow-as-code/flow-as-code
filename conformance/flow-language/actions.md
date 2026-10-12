@@ -2422,9 +2422,14 @@ is read rather than when the type is modeled.
       three errors removed alone was refused, "Action is missing required
       error. Error: <branch>, Path: Actions[0]"; and rule 40's create of the
       same shape was accepted on 2026-10-05. A comment in this repository's
-      Terraform cookbook (2026-09-29) said that with `ContinueFlowExecution`
-      `"False"` the action takes only the catch-all; no message was
-      recorded with it.
+      Terraform cookbook, removed by D09 when the recipe moved to another
+      type, said that with `ContinueFlowExecution` `"False"` the action
+      takes "only the catch-all (sandbox, 2026-09-29)"; no message was
+      recorded with it, so it is a reading, not evidence
+      (https://github.com/flow-as-code/flow-as-code/blob/8a7c3d71e0f92882b04229dbcd4fd83614be6790/examples/terraform-provider/cookbook/unmodeled-action.tf,
+      lines 4 to 6). `third-required-set-alone` (`"False"` with the
+      catch-all alone) and `third-end-all-branches` (`"False"` with all
+      three) settle it.
       The catalog records the three keys as required (the export's), the
       number a `stringOrJsonPath`, the time limit an `integerString` with
       no bound (no page states one), `ContinueFlowExecution` an `enum` of

@@ -383,3 +383,54 @@ describe("setCaseLink (tasks/D06)", () => {
     );
   });
 });
+
+describe("TransferParticipantToThirdParty error drags", () => {
+  // A fresh block ends the flow (ContinueFlowExecution "False"), whose one
+  // required branch is the catch-all; the resuming form also requires
+  // CallFailed and ConnectionTimeLimitExceeded (actions.md, rule 47).
+  const fresh = () => {
+    const added = addBlock(demoDoc(), "TransferParticipantToThirdParty", { x: 0, y: 900 });
+    return { doc: connectNodes(added.doc, added.id, "hang-up", "primary")!, id: added.id };
+  };
+  const errors = (doc: FlowDoc, id: string) =>
+    getAction(doc, id)!.Transitions.Errors!.map((e) => e.ErrorType);
+
+  it("wires the catch-all first on the form that ends the flow, and the block is typed", () => {
+    const { doc, id } = fresh();
+    const wired = connectNodes(doc, id, "hang-up", "error")!;
+    expect(errors(wired, id)).toEqual(["NoMatchingError"]);
+    expect(demotedIds(wired).has(id)).toBe(false);
+    expectSchemaValid(wired);
+    expectByteStable(wired);
+  });
+
+  it("then takes the other two in the class's order, and the flag switches with no demotion", () => {
+    const { doc, id } = fresh();
+    let d = connectNodes(doc, id, "hang-up", "error")!;
+    d = connectNodes(d, id, "hang-up", "error")!;
+    expect(errors(d, id)).toEqual(["CallFailed", "NoMatchingError"]);
+    d = connectNodes(d, id, "hang-up", "error")!;
+    expect(errors(d, id)).toEqual(["CallFailed", "ConnectionTimeLimitExceeded", "NoMatchingError"]);
+    const resumed = setParam(d, id, "ContinueFlowExecution", "True");
+    expect(getAction(resumed, id)!.Parameters.ContinueFlowExecution).toBe("True");
+    expect(demotedIds(resumed).has(id)).toBe(false);
+    expectSchemaValid(resumed);
+  });
+
+  it("wires the resuming form's required branches in the class's order", () => {
+    const { doc, id } = fresh();
+    const resuming = {
+      ...doc,
+      content: {
+        ...doc.content,
+        Actions: doc.content.Actions.map((a) =>
+          a.Identifier === id
+            ? { ...a, Parameters: { ...a.Parameters, ContinueFlowExecution: "True" } }
+            : a,
+        ),
+      },
+    };
+    const first = connectNodes(resuming, id, "hang-up", "error")!;
+    expect(errors(first, id)).toEqual(["CallFailed"]);
+  });
+});

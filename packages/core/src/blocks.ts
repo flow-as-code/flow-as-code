@@ -3627,6 +3627,7 @@ export class LoadContactContent extends Block {
  * `third-static-number` probe records whether the service takes a static
  * one, and until then codegen leaves a static number generic.
  *
+ * `timeLimitSeconds` is a positive safe integer.
  * `continueFlow: true` writes the export's three errors in its order:
  * `onCallFailed` (Call failed), `onTimeout` (Timeout) and `onError`. The
  * service refused that form without any one of them on 2026-09-30, so they
@@ -3644,7 +3645,7 @@ export class LoadContactContent extends Block {
 interface TransferParticipantToThirdPartyBase extends Wired {
   /** A JSONPath to the destination, an E.164 number at run time. */
   number: JsonPath;
-  /** Seconds the third party may take to answer; a positive integer. */
+  /** Seconds the third party may take to answer; a positive safe integer. */
   timeLimitSeconds: number;
 }
 
@@ -3665,14 +3666,26 @@ export class TransferParticipantToThirdParty extends Block {
       );
     }
     const t = config.timeLimitSeconds;
-    if (!Number.isInteger(t) || t < 1) {
+    // A safe integer, so that its decimal string is digits and codegen reads
+    // it back (String(1e21) is exponent notation).
+    if (!Number.isSafeInteger(t) || t < 1) {
       throw new Error(
-        `TransferParticipantToThirdParty "${config.id}" timeLimitSeconds must be a positive integer, got ${t}.`,
+        `TransferParticipantToThirdParty "${config.id}" timeLimitSeconds must be a positive safe integer, got ${t}.`,
       );
     }
     if (typeof (config as { continueFlow: unknown }).continueFlow !== "boolean") {
       throw new Error(
         `TransferParticipantToThirdParty "${config.id}" continueFlow must be true or false.`,
+      );
+    }
+    // The type says so too; a caller without types (JavaScript, a cast)
+    // gets the same refusal the service gave the form without either branch.
+    if (
+      config.continueFlow &&
+      (config.onCallFailed === undefined || config.onTimeout === undefined)
+    ) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${config.id}" with continueFlow true needs onCallFailed and onTimeout.`,
       );
     }
   }
