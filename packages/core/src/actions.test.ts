@@ -219,6 +219,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "InvokeLambdaFunction",
       "Loop",
       "ResumeContact",
+      "StartOutboundChatContact",
       "TagContact",
       "UntagContact",
       "UpdateCase",

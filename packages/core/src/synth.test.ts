@@ -63,6 +63,7 @@ import {
   serialize,
   serializeContent,
   ShowView,
+  StartOutboundChatContact,
   synth,
   TagContact,
   TransferContactToAgent,
@@ -2641,9 +2642,9 @@ describe("the outbound actions", () => {
         id: "check-progress",
         onStatus: {
           CallAnswered: "greet",
-          VoicemailBeep: "leave-message",
-          VoicemailNoBeep: "leave-message",
-          NotDetected: "done",
+          VoicemailBeep: "text-back",
+          VoicemailNoBeep: "text-back",
+          NotDetected: "text-from-attributes",
         },
         onError: "done",
       }),
@@ -2651,6 +2652,24 @@ describe("the outbound actions", () => {
         id: "greet",
         text: "Connecting you to the customer.",
         next: "done",
+      }),
+      new StartOutboundChatContact({
+        id: "text-back",
+        source: Refs.phonenumber("main-did"),
+        destination: jsonPath("$.CustomerEndpoint.Address"),
+        flow: Refs.flow("sms-follow-up"),
+        initialMessage: "We tried to call you. Reply here to pick up where we left off.",
+        relatedContact: "CURRENT",
+        next: "leave-message",
+        onError: "leave-message",
+      }),
+      new StartOutboundChatContact({
+        id: "text-from-attributes",
+        source: jsonPath("$.Attributes.smsNumberArn"),
+        destination: "+15555550101",
+        flow: jsonPath("$.Attributes.smsFlowArn"),
+        next: "done",
+        onError: "done",
       }),
       new MessageParticipant({
         id: "leave-message",
@@ -2720,6 +2739,62 @@ describe("the outbound actions", () => {
         () => new CompleteOutboundCall({ id: "c", connectionTimeLimitSeconds: bad, next: "n" }),
       ).toThrow(/connectionTimeLimitSeconds must be an integer between 1 and 600/);
     }
+  });
+
+  it("write StartOutboundChatContact's endpoints, flow and constants, the catch-all wired", () => {
+    expect(
+      new StartOutboundChatContact({
+        id: "t",
+        source: Refs.phonenumber("main-did"),
+        destination: "+15555550101",
+        flow: Refs.flow("sms-follow-up"),
+        initialMessage: jsonPath("$.Attributes.smsText"),
+        relatedContact: "CURRENT",
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "t",
+      Type: "StartOutboundChatContact",
+      Parameters: {
+        SourceEndpoint: {
+          Address: "${cdref:phonenumber:main-did}",
+          Type: "CONNECT_PHONENUMBER_ARN",
+        },
+        DestinationEndpoint: { Address: "+15555550101", Type: "TELEPHONE_NUMBER" },
+        ContactFlowArn: "${cdref:flow:sms-follow-up}",
+        ContactSubtype: "connect:SMS",
+        InitialSystemMessage: { Content: "$.Attributes.smsText" },
+        RelatedContact: "CURRENT",
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuse an SMS to a number that is not E.164, an empty message, or another related contact", () => {
+    const base = {
+      id: "t",
+      source: Refs.phonenumber("main-did"),
+      destination: "+15555550101",
+      flow: Refs.flow("sms-follow-up"),
+      next: "n",
+      onError: "e",
+    };
+    for (const destination of ["5555550101", "+05555550101", ""]) {
+      expect(() => new StartOutboundChatContact({ ...base, destination })).toThrow(
+        /destination must be an E.164 number or a JSONPath/,
+      );
+    }
+    expect(() => new StartOutboundChatContact({ ...base, initialMessage: "" })).toThrow(
+      /initialMessage must be non-empty text or a JSONPath/,
+    );
+    expect(
+      () => new StartOutboundChatContact({ ...base, relatedContact: cast<never>("PREVIOUS") }),
+    ).toThrow(/relatedContact may only be "CURRENT"/);
   });
 
   it("refuse a status check with no branch or a status the page does not list", () => {

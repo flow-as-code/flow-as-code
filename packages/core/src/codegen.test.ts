@@ -2329,10 +2329,13 @@ describe("ConnectParticipantWithLexBot inverts the V2 form with its intents", ()
 
 describe("the unknown-actions fixture holds only actions the builder does not model", () => {
   // An unmodeled type, or a modeled type in a form its class does not write
-  // and that form's key: since tasks/D04, CompleteOutboundCall carrying
-  // VoiceConnector, which owner decision 4 keeps generic.
-  const UNMODELED_FORMS: Readonly<Record<string, string>> = {
-    CompleteOutboundCall: "VoiceConnector",
+  // (tasks/D04): CompleteOutboundCall carrying VoiceConnector, which owner
+  // decision 4 keeps generic, and StartOutboundChatContact's WhatsApp form,
+  // carrying the API's InitialTemplatedSystemMessage, a key the catalog
+  // does not record, so HCL writes it generic too.
+  const UNMODELED_FORMS: Readonly<Record<string, (p: Record<string, unknown>) => boolean>> = {
+    CompleteOutboundCall: (p) => "VoiceConnector" in p,
+    StartOutboundChatContact: (p) => "InitialTemplatedSystemMessage" in p,
   };
 
   it("emits a GenericBlock for every action, tokens kept verbatim", () => {
@@ -2345,7 +2348,7 @@ describe("the unknown-actions fixture holds only actions the builder does not mo
     for (const a of doc.content.Actions) {
       if ((Object.values(ActionType) as string[]).includes(a.Type)) {
         expect(UNMODELED_FORMS[a.Type], a.Type).toBeDefined();
-        expect(a.Parameters).toHaveProperty(UNMODELED_FORMS[a.Type]!);
+        expect(UNMODELED_FORMS[a.Type]!(a.Parameters), a.Type).toBe(true);
       }
     }
     const out = codegen(doc);
@@ -3575,6 +3578,82 @@ describe("the outbound actions invert to their classes", () => {
       expect(out).toMatch(
         /new GenericBlock\(\{\s+id: "place-call-via-sip",\s+type: "CompleteOutboundCall"/,
       );
+    });
+  });
+
+  describe("StartOutboundChatContact", () => {
+    const sms = (
+      parameters: Record<string, unknown>,
+      errors = ["NoMatchingError"],
+    ): FlowAction => ({
+      Identifier: "sms",
+      Type: "StartOutboundChatContact",
+      Parameters: {
+        SourceEndpoint: {
+          Address: "${cdref:phonenumber:main-did}",
+          Type: "CONNECT_PHONENUMBER_ARN",
+        },
+        DestinationEndpoint: { Address: "$.CustomerEndpoint.Address", Type: "TELEPHONE_NUMBER" },
+        ContactFlowArn: "${cdref:flow:sms-follow-up}",
+        ContactSubtype: "connect:SMS",
+        ...parameters,
+      },
+      Transitions: {
+        NextAction: "done",
+        Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "done" })),
+        Conditions: [],
+      },
+    });
+    const typed = (a: FlowAction) => {
+      const out = codegen(docWith([a, end]));
+      expect(out).toContain("new StartOutboundChatContact({");
+      expect(out).not.toContain("GenericBlock");
+      return out;
+    };
+
+    it("emits the number and flow by reference or JSONPath, the destination, message and related contact", () => {
+      const out = typed(
+        sms({ InitialSystemMessage: { Content: "Reply here." }, RelatedContact: "CURRENT" }),
+      );
+      expect(out).toContain('source: Refs.phonenumber("main-did")');
+      expect(out).toContain('destination: jsonPath("$.CustomerEndpoint.Address")');
+      expect(out).toContain('flow: Refs.flow("sms-follow-up")');
+      expect(out).toContain('initialMessage: "Reply here."');
+      expect(out).toContain('relatedContact: "CURRENT"');
+      const dynamic = typed(
+        sms({
+          SourceEndpoint: { Address: "$.Attributes.smsNumberArn", Type: "CONNECT_PHONENUMBER_ARN" },
+          DestinationEndpoint: { Address: "+15555550101", Type: "TELEPHONE_NUMBER" },
+          ContactFlowArn: "$.Attributes.smsFlowArn",
+        }),
+      );
+      expect(dynamic).toContain('source: jsonPath("$.Attributes.smsNumberArn")');
+      expect(dynamic).toContain('destination: "+15555550101"');
+    });
+
+    it("falls back on a literal ARN, another constant, a non-E.164 number, an extra key, or no catch-all", () => {
+      generic(
+        sms({
+          SourceEndpoint: {
+            Address: "arn:aws:connect:us-east-1:111122223333:phone-number/p1",
+            Type: "CONNECT_PHONENUMBER_ARN",
+          },
+        }),
+      );
+      generic(sms({ ContactFlowArn: "${cdref:queue:support}" }));
+      generic(sms({ ContactSubtype: "connect:WhatsApp" }));
+      generic(
+        sms({
+          SourceEndpoint: { Address: "${cdref:phonenumber:main-did}", Type: "EMAIL_ADDRESS" },
+        }),
+      );
+      generic(sms({ DestinationEndpoint: { Address: "5555550101", Type: "TELEPHONE_NUMBER" } }));
+      generic(sms({ DestinationEndpoint: { Address: "+15555550101", Type: "EMAIL_ADDRESS" } }));
+      generic(sms({ InitialSystemMessage: { Content: "" } }));
+      generic(sms({ InitialSystemMessage: { TemplateId: "t" } }));
+      generic(sms({ RelatedContact: "PREVIOUS" }));
+      generic(sms({ TemplateArn: "$.Attributes.template" }));
+      generic(sms({}, []));
     });
   });
 

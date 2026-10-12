@@ -809,6 +809,42 @@ describe("exportInstance", () => {
     expect(older.byCasesId).toBeUndefined();
   });
 
+  // tasks/D04: a claimed number's ARN in StartOutboundChatContact's
+  // SourceEndpoint.Address becomes a phonenumber token named by its
+  // description, the flow ARN a flow token; the flow is in the builder's
+  // shape (Conditions present), so codegen types the three outbound
+  // actions. CompleteOutboundCall's caller ID is a number, not an ARN, and
+  // stays as written.
+  it("exports an outbound SMS's claimed number as a phonenumber token, to the outbound-sms goldens", async () => {
+    const client = new FixtureClient("outbound-sms");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.3" });
+    expect(result.failures).toEqual([]);
+    expect(result.flows.map((f) => f.doc.name).sort()).toEqual([
+      "missed-call-text",
+      "sms-follow-up",
+    ]);
+    for (const exported of result.flows) {
+      expect(serialize(exported.doc), exported.doc.name).not.toContain("arn:aws");
+      const golden = `conformance/export/outbound-sms/expected/${exported.doc.name}`;
+      expect(serialize(exported.doc)).toBe(
+        golden_(`${golden}.flowdoc.json`, serialize(exported.doc)),
+      );
+      expect(exported.code).toBe(golden_(`${golden}.flow.ts`, exported.code!));
+    }
+    const text = result.flows.find((f) => f.doc.name === "missed-call-text")!;
+    const sms = text.doc.content.Actions.find((a) => a.Identifier === "text-back")!;
+    expect(sms.Parameters.SourceEndpoint).toEqual({
+      Address: "${cdref:phonenumber:sms-line}",
+      Type: "CONNECT_PHONENUMBER_ARN",
+    });
+    expect(sms.Parameters.ContactFlowArn).toBe("${cdref:flow:sms-follow-up}");
+    expect(text.code).toContain('source: Refs.phonenumber("sms-line")');
+    expect(text.code).toContain("new CompleteOutboundCall({");
+    expect(text.code).toContain('callerId: "+15555550110"');
+    expect(text.code).toContain("new CheckOutboundCallStatus({");
+    expect(text.code).not.toContain("GenericBlock");
+  });
+
   it("keeps an alias id when the inventory cannot name it", () => {
     // A client without listContactFlowModuleAliases, or an alias whose name is
     // not a slug: the invocation still exports, with the id as the alias.

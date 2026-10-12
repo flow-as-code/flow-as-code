@@ -68,6 +68,7 @@ export const ActionType = {
   UpdateRoutingCriteria: "UpdateRoutingCriteria",
   CheckOutboundCallStatus: "CheckOutboundCallStatus",
   CompleteOutboundCall: "CompleteOutboundCall",
+  StartOutboundChatContact: "StartOutboundChatContact",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -124,6 +125,15 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   },
   // The keys of the fields to update, as CreateCase's.
   [ActionType.UpdateCase]: { "CaseRequestFields.*~": "casefield" },
+  // The number the SMS is sent from ("ConnectPhoneNumberArn of the
+  // SourceEndpoint"), nested, and the flow that runs the new chat
+  // ("ContactFlowArn of the flow to be executed for the new outbound
+  // chat"); the admin guide's Send message block sets each manually or
+  // dynamically, so a token or a JSONPath.
+  [ActionType.StartOutboundChatContact]: {
+    "SourceEndpoint.Address": "phonenumber",
+    ContactFlowArn: "flow",
+  },
 };
 
 /**
@@ -864,6 +874,16 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
   ActionType.CheckOutboundCallStatus,
+  // The action page's Restrictions are about the new contact ("only
+  // supports connect:SMS as the ContactSubtype", and the two endpoint
+  // types), not the flow type; the admin guide's Send message block lists
+  // every flow type with "Yes" (inbound, customer queue, customer hold,
+  // customer whisper, outbound whisper, agent hold, agent whisper, transfer
+  // to agent, transfer to queue, disconnect) and voice, chat, task and
+  // email each "Yes". Rule 46's probes put each flow type to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
+  ActionType.StartOutboundChatContact,
 ];
 
 /**
@@ -1239,6 +1259,20 @@ export type OutboundCallStatus = (typeof OUTBOUND_CALL_STATUSES)[number];
  */
 export const OUTBOUND_CONNECTION_TIME_LIMIT_MIN = 1;
 export const OUTBOUND_CONNECTION_TIME_LIMIT_MAX = 600;
+
+/**
+ * StartOutboundChatContact's constants, each the one value its page allows:
+ * "This action only supports `connect:SMS` as the **ContactSubtype**
+ * currently", "only supports `CONNECT_PHONENUMBER_ARN` as the Type of
+ * **SourceEndpoint**", "only supports `TELEPHONE_NUMBER` as the Type of
+ * **DestinationEndpoint**", and RelatedContact's "Only supported value is
+ * CURRENT". The catalog records each as a single-value enum.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+ */
+export const OUTBOUND_CHAT_SUBTYPE = "connect:SMS";
+export const OUTBOUND_CHAT_SOURCE_TYPE = "CONNECT_PHONENUMBER_ARN";
+export const OUTBOUND_CHAT_DESTINATION_TYPE = "TELEPHONE_NUMBER";
+export const OUTBOUND_CHAT_RELATED_CONTACT = "CURRENT";
 
 /**
  * DistributeByPercentage draws "a random number between 1 and 100

@@ -1,0 +1,42 @@
+{
+  "description": "Rule 46: StartOutboundChatContact with the DID's E.164 number in place of its ARN as the source address, to learn whether the create requires the ARN form.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "SourceEndpoint": {
+            "Address": "{{DID_NUMBER}}",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          },
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "ContactFlowArn": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:instance/{{INSTANCE}}/contact-flow/{{FLOW_ID}}",
+          "ContactSubtype": "connect:SMS"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

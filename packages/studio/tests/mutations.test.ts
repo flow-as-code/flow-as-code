@@ -158,6 +158,7 @@ describe("addBlock", () => {
       "UpdateRoutingCriteria",
       "CheckOutboundCallStatus",
       "CompleteOutboundCall",
+      "StartOutboundChatContact",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

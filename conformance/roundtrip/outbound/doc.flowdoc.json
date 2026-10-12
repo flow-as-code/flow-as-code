@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "outbound",
-  "description": "The outbound actions in an outbound whisper flow: the call placed with a static caller ID, or through a Chime voice connector read from attributes (a form that stays generic, owner decision 4), then the call's progress checked on all four statuses, a person answering greeted, either voicemail result noted, and no detection ending the whisper.",
+  "description": "The outbound actions in an outbound whisper flow: the call placed with a static caller ID, or through a Chime voice connector (generic, owner decision 4); its progress checked on all four statuses; a person greeted; on voicemail an SMS from the claimed number and flow by reference, with a message, linked to the contact; and with no detection an SMS from a number and flow read from attributes.",
   "connectType": "OUTBOUND_WHISPER",
   "content": {
     "Version": "2019-10-30",
@@ -90,7 +90,7 @@
               }
             },
             {
-              "NextAction": "leave-message",
+              "NextAction": "text-back",
               "Condition": {
                 "Operator": "Equals",
                 "Operands": [
@@ -99,7 +99,7 @@
               }
             },
             {
-              "NextAction": "leave-message",
+              "NextAction": "text-back",
               "Condition": {
                 "Operator": "Equals",
                 "Operands": [
@@ -108,7 +108,7 @@
               }
             },
             {
-              "NextAction": "done",
+              "NextAction": "text-from-attributes",
               "Condition": {
                 "Operator": "Equals",
                 "Operands": [
@@ -128,6 +128,62 @@
         "Transitions": {
           "NextAction": "done",
           "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "text-back",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "ContactFlowArn": "${cdref:flow:sms-follow-up}",
+          "ContactSubtype": "connect:SMS",
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "InitialSystemMessage": {
+            "Content": "We tried to call you. Reply here to pick up where we left off."
+          },
+          "RelatedContact": "CURRENT",
+          "SourceEndpoint": {
+            "Address": "${cdref:phonenumber:main-did}",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "leave-message",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "leave-message"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "text-from-attributes",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "ContactFlowArn": "$.Attributes.smsFlowArn",
+          "ContactSubtype": "connect:SMS",
+          "DestinationEndpoint": {
+            "Address": "+15555550101",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "SourceEndpoint": {
+            "Address": "$.Attributes.smsNumberArn",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
           "Conditions": []
         }
       },
@@ -161,7 +217,7 @@
       "y": 20
     },
     "done": {
-      "x": 1060,
+      "x": 1320,
       "y": 20
     },
     "greet": {
@@ -169,7 +225,7 @@
       "y": 20
     },
     "leave-message": {
-      "x": 800,
+      "x": 1060,
       "y": 180
     },
     "place-call": {
@@ -179,7 +235,26 @@
     "place-call-via-sip": {
       "x": 280,
       "y": 180
+    },
+    "text-back": {
+      "x": 800,
+      "y": 180
+    },
+    "text-from-attributes": {
+      "x": 800,
+      "y": 340
     }
   },
-  "refs": []
+  "refs": [
+    {
+      "token": "${cdref:flow:sms-follow-up}",
+      "type": "flow",
+      "name": "sms-follow-up"
+    },
+    {
+      "token": "${cdref:phonenumber:main-did}",
+      "type": "phonenumber",
+      "name": "main-did"
+    }
+  ]
 }

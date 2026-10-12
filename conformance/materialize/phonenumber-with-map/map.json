@@ -1,0 +1,4 @@
+{
+  "${cdref:flow:sms-follow-up}": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000052",
+  "${cdref:phonenumber:sms-line}": "arn:aws:connect:us-east-1:111122223333:phone-number/pppp7777-0000-4000-8000-000000000051"
+}

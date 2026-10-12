@@ -746,4 +746,33 @@ describe("the outbound call's optional caller ID (tasks/D04)", () => {
     await typeAndBlur(field(), "$.Attributes.callerId");
     expect(await saved()).toEqual({ CallerId: { Number: "$.Attributes.callerId" } });
   });
+
+  it("edits the SMS's message and removes it when emptied, keeping the endpoints", async () => {
+    const store = new MemoryStore("opened", [
+      structuredClone(outboundFixture) as unknown as FlowDoc,
+    ]);
+    vi.useFakeTimers();
+    await render(<App store={store} />);
+    await settleLint();
+    const saved = async () => {
+      await settleLint();
+      expect(button("save-button").disabled).toBe(false);
+      await click(button("save-button"));
+      const { doc } = await store.read("outbound");
+      return doc.content.Actions.find((a) => a.Identifier === "text-back")!.Parameters;
+    };
+    await click(present('[data-testid="node-text-back"]'));
+    const message = () =>
+      present<HTMLTextAreaElement>('[data-testid="text-InitialSystemMessage.Content"]');
+    expect(message().value).toContain("We tried to call you.");
+    await typeAndBlur(message(), "Reply here.");
+    expect((await saved()).InitialSystemMessage).toEqual({ Content: "Reply here." });
+    await typeAndBlur(message(), "");
+    const params = await saved();
+    expect(params.InitialSystemMessage).toBeUndefined();
+    expect(params.SourceEndpoint).toEqual({
+      Address: "${cdref:phonenumber:main-did}",
+      Type: "CONNECT_PHONENUMBER_ARN",
+    });
+  });
 });

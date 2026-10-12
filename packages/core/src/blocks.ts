@@ -84,6 +84,10 @@ import {
   TAG_LIMIT,
   TIME_LIMIT_EXCEEDED,
   OUTBOUND_CALL_STATUSES,
+  OUTBOUND_CHAT_DESTINATION_TYPE,
+  OUTBOUND_CHAT_RELATED_CONTACT,
+  OUTBOUND_CHAT_SOURCE_TYPE,
+  OUTBOUND_CHAT_SUBTYPE,
   OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
   OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   WAIT_COMPLETED,
@@ -2622,6 +2626,83 @@ export class CreateWisdomSession extends Block {
   }
 }
 
+/** An E.164 number: a plus, then one to fifteen digits, the first not 0. */
+const E164 = /^\+[1-9][0-9]{1,14}$/;
+const JSON_PATH = /^\$\.[A-Za-z0-9_$.[\]'-]+$/;
+
+/**
+ * Send message's SMS form: "Initiate an outbound chat contact to a customer.
+ * Only SMS chats are supported." `source` is the number it is sent from,
+ * `SourceEndpoint.Address` ("ConnectPhoneNumberArn of the SourceEndpoint"),
+ * a `phonenumber` reference or a JSONPath; `destination` the customer's
+ * number, `DestinationEndpoint.Address` ("E164 phone number"), static or a
+ * JSONPath; `flow` the flow the new chat runs, `ContactFlowArn`, a `flow`
+ * reference or a JSONPath. The class writes the page's constants: the
+ * endpoint types `CONNECT_PHONENUMBER_ARN` and `TELEPHONE_NUMBER` and the
+ * subtype `connect:SMS`. `initialMessage` is the optional
+ * `InitialSystemMessage.Content`, and `relatedContact: "CURRENT"` the
+ * optional `RelatedContact` ("Only supported value is CURRENT"), the admin
+ * guide's Link to contact. Results "None. No conditions are supported.";
+ * one error, the catch-all. Every flow type and channel (the admin guide's
+ * block); the contact it creates is an SMS chat, which needs SMS messaging
+ * set up on the instance. The admin guide's WhatsApp, email and template
+ * forms have no recorded key and stay generic.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
+ */
+export interface StartOutboundChatContactConfig extends Wired {
+  source: Ref<"phonenumber"> | JsonPath;
+  /** An E.164 number, or a single JSONPath. */
+  destination: string | JsonPath;
+  flow: Ref<"flow"> | JsonPath;
+  initialMessage?: string | JsonPath;
+  relatedContact?: typeof OUTBOUND_CHAT_RELATED_CONTACT;
+}
+
+export class StartOutboundChatContact extends Block {
+  readonly type = ActionType.StartOutboundChatContact;
+
+  constructor(private readonly config: StartOutboundChatContactConfig) {
+    super(config.id);
+    const where = `StartOutboundChatContact "${config.id}"`;
+    const d = config.destination;
+    if (typeof d !== "string" || !(E164.test(d) || JSON_PATH.test(d))) {
+      throw new Error(`${where} destination must be an E.164 number or a JSONPath.`);
+    }
+    const m = config.initialMessage;
+    if (m !== undefined && (typeof m !== "string" || m === "")) {
+      throw new Error(`${where} initialMessage must be non-empty text or a JSONPath.`);
+    }
+    if (
+      config.relatedContact !== undefined &&
+      config.relatedContact !== OUTBOUND_CHAT_RELATED_CONTACT
+    ) {
+      throw new Error(`${where} relatedContact may only be "${OUTBOUND_CHAT_RELATED_CONTACT}".`);
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {
+      SourceEndpoint: { Address: this.config.source, Type: OUTBOUND_CHAT_SOURCE_TYPE },
+      DestinationEndpoint: {
+        Address: this.config.destination,
+        Type: OUTBOUND_CHAT_DESTINATION_TYPE,
+      },
+      ContactFlowArn: this.config.flow,
+      ContactSubtype: OUTBOUND_CHAT_SUBTYPE,
+    };
+    if (this.config.initialMessage !== undefined) {
+      p.InitialSystemMessage = { Content: this.config.initialMessage };
+    }
+    if (this.config.relatedContact !== undefined) p.RelatedContact = this.config.relatedContact;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Customer Profiles (tasks/D03): the six actions of the console's Customer
 // profiles block. Each writes ProfileRequestData and ProfileResponseData,
@@ -3493,7 +3574,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 53.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 54.
  */
 export interface GenericBlockConfig {
   id: string;

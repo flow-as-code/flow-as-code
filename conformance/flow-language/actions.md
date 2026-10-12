@@ -110,6 +110,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Set routing criteria | `UpdateRoutingCriteria` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
 | Check call progress | `CheckOutboundCallStatus` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html) |
 | Call phone number | `CompleteOutboundCall` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html) |
+| Send message (SMS) | `StartOutboundChatContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html) |
 
 ## Reference-bearing parameters
 
@@ -140,6 +141,8 @@ is never interpolated into a longer string.
 | `GetCase` | `CaseRequestFields.*~` (every key) | `casefield` (as `CreateCase`'s) |
 | `GetCase` | `CaseResponseFields[]` (every item) | `casefield` (a system field id stays literal) |
 | `UpdateCase` | `CaseRequestFields.*~` (every key) | `casefield` (as `CreateCase`'s) |
+| `StartOutboundChatContact` | `SourceEndpoint.Address` | `phonenumber` |
+| `StartOutboundChatContact` | `ContactFlowArn` | `flow` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -2235,6 +2238,76 @@ is read rather than when the type is modeled.
       restriction is recorded here as the service's.
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
       https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+    - `StartOutboundChatContact` "Initiate an outbound chat contact to a
+      customer. Only SMS chats are supported." The parameter object:
+      `SourceEndpoint` {`Address` "ConnectPhoneNumberArn of the
+      SourceEndpoint", `Type` "currently only supports
+      CONNECT_PHONENUMBER_ARN"}, `DestinationEndpoint` {`Address` "E164
+      phone number of the DestinationEndpoint", `Type` "currently only
+      supports TELEPHONE_NUMBER"}, `ContactFlowArn` "ContactFlowArn of the
+      flow to be executed for the new outbound chat", `ContactSubtype`
+      "currently only supports connect:SMS", `InitialSystemMessage`
+      "[Optional]" {`Content`}, and `RelatedContact` "[Optional] Only
+      supported value is CURRENT". Results "None. No conditions are
+      supported."; errors "NoMatchingError - if no other Error matches.";
+      the Restrictions name the subtype and the two endpoint types and no
+      flow type or channel. The admin guide's Send message block lists
+      every flow type "Yes" (inbound, customer queue, customer hold,
+      customer whisper, outbound whisper, agent hold, agent whisper,
+      transfer to agent, transfer to queue, disconnect) and voice, chat,
+      task and email "Yes"; sets From to "an SMS-enabled phone number that
+      has been claimed" manually or "an ARN of a phone number" dynamically,
+      To manually or dynamically "in E.164 format", Flow manually or
+      dynamically "that points to a flow ARN", and offers Link to contact;
+      and adds WhatsApp, email and template forms whose keys it does not
+      give. The catalog records the page's six keys in its order:
+      `SourceEndpoint` a required object of `Address`, a `phonenumber`
+      reference (the D01 type; static or a JSONPath), and `Type`, a
+      single-value enum; `DestinationEndpoint` a required object of
+      `Address`, a `stringOrJsonPath`, and `Type`, a single-value enum;
+      `ContactFlowArn` a required `flow` reference; `ContactSubtype` a
+      required single-value enum; `InitialSystemMessage` an optional
+      object of `Content`, a `stringOrJsonPath`; and `RelatedContact` an
+      optional single-value enum. The catch-all is required and wired by
+      the builder, `next` required. Flow types unrestricted (the admin
+      guide's reading; a module by the note above `IN_MODULE`), and no
+      `channels`: the page's "SMS only" is the subtype of the contact the
+      action creates, recorded as the `ContactSubtype` enum, not a channel
+      of the contact running the flow, which the admin guide allows on
+      every channel. The class writes the constants itself, holds a static
+      destination to E.164, and codegen leaves a literal ARN, another
+      constant, an extra key (the admin guide's template and WhatsApp
+      forms) or a destination that is neither E.164 nor a JSONPath
+      generic. The 0.3 clause holds `SourceEndpoint.Address` and
+      `ContactFlowArn` to a token or a JSONPath (no literal ARN, this
+      repository's invariant), the two endpoints and the message to
+      objects and the destination address to a string; the enums stay in
+      the catalog (owner decision 3). `conformance/export/outbound-sms`
+      exports the claimed number's ARN to a `phonenumber` token named by
+      its description, and `conformance/materialize/phonenumber-with-map`
+      resolves it back. Deployable; not exercised: sending needs an End
+      User Messaging SMS number with two-way messaging imported into
+      Connect, the account out of the SMS sandbox, and US registration
+      ("can take up to 15 business days"), none taken (owner decision 6).
+      Planned probes: `sms-required-set-alone` (the catalog's required set
+      alone, no optional key: the accepted-set probe) and `sms-required`
+      (the class's full form), both with the sandbox's voice DID as the
+      source, which are the probes of a number that is not SMS-enabled;
+      `sms-source-jsonpath` (the full form with the source dynamic, so no
+      number is checked; expected accepted) and `sms-flow-jsonpath`;
+      `sms-no-catch-all` and `sms-no-next` (each a removal alone);
+      `sms-no-initial-message` (the one optional container absent, from
+      the full form); `sms-message-string`, `sms-subtype-whatsapp`,
+      `sms-source-type-other`, `sms-destination-not-e164`,
+      `sms-destination-static`, `sms-related-other` and
+      `sms-source-number` (the page's shapes and constants, and the ARN
+      against the number); and `sms-customer-queue`, `sms-customer-hold`,
+      `sms-agent-hold`, `sms-customer-whisper`, `sms-agent-whisper`,
+      `sms-outbound-whisper`, `sms-agent-transfer`, `sms-queue-transfer`
+      and `sms-module` (every other flow type, the source a JSONPath).
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/setup-sms-messaging.html
 
 ## Per-action parameter shapes
 
@@ -2353,6 +2426,10 @@ RoutingExpression        { AttributeCondition: { Name, Value,   // 1 to 64 each;
 CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected"
 CompleteOutboundCall     { CallerId?: { Number },   // E.164 or a JSONPath
                            ConnectionTimeLimitSeconds?: "1".."600" }   // or a JSONPath; VoiceConnector stays generic
+StartOutboundChatContact { SourceEndpoint: { Address: phonenumber, Type: "CONNECT_PHONENUMBER_ARN" },
+                           DestinationEndpoint: { Address, Type: "TELEPHONE_NUMBER" },   // E.164 or a JSONPath
+                           ContactFlowArn: flow, ContactSubtype: "connect:SMS",
+                           InitialSystemMessage?: { Content }, RelatedContact?: "CURRENT" }
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2525,7 +2602,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-53 of the 61. Everything not in the modeled set above parses to a
+54 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only actions the builder does not model (with tokens inside their
@@ -2569,15 +2646,29 @@ models the type's caller-id form, so the token stays in passthrough until a
 task takes that form up. On 2026-10-12 D04 modeled that caller-id form, and
 the fixture became the one place a modeled type stands in it: in a form
 its class does not write, which codegen, the studio and HCL keep generic.
-The two tests that hold the fixture name that form (`CompleteOutboundCall`
-with `VoiceConnector`) and allow no other modeled type.
+When D04 modeled `StartOutboundChatContact`'s SMS form, the flow token
+stayed in its `ContactFlowArn` and the block took the WhatsApp form the
+admin guide's Send message block offers: the subtype `connect:WhatsApp`,
+which the API reference names ("This field can be used to show channel
+subtype, such as `connect:SMS` and `connect:WhatsApp`") and the action
+page and the catalog's enum do not, and the API's
+`InitialTemplatedSystemMessage` (`KnowledgeBaseId`, `MessageTemplateId`,
+each a JSONPath here), the template a WhatsApp message needs. That key is
+the API's; the Flow language key the console writes for the template is
+unrecorded. It is not in the catalog, so codegen, the studio and HCL (rule
+10 of `conformance/hcl/README.md`) keep the block generic: a second form
+of a modeled type the class does not write. The two tests that hold the
+fixture name both forms (`CompleteOutboundCall` with `VoiceConnector`,
+`StartOutboundChatContact` with `InitialTemplatedSystemMessage`) and allow
+no other modeled type.
+https://docs.aws.amazon.com/connect/latest/APIReference/API_StartOutboundChatContact.html
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 53      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 54      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 53      |                                                             |
+| Denominator             | 61    | 54      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

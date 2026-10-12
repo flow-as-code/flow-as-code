@@ -1,0 +1,34 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "sms-follow-up",
+  "displayName": "SMS Follow Up",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "bye",
+    "Actions": [
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": [],
+  "meta": {
+    "generator": "core@0.3",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000052",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "SMS Follow Up"
+    }
+  }
+}

@@ -137,9 +137,10 @@ describe("demo flow invariants", () => {
     expect(types.length).toBeGreaterThan(0);
     // A modeled type stands there only in a form its class does not write:
     // since tasks/D04, CompleteOutboundCall's VoiceConnector form (owner
-    // decision 4); codegen.test.ts holds every action generic.
+    // decision 4) and StartOutboundChatContact's WhatsApp subtype;
+    // codegen.test.ts names both and holds every action generic.
     expect(types.filter((t) => modeled.has(t))).toEqual(
-      types.filter((t) => t === "CompleteOutboundCall"),
+      types.filter((t) => t === "CompleteOutboundCall" || t === "StartOutboundChatContact"),
     );
   });
 });
@@ -756,7 +757,9 @@ describe("FlowDoc schema rejections: routing criteria", () => {
 });
 
 // The outbound round-trip fixture is the subject for the 0.3 clauses of
-// tasks/D04. Each holds JSON types and reference forms only: nothing about
+// tasks/D04. Each holds JSON types and reference forms only (a reference a
+// token or a JSONPath, never a literal ARN, this repository's invariant;
+// the single-value enums stay in the catalog): nothing about
 // the outbound types is known to be enforced at create until rule 46's
 // probes (pending) run (owner decision 3). CheckOutboundCallStatus has no
 // parameter and no clause.
@@ -796,6 +799,40 @@ describe("FlowDoc schema rejections: outbound", () => {
       "a voice connector that is not an object",
       mutate("place-call-via-sip", (a) => {
         a.Parameters.VoiceConnector = "$.Attributes.voiceConnector";
+      }),
+    ],
+    [
+      "a literal phone number ARN as the SMS source",
+      mutate("text-back", (a) => {
+        a.Parameters.SourceEndpoint = {
+          Address: "arn:aws:connect:us-east-1:111122223333:phone-number/p1",
+          Type: "CONNECT_PHONENUMBER_ARN",
+        };
+      }),
+    ],
+    [
+      "a literal flow ARN as the SMS flow",
+      mutate("text-back", (a) => {
+        a.Parameters.ContactFlowArn =
+          "arn:aws:connect:us-east-1:111122223333:instance/i1/contact-flow/f1";
+      }),
+    ],
+    [
+      "a source endpoint that is not an object",
+      mutate("text-back", (a) => {
+        a.Parameters.SourceEndpoint = "${cdref:phonenumber:main-did}";
+      }),
+    ],
+    [
+      "a destination address that is not a string",
+      mutate("text-from-attributes", (a) => {
+        a.Parameters.DestinationEndpoint = { Address: 15555550101, Type: "TELEPHONE_NUMBER" };
+      }),
+    ],
+    [
+      "an initial message that is not an object",
+      mutate("text-back", (a) => {
+        a.Parameters.InitialSystemMessage = "Reply here.";
       }),
     ],
   ])("rejects %s", (_label, doc) => {

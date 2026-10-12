@@ -1,0 +1,36 @@
+{
+  "contactFlows": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000051",
+      "id": "cccc3333-0000-4000-8000-000000000051",
+      "name": "Missed Call Text",
+      "contactFlowType": "OUTBOUND_WHISPER",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    },
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000052",
+      "id": "cccc3333-0000-4000-8000-000000000052",
+      "name": "SMS Follow Up",
+      "contactFlowType": "CONTACT_FLOW",
+      "contactFlowState": "ACTIVE",
+      "contactFlowStatus": "PUBLISHED"
+    }
+  ],
+  "contactFlowModules": [],
+  "queues": [],
+  "hoursOfOperations": [],
+  "prompts": [],
+  "lambdaFunctions": [],
+  "lexBots": [],
+  "views": [],
+  "phoneNumbers": [
+    {
+      "arn": "arn:aws:connect:us-east-1:111122223333:phone-number/pppp7777-0000-4000-8000-000000000051",
+      "id": "pppp7777-0000-4000-8000-000000000051",
+      "number": "+15555550110",
+      "description": "SMS Line",
+      "type": "TOLL_FREE"
+    }
+  ]
+}

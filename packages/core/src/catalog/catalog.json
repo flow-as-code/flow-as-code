@@ -654,7 +654,119 @@
     "StartOutboundChatContact": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html",
-      "modeled": false
+      "modeled": true,
+      "block": "start_outbound_chat_contact",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "SourceEndpoint",
+          "attr": "source_endpoint",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "Address",
+              "attr": "address",
+              "kind": "ref",
+              "required": true,
+              "ref": "phonenumber"
+            },
+            {
+              "key": "Type",
+              "attr": "type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "CONNECT_PHONENUMBER_ARN"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "DestinationEndpoint",
+          "attr": "destination_endpoint",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "Address",
+              "attr": "address",
+              "kind": "stringOrJsonPath",
+              "required": true
+            },
+            {
+              "key": "Type",
+              "attr": "type",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "TELEPHONE_NUMBER"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ContactFlowArn",
+          "attr": "contact_flow_arn",
+          "kind": "ref",
+          "required": true,
+          "ref": "flow"
+        },
+        {
+          "key": "ContactSubtype",
+          "attr": "contact_subtype",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "connect:SMS"
+          ]
+        },
+        {
+          "key": "InitialSystemMessage",
+          "attr": "initial_system_message",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "Content",
+              "attr": "content",
+              "kind": "stringOrJsonPath",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "RelatedContact",
+          "attr": "related_contact",
+          "kind": "enum",
+          "required": false,
+          "values": [
+            "CURRENT"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "SourceEndpoint.Address",
+          "ref": "phonenumber"
+        },
+        {
+          "path": "ContactFlowArn",
+          "ref": "flow"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "TagContact": {
       "category": "contact",

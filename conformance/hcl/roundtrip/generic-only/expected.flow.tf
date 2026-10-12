@@ -18,10 +18,14 @@ resource "flowascode_contact_flow" "unknown_actions" {
       type = "StartOutboundChatContact"
       parameters = jsonencode({
         ContactFlowArn = "$${cdref:flow:task-flow}"
-        ContactSubtype = "connect:SMS"
+        ContactSubtype = "connect:WhatsApp"
         DestinationEndpoint = {
           Address = "$.CustomerEndpoint.Address"
           Type    = "TELEPHONE_NUMBER"
+        }
+        InitialTemplatedSystemMessage = {
+          KnowledgeBaseId   = "$.Attributes.knowledgeBaseId"
+          MessageTemplateId = "$.Attributes.messageTemplateId"
         }
         SourceEndpoint = {
           Address = "$.Attributes.smsNumberArn"

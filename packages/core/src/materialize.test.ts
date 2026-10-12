@@ -213,6 +213,36 @@ describe("A05 conformance fixtures", () => {
     expect(content).toContain('"bbbbbbbb-1111-2222-3333-444444444444": "high"');
   });
 
+  // tasks/D04: the phonenumber token export writes for a claimed number
+  // resolves back to that number's ARN, and the flow token to the flow's,
+  // so the exported outbound flow materializes to the actions it was
+  // exported from.
+  it("phonenumber-with-map matches its golden and the actions the export read", () => {
+    const doc = JSON.parse(
+      fixture("conformance/materialize/phonenumber-with-map/doc.flowdoc.json"),
+    ) as FlowDoc;
+    const map = JSON.parse(
+      fixture("conformance/materialize/phonenumber-with-map/map.json"),
+    ) as Record<string, string>;
+    const content = materializeWithMap(doc, map);
+    expect(serializeContent(content)).toBe(
+      fixture("conformance/materialize/phonenumber-with-map/expected.content.json"),
+    );
+    const source = JSON.parse(
+      fixture("conformance/export/outbound-sms/flows/cccc3333-0000-4000-8000-000000000051.json"),
+    ) as { Actions: unknown[] };
+    expect(content.Actions).toEqual(source.Actions);
+    expect((content.Actions[2]!.Parameters.SourceEndpoint as { Address: string }).Address).toBe(
+      "arn:aws:connect:us-east-1:111122223333:phone-number/pppp7777-0000-4000-8000-000000000051",
+    );
+  });
+
+  it("keeps the phonenumber-with-map doc in sync with the export golden", () => {
+    expect(fixture("conformance/materialize/phonenumber-with-map/doc.flowdoc.json")).toBe(
+      fixture("conformance/export/outbound-sms/expected/missed-call-text.flowdoc.json"),
+    );
+  });
+
   it("keeps the casefield-key-with-map doc in sync with the HCL golden", () => {
     expect(fixture("conformance/materialize/casefield-key-with-map/doc.flowdoc.json")).toBe(
       fixture("conformance/hcl/roundtrip/casefield-key/casefield-key.flowdoc.json"),

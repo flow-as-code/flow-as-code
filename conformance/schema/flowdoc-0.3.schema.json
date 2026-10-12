@@ -2062,6 +2062,48 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "StartOutboundChatContact"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "SourceEndpoint": {
+                    "type": "object",
+                    "properties": {
+                      "Address": {
+                        "$ref": "#/$defs/refField"
+                      }
+                    }
+                  },
+                  "DestinationEndpoint": {
+                    "type": "object",
+                    "properties": {
+                      "Address": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "ContactFlowArn": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "InitialSystemMessage": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

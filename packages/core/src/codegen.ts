@@ -59,6 +59,10 @@ import {
   WAIT_COMPLETED,
   WAIT_EVENTS,
   OUTBOUND_CALL_STATUSES,
+  OUTBOUND_CHAT_DESTINATION_TYPE,
+  OUTBOUND_CHAT_RELATED_CONTACT,
+  OUTBOUND_CHAT_SOURCE_TYPE,
+  OUTBOUND_CHAT_SUBTYPE,
   OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
   OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   WAIT_TIMEOUT_MAX,
@@ -103,6 +107,7 @@ import {
   CheckMetricData,
   CheckOutboundCallStatus,
   CompleteOutboundCall,
+  StartOutboundChatContact,
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
@@ -2723,6 +2728,70 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         next: w.next,
         onError: w.onError,
       }),
+    };
+  },
+
+  // The SMS form: the page's constants as written, the source number and
+  // flow by reference or JSONPath, an E.164 or JSONPath destination, and
+  // the optional initial message and related contact; the admin guide's
+  // WhatsApp, email and template forms, and any other key, stay generic.
+  [ActionType.StartOutboundChatContact]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    const required = ["SourceEndpoint", "DestinationEndpoint", "ContactFlowArn", "ContactSubtype"];
+    if (!paramKeysAre(p, required, ["InitialSystemMessage", "RelatedContact"])) return undefined;
+    if (p.ContactSubtype !== OUTBOUND_CHAT_SUBTYPE) return undefined;
+    const source = p.SourceEndpoint;
+    const destination = p.DestinationEndpoint;
+    if (!isStringMap(source) || !paramKeysAre(source, ["Address", "Type"])) return undefined;
+    if (source.Type !== OUTBOUND_CHAT_SOURCE_TYPE) return undefined;
+    if (!isStringMap(destination) || !paramKeysAre(destination, ["Address", "Type"])) {
+      return undefined;
+    }
+    if (destination.Type !== OUTBOUND_CHAT_DESTINATION_TYPE) return undefined;
+    const sourceRef = refSource(source.Address, "phonenumber", ctx);
+    const flowRef = refSource(p.ContactFlowArn, "flow", ctx);
+    if (sourceRef === undefined || flowRef === undefined) return undefined;
+    const textOrPath = (value: string): V => {
+      if (!/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(value)) return value;
+      ctx.jsonPath = true;
+      return new Raw(`jsonPath(${quoteString(value)})`);
+    };
+    const to = destination.Address!;
+    if (!/^\+[1-9][0-9]{1,14}$/.test(to) && !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(to)) {
+      return undefined;
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["source", sourceRef],
+      ["destination", textOrPath(to)],
+      ["flow", flowRef],
+    ];
+    const config: Record<string, unknown> = {
+      id: a.Identifier,
+      source: source.Address,
+      destination: to,
+      flow: p.ContactFlowArn,
+    };
+    if (p.InitialSystemMessage !== undefined) {
+      const m = p.InitialSystemMessage;
+      if (!isStringMap(m) || !paramKeysAre(m, ["Content"]) || m.Content === "") return undefined;
+      entries.push(["initialMessage", textOrPath(m.Content!)]);
+      config.initialMessage = m.Content;
+    }
+    if (p.RelatedContact !== undefined) {
+      if (p.RelatedContact !== OUTBOUND_CHAT_RELATED_CONTACT) return undefined;
+      entries.push(["relatedContact", p.RelatedContact]);
+      config.relatedContact = p.RelatedContact;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "StartOutboundChatContact",
+      entries,
+      block: new StartOutboundChatContact(
+        cast<never>({ ...config, next: w.next, onError: w.onError }),
+      ),
     };
   },
 

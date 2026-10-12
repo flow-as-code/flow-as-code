@@ -25,6 +25,17 @@ never releases it. `complete-caller-id-unclaimed` uses the fictional
 an invented Chime voice connector ARN (`vc/fac-probe-invented`), so neither
 needs a resource.
 
+`StartOutboundChatContact`'s probes name the same DID as the SMS source,
+by ARN, and a published contact flow the sandbox root creates as the flow
+the new chat would run. The DID is a voice number and the sandbox has no
+SMS messaging (owner decision 6), so `sms-required-set-alone` and
+`sms-required` are also the probes of a source that is not SMS-enabled
+that tasks/D04 asks for. If they are refused naming the number and
+`sms-source-jsonpath` is accepted, the create validates the capability:
+record that, and the type stays deployable only with the source as a
+JSONPath until the SMS gate is opened. Every flow-type probe sends the
+source as a JSONPath so that it answers the flow-type question alone.
+
 ## Placeholders
 
 The run fills `{{ACCOUNT}}`, `{{REGION}}` and `{{INSTANCE}}` as the README
@@ -34,6 +45,7 @@ says, and these names from the environment:
 | ---------------- | ------------------ | ------------------------------------------------ |
 | `{{DID_NUMBER}}` | `PROBE_DID_NUMBER` | the claimed DID in E.164 form                    |
 | `{{DID_ID}}`     | `PROBE_DID_ID`     | the claimed DID's phone number id, in its ARN    |
+| `{{FLOW_ID}}`    | `PROBE_FLOW_ID`    | a published contact flow on the instance, by id  |
 
 When the set has run, its `results.json` replaces this file, rule 46 records
 what the service said, and the catalog changes only where a result says so.

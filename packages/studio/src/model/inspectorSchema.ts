@@ -1154,6 +1154,44 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           optional: true,
         },
       ];
+    case ActionType.StartOutboundChatContact:
+      // The SMS form. The endpoint types and the subtype are the page's one
+      // value each and are not edited; the number the SMS is sent from is a
+      // phonenumber reference and the flow the new chat runs a flow
+      // reference, each or a JSONPath. Emptying the message removes
+      // InitialSystemMessage.
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+      return [
+        {
+          kind: "ref",
+          key: "SourceEndpoint",
+          nested: "Address",
+          label: "From (claimed number)",
+          refType: "phonenumber",
+        },
+        {
+          kind: "text",
+          key: "DestinationEndpoint",
+          nested: "Address",
+          label: "To (E.164 or JSONPath)",
+        },
+        { kind: "ref", key: "ContactFlowArn", label: "Flow", refType: "flow" },
+        {
+          kind: "text",
+          key: "InitialSystemMessage",
+          nested: "Content",
+          label: "Initial message",
+          multiline: true,
+          optional: true,
+        },
+        {
+          kind: "select",
+          key: "RelatedContact",
+          label: "Link to current contact",
+          options: ["CURRENT"],
+          optional: true,
+        },
+      ];
     case ActionType.CheckOutboundCallStatus:
       // No parameters ("{}"); the four statuses are the condition editor,
       // one Equals branch each, added by drags in the page's order.

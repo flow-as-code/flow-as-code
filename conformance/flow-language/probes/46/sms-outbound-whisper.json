@@ -1,0 +1,42 @@
+{
+  "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a outbound whisper flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "SourceEndpoint": {
+            "Address": "$.Attributes.smsNumberArn",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          },
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "ContactFlowArn": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:instance/{{INSTANCE}}/contact-flow/{{FLOW_ID}}",
+          "ContactSubtype": "connect:SMS"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -5,7 +5,12 @@ resource "flowascode_contact_flow" "outbound" {
   instance_id = var.connect_instance_id
   name        = "outbound"
   type        = "OUTBOUND_WHISPER"
-  description = "The outbound actions in an outbound whisper flow: the call placed with a static caller ID, or through a Chime voice connector read from attributes (a form that stays generic, owner decision 4), then the call's progress checked on all four statuses, a person answering greeted, either voicemail result noted, and no detection ending the whisper."
+  description = "The outbound actions in an outbound whisper flow: the call placed with a static caller ID, or through a Chime voice connector (generic, owner decision 4); its progress checked on all four statuses; a person greeted; on voicemail an SMS from the claimed number and flow by reference, with a message, linked to the contact; and with no detection an SMS from a number and flow read from attributes."
+
+  refs = {
+    "flow:sms-follow-up"   = flowascode_contact_flow.sms_follow_up.arn
+    "phonenumber:main-did" = aws_connect_phone_number.main_did.arn
+  }
 
   action {
     id   = "choose-route"
@@ -67,17 +72,17 @@ resource "flowascode_contact_flow" "outbound" {
     condition {
       operator = "Equals"
       operands = ["VoicemailBeep"]
-      next     = "leave-message"
+      next     = "text-back"
     }
     condition {
       operator = "Equals"
       operands = ["VoicemailNoBeep"]
-      next     = "leave-message"
+      next     = "text-back"
     }
     condition {
       operator = "Equals"
       operands = ["NotDetected"]
-      next     = "done"
+      next     = "text-from-attributes"
     }
     error {
       type = "NoMatchingError"
@@ -94,13 +99,67 @@ resource "flowascode_contact_flow" "outbound" {
   }
 
   action {
+    id   = "text-back"
+    next = "leave-message"
+    start_outbound_chat_contact {
+      contact_flow_arn = "flow:sms-follow-up"
+      contact_subtype  = "connect:SMS"
+      destination_endpoint = {
+        address = "$.CustomerEndpoint.Address"
+        type    = "TELEPHONE_NUMBER"
+      }
+      initial_system_message = {
+        content = "We tried to call you. Reply here to pick up where we left off."
+      }
+      related_contact = "CURRENT"
+      source_endpoint = {
+        address = "phonenumber:main-did"
+        type    = "CONNECT_PHONENUMBER_ARN"
+      }
+    }
+    error {
+      type = "NoMatchingError"
+      next = "leave-message"
+    }
+    position {
+      x = 800
+      y = 180
+    }
+  }
+
+  action {
+    id   = "text-from-attributes"
+    next = "done"
+    start_outbound_chat_contact {
+      contact_flow_arn = "$.Attributes.smsFlowArn"
+      contact_subtype  = "connect:SMS"
+      destination_endpoint = {
+        address = "+15555550101"
+        type    = "TELEPHONE_NUMBER"
+      }
+      source_endpoint = {
+        address = "$.Attributes.smsNumberArn"
+        type    = "CONNECT_PHONENUMBER_ARN"
+      }
+    }
+    error {
+      type = "NoMatchingError"
+      next = "done"
+    }
+    position {
+      x = 800
+      y = 340
+    }
+  }
+
+  action {
     id   = "leave-message"
     next = "done"
     message_participant {
       text = "The call reached voicemail."
     }
     position {
-      x = 800
+      x = 1060
       y = 180
     }
   }
