@@ -429,8 +429,10 @@ describe("FlowDoc schema rejections: tasks and AI agents", () => {
 
 // The customer-profiles round-trip fixture is the subject for the 0.3
 // clauses of tasks/D03. Each clause holds the containers' JSON types, the
-// shape every console export carries: ProfileRequestData an object and
-// ProfileResponseData a list of names. Key lists, the group alternatives
+// shape every published sample flow carries (no console export of these
+// blocks was taken; actions.md, rule 43): ProfileRequestData an object and
+// ProfileResponseData a list of names. Each type has its own clause, so
+// each is mutated here; deleting any one clause turns its case red. Key lists, the group alternatives
 // and the enums stay in the catalog and the builder until rule 43's probes
 // (pending) show the service refusing them (owner decision 3).
 describe("FlowDoc schema rejections: customer profiles", () => {
@@ -463,6 +465,36 @@ describe("FlowDoc schema rejections: customer profiles", () => {
       "a response name that is not a string",
       mutate("link-contact", (a) => {
         a.Parameters.ProfileResponseData = [1];
+      }),
+    ],
+    [
+      "a create's request data as a string",
+      mutate("create-profile", (a) => {
+        a.Parameters.ProfileRequestData = "FirstName";
+      }),
+    ],
+    [
+      "an update's response data as the page's object",
+      mutate("update-profile", (a) => {
+        a.Parameters.ProfileResponseData = { "Attributes.preferredLanguage": "x" };
+      }),
+    ],
+    [
+      "a profile lookup's response name that is not a string",
+      mutate("find-caller", (a) => {
+        a.Parameters.ProfileResponseData = ["FirstName", 2];
+      }),
+    ],
+    [
+      "an object lookup's request data as a list",
+      mutate("latest-order", (a) => {
+        a.Parameters.ProfileRequestData = [{ ProfileId: "$.Customer.ProfileId" }];
+      }),
+    ],
+    [
+      "a calculated attribute lookup's response data as one string",
+      mutate("calculated", (a) => {
+        a.Parameters.ProfileResponseData = "CalculatedAttributes._frequent_caller";
       }),
     ],
   ])("rejects %s", (_label, doc) => {

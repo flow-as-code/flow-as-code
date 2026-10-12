@@ -23,6 +23,8 @@ import {
   fieldsFor,
   hasMessageBody,
   MESSAGE_BODY_KINDS,
+  mergeTypedNames,
+  switchForm,
   type FieldDesc,
 } from "../model/inspectorSchema.js";
 import {
@@ -184,8 +186,10 @@ function FieldMapField({
 
 /**
  * A list of names: the page's names are ticked, any other is typed one per
- * line and held to the patterns. Ticking appends; the typed names follow
- * the ticked ones in the order typed.
+ * line and held to the patterns. Ticking appends and unticking removes;
+ * typing keeps every name already stored where it is, drops the typed names
+ * no longer listed and appends new ones, and commits nothing when the typed
+ * set is the one stored, so a blur that changed nothing changes nothing.
  */
 function NamesField({
   field,
@@ -243,7 +247,7 @@ function NamesField({
               return;
             }
             setError(undefined);
-            const next = [...stored.filter((n) => field.names.includes(n)), ...new Set(typed)];
+            const next = mergeTypedNames(stored, field.names, typed);
             if (JSON.stringify(next) !== JSON.stringify(stored)) onCommit(next);
           }}
         />
@@ -711,12 +715,8 @@ export function Inspector() {
               className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
               value={current === -1 ? "" : String(current)}
               onChange={(e) => {
-                const chosen = field.forms[Number(e.target.value)];
-                if (chosen === undefined) return;
-                const object: Record<string, unknown> = { ...(holder ?? {}) };
-                for (const f of field.forms) for (const k of f.keys) delete object[k];
-                for (const k of chosen.keys) object[k] = holder?.[k] ?? chosen.defaults[k];
-                mutate(() => setParam(doc, selected, field.key, object));
+                const object = switchForm(holder, field, Number(e.target.value));
+                if (object !== undefined) mutate(() => setParam(doc, selected, field.key, object));
               }}
             >
               {current === -1 && <option value="">(neither form)</option>}

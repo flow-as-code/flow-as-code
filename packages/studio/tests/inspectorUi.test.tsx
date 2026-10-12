@@ -9,24 +9,33 @@
 // them instead of writing the parameter itself. Each case is a reproduced
 // defect that ended in a saved file.
 
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import type { FlowDoc } from "@flow-as-code/core";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import profilesFixture from "../../../conformance/roundtrip/customer-profiles/doc.flowdoc.json";
 import { App } from "../src/App.js";
 import { ErrorBoundary } from "../src/components/ErrorBoundary.js";
+import { mergeTypedNames, switchForm, type FieldDesc } from "../src/model/inspectorSchema.js";
 import { schemaErrorsFor } from "../src/model/validate.js";
+import { MemoryStore } from "../src/store/memoryStore.js";
 import {
+  button,
   click,
   installDomStubs,
   present,
   query,
   render,
   selectOption,
+  settleLint,
   testId,
   typeAndBlur,
   unmount,
 } from "./appHarness.js";
 
 beforeAll(installDomStubs);
-afterEach(unmount);
+afterEach(() => {
+  unmount();
+  vi.useRealTimers();
+});
 
 const renderApp = () => render(<App />);
 
@@ -254,41 +263,113 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
     expect(query('[data-testid="fieldmap-ProfileRequestData-FirstName"]')).toBeNull();
   });
 
-  it("switches GetCustomerProfile between its two search forms, clearing the other", async () => {
-    await addProfileBlock("GetCustomerProfile", "get-profile");
+  // The wired group fixture, so each profile block is typed and the guard
+  // refuses any switch that would leave it generic; the saved document is
+  // what the assertions read.
+  const fixture = (): FlowDoc => structuredClone(profilesFixture) as unknown as FlowDoc;
+  const openFixture = async (edit?: (doc: FlowDoc) => void) => {
+    const doc = fixture();
+    edit?.(doc);
+    const store = new MemoryStore("opened", [doc]);
+    vi.useFakeTimers();
+    await render(<App store={store} />);
+    await settleLint();
+    return store;
+  };
+  const saved = async (store: MemoryStore, id: string) => {
+    await settleLint();
+    expect(button("save-button").disabled).toBe(false);
+    await click(button("save-button"));
+    const { doc } = await store.read("customer-profiles");
+    return doc.content.Actions.find((a) => a.Identifier === id)!.Parameters;
+  };
+  const noRefusal = () =>
+    expect(query('[data-testid="mutation-notice"]')?.textContent ?? "").not.toContain(
+      "generic block",
+    );
+
+  it("switches GetCustomerProfile between its two search forms, replacing the other", async () => {
+    const store = await openFixture();
+    await click(present('[data-testid="node-find-caller"]'));
     const form = testId<HTMLSelectElement>("form-ProfileRequestData");
     expect(form.value).toBe("0");
     expect(testId<HTMLInputElement>("text-ProfileRequestData.IdentifierName").value).toBe("_phone");
     expect(query('[data-testid="select-ProfileRequestData.LogicalOperator"]')).toBeNull();
 
     await selectOption(form, "1");
-    expect(testId<HTMLSelectElement>("form-ProfileRequestData").value).toBe("1");
+    noRefusal();
     expect(query('[data-testid="text-ProfileRequestData.IdentifierName"]')).toBeNull();
     const operator = testId<HTMLSelectElement>("select-ProfileRequestData.LogicalOperator");
     expect(operator.value).toBe("AND");
     await selectOption(operator, "OR");
-    expect(testId<HTMLSelectElement>("select-ProfileRequestData.LogicalOperator").value).toBe("OR");
-    // The block stayed typed through the switch: no demotion notice.
-    expect(testId("inspector").textContent).not.toContain("read-only generic block");
+    noRefusal();
+    expect((await saved(store, "find-caller")).ProfileRequestData).toEqual({
+      LogicalOperator: "OR",
+      SearchCriteria: [{ IdentifierName: "_phone", IdentifierValue: "$.CustomerEndpoint.Address" }],
+    });
 
     await selectOption(testId<HTMLSelectElement>("form-ProfileRequestData"), "0");
-    expect(testId<HTMLInputElement>("text-ProfileRequestData.IdentifierValue").value).toBe(
-      "$.CustomerEndpoint.Address",
-    );
-    expect(query('[data-testid="select-ProfileRequestData.LogicalOperator"]')).toBeNull();
+    noRefusal();
+    expect((await saved(store, "find-caller")).ProfileRequestData).toEqual({
+      IdentifierName: "_phone",
+      IdentifierValue: "$.CustomerEndpoint.Address",
+    });
+  });
+
+  it("replaces a named-field search, which codegen leaves generic, with the chosen form", async () => {
+    const store = await openFixture((doc) => {
+      doc.content.Actions.find(
+        (a) => a.Identifier === "find-caller",
+      )!.Parameters.ProfileRequestData = { PhoneNumber: "$.CustomerEndpoint.Address" };
+    });
+    await click(present('[data-testid="node-find-caller"]'));
+    const form = testId<HTMLSelectElement>("form-ProfileRequestData");
+    expect(form.value).toBe("");
+    await selectOption(form, "0");
+    expect((await saved(store, "find-caller")).ProfileRequestData).toEqual({
+      IdentifierName: "_phone",
+      IdentifierValue: "$.CustomerEndpoint.Address",
+    });
   });
 
   it("switches GetCustomerProfileObject between the latest object and a search identifier", async () => {
-    await addProfileBlock("GetCustomerProfileObject", "get-profile-object");
+    const store = await openFixture();
+    await click(present('[data-testid="node-latest-order"]'));
     expect(testId<HTMLInputElement>("text-ProfileRequestData.ObjectType").value).toBe("Order");
     expect(testId<HTMLSelectElement>("form-ProfileRequestData").value).toBe("0");
     expect(query('[data-testid="text-ProfileRequestData.IdentifierName"]')).toBeNull();
     await selectOption(testId<HTMLSelectElement>("form-ProfileRequestData"), "1");
+    noRefusal();
     expect(testId<HTMLInputElement>("text-ProfileRequestData.IdentifierName").value).toBe(
       "_orderId",
     );
-    expect(testId("inspector").textContent).not.toContain("read-only generic block");
-    expect(testId<HTMLInputElement>("names-ProfileResponseData-OrderStatus").checked).toBe(false);
+    expect((await saved(store, "latest-order")).ProfileRequestData).toEqual({
+      IdentifierName: "_orderId",
+      IdentifierValue: "$.Attributes.orderId",
+      ObjectType: "Order",
+      ProfileId: "$.Customer.ProfileId",
+    });
+    expect(testId<HTMLInputElement>("names-ProfileResponseData-OrderStatus").checked).toBe(true);
+  });
+
+  it("commits nothing when the custom names are blurred unchanged, and keeps their order", async () => {
+    const store = await openFixture((doc) => {
+      doc.content.Actions.find(
+        (a) => a.Identifier === "create-profile",
+      )!.Parameters.ProfileResponseData = ["Attributes.loyaltyTier", "FirstName"];
+    });
+    await click(present('[data-testid="node-create-profile"]'));
+    const other = testId<HTMLTextAreaElement>("names-ProfileResponseData-other");
+    await typeAndBlur(other, other.value);
+    await settleLint();
+    // Nothing changed, so the document is not dirty and Save stays off.
+    expect(button("save-button").disabled).toBe(true);
+    await typeAndBlur(other, "Attributes.loyaltyTier\nAttributes.segment");
+    expect((await saved(store, "create-profile")).ProfileResponseData).toEqual([
+      "Attributes.loyaltyTier",
+      "FirstName",
+      "Attributes.segment",
+    ]);
   });
 
   it("ticks a predefined calculated attribute and types the domain's own", async () => {
@@ -326,5 +407,48 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
       "Attributes.loyaltyTier",
     );
     expect(testId<HTMLInputElement>("names-ProfileResponseData-FirstName").checked).toBe(true);
+  });
+});
+
+describe("the profile form switch and typed names, as functions", () => {
+  const field: Extract<FieldDesc, { kind: "form" }> = {
+    kind: "form",
+    key: "ProfileRequestData",
+    label: "Retrieve",
+    keeps: ["ProfileId", "ObjectType"],
+    forms: [
+      { label: "latest", keys: ["UseLatest"], defaults: { UseLatest: "true" } },
+      {
+        label: "identifier",
+        keys: ["IdentifierName", "IdentifierValue"],
+        defaults: { IdentifierName: "_orderId", IdentifierValue: "$.Attributes.orderId" },
+      },
+    ],
+  };
+
+  it("keeps the kept keys, fills the chosen form, and drops everything else", () => {
+    const holder = { ProfileId: "p", ObjectType: "Order", UseLatest: "true", Stray: "x" };
+    expect(switchForm(holder, field, 1)).toEqual({
+      ProfileId: "p",
+      ObjectType: "Order",
+      IdentifierName: "_orderId",
+      IdentifierValue: "$.Attributes.orderId",
+    });
+    expect(switchForm({ PhoneNumber: "x" }, { ...field, keeps: [] }, 0)).toEqual({
+      UseLatest: "true",
+    });
+    expect(switchForm(holder, field, 2)).toBeUndefined();
+  });
+
+  it("merges typed names in place, appending new ones and dropping removed ones", () => {
+    const listed = ["FirstName", "LastName"];
+    const stored = ["Attributes.a", "FirstName", "Attributes.b"];
+    expect(mergeTypedNames(stored, listed, ["Attributes.a", "Attributes.b"])).toEqual(stored);
+    expect(mergeTypedNames(stored, listed, ["Attributes.b", "Attributes.a"])).toEqual(stored);
+    expect(mergeTypedNames(stored, listed, ["Attributes.b", "Attributes.c"])).toEqual([
+      "FirstName",
+      "Attributes.b",
+      "Attributes.c",
+    ]);
   });
 });

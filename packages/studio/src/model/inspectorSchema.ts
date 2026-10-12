@@ -109,16 +109,21 @@ export type FieldDesc =
     }
   /**
    * Alternative forms of an object parameter, each a group of its keys (the
-   * catalog's `groups` constraint, tasks/D01): choosing a form removes every
-   * other form's keys and fills the chosen one's from what the object holds
-   * or from `defaults`, in one mutation, so the block never passes through
-   * a shape with both forms, neither, or half of one. The forms' keys are
-   * then edited by nested fields marked `onlyWhenPresent`.
+   * catalog's `groups` constraint, tasks/D01): choosing a form replaces the
+   * whole object with the `keeps` keys it holds and the chosen form's keys,
+   * filled from what the object holds or from `defaults`, in one mutation
+   * (`switchForm`). So the block never passes through a shape with both
+   * forms, neither, or half of one, and a key outside every form (a
+   * GetCustomerProfile searching by a named field, which codegen leaves
+   * generic) is dropped rather than mixed in. The forms' keys are then
+   * edited by nested fields marked `onlyWhenPresent`.
    */
   | {
       kind: "form";
       key: string;
       label: string;
+      /** Keys outside every form that a switch keeps (GetCustomerProfileObject's profile and type). */
+      keeps?: readonly string[];
       forms: readonly {
         label: string;
         keys: readonly string[];
@@ -206,6 +211,43 @@ function profileFieldsFor(): FieldDesc[] {
   return [
     { kind: "fieldMap", key: "ProfileRequestData", label: "Request fields", ...PROFILE_NAMES },
     profileResponseField(),
+  ];
+}
+
+/**
+ * The object a `form` field writes when form `index` is chosen: the `keeps`
+ * keys the object holds, then the chosen form's keys, each from the object
+ * or from the form's defaults. Every other key goes, so the result holds
+ * exactly one form. Undefined for an index that names no form.
+ */
+export function switchForm(
+  holder: Readonly<Record<string, unknown>> | undefined,
+  field: Extract<FieldDesc, { kind: "form" }>,
+  index: number,
+): Record<string, unknown> | undefined {
+  const chosen = field.forms[index];
+  if (chosen === undefined) return undefined;
+  const object: Record<string, unknown> = {};
+  for (const k of field.keeps ?? []) if (holder?.[k] !== undefined) object[k] = holder[k];
+  for (const k of chosen.keys) object[k] = holder?.[k] ?? chosen.defaults[k];
+  return object;
+}
+
+/**
+ * A `names` field's list after the typed names are committed: every stored
+ * name stays where it is unless it is a typed one no longer typed, and typed
+ * names not yet stored are appended in the order typed. Listed names are
+ * never touched here; their checkboxes add and remove them.
+ */
+export function mergeTypedNames(
+  stored: readonly string[],
+  listed: readonly string[],
+  typed: readonly string[],
+): string[] {
+  const wanted = [...new Set(typed)];
+  return [
+    ...stored.filter((n) => listed.includes(n) || wanted.includes(n)),
+    ...wanted.filter((n) => !stored.includes(n)),
   ];
 }
 
@@ -516,8 +558,9 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       // One identifier or SearchCriteria with its operator, one form per
       // block as the page requires: the form switch clears the other, and
       // each form's keys are edited while it is the one set. A block
-      // searching by a named field (AWS's step-by-step flows) is generic and
-      // never reaches this inspector.
+      // searching by a named field (AWS's step-by-step flows), which codegen
+      // leaves generic, shows "(neither form)"; choosing a form replaces the
+      // whole request, so the named field goes and the block becomes typed.
       const first = { IdentifierName: "_phone", IdentifierValue: "$.CustomerEndpoint.Address" };
       const nested = { key: "ProfileRequestData", onlyWhenPresent: true } as const;
       return [
@@ -584,6 +627,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           kind: "form",
           key: "ProfileRequestData",
           label: "Retrieve",
+          keeps: ["ProfileId", "ObjectType"],
           forms: [
             { label: "The latest object", keys: ["UseLatest"], defaults: { UseLatest: "true" } },
             {

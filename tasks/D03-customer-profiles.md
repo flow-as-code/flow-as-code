@@ -260,20 +260,81 @@ Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
 and the Customer Profiles domain is created by a sandbox root that had not
 been applied (owner actions under "Sandbox prerequisites and cost"). No AWS
 call was made and no result is recorded. The inputs are kept in
-`conformance/flow-language/probes/43/` (71 probes: 9 for
-`AssociateContactToCustomerProfile`, 13 for `CreateCustomerProfile`, 7 for
-`UpdateCustomerProfile`, 18 for `GetCustomerProfile`, 15 for
-`GetCustomerProfileObject`, 9 for
+`conformance/flow-language/probes/43/` (77 probes: 10 for
+`AssociateContactToCustomerProfile`, 14 for `CreateCustomerProfile`, 8 for
+`UpdateCustomerProfile`, 19 for `GetCustomerProfile`, 16 for
+`GetCustomerProfileObject`, 10 for
 `GetCalculatedAttributesForCustomerProfile`) with `PENDING.md`, which names
 the sandbox root's outputs to check (the domain's name and ARN, an object
 type with one object, a calculated attribute definition) and the four
 placeholders the run fills from the environment; no probe needs the
-account, Region or instance placeholders. Each evidence item above has its probes:
+account, Region or instance placeholders. Each type's
+`<type>-required-set-alone` probe sends the catalog's required set and
+nothing else (no optional container, no optional branch), which is the
+evidence rule's first bullet; for `GetCustomerProfile` it is the one probe
+that wires the catch-all without either lookup branch. Each evidence item above has its probes:
 `get-identifer-spelling` beside `get-identifier`; `get-both-forms`,
 `get-neither-form`, `object-both-forms` and `object-neither-form`;
 `assoc-required` run before the domain is linked; and `create-unknown-key`.
 When the sweep runs, the catalog, `actions.ts`, the schema clauses and the
 fixtures change only where a result says so.
+
+### Three readings the review asked to state
+
+- `UseLatest` `"false"` cannot be written by the builder, read typed by
+  codegen, or chosen in the studio, although the catalog's enum holds it.
+  The page's "Either UseLatest, or IdentifierName and IdentifierValue must
+  be present" does not say what `"false"` means alone or beside the pair,
+  so the typed form takes only the one reading the page makes plain (the
+  latest object), and a document with `"false"` round-trips as a
+  GenericBlock, content kept. `object-latest-false` decides it; if the
+  service accepts it, the class gains the form and the enum stays.
+- The builder takes `onMultipleFound` and `onNoneFound` (and
+  `onNoneFound` on the object and calculated lookups) as required, while
+  the catalog marks those branches optional. That is the catalog's two
+  flags doing what they say: `builder: true` is the branch the typed form
+  always wires, `required: false` is what lint reports. A block wiring the
+  catch-all alone lints clean (`pass-get-profile-catch-all-only`) and stays
+  a GenericBlock in codegen and the studio, as `ChannelMismatch` on the
+  message processor does (D02). If `*-required-set-alone` is accepted and
+  the console turns out to write blocks without the lookup branches, the
+  builder's two targets become optional in the same change.
+- The catch-all is required although no page here marks it "Must always
+  be defined". That is the repository's evidence, not the pages' words:
+  rule 37 removed the catch-all from every modeled type on 2026-09-29 and
+  the service refused all but `MessageParticipant`, and `TagContact`
+  requires one although its page lists none. `*-no-catch-all` puts it to
+  the service for each type here.
+
+### Review (2026-10-12)
+
+Nine confirmed findings on #48 (head `80f7e94`), each repaired:
+
+- No probe sent `GetCustomerProfile`'s required set alone: every one wired
+  both lookup branches or dropped only one. Each type now has a
+  `-required-set-alone` probe (six), named in rule 43 as its accepted-set
+  probe; those also leave out every optional container, so each
+  `required: false` on `ProfileRequestData` and `ProfileResponseData` is
+  settled by one.
+- The schema rejection test mutated only the association. It now mutates
+  one action of each type, and each case was checked to pass the schema
+  with that type's clause removed; its comment no longer claims a console
+  export.
+- `packages/core/SPEC.md` described the association with the create's
+  shape and missed a comma.
+- The studio's response-name field reordered the list on a blur that
+  changed nothing. `mergeTypedNames` keeps stored names in place and the
+  field commits only when the typed set changed.
+- A `GetCustomerProfile` searching by a named field reached the typed
+  inspector (fields are chosen by type), and the form switch kept the
+  named field beside the chosen form. `switchForm` now replaces the whole
+  request, keeping only a form's `keeps` keys (the object lookup's profile
+  and type), so choosing a form turns such a block typed.
+- The two form-switch UI tests asserted on text that never renders in the
+  inspector, on blocks that were generic from the start. They now open the
+  wired fixture, check the mutation notice, save, and compare the saved
+  request; each was shown to fail against the old switch.
+- The changeset's calculated-attributes sentence had no predicate.
 
 ### Not done here
 

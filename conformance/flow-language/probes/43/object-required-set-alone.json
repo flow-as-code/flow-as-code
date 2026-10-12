@@ -1,0 +1,37 @@
+{
+  "description": "Rule 43: GetCustomerProfileObject with the catalog's required set alone: the profile, the object type and UseLatest, no ProfileResponseData, and the catch-all without NoneFoundError.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCustomerProfileObject",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ProfileId": "$.Customer.ProfileId",
+            "ObjectType": "{{OBJECT_TYPE}}",
+            "UseLatest": "true"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -1521,9 +1521,10 @@ is read rather than when the type is modeled.
       empty list the console writes for the other five types with no
       response field, and codegen leaves any other response data generic.
       The catch-all is required and wired by the builder, `next` required.
-      Planned probes: `assoc-required` (expected accepted; run before the
-      domain is linked, it is also the probe of an instance with no
-      Profiles domain), `assoc-no-catch-all` and `assoc-no-next` (each a
+      Planned probes: `assoc-required-set-alone` (the catalog's required
+      set alone, without the optional response list; expected accepted),
+      `assoc-required` (the class's form; run before the domain is linked,
+      it is also the probe of an instance with no Profiles domain), `assoc-no-catch-all` and `assoc-no-next` (each a
       removal alone), `assoc-static-profile` (the admin guide's manual
       Profile ID), `assoc-no-contact-id`, `assoc-no-response-data` and
       `assoc-response-object` (the page's "None." read as absent and as
@@ -1552,7 +1553,10 @@ is read rather than when the type is modeled.
       the lists, so codegen leaves such a block generic until
       `create-unknown-key` shows whether the service enforces the list. The
       catch-all is required and wired by the builder, `next` required.
-      Planned probes: `create-required` (expected accepted),
+      Planned probes: `create-required-set-alone` (the catalog's required
+      set alone: no `Parameters` at all, since both containers are
+      optional; it settles both `required: false`), `create-required`
+      (one field, the class's form; expected accepted),
       `create-no-catch-all` and `create-no-next` (each a removal alone),
       `create-named-and-custom` (the fixture's shape),
       `create-unknown-key` and `create-unknown-response-name` (whether the
@@ -1571,7 +1575,10 @@ is read rather than when the type is modeled.
       the type. The catalog records it as `CreateCustomerProfile` is
       recorded, and the class writes it the same way; a `ProfileId` key,
       which the page does not list, keeps a block generic. Planned probes:
-      `update-required` (expected accepted), `update-no-catch-all` and
+      `update-required-set-alone` (the catalog's required set alone: no
+      `Parameters` at all; it settles both containers' `required: false`),
+      `update-required` (the class's form; expected accepted),
+      `update-no-catch-all` and
       `update-no-next` (each a removal alone), `update-unknown-key`,
       `update-profile-id-key`, `update-no-response-data` and
       `update-module`.
@@ -1614,7 +1621,12 @@ is read rather than when the type is modeled.
       only the catch-all is required, since the page marks neither of the
       others "Must always be defined" (as `ChannelMismatch` on rule 41's
       message processor), although every published flow wires both.
-      Planned probes: `get-identifier` (expected accepted),
+      Planned probes: `get-required-set-alone` (the catalog's required
+      set alone: one identifier, no response list, and the catch-all
+      without either lookup branch; it is the probe that settles whether
+      `MultipleFoundError` and `NoneFoundError` are optional, and whether
+      the response list is), `get-identifier` (the published flows' form,
+      every branch wired; expected accepted),
       `get-no-catch-all`, `get-no-multiple-found`, `get-no-none-found` and
       `get-no-next` (each a removal alone), `get-identifer-spelling` (the
       page's spelling, as `UnTagContact`'s was put to the service, rule
@@ -1654,8 +1666,10 @@ is read rather than when the type is modeled.
       `object-latest-false` are put to the service. The schema clause holds
       the containers only. The two errors are wired by the builder,
       catch-all first as `GetCustomerProfile`'s are written; only the
-      catch-all is required. Planned probes: `object-latest` (expected
-      accepted), `object-no-catch-all`, `object-no-none-found` and
+      catch-all is required. Planned probes:
+      `object-required-set-alone` (the catalog's required set alone: no
+      response list and the catch-all without `NoneFoundError`),
+      `object-latest` (the class's form; expected accepted), `object-no-catch-all`, `object-no-none-found` and
       `object-no-next` (each a removal alone), `object-identifier`,
       `object-both-forms` and `object-neither-form` (the group alternative
       given both and neither), `object-no-object-type` and
@@ -1689,8 +1703,10 @@ is read rather than when the type is modeled.
       other predefined names and a domain's own; the names are the
       domain's strings, not references (tasks/D03: no new ref type). The
       two errors are wired by the builder in that repository's order; only
-      the catch-all is required. Planned probes: `calc-required` (expected
-      accepted), `calc-no-catch-all`, `calc-no-none-found` and
+      the catch-all is required. Planned probes:
+      `calc-required-set-alone` (the catalog's required set alone: no
+      response list and the catch-all without `NoneFoundError`),
+      `calc-required` (the class's form; expected accepted), `calc-no-catch-all`, `calc-no-none-found` and
       `calc-no-next` (each a removal alone), `calc-custom-name` (the
       domain's own definition), `calc-unknown-name` (a name the domain does
       not define), `calc-other-name` (a name without the prefix),
