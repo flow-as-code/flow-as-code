@@ -3481,3 +3481,77 @@ describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
     generic(routing({ Steps: [{ Expression: condition("A", "B") }] }, []));
   });
 });
+
+describe("the outbound actions invert to their classes", () => {
+  const end: FlowAction = {
+    Identifier: "done",
+    Type: "EndFlowExecution",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, end]));
+    expect(out).toContain(`type: "${a.Type}"`);
+    expect(out).not.toContain(`new ${a.Type}(`);
+  };
+
+  describe("CheckOutboundCallStatus", () => {
+    const status = (
+      conditions: [string, string][],
+      opts: { next?: string; errors?: string[]; parameters?: Record<string, unknown> } = {},
+    ): FlowAction => ({
+      Identifier: "check",
+      Type: "CheckOutboundCallStatus",
+      Parameters: opts.parameters ?? {},
+      Transitions: {
+        NextAction: opts.next ?? "done",
+        Errors: (opts.errors ?? ["NoMatchingError"]).map((ErrorType) => ({
+          ErrorType,
+          NextAction: "done",
+        })),
+        Conditions: conditions.map(([operand, NextAction]) => ({
+          NextAction,
+          Condition: { Operator: "Equals", Operands: [operand] },
+        })),
+      },
+    });
+
+    it("emits one path per status, by name", () => {
+      const out = codegen(
+        docWith([
+          status([
+            ["CallAnswered", "done"],
+            ["VoicemailNoBeep", "done"],
+          ]),
+          end,
+        ]),
+      );
+      expect(out).toContain("new CheckOutboundCallStatus({");
+      expect(out).toContain('onStatus: { CallAnswered: "done", VoicemailNoBeep: "done" }');
+      expect(out).not.toContain("GenericBlock");
+    });
+
+    it("falls back on statuses out of order, repeated or unlisted, another operator, or the wiring out of shape", () => {
+      generic(
+        status([
+          ["NotDetected", "done"],
+          ["CallAnswered", "done"],
+        ]),
+      );
+      generic(
+        status([
+          ["CallAnswered", "done"],
+          ["CallAnswered", "done"],
+        ]),
+      );
+      generic(status([["Busy", "done"]]));
+      generic(status([]));
+      generic(status([["CallAnswered", "done"]], { next: "elsewhere" }));
+      generic(status([["CallAnswered", "done"]], { errors: [] }));
+      generic(status([["CallAnswered", "done"]], { parameters: { Timeout: "5" } }));
+      const textual = status([["CallAnswered", "done"]]);
+      textual.Transitions.Conditions![0]!.Condition.Operator = "TextContains";
+      generic(textual);
+    });
+  });
+});

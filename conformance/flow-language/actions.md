@@ -108,6 +108,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Cases (Get case) | `GetCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/getcase.html) |
 | Cases (Update case) | `UpdateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html) |
 | Set routing criteria | `UpdateRoutingCriteria` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
+| Check call progress | `CheckOutboundCallStatus` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html) |
 
 ## Reference-bearing parameters
 
@@ -2088,6 +2089,75 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/APIReference/API_AttributeCondition.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_AgentsCriteria.html
 
+46. Outbound (tasks/D04; the Developer Guide pages read 2026-10-04 and
+    again 2026-10-12 with the admin guide's Check call progress, Call phone
+    number and Send message block pages). The group's types are modeled
+    from their pages. **Probe pending**: the create sweep the evidence rule
+    asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
+    sandbox's AWS credentials had expired, and the claimed DID and probe
+    flow the sweep names come from a sandbox root that had not been
+    applied. Its inputs are kept in `probes/46/`, with `PENDING.md` saying
+    what the run needs. No console export of any block has been taken
+    (owner decision 8). Until the sweep, every required key, error,
+    `next`, spelling and flow-type entry below is the pages' reading, and
+    each bullet names the probes that settle it. The action pages state no
+    flow-type restriction in the console's vocabulary, so where the catalog
+    restricts a type the restriction is an admin guide page's reading, and
+    where a probe refuses a flow type the restriction is the service's, not
+    a page's; each bullet says which. Under owner decision 6 no gate is
+    opened: neither outbound campaigns nor SMS messaging is enabled on the
+    sandbox, so each type is at most deployable (a create the service
+    accepts), never exercised by a live contact here.
+    - `CheckOutboundCallStatus` "Engages with the output provided by an
+      answering machine, and provides branches to route the contact
+      accordingly." Parameter object `{ }`. Results "CallAnswered",
+      "VoicemailBeep", "VoicemailNoBeep" and "NotDetected"; "Conditions are
+      supported, but only the "Equals" operator is supported.
+      "CallAnswered", "VoicemailBeep" , "VoicemailNoBeep" and
+      "NotDetected" are the only supported operands."; errors
+      "NoMatchingError if no condition matches."; Restrictions "This action
+      works with Connect Customer outbound campaigns only." The admin
+      guide's Check call progress block adds customer-first callbacks as a
+      supported call type ("For other call types, the contact routes to the
+      **Error** branch"), voice "Yes" and chat, task and email "No - Error
+      branch", and "All flow types", noting that the block "functions only
+      for the call types listed". The catalog records no parameters,
+      `conditions` `enum` with the four operands in the page's order, the
+      catch-all required and wired by the builder, and `next`
+      `mirrors:error:NoMatchingError` (the catch-all is the page's
+      no-match path, as `Wait`'s is); flow types unrestricted (the admin
+      guide's reading, the action page naming none) and `channels`
+      `["VOICE"]` from the admin guide's table, the one source that names a
+      channel, as for `ResumeContact` (rule 41). The class takes one path
+      per status, at least one, written in the page's order, and codegen
+      leaves any other order, a repeated or unlisted operand, another
+      operator or a `NextAction` off the catch-all generic. The 0.3 schema
+      has no clause for it: the type has no parameter, and nothing about
+      its conditions is known to be enforced at create (owner decision 3).
+      Deployable; not exercised: a live contact needs outbound campaigns
+      (outbound calling, a dedicated queue, a KMS key, campaigns enabled
+      and a quota increase from 0 concurrent campaign calls) or a
+      customer-first callback, neither set up on the sandbox.
+      Planned probes: `status-required-set-alone` (the catalog's required
+      set alone, no status condition: the accepted-set probe) and
+      `status-required` (the class's form; expected accepted), both run on
+      an instance without outbound campaigns, which is the probe of such an
+      instance; `status-no-catch-all` and `status-no-next` (each a removal
+      alone) and `status-next-elsewhere` (whether the mirror is required);
+      `status-other-operator`, `status-unknown-operand` and
+      `status-lowercase-operand` (the page's "only" clauses);
+      `status-with-parameter` (the empty parameter object); and
+      `status-customer-queue`, `status-customer-hold`, `status-agent-hold`,
+      `status-customer-whisper`, `status-agent-whisper`,
+      `status-outbound-whisper`, `status-agent-transfer`,
+      `status-queue-transfer` and `status-module` (every flow type, with
+      `status-required` the inbound one). If the service refuses the type
+      in some, the catalog's `flowTypes` becomes the list it accepts, and
+      this bullet records that the restriction is the service's.
+      https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/enable-outbound-campaigns.html
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -2202,6 +2272,7 @@ RoutingExpression        { AttributeCondition: { Name, Value,   // 1 to 64 each;
                                                  ComparisonOperator: "NumberGreaterOrEqualTo" } }
                          | { AndExpression: AttributeCondition[] }   // 1 to 8
                          | { OrExpression: (AttributeCondition | AndExpression)[] }   // 1 to 3, top only
+CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected"
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2270,7 +2341,9 @@ table because its action page names none, and
 `UpdateContactMediaProcessing`, `["CHAT"]`, read from its ChannelMismatch
 error since its page has no Restrictions section (rule 41), and
 `CreateWisdomSession`, `["VOICE"]`, from its Restrictions section where the
-admin guide's block allows every channel (rule 42). Absent means the
+admin guide's block allows every channel (rule 42), and
+`CheckOutboundCallStatus`, `["VOICE"]`, from its admin guide block page's
+channel table because its action page names none (rule 46). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -2371,7 +2444,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-51 of the 61. Everything not in the modeled set above parses to a
+52 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -2414,10 +2487,10 @@ task takes that form up.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 51      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 52      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 51      |                                                             |
+| Denominator             | 61    | 52      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

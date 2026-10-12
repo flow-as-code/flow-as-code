@@ -19,6 +19,7 @@ import {
   AssociateContactToCustomerProfile,
   canonicalOrder,
   CheckMetricData,
+  CheckOutboundCallStatus,
   collectRefs,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
@@ -29,6 +30,7 @@ import {
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   DistributeByPercentage,
+  EndFlowExecution,
   EndFlowModuleExecution,
   EXTRA_ERRORS,
   Flow,
@@ -50,6 +52,7 @@ import {
   lint,
   Loop,
   materializeWithMap,
+  MessageParticipant,
   MessageParticipantIteratively,
   NO_MATCHING_ERROR,
   parseToken,
@@ -2591,5 +2594,81 @@ describe("the routing criteria action", () => {
         },
       ]),
     ).toThrow(/operator is NumberGreaterOrEqualTo/);
+  });
+});
+
+describe("the outbound actions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/outbound/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the outbound fixture", () => {
+    const flow = new Flow({
+      name: "outbound",
+      connectType: "OUTBOUND_WHISPER",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new CheckOutboundCallStatus({
+        id: "check-progress",
+        onStatus: {
+          CallAnswered: "greet",
+          VoicemailBeep: "leave-message",
+          VoicemailNoBeep: "leave-message",
+          NotDetected: "done",
+        },
+        onError: "done",
+      }),
+      new MessageParticipant({
+        id: "greet",
+        text: "Connecting you to the customer.",
+        next: "done",
+      }),
+      new MessageParticipant({
+        id: "leave-message",
+        text: "The call reached voicemail.",
+        next: "done",
+      }),
+      new EndFlowExecution({ id: "done" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write CheckOutboundCallStatus's statuses in the page's order, NextAction on the catch-all", () => {
+    expect(
+      new CheckOutboundCallStatus({
+        id: "c",
+        onStatus: { NotDetected: "n", CallAnswered: "a" },
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "c",
+      Type: "CheckOutboundCallStatus",
+      Parameters: {},
+      Transitions: {
+        NextAction: "e",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [
+          { NextAction: "a", Condition: { Operator: "Equals", Operands: ["CallAnswered"] } },
+          { NextAction: "n", Condition: { Operator: "Equals", Operands: ["NotDetected"] } },
+        ],
+      },
+    });
+  });
+
+  it("refuse a status check with no branch or a status the page does not list", () => {
+    expect(() => new CheckOutboundCallStatus({ id: "c", onStatus: {}, onError: "e" })).toThrow(
+      /needs at least one status branch/,
+    );
+    expect(
+      () =>
+        new CheckOutboundCallStatus({
+          id: "c",
+          onStatus: cast<never>({ Busy: "b" }),
+          onError: "e",
+        }),
+    ).toThrow(
+      /branches only on CallAnswered, VoicemailBeep, VoicemailNoBeep, NotDetected, got Busy/,
+    );
   });
 });

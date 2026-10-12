@@ -1,0 +1,70 @@
+{
+  "description": "Rule 46: CheckOutboundCallStatus with a parameter the page's empty object does not list (Timeout).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CheckOutboundCallStatus",
+        "Parameters": {
+          "Timeout": "5"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "CallAnswered"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "VoicemailBeep"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "VoicemailNoBeep"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "NotDetected"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

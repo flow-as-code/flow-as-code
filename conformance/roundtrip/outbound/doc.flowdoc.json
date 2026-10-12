@@ -1,0 +1,114 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "outbound",
+  "description": "The outbound actions in an outbound whisper flow: the call's progress checked, a person answering greeted, either voicemail result noted, and no detection ending the whisper.",
+  "connectType": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "check-progress",
+    "Actions": [
+      {
+        "Identifier": "check-progress",
+        "Type": "CheckOutboundCallStatus",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "greet",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "CallAnswered"
+                ]
+              }
+            },
+            {
+              "NextAction": "leave-message",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "VoicemailBeep"
+                ]
+              }
+            },
+            {
+              "NextAction": "leave-message",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "VoicemailNoBeep"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "NotDetected"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Connecting you to the customer."
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "leave-message",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "The call reached voicemail."
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "check-progress": {
+      "x": 20,
+      "y": 20
+    },
+    "done": {
+      "x": 540,
+      "y": 20
+    },
+    "greet": {
+      "x": 280,
+      "y": 20
+    },
+    "leave-message": {
+      "x": 280,
+      "y": 180
+    }
+  },
+  "refs": []
+}

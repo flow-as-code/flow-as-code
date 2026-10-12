@@ -1126,6 +1126,11 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       // No parameters; the branches are the condition editor, each operand
       // the threshold below which a draw takes that branch.
       return [];
+    case ActionType.CheckOutboundCallStatus:
+      // No parameters ("{}"); the four statuses are the condition editor,
+      // one Equals branch each, added by drags in the page's order.
+      // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+      return [];
     case ActionType.DisconnectParticipant:
     case ActionType.EndFlowExecution:
     case ActionType.EndFlowModuleExecution:

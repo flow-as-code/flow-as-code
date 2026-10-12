@@ -66,6 +66,7 @@ export const ActionType = {
   GetCase: "GetCase",
   UpdateCase: "UpdateCase",
   UpdateRoutingCriteria: "UpdateRoutingCriteria",
+  CheckOutboundCallStatus: "CheckOutboundCallStatus",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -708,6 +709,15 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
   [ActionType.CreateWisdomSession]: ["VOICE"],
+  // The action page names no channel ("This action works with Connect
+  // Customer outbound campaigns only"); the admin guide's Check call progress
+  // block does: voice "Yes", chat, task and email "No - Error branch". It
+  // reads an answering machine's result on a placed call, which no other
+  // channel has, so the admin guide's table is recorded, as for
+  // ResumeContact (actions.md, rule 46).
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
+  [ActionType.CheckOutboundCallStatus]: ["VOICE"],
 };
 
 /**
@@ -818,6 +828,14 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.GetCase,
   // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
   ActionType.UpdateCase,
+  // The action page's Restrictions name no flow type ("This action works with
+  // Connect Customer outbound campaigns only"); the admin guide's Check call
+  // progress block: "All flow types", with the note that it "functions only
+  // for the call types listed" (outbound campaigns and customer-first
+  // callbacks). Rule 46's probes put each flow type to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
+  ActionType.CheckOutboundCallStatus,
 ];
 
 /**
@@ -1168,6 +1186,21 @@ export const WAIT_TIMEOUT_MAX = 604_800;
 export const WAIT_COMPLETED = "WaitCompleted";
 export const WAIT_EVENTS = ["CustomerReturned", "BotParticipantDisconnected"] as const;
 export type WaitEvent = (typeof WAIT_EVENTS)[number];
+
+/**
+ * CheckOutboundCallStatus's run results, in the page's order: "Conditions
+ * are supported, but only the "Equals" operator is supported.
+ * "CallAnswered", "VoicemailBeep" , "VoicemailNoBeep" and "NotDetected"
+ * are the only supported operands."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+ */
+export const OUTBOUND_CALL_STATUSES = [
+  "CallAnswered",
+  "VoicemailBeep",
+  "VoicemailNoBeep",
+  "NotDetected",
+] as const;
+export type OutboundCallStatus = (typeof OUTBOUND_CALL_STATUSES)[number];
 
 /**
  * DistributeByPercentage draws "a random number between 1 and 100

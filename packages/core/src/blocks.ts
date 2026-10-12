@@ -83,6 +83,7 @@ import {
   VOICE_ID_THRESHOLD_MIN,
   TAG_LIMIT,
   TIME_LIMIT_EXCEEDED,
+  OUTBOUND_CALL_STATUSES,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -97,6 +98,7 @@ import type {
   MediaStreamingState,
   MetricOperator,
   MetricType,
+  OutboundCallStatus,
   PreviousParticipantState,
   ProficiencyLevel,
   ProfileLogicalOperator,
@@ -1005,6 +1007,70 @@ export class Wait extends Block {
       conditions.push({ target: this.config.onEvent![e]!, operator: "Equals", operands: [e] });
     }
     return wire(this.config.onError, errors, conditions);
+  }
+}
+
+/**
+ * Check call progress: branch on what an answering machine detector made of
+ * a placed outbound call. Each status named in `onStatus` gets its Equals
+ * condition, written in the page's order ("CallAnswered", "VoicemailBeep",
+ * "VoicemailNoBeep", "NotDetected"; only Equals, only those operands), and
+ * at least one is required. One error, "NoMatchingError if no condition
+ * matches", which is also the path when no status branch matches, so the
+ * class mirrors NextAction onto it as it does for Wait; rule 46's
+ * `status-no-next` and `status-next-elsewhere` probes put that to the
+ * service. No parameters. The page: "This action works with Connect
+ * Customer outbound campaigns only"; the admin guide adds customer-first
+ * callbacks, voice only, and every flow type. Deployable without campaigns
+ * enabled is what rule 46 asks; a live contact needs the campaigns gate
+ * (tasks/D04).
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
+ */
+export interface CheckOutboundCallStatusConfig {
+  id: string;
+  /** One path per status branched on, written in the page's order. */
+  onStatus: Partial<Record<OutboundCallStatus, Target>>;
+  /** NoMatchingError: no status branch matched, or the check failed. */
+  onError: Target;
+}
+
+export class CheckOutboundCallStatus extends Block {
+  readonly type = ActionType.CheckOutboundCallStatus;
+
+  constructor(private readonly config: CheckOutboundCallStatusConfig) {
+    super(config.id);
+    const unknown = Object.keys(config.onStatus).filter(
+      (k) => !(OUTBOUND_CALL_STATUSES as readonly string[]).includes(k),
+    );
+    if (unknown.length > 0) {
+      throw new Error(
+        `CheckOutboundCallStatus "${config.id}" branches only on ${OUTBOUND_CALL_STATUSES.join(", ")}, got ${unknown.join(", ")}.`,
+      );
+    }
+    if (this.statuses().length === 0) {
+      throw new Error(`CheckOutboundCallStatus "${config.id}" needs at least one status branch.`);
+    }
+  }
+
+  private statuses(): OutboundCallStatus[] {
+    return OUTBOUND_CALL_STATUSES.filter((s) => this.config.onStatus[s] !== undefined);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    return wire(
+      this.config.onError,
+      [[NO_MATCHING_ERROR, this.config.onError]],
+      this.statuses().map((s) => ({
+        target: this.config.onStatus[s]!,
+        operator: "Equals" as const,
+        operands: [s],
+      })),
+    );
   }
 }
 
@@ -3362,7 +3428,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 51.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 52.
  */
 export interface GenericBlockConfig {
   id: string;

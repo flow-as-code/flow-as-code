@@ -58,6 +58,7 @@ import {
   VOICE_ID_THRESHOLD_MIN,
   WAIT_COMPLETED,
   WAIT_EVENTS,
+  OUTBOUND_CALL_STATUSES,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
   INPUT_MENU_ERRORS,
@@ -98,6 +99,7 @@ import {
   AssociateContactToCustomerProfile,
   CheckHoursOfOperation,
   CheckMetricData,
+  CheckOutboundCallStatus,
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
@@ -1475,6 +1477,43 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         ...(events.length > 0 ? { onEvent: cast<never>(onEvent) } : {}),
         onError: errors[0]!.NextAction,
         ...(errors.length === 2 ? { onParticipantNotFound: errors[1]!.NextAction } : {}),
+      }),
+    };
+  },
+
+  // No parameters; one Equals branch per status, each status at most once
+  // and in the page's order, the catch-all, and NextAction mirroring it.
+  [ActionType.CheckOutboundCallStatus]: (a) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (errors.length !== 1 || errors[0]!.ErrorType !== NO_MATCHING_ERROR) return undefined;
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    if (!paramKeysAre(a.Parameters, [])) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    const statuses: string[] = [];
+    for (const c of conditions) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+      statuses.push(cast<string>(c.Condition.Operands[0]));
+    }
+    const order = OUTBOUND_CALL_STATUSES.filter((s) => statuses.includes(s));
+    if (stableJson(order) !== stableJson(statuses)) return undefined;
+    const onStatus = new ObjV(
+      conditions.map((c) => [cast<string>(c.Condition.Operands[0]), c.NextAction]),
+    );
+    const config: Record<string, string> = {};
+    for (const c of conditions) config[cast<string>(c.Condition.Operands[0])] = c.NextAction;
+    return {
+      cls: "CheckOutboundCallStatus",
+      entries: [
+        ["id", a.Identifier],
+        ["onStatus", onStatus],
+        ["onError", errors[0]!.NextAction],
+      ],
+      block: new CheckOutboundCallStatus({
+        id: a.Identifier,
+        onStatus: cast<never>(config),
+        onError: errors[0]!.NextAction,
       }),
     };
   },

@@ -2604,7 +2604,32 @@
     "CheckOutboundCallStatus": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html",
-      "modeled": false
+      "modeled": true,
+      "block": "check_outbound_call_status",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "mirrors:error:NoMatchingError",
+        "conditions": "enum",
+        "conditionOperands": [
+          "CallAnswered",
+          "VoicemailBeep",
+          "VoicemailNoBeep",
+          "NotDetected"
+        ],
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "CheckVoiceId": {
       "category": "flowControl",

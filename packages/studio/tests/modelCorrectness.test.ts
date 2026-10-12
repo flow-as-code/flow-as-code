@@ -463,6 +463,36 @@ describe("C3 a new block can be wired up", () => {
     expect(codegen(withError)).toContain('onError: "apologize"');
   });
 
+  it("a call-progress check takes one drag per status and its NextAction follows the catch-all", () => {
+    // CheckOutboundCallStatus: each primary drag adds the next status the
+    // page lists, in its order; the error drag adds the catch-all and the
+    // NextAction that mirrors it. Typed from the first status on.
+    const { doc, id } = addBlock(demoDoc(), "CheckOutboundCallStatus", { x: 0, y: 900 });
+    expect(acceptsNextAction(getAction(doc, id)!)).toBe(false);
+    expect(acceptsConditions(getAction(doc, id)!)).toBe(true);
+    let wired = connectNodes(doc, id, "welcome", "primary")!;
+    wired = connectNodes(wired, id, "hang-up", "primary")!;
+    wired = connectNodes(wired, id, "apologize", "error")!;
+    expect(getAction(wired, id)?.Transitions).toEqual({
+      NextAction: "apologize",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "apologize" }],
+      Conditions: [
+        { NextAction: "welcome", Condition: { Operator: "Equals", Operands: ["CallAnswered"] } },
+        { NextAction: "hang-up", Condition: { Operator: "Equals", Operands: ["VoicemailBeep"] } },
+      ],
+    });
+    expect([...demotedIds(wired)]).toEqual([]);
+    expectSchemaValid(wired);
+    wired = connectNodes(wired, id, "hang-up", "primary")!;
+    wired = connectNodes(wired, id, "hang-up", "primary")!;
+    expect(
+      getAction(wired, id)?.Transitions.Conditions?.map((c) => c.Condition.Operands[0]),
+    ).toEqual(["CallAnswered", "VoicemailBeep", "VoicemailNoBeep", "NotDetected"]);
+    expect(connectNodes(wired, id, "hang-up", "primary")).toBeUndefined();
+    expect([...demotedIds(wired)]).toEqual([]);
+    expect(codegen(wired)).toContain("new CheckOutboundCallStatus({");
+  });
+
   it("moving a Loop's next edge away takes its mirrored done branch along, and the reverse", () => {
     // An unfinished Loop (only the done branch wired, as a file can carry
     // it) is generic, so the guard has nothing to refuse and what is left is
