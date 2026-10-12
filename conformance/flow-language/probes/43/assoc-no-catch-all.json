@@ -1,0 +1,32 @@
+{
+  "description": "Rule 43: AssociateContactToCustomerProfile without its catch-all, a removal alone; the catalog requires it.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "AssociateContactToCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ProfileId": "$.Customer.ProfileId",
+            "ContactId": "$.ContactId"
+          },
+          "ProfileResponseData": []
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

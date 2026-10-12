@@ -2666,7 +2666,53 @@
     "AssociateContactToCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "associate_contact_to_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProfileId",
+              "attr": "profile_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            },
+            {
+              "key": "ContactId",
+              "attr": "contact_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          }
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "CreateCallbackContact": {
       "category": "interaction",

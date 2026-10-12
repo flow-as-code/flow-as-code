@@ -82,6 +82,7 @@ import type {
   StoredInputValidation,
 } from "./blocks.js";
 import {
+  AssociateContactToCustomerProfile,
   CheckHoursOfOperation,
   CheckMetricData,
   Compare,
@@ -2398,6 +2399,39 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       block: new CreateWisdomSession({
         id: a.Identifier,
         assistant: cast<never>(a.Parameters.WisdomAssistantArn),
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
+  // ProfileRequestData's two ids, static or JSONPath, and the empty
+  // response list the console writes; anything else stays generic.
+  [ActionType.AssociateContactToCustomerProfile]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData;
+    if (!isStringMap(request) || !paramKeysAre(request, ["ProfileId", "ContactId"])) {
+      return undefined;
+    }
+    if (!Array.isArray(p.ProfileResponseData) || p.ProfileResponseData.length !== 0) {
+      return undefined;
+    }
+    return {
+      cls: "AssociateContactToCustomerProfile",
+      entries: [
+        ["id", a.Identifier],
+        ["profileId", request.ProfileId!],
+        ["contactId", request.ContactId!],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new AssociateContactToCustomerProfile({
+        id: a.Identifier,
+        profileId: request.ProfileId!,
+        contactId: request.ContactId!,
         next: w.next,
         onError: w.onError,
       }),

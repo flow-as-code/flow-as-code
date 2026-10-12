@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-41 modeled types follow. Any other type (20: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+42 modeled types follow. Any other type (19: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -655,6 +655,22 @@ Block `wait`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/
 | -------------------- | ------------------ | ------ | -------- |
 | `time_limit_seconds` | `TimeLimitSeconds` | number | yes      |
 | `events`             | `Events`           | list   | no       |
+
+## AssociateContactToCustomerProfile
+
+Block `associate_contact_to_customer_profile`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute           | Flow language key     | Value              | Required |
+| ----------------------- | --------------------- | ------------------ | -------- |
+| `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
+| .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
+| .`contact_id`           | `ContactId`           | string or JSONPath | yes      |
+| `profile_response_data` | `ProfileResponseData` | list               | no       |
 
 ## CreateCallbackContact
 

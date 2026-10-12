@@ -1,0 +1,51 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "customer-profiles",
+  "description": "The Customer Profiles actions: the contact associated with the profile.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "link-contact",
+    "Actions": [
+      {
+        "Identifier": "link-contact",
+        "Type": "AssociateContactToCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ContactId": "$.ContactId",
+            "ProfileId": "$.Customer.ProfileId"
+          },
+          "ProfileResponseData": []
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 280,
+      "y": 20
+    },
+    "link-contact": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

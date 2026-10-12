@@ -16,6 +16,7 @@ import type {
 } from "./index.js";
 import {
   ActionType,
+  AssociateContactToCustomerProfile,
   canonicalOrder,
   CheckMetricData,
   collectRefs,
@@ -1766,5 +1767,64 @@ describe("the task and AI agent actions", () => {
     expect(() => new CreateTask({ ...base, name: cast<never>(1), flow: Refs.flow("f") })).toThrow(
       /name must be a string/,
     );
+  });
+});
+
+describe("the Customer Profiles actions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/customer-profiles/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the customer-profiles fixture", () => {
+    const flow = new Flow({
+      name: "customer-profiles",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new AssociateContactToCustomerProfile({
+        id: "link-contact",
+        profileId: "$.Customer.ProfileId",
+        contactId: "$.ContactId",
+        next: "bye",
+        onError: "bye",
+      }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write AssociateContactToCustomerProfile with both ids and an empty response list", () => {
+    expect(
+      new AssociateContactToCustomerProfile({
+        id: "a",
+        profileId: "$.Customer.ProfileId",
+        contactId: "$.ContactId",
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "a",
+      Type: "AssociateContactToCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" },
+        ProfileResponseData: [],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuse an association without a profile or a contact", () => {
+    const base = { id: "a", profileId: "p", contactId: "c", next: "n", onError: "e" };
+    expect(() => new AssociateContactToCustomerProfile({ ...base, profileId: "" })).toThrow(
+      /profileId must be a non-empty string or JSONPath/,
+    );
+    expect(
+      () => new AssociateContactToCustomerProfile({ ...base, contactId: cast<never>(undefined) }),
+    ).toThrow(/contactId must be a non-empty string or JSONPath/);
   });
 });

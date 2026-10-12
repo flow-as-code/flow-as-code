@@ -2921,3 +2921,67 @@ describe("CreateWisdomSession inverts its assistant by reference or JSONPath", (
     generic(action({ WisdomAssistantArn: "${cdref:assistant:agent-help}" }, []));
   });
 });
+
+describe("the Customer Profiles actions invert their request and response data", () => {
+  const action = (
+    type: string,
+    parameters: Record<string, unknown>,
+    errors = ["NoMatchingError"],
+  ): FlowAction => ({
+    Identifier: "profile",
+    Type: type,
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain(`new ${a.Type}({`);
+    expect(out).not.toContain("GenericBlock");
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain(`type: "${a.Type}"`);
+    expect(out).not.toContain(`new ${a.Type}(`);
+  };
+
+  describe("AssociateContactToCustomerProfile", () => {
+    const associate = (request: unknown, response: unknown = [], errors?: string[]) =>
+      action(
+        "AssociateContactToCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+
+    it("emits both ids, static or JSONPath", () => {
+      const out = typed(associate({ ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" }));
+      expect(out).toContain('profileId: "$.Customer.ProfileId"');
+      expect(out).toContain('contactId: "$.ContactId"');
+      typed(associate({ ProfileId: "profile-1", ContactId: "$.ContactId" }));
+    });
+
+    it("falls back on a missing id, an extra key, response fields, or the errors out of shape", () => {
+      generic(associate({ ProfileId: "$.Customer.ProfileId" }));
+      generic(associate({ ProfileId: "p", ContactId: "c", ObjectType: "x" }));
+      generic(associate({ ProfileId: "p", ContactId: 1 }));
+      generic(associate({ ProfileId: "p", ContactId: "c" }, ["FirstName"]));
+      generic(associate({ ProfileId: "p", ContactId: "c" }, {}));
+      generic(
+        action("AssociateContactToCustomerProfile", {
+          ProfileRequestData: { ProfileId: "p", ContactId: "c" },
+        }),
+      );
+      generic(associate({ ProfileId: "p", ContactId: "c" }, [], []));
+    });
+  });
+});

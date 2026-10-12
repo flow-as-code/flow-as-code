@@ -98,6 +98,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Set recording, analytics and processing behavior (Set message processor) | `UpdateContactMediaProcessing` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html) |
 | Create task | `CreateTask` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createtask.html) |
 | Connect assistant (formerly Amazon Q in Connect) | `CreateWisdomSession` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html) |
+| Customer profiles (Associate contact to profile) | `AssociateContactToCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html) |
 
 ## Reference-bearing parameters
 
@@ -1459,6 +1460,72 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
       https://docs.aws.amazon.com/connect/latest/adminguide/ai-agent-initial-setup.html
 
+43. Customer Profiles (tasks/D03; the Developer Guide pages read 2026-10-04
+    and again 2026-10-12 with the admin guide's Customer profiles block
+    page). The group's types are modeled from their pages and from flows AWS
+    publishes. **Probe pending**: the create sweep the evidence rule asks
+    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
+    AWS credentials had expired, and the Customer Profiles domain the sweep
+    needs is created by a sandbox root that had not been applied. Its inputs
+    are kept in `probes/43/`, with `PENDING.md` saying what the run needs.
+    No console export of the block has been taken (owner decision 8), so
+    nothing under `exports/` records its stored shape. In its place the
+    shape is read from contact flows AWS publishes in its sample
+    repositories, listed below at the commits read on 2026-10-12: every one
+    writes `ProfileRequestData` as an object of strings and
+    `ProfileResponseData` as a list of names, empty when no response field
+    is chosen, where the pages write `{ "FirstName", ... }`, which is not
+    JSON. The catalog follows the published flows where they and the pages
+    differ, and records the pages' form here. Until the sweep and an export,
+    every required key, error, `next`, spelling and flow-type entry below is
+    that reading, and each bullet names the probes that settle it.
+    The action pages have no Restrictions section, and the admin guide's
+    block lists "All flow types" and voice, chat, task and email each
+    "Yes", so every type here is unrestricted and carries no `channels`.
+    No parameter is a reference: the Customer Profiles domain is the
+    instance's integration, not a parameter (tasks/D03), and a profile id
+    is a run-time value read from `$.Customer.ProfileId`. The admin guide's
+    Error branch is taken when Customer Profiles is not enabled, when a
+    request value is over 255 characters, and when the API is throttled or
+    unavailable, each a run-time condition.
+    https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/enable-customer-profiles.html
+    The published flows:
+    https://github.com/aws-samples/amazon-connect-step-by-step-guides-module-library/tree/1d0cf558d024600e6aa05aea3d7d93ffd425b547
+    (`modules/Cases/SBSGuides_Modules_Cases.json`,
+    `examples/Cards/SBSGuides_Example_Cards_Guide.json`,
+    `examples/AgentWorkspace/SBSGuides_Example_AgentWorkspace_Handler.json`,
+    `examples/AgentWorkspace/SBSGuides_Example_AgentWorkspace_Guide.json`,
+    `examples/BackendIntegration/SBSGuides_Example_Backend_Guide.json`),
+    https://github.com/aws-solutions-library-samples/guidance-for-integrating-amazon-connect-with-sap-sales-and-service-cloud-on-aws/blob/bc606393c101d2b185f214a62d2791e77c50f37b/contact-flow/2-ChatFlow-Manual.json,
+    https://github.com/aws-samples/sample-agentic-connect-experience/blob/678c66b870392baaa3e25d32fe5037d17cc6e155/assets/connect/contact_flow.json,
+    https://github.com/aws-samples/sample-amazon-connect-speed-dial/blob/e87f5e2304ab744d0b499bd97bb69e4353067d2a/templates/cdk-app/flows/get-customer-profile.json,
+    https://github.com/aws-samples/sample-aicc-builder-for-amazon-connect-ai-agent/blob/e7d1ab65d505cbdfb0d22e1d9f47c68f963a65b1/knowledge-base-docs/contact-flow/_reference-console-export-all-blocks.json,
+    and
+    https://github.com/aws-samples/sample-ai-enhanced-email-workflow/blob/90ef631c2452394bbb2ad6220bae34c93224ce30/contact-flows/EmailSuggestedResponseConfidenceScore.json.
+    - `AssociateContactToCustomerProfile` "Associate a contact to a
+      customer profile." "A ProfileId and ContactId must be present." in
+      `ProfileRequestData`; `ProfileResponseData` "None."; Results "None.
+      Conditions are not supported."; errors "NoMatchingError - if no other
+      Error matches." The admin guide's block reads the profile id from a
+      preceding Get profile and the contact id from attributes, and has
+      Success and Error branches. No published flow carries the type. The
+      catalog records `ProfileRequestData` as a required object of the two
+      ids, each a `stringOrJsonPath` and required, and `ProfileResponseData`
+      as an optional list of strings with no names; the class writes the
+      empty list the console writes for the other five types with no
+      response field, and codegen leaves any other response data generic.
+      The catch-all is required and wired by the builder, `next` required.
+      Planned probes: `assoc-required` (expected accepted; run before the
+      domain is linked, it is also the probe of an instance with no
+      Profiles domain), `assoc-no-catch-all` and `assoc-no-next` (each a
+      removal alone), `assoc-static-profile` (the admin guide's manual
+      Profile ID), `assoc-no-contact-id`, `assoc-no-response-data` and
+      `assoc-response-object` (the page's "None." read as absent and as
+      braces), and `assoc-module` and `assoc-customer-hold` (all flow
+      types).
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -1540,6 +1607,8 @@ CreateTask               { ContactFlowId?: flow, Attributes?: { [key]: string },
                            Description?: string, References?: json, DelaySeconds?: "1".."518400",
                            ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both
 CreateWisdomSession      { WisdomAssistantArn: assistant }   // static or JSONPath; voice only (the action page)
+AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId },   // each static or a JSONPath
+                           ProfileResponseData: [] }   // the page's "None."; written as the console's empty list
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1692,7 +1761,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-41 of the 61. Everything not in the modeled set above parses to a
+42 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1716,10 +1785,10 @@ re-authors the fixture again (owner decision 10).
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 41      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 42      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 41      |                                                             |
+| Denominator             | 61    | 42      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

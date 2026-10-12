@@ -1,0 +1,37 @@
+{
+  "description": "Rule 43: AssociateContactToCustomerProfile with both ids as JSONPaths, an empty response list, a NextAction and the catch-all; expected accepted. Run before the Profiles domain is linked, it is also the probe of an instance with no domain.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "AssociateContactToCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ProfileId": "$.Customer.ProfileId",
+            "ContactId": "$.ContactId"
+          },
+          "ProfileResponseData": []
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

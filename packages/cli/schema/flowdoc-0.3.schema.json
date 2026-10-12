@@ -1708,6 +1708,35 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "AssociateContactToCustomerProfile"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ProfileRequestData": {
+                    "type": "object"
+                  },
+                  "ProfileResponseData": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

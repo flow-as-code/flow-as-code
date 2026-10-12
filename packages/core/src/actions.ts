@@ -56,6 +56,7 @@ export const ActionType = {
   UpdateContactMediaProcessing: "UpdateContactMediaProcessing",
   CreateTask: "CreateTask",
   CreateWisdomSession: "CreateWisdomSession",
+  AssociateContactToCustomerProfile: "AssociateContactToCustomerProfile",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -694,6 +695,12 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
   ActionType.CreateWisdomSession,
+  // The Customer Profiles actions' pages have no Restrictions section; the
+  // admin guide's Customer profiles block: "All flow types", and voice,
+  // chat, task and email each "Yes".
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+  ActionType.AssociateContactToCustomerProfile,
 ];
 
 /**

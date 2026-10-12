@@ -2221,6 +2221,58 @@ export class CreateWisdomSession extends Block {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Customer Profiles (tasks/D03): the six actions of the console's Customer
+// profiles block. Each writes ProfileRequestData and ProfileResponseData,
+// the latter as a list of names, the shape every console export carries
+// (actions.md, rule 43), and needs Customer Profiles enabled on the instance.
+// https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+// ---------------------------------------------------------------------------
+
+/** A value a Customer Profiles request field holds: static text or a JSONPath. */
+function requireText(where: string, key: string, value: unknown): void {
+  if (typeof value !== "string" || value === "") {
+    throw new Error(`${where} ${key} must be a non-empty string or JSONPath.`);
+  }
+}
+
+/**
+ * "Associate a contact to a customer profile." `ProfileRequestData` holds
+ * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
+ * each static or a JSONPath (the admin guide's block reads both from
+ * attributes); `ProfileResponseData` holds nothing ("None."), written as
+ * the empty list the console writes for a block with no response fields.
+ * Results "None. Conditions are not supported."; one error, the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export interface AssociateContactToCustomerProfileConfig extends Wired {
+  profileId: string;
+  contactId: string;
+}
+
+export class AssociateContactToCustomerProfile extends Block {
+  readonly type = ActionType.AssociateContactToCustomerProfile;
+
+  constructor(private readonly config: AssociateContactToCustomerProfileConfig) {
+    super(config.id);
+    const where = `AssociateContactToCustomerProfile "${config.id}"`;
+    requireText(where, "profileId", config.profileId);
+    requireText(where, "contactId", config.contactId);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ProfileId: this.config.profileId, ContactId: this.config.contactId },
+      ProfileResponseData: [],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2419,7 +2471,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 41.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 42.
  */
 export interface GenericBlockConfig {
   id: string;

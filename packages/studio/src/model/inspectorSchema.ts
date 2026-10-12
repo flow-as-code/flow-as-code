@@ -422,6 +422,23 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           refType: "assistant",
         },
       ];
+    case ActionType.AssociateContactToCustomerProfile:
+      // Both ids sit in ProfileRequestData, each static or a JSONPath; the
+      // page's response data is "None.", so there is nothing to choose.
+      return [
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ProfileId",
+          label: "Profile ID (or JSONPath)",
+        },
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ContactId",
+          label: "Contact ID (or JSONPath)",
+        },
+      ];
     case ActionType.UpdateContactAttributes:
       return [
         { kind: "json", key: "Attributes", label: "Attributes" },

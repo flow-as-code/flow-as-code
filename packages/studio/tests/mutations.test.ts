@@ -142,6 +142,7 @@ describe("addBlock", () => {
       "UpdateContactMediaProcessing",
       "CreateTask",
       "CreateWisdomSession",
+      "AssociateContactToCustomerProfile",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

@@ -21,8 +21,9 @@ A set written before it can be run (its sandbox prerequisites not yet in
 place) carries `PENDING.md` instead of a results file, saying why and what
 the run needs; `tests/probeCreate.test.ts` holds every set to one or the
 other, and the file is removed by the run that writes the results. `41`,
-the contact-state set (tasks/D02), is the first, and `42`, the tasks and
-AI agents set (tasks/D05), the second.
+the contact-state set (tasks/D02), is the first, `42`, the tasks and
+AI agents set (tasks/D05), the second, and `43`, the Customer Profiles set
+(tasks/D03), the third.
 
 A results file is `results.json`, or `results-<run>.json` with the UTC date
 and the Region in the name (`results-2026-10-05-us-west-2.json`) when a set
