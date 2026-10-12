@@ -1373,8 +1373,8 @@ malformed use:
   one reading of both forms.
 - The path form `A.*~`, every key of the map at `A` (the trailing `~` is
   JSONPath Plus's property-name operator), so a reference-bearing map key
-  can be named: `CreateCase`'s refs are `CaseRequestFields.*~` with the
-  `casefield` type (docs/adr/0008). `readPath` returns a hit per key whose
+  can be named. No entry uses it yet: D06's `CreateCase` is to name
+  `CaseRequestFields.*~` with the `casefield` type (docs/adr/0008). `readPath` returns a hit per key whose
   value is the key string, at the path `A.<key>~`, so export, lint and the
   studio read keys through the table they read values through.
 
