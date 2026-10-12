@@ -70,9 +70,146 @@ for this phase"; and:
 
 ## Both repositories
 
-- [ ] ADR 0009 merged first.
-- [ ] flow-as-code, checklist lines 1 to 10.
-- [ ] Probe inputs under `conformance/flow-language/probes/<rule>/`.
+- [x] ADR 0009 merged first (`63694bb`, #33).
+- [x] flow-as-code, checklist lines 1 to 10, in one commit.
+- [x] Probe inputs under `conformance/flow-language/probes/45/`; the sweep
+      itself has not run (see "Evidence" under "Record").
 - [ ] Provider: re-vendor, oracles re-recorded, a `json` attribute nested in a
       list of objects handled by `flowmodel.attribute()` (lines 11 to 14);
       the provider commit recorded here.
+
+## Record (2026-10-12)
+
+Implemented on branch `feat/d07-routing-criteria`, stacked on
+`feat/d03-customer-profiles` (#48) at `ebda6e3`, as tasks/README.md orders
+Phase D (D02, D05, D03, D06, then D07); D06 was being built beside it. One
+commit for the type, then this record, each green on `npm run build`,
+`npm test`, `npm run lint` and `npm run typecheck`:
+
+1. `feat(core): model UpdateRoutingCriteria with its expression as typed helpers`
+
+The action page and the admin guide's Set routing criteria block page were
+read again on 2026-10-12 and say what the table above says; rule 45 in
+`conformance/flow-language/actions.md` quotes them. The builder now models
+48 of the 61 Types.
+
+### The Type spelling is in doubt
+
+The search for a published flow carrying the type found two that do not
+spell it the page's way. An AWS sample
+(`aws-samples/sample-apj-sup-sa`, `connect-routing/lib/flows.ts`) writes
+`UpdateContactRoutingCriteria` and says in a comment that Connect rejects
+`UpdateRoutingCriteria` as an action type; it also writes the whole of
+`RoutingCriteria` as a JSONPath. A third-party library
+(`mgaffigan/pulumi-amazon-connect` at `05a26ef`) records the same refusal
+in a table of `CreateContactFlow` rejections whose other rows
+(`UnTagContact`, Wait's `TimeoutSeconds`) match rules 28 and 22, and writes
+`ProficiencyLevel` as the string `"4.0"` and `DurationInSeconds` as the
+string `"30"`. Neither is a create recorded here, so the catalog keeps the
+page's Type, as the evidence rule requires, and the type's name is one
+`ActionType` entry and one catalog key, so a rename is mechanical. The
+first two probes of rule 45 (`routing-required-set-alone` and
+`routing-contact-type-set-alone`) settle it, and `PENDING.md` says to rerun
+the set under the other spelling if the page's is refused. Until then a
+document carrying `UpdateContactRoutingCriteria` is an unknown type and
+round-trips as a GenericBlock.
+
+### What the type records, and why
+
+- `RoutingCriteria` a required object of `Steps`, a required list of
+  objects marked `dynamic`, the first list to carry the flag D01 added. Each
+  step's `Expression` is a required `json` value and its `Expiry` an
+  optional object of `DurationInSeconds`, an `integerString`: ADR 0009 left
+  the kind to a console export, none was taken, and every other seconds
+  field the console writes is a decimal string, as the third-party
+  library's emitter also writes it.
+- Flow types `CONTACT_FLOW`, `CUSTOMER_QUEUE`, `AGENT_TRANSFER`,
+  `QUEUE_TRANSFER` and `MODULE` (the page's four, plus a module by the note
+  above `IN_MODULE`); every channel, so no `channels`. `next` and the
+  catch-all are required.
+- The bounds, the levels, the operator and the admin guide's limits are the
+  builder's: `attributeCondition` holds `Name` and a static `Value` to 1 to
+  64 characters and the level to the five, `and` takes one to eight
+  requirements, `or` one to three requirements or ANDs, an OR only at the
+  top, and the class requires an expiry on every step but the last. None
+  is in the catalog or the schema (owner decision 3).
+
+### The helper, the integer spelling, and codegen
+
+`attributeCondition(name, value, level)`, `and(...)` and `or(...)` build
+the Flow language objects, typed as `RoutingExpression`. Arguments are
+positional so that codegen's printer, which gains a call node, never meets
+an object argument Prettier would hug; every shape tried was checked
+against Prettier, and the roundtrip test holds the fixture to a fixed
+point. The level is written as a JSON integer: ADR 0009 records that `2.0`
+cannot survive a parse, and the admin guide's examples write integers.
+Codegen inverts an expression only to calls whose rebuilt value equals the
+source in canonical bytes; a document's normal form sorts every object's
+keys, so key order is not part of that test, and anything else (a string
+level, a numeric expiry, `NotAttributeCondition`, the `Range` operator, an
+OR inside an AND) stays generic.
+
+### Schema clause
+
+The clause holds JSON types only, recursively through
+`$defs/routingExpression`: `RoutingCriteria` an object or a JSONPath (the
+AWS sample's form, which no probe has refused), `Steps` a list of objects
+or a JSONPath, `Expiry` an object, and `AttributeCondition`,
+`AndExpression` and `OrExpression` an object and two lists of expressions.
+`conformance.test.ts` has a rejection case for each part, and each was
+checked to pass the schema with that part deleted.
+
+### Studio
+
+A `steps` field kind edits `RoutingCriteria.Steps`: each step's expression
+in the JSON editor the `json` kind uses and its expiry in seconds (empty
+for a step that never expires), with add and remove; a mode select switches
+to a JSONPath. Adding a step after one that never expired gives that step
+30 seconds, so the block stays typed. The palette's default is one step of
+one requirement on the admin guide's example attribute.
+
+### Group fixture and goldens
+
+`conformance/roundtrip/routing-criteria` holds a target queue set by
+JSONPath, the steps read from a Lambda's response by a JSONPath and, on
+error, three typed steps (an OR of an AND and a requirement, an AND of two
+requirements, a requirement whose value is a JSONPath and which never
+expires), then the transfer. Its HCL golden is `awaits-provider`; the
+typed block writes each expression with `jsonencode`, and the JSONPath
+`Steps` is a `generic` block, as ADR 0009 says. The task asks for an
+`OrExpression` "if the console writes one": the admin guide says OR is
+available only when set dynamically, so the console likely writes none;
+the fixture holds one statically because ADR 0009 names `or`, and
+`routing-or` puts that to the service.
+
+### Evidence
+
+Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
+and the predefined attribute is created by a sandbox root that had not
+been applied. No AWS call was made and no result is recorded. The inputs
+are kept in `conformance/flow-language/probes/45/` (34 probes) with
+`PENDING.md`, which names the two placeholders the run fills (the
+predefined attribute and one of its values) and the order to run them in.
+`routing-required-set-alone` is the accepted-set probe and leaves out the
+one optional container, the step's `Expiry`. Each evidence item above has
+its probes: `routing-or`; `routing-level-0-5`, `routing-level-2-5`,
+`routing-level-5-5`, the integer every other probe sends, and
+`routing-level-string`; `routing-unknown-attribute`;
+`routing-steps-jsonpath` (and `routing-criteria-jsonpath`); and the type in
+a contact flow (`routing-required`), a module (`routing-module`) and a
+customer queue flow (`routing-customer-queue`). The page's float spelling
+`4.0` cannot be sent by the runner, which serializes parsed JSON;
+`PENDING.md` says so.
+
+### Not done here
+
+- A console export of the block (owner decision 8), which would settle the
+  Type, the level's spelling, the expiry's spelling and whether the
+  console ever writes a static OR.
+- The sweep, above.
+- The review round tasks/README.md asks of each group.
+- The provider re-vendor and oracles (checklist lines 11 to 14), after the
+  merge commit exists: `flowmodel.attribute()` has to build a `json` field
+  inside a list of objects as a string attribute, and the provider's
+  handling of `dynamic` on a list, which D01 prepared, meets its first
+  catalog entry.
