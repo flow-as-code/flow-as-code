@@ -13,7 +13,7 @@ import { basename, join } from "node:path";
 import type { FlowDoc } from "@flow-as-code/core";
 import { describe, expect, it } from "vitest";
 import { bytes, viewed } from "./__fixtures__/view.js";
-import { ERROR_CODES } from "./contract.js";
+import { ADDRESS_SUGAR, ERROR_CODES } from "./contract.js";
 import { HclError } from "./errors.js";
 import { format } from "./format.js";
 import { toFlowDoc } from "./read.js";
@@ -81,6 +81,17 @@ describe("conformance/hcl/parse", () => {
       expect(sidecar).toEqual(json(dir, "expected.sidecar.json"));
     });
   }
+});
+
+// The reader's table and the conformance file name the same addresses, in the
+// same order, so neither can gain or lose an entry alone.
+describe("conformance/hcl/address-sugar.json", () => {
+  it("lists exactly the addresses the reader rewrites", () => {
+    const file = json<{ sugar: { address: string; type: string }[] }>(HCL, "address-sugar.json");
+    expect(
+      ADDRESS_SUGAR.map((s) => ({ address: `${s.prefix}.<label>.arn`, type: s.type })),
+    ).toEqual(file.sugar);
+  });
 });
 
 describe("conformance/hcl/refuse", () => {
