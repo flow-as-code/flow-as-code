@@ -1,0 +1,166 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "open-case",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "assist": {
+        "Position": {
+          "x": 980,
+          "y": 20
+        }
+      },
+      "follow-up": {
+        "Position": {
+          "x": 660,
+          "y": 20
+        }
+      },
+      "hang-up": {
+        "Position": {
+          "x": 1620,
+          "y": 20
+        }
+      },
+      "open-case": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "read-case": {
+        "Position": {
+          "x": 340,
+          "y": 20
+        }
+      },
+      "text-back": {
+        "Position": {
+          "x": 1300,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "open-case",
+      "Type": "CreateCase",
+      "Parameters": {
+        "CaseRequestFields": {
+          "${casefield_priority_arn}": "high",
+          "${casefield_summary_arn}": "$.Attributes.summary"
+        },
+        "CaseTemplateId": "${casetemplate_billing_dispute_arn}",
+        "LinkContactToCase": "true"
+      },
+      "Transitions": {
+        "NextAction": "read-case",
+        "Errors": [
+          {
+            "ErrorType": "ContactNotLinked",
+            "NextAction": "hang-up"
+          },
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "read-case",
+      "Type": "GetCase",
+      "Parameters": {
+        "CaseResponseFields": [
+          "${casefield_priority_arn}"
+        ],
+        "CustomerId": "$.Customer.ProfileId",
+        "GetLastUpdatedCase": "true",
+        "LinkContactToCase": "false"
+      },
+      "Transitions": {
+        "NextAction": "follow-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "follow-up",
+      "Type": "CreateTask",
+      "Parameters": {
+        "ContactFlowId": "${flow_task_line_arn}",
+        "Name": "Follow up",
+        "TaskTemplateId": "${tasktemplate_follow_up_arn}"
+      },
+      "Transitions": {
+        "NextAction": "assist",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "assist",
+      "Type": "CreateWisdomSession",
+      "Parameters": {
+        "WisdomAssistantArn": "${assistant_agent_help_arn}"
+      },
+      "Transitions": {
+        "NextAction": "text-back",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "text-back",
+      "Type": "StartOutboundChatContact",
+      "Parameters": {
+        "ContactFlowArn": "${flow_task_line_arn}",
+        "ContactSubtype": "connect:SMS",
+        "DestinationEndpoint": {
+          "Address": "$.CustomerEndpoint.Address",
+          "Type": "TELEPHONE_NUMBER"
+        },
+        "SourceEndpoint": {
+          "Address": "${phonenumber_main_did_arn}",
+          "Type": "CONNECT_PHONENUMBER_ARN"
+        }
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

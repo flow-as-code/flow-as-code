@@ -36,6 +36,7 @@ describe("conformance/emit-tf", () => {
       "hostile-text",
       "module-release",
       "module-set",
+      "phase-d-refs",
     ]);
   });
 });
