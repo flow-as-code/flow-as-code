@@ -192,7 +192,13 @@ and both users JSONPaths, and the `generic-only` golden follows. That form
 stays generic after D04 models `CompleteOutboundCall`'s caller-id form
 (owner decision 4), so no later task in this phase has to move the token
 again; its value is a slot for a token, not a claim about what the
-connector's user-to-user information carries.
+connector's user-to-user information carries. The flow token stays in
+`StartOutboundChatContact`, still unmodeled at this point in the stack,
+which D04 re-authors when it models that type. Rule 45 records the move.
+The type carries no reference, so D06's reference-key rule (HCL README
+rules 11 and 20) and its `requiredWhenValue` reading in `builderErrorsFor`
+do not reach it; `builderErrorsFor` gives the catch-all alone for both of
+the group fixture's actions.
 
 ### Group fixture and goldens
 

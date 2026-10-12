@@ -2032,6 +2032,19 @@ is read rather than when the type is modeled.
       `Range` or a preferred-agent `MatchCriteria` generic: the helpers
       write the page's one operator, and the admin guide's range and
       preferred agents wait on the sweep.
+    - Modeling the type ended its place in the passthrough fixture: D06
+      had put the `unknown-actions` queue token in an
+      `UpdateRoutingCriteria` attribute condition's `Value`. It moved to
+      `CompleteOutboundCall`'s `VoiceConnector` form ("Unmodeled actions"
+      below has the history). The flow token stays in
+      `StartOutboundChatContact`, unmodeled until D04. Each action keeps
+      the `Transitions` it had or, for the new one, D04's reading of its
+      page (no error branch), and the `generic-only` golden was
+      re-recorded. Neither token touches this type, which carries no
+      reference, so D06's reference-key rule (`conformance/hcl/README.md`
+      rules 11 and 20) and its `requiredWhenValue` reading in
+      `builderErrorsFor` do not reach it; `builderErrorsFor` gives the
+      catch-all alone for both of the group fixture's actions.
     - Planned probes: `routing-required-set-alone` (the catalog's
       required set alone: one step, its `Expression` alone, the accepted-set
       probe) and `routing-required` (the class's form; expected accepted);
