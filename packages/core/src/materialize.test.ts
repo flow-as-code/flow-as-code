@@ -238,6 +238,30 @@ describe("A05 conformance fixtures", () => {
     expect(JSON.stringify(content)).not.toContain("cdref");
   });
 
+  // A key with no map entry is an unmapped reference like any value: the
+  // error names it and its key forms, not the embedded-token refusal.
+  it("names an unmapped casefield map key as unmapped", () => {
+    const doc = JSON.parse(
+      fixture("conformance/materialize/casefield-key-with-map/doc.flowdoc.json"),
+    ) as FlowDoc;
+    const map = JSON.parse(
+      fixture("conformance/materialize/casefield-key-with-map/map.json"),
+    ) as Record<string, string>;
+    delete map["casefield:summary"];
+    let error: unknown;
+    try {
+      materializeWithMap(doc, map);
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(MaterializeError);
+    const message = (error as MaterializeError).message;
+    expect((error as MaterializeError).missingTokens).toEqual(["${cdref:casefield:summary}"]);
+    expect(message).toContain("1 unmapped token(s): ${cdref:casefield:summary}");
+    expect(message).toContain('"casefield:summary"');
+    expect(message).not.toContain("embedded");
+  });
+
   it("keeps the demo-with-map doc in sync with the canonical demo", () => {
     expect(fixture("conformance/materialize/demo-with-map/doc.flowdoc.json")).toBe(
       fixture("conformance/demo/appointment-line.flowdoc.json"),
