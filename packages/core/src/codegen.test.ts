@@ -3440,7 +3440,7 @@ describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
       }),
     );
     // Two tags in one expression, an extra key on a requirement or a step,
-    // the page's Range operator.
+    // the admin guide's Range operator, which the helpers do not write.
     generic(
       steps({ Expression: { ...condition("A", "B"), AndExpression: [condition("C", "D")] } }),
     );
@@ -3456,6 +3456,20 @@ describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
           AttributeCondition: {
             ...condition("A", "B").AttributeCondition,
             ComparisonOperator: "Range",
+          },
+        },
+      }),
+    );
+    // The API's preferred-agent requirement, which the action page does not
+    // document and the helpers do not write.
+    generic(
+      steps({
+        Expression: {
+          AttributeCondition: {
+            ComparisonOperator: "Match",
+            MatchCriteria: {
+              AgentsCriteria: { AgentIds: ["$.Customer.CalculatedAttributes._last_agent_id"] },
+            },
           },
         },
       }),

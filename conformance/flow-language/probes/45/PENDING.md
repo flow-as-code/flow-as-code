@@ -13,9 +13,10 @@ service's.
 
 One predefined attribute with one value (`awscc_connect_predefined_attribute`,
 awscc only; the sandbox root names it `fac-sbx-lantern-certified`). The
-probes name it through the two placeholders below, so nothing here depends
-on its name. No user needs a proficiency in it: a create does not route a
-contact.
+probes name it through the placeholders below, so nothing here depends on
+its name. No user needs a proficiency in it: a create does not route a
+contact. The two preferred-agent probes name one user of the instance by
+its id; any user will do.
 
 ## Placeholders
 
@@ -26,6 +27,7 @@ says, and these names from the environment:
 | -------------------------- | ---------------------------- | ----------------------------------------------- |
 | `{{PREDEFINED_ATTRIBUTE}}` | `PROBE_PREDEFINED_ATTRIBUTE` | the predefined attribute above, by name          |
 | `{{PREDEFINED_VALUE}}`     | `PROBE_PREDEFINED_VALUE`     | one of the values that attribute defines         |
+| `{{AGENT_ID}}`             | `PROBE_AGENT_ID`             | a user of the instance, by user id               |
 
 ## Order
 
@@ -37,6 +39,21 @@ the page's Type `UpdateRoutingCriteria` as unknown and requires
 refused with an unknown action type and the second accepted, every other
 probe here is rerun with its `Type` changed to `UpdateContactRoutingCriteria`,
 and the results file records both runs as what they were.
+
+## Reading results that depend on another
+
+- `routing-name-65` and `routing-value-65` cannot name a predefined
+  attribute or value that exists: the sandbox's are shorter than 65
+  characters. Each is therefore also an unknown name or value. Read them
+  against `routing-unknown-attribute` and `routing-unknown-value`: if
+  those are accepted, a refusal of the 65-character probe is the bound; if
+  those are refused, the 65-character probe settles the bound only when
+  its message names the length.
+- `routing-or-four` and `routing-or-inside-and` write an OR statically. If
+  `routing-or` is refused, they say nothing about the admin guide's limit
+  or nesting, which then apply only to a Lambda's response read through a
+  JSONPath, and no create can test a JSONPath's content.
+- `routing-and-eight` is the control for `routing-and-nine`.
 
 ## What the runner cannot send
 

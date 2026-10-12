@@ -8,13 +8,13 @@ are portable strings.
 Devguide page fetched 2026-10-04:
 https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html.
 
-| Parameter                 | Shape                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutingCriteria.Steps[]` | static or dynamic (a JSONPath for the whole list)                                                                                                                                                                                                                                                                                                                   |
-| `Steps[].Expression`      | a tagged union: `AttributeCondition` {`Name` 1 to 64, `Value` 1 to 64, `ProficiencyLevel` one of 1.0, 2.0, 3.0, 4.0, 5.0 ("Valid values are: 1.0, 2.0, 3.0, 4.0 and 5.0"), `ComparisonOperator` `NumberGreaterOrEqualTo`} or `AndExpression[]` (the console also writes `OrExpression`), recursive; `RoutingCriteria`, `Steps` and `Expression` are marked Required |
-| `Steps[].Expiry`          | {`DurationInSeconds`}, static                                                                                                                                                                                                                                                                                                                                       |
-| Errors (page)             | `NoMatchingError`                                                                                                                                                                                                                                                                                                                                                   |
-| Restrictions (page)       | inbound, customer queue, transfer to agent and transfer to queue flows; all channels                                                                                                                                                                                                                                                                                |
+| Parameter                 | Shape                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RoutingCriteria.Steps[]` | static or dynamic (a JSONPath for the whole list)                                                                                                                                                                                                                                                                                                                                                                                       |
+| `Steps[].Expression`      | a tagged union: `AttributeCondition` {`Name` 1 to 64, `Value` 1 to 64, `ProficiencyLevel` one of 1.0, 2.0, 3.0, 4.0, 5.0 ("Valid values are: 1.0, 2.0, 3.0, 4.0 and 5.0"), `ComparisonOperator` `NumberGreaterOrEqualTo`} or `AndExpression[]` (the admin guide's Lambda examples and the UpdateContactRoutingData API reference also write `OrExpression`), recursive; `RoutingCriteria`, `Steps` and `Expression` are marked Required |
+| `Steps[].Expiry`          | {`DurationInSeconds`}, static                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Errors (page)             | `NoMatchingError`                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Restrictions (page)       | inbound, customer queue, transfer to agent and transfer to queue flows; all channels                                                                                                                                                                                                                                                                                                                                                    |
 
 A recursive union has no Terraform schema form, and the catalog has no float
 kind.
@@ -82,7 +82,14 @@ for this phase"; and:
 
 Implemented on branch `feat/d07-routing-criteria`, stacked on
 `feat/d03-customer-profiles` (#48) at `ebda6e3`, as tasks/README.md orders
-Phase D (D02, D05, D03, D06, then D07); D06 was being built beside it. One
+Phase D (D02, D05, D03, D06, then D07); D06 was being built beside it and
+had no branch on origin when this was opened, so the branch is not yet
+rebased onto D06. That rebase renumbers nothing here (D06 takes rule 44,
+this task 45) but reorders rule 44 before 45 in actions.md, adds D06's line
+to the probes README beside this one, moves the modeled count (48 here) and
+the Developer Guide row of the census table up by D06's types, merges both
+types' entries into `catalog.json` and its copy, and regenerates the skill
+reference from the merged catalog. One
 commit for the type, then this record, each green on `npm run build`,
 `npm test`, `npm run lint` and `npm run typecheck`:
 
@@ -195,9 +202,11 @@ the fixture holds one statically because ADR 0009 names `or`, and
 Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
 and the predefined attribute is created by a sandbox root that had not
 been applied. No AWS call was made and no result is recorded. The inputs
-are kept in `conformance/flow-language/probes/45/` (34 probes) with
-`PENDING.md`, which names the two placeholders the run fills (the
-predefined attribute and one of its values) and the order to run them in.
+are kept in `conformance/flow-language/probes/45/` (40 probes) with
+`PENDING.md`, which names the three placeholders the run fills (the
+predefined attribute, one of its values, and a user id for the
+preferred-agent probes), the order to run them in, and how to read the
+probes whose result depends on another.
 `routing-required-set-alone` is the accepted-set probe and leaves out the
 one optional container, the step's `Expiry`. Each evidence item above has
 its probes: `routing-or`; `routing-level-0-5`, `routing-level-2-5`,
@@ -208,6 +217,43 @@ a contact flow (`routing-required`), a module (`routing-module`) and a
 customer queue flow (`routing-customer-queue`). The page's float spelling
 `4.0` cannot be sent by the runner, which serializes parsed JSON;
 `PENDING.md` says so.
+
+### Review (2026-10-12)
+
+The confirmed findings on #49 (at `b17fd55`), each repaired:
+
+- The AWS sample was cited at its `main` branch; `ae5f4b9` had already
+  pinned it at `1f164c3`.
+- No probe removed a required key. `routing-no-criteria`,
+  `routing-no-steps` and `routing-expiry-empty` now do, beside
+  `routing-no-expression`, and rule 45 names each against its Required
+  mark.
+- Rule 45 said the admin guide makes a proficiency range dynamic-only. It
+  limits only OR and NOT to the dynamic form and allows a range beside
+  the `>=` operator; the quote, the probe's grouping and the codegen
+  test's comment are corrected.
+- The admin guide's preferred-agent requirement was neither read nor
+  probed. Rule 45 records it with its 10-agent limit and the
+  UpdateContactRoutingData API's `Match` shape (and that reference's
+  looser bounds); `routing-preferred-agent` and
+  `routing-preferred-agent-jsonpath` send it, and the helpers, codegen and
+  the schema leave it generic until the sweep.
+- The steps inspector showed a numeric `DurationInSeconds` as never
+  expiring, and showed the whole of `RoutingCriteria` as a JSONPath as an
+  empty list that any edit replaced. It now reads a number, and shows and
+  edits the whole-criteria JSONPath as a third form, replaced only when
+  the author picks another; a UI test holds each.
+- This record now says the branch is not rebased onto D06 and what that
+  rebase changes.
+- `routing-name-65` and `routing-value-65` are also unknown names: no
+  65-character name exists on the instance. `PENDING.md` and rule 45 say
+  how to read them against the two unknown probes.
+- `routing-or-four` and `routing-or-inside-and` are static ORs and mean
+  nothing if `routing-or` is refused; rule 45 and `PENDING.md` say so,
+  and that a JSONPath's content cannot be tested at create.
+  `routing-and-eight` joins `routing-and-nine` as its control.
+- The Types table said the console writes `OrExpression`, which no export
+  shows; it now names the admin guide's examples and the API reference.
 
 ### Not done here
 

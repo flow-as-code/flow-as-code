@@ -356,17 +356,27 @@ function NamesField({
  */
 function StepsField({
   field,
+  whole,
   value,
   onCommit,
+  onCommitWhole,
 }: {
   field: Extract<FieldDesc, { kind: "steps" }>;
+  /** The whole parameter `field.key` holds: a JSONPath here is the third form. */
+  whole: unknown;
+  /** `field.nested` inside it: the list, or a JSONPath to the list. */
   value: unknown;
   onCommit: (next: unknown) => void;
+  onCommitWhole: (next: unknown) => void;
 }) {
   const [errors, setErrors] = useState<Record<number, string>>({});
   const id = `steps-${field.key}`;
-  const dynamic = typeof value === "string";
-  const steps = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+  // The whole of RoutingCriteria as a JSONPath, the form an AWS sample
+  // writes (actions.md, rule 45): shown and edited as itself, and replaced
+  // only when the author chooses another form.
+  const criteria = typeof whole === "string";
+  const dynamic = !criteria && typeof value === "string";
+  const steps = !criteria && Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
   return (
     <fieldset className="space-y-2" data-testid={id}>
       <legend className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-300">
@@ -376,15 +386,25 @@ function StepsField({
         data-testid={`${id}-mode`}
         aria-label={`${field.label} form`}
         className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
-        value={dynamic ? "jsonpath" : "list"}
-        onChange={(e) =>
-          onCommit(e.target.value === "jsonpath" ? "$.External.routingSteps" : addRoutingStep([]))
-        }
+        value={criteria ? "criteria" : dynamic ? "jsonpath" : "list"}
+        onChange={(e) => {
+          const mode = e.target.value;
+          if (mode === "criteria") onCommitWhole("$.External.RoutingCriteria");
+          else onCommit(mode === "jsonpath" ? "$.External.routingSteps" : addRoutingStep([]));
+        }}
       >
         <option value="list">Steps set here</option>
         <option value="jsonpath">Steps from a JSONPath</option>
+        <option value="criteria">All of the routing criteria from a JSONPath</option>
       </select>
-      {dynamic ? (
+      {criteria ? (
+        <TextField
+          label="Routing criteria (JSONPath)"
+          testId={`${id}-criteria`}
+          value={whole}
+          onCommit={(next) => onCommitWhole(next.trim())}
+        />
+      ) : dynamic ? (
         <TextField
           label="Steps (JSONPath)"
           testId={`${id}-jsonpath`}
@@ -394,8 +414,11 @@ function StepsField({
       ) : (
         steps.map((step, i) => {
           const expiry = step.Expiry as { DurationInSeconds?: unknown } | undefined;
+          // The class writes a decimal string; a document may hold a number
+          // (the admin guide's Lambda examples), which is shown as it is.
+          const stored = expiry?.DurationInSeconds;
           const seconds =
-            typeof expiry?.DurationInSeconds === "string" ? expiry.DurationInSeconds : "";
+            typeof stored === "string" ? stored : typeof stored === "number" ? String(stored) : "";
           return (
             <div
               key={i}
@@ -451,7 +474,7 @@ function StepsField({
           );
         })
       )}
-      {!dynamic && (
+      {!dynamic && !criteria && (
         <button
           type="button"
           data-testid={`${id}-add`}
@@ -933,8 +956,10 @@ export function Inspector() {
           <StepsField
             key={`${selected}:${fieldKey}`}
             field={field}
+            whole={stored}
             value={value}
             onCommit={(next) => mutate(() => write(next))}
+            onCommitWhole={(next) => mutate(() => setParam(doc, selected, field.key, next))}
           />
         );
       case "json":

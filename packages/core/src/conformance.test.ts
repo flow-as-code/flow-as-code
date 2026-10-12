@@ -720,7 +720,7 @@ describe("FlowDoc schema rejections: routing criteria", () => {
     ).toBe(true);
   });
 
-  it("still accepts a level, a tag and a nesting the builder refuses, which no probe has refused", () => {
+  it("still accepts a level, a tag, a preferred agent and a nesting the builder refuses, which no probe has refused", () => {
     expect(
       validate(
         mutate(typed, (_a, steps) => {
@@ -728,6 +728,12 @@ describe("FlowDoc schema rejections: routing criteria", () => {
             AndExpression: [
               { OrExpression: [] },
               { NotAttributeCondition: { Name: "Language", Value: "English" } },
+              {
+                AttributeCondition: {
+                  ComparisonOperator: "Match",
+                  MatchCriteria: { AgentsCriteria: { AgentIds: ["$.Attributes.agent"] } },
+                },
+              },
               {
                 AttributeCondition: {
                   ComparisonOperator: "Range",

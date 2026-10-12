@@ -1952,15 +1952,34 @@ is read rather than when the type is modeled.
       channels (voice, chat, task and email "Yes") and adds: "Up to eight
       attributes using the `AND` condition", "Up to three OR conditions in
       a routing step ... You can only use OR when setting attributes
-      dynamically", a `NOT` operator and a proficiency range likewise only
-      dynamically, "OR expressions must be at the top level. You can place
-      an AND inside an OR, but not the other way around", "Each step of the
-      criteria must have a timed expiration timer. The last step of the
-      criteria can have a timed or non-expiring expiration timer", and a
-      requirement's value may be a JSONPath. Its Lambda examples write
+      dynamically", a "NOT operator to exclude a proficiency by chosen
+      levels. You can only use NOT when setting attributes dynamically",
+      "Each proficiency level must use the ">=" comparison operator or a
+      range of proficiency levels from 1 to 5" (a range is not limited to
+      the dynamic form), "OR expressions must be at the top level. You can
+      place an AND inside an OR, but not the other way around", "Each step
+      of the criteria must have a timed expiration timer. The last step of
+      the criteria can have a timed or non-expiring expiration timer", and
+      a requirement's value may be a JSONPath. Its Lambda examples write
       `OrExpression`, `NotAttributeCondition` with `ComparisonOperator`
       `"Range"` and a `Range` object, `ProficiencyLevel` as the JSON
       integers `4`, `2` and `1`, and `DurationInSeconds` as the number `30`.
+    - The admin guide also offers a preferred-agent requirement: "One or
+      more preferred agents, based on user ID or username", "You can target
+      up to 10 agents" in a step, and in the manual form an agent read from
+      `$.Customer.CalculatedAttributes._last_agent_id`. The action page
+      does not document its shape. The UpdateContactRoutingData API
+      reference does: an `AttributeCondition` with `ComparisonOperator`
+      `"Match"` and `MatchCriteria.AgentsCriteria.AgentIds`, a list of
+      user ids, in its "Preferred Agent Routing" examples. The same
+      reference bounds `AttributeCondition` more loosely than the action
+      page: `Name` 1 to 100 characters, `Value` 1 to 128, `ProficiencyLevel`
+      a float from 1.0 to 5.0, `ComparisonOperator` 1 to 127 characters,
+      with `MatchCriteria` and `Range` beside them. Nothing here models the
+      preferred-agent form: the helpers do not write it, codegen leaves it
+      generic, and the schema clause admits it, until the sweep records
+      whether a flow may carry it statically. The 10-agent limit is
+      recorded, not enforced.
     - The Type spelling is in doubt, and it is the first thing the sweep
       settles. An AWS sample
       (https://github.com/aws-samples/sample-apj-sup-sa/blob/1f164c387f4ebc504920e368e664882b6916ea02/connect/multi-tenant-agentic-contact-center/connect-routing/lib/flows.ts,
@@ -2009,26 +2028,39 @@ is read rather than when the type is modeled.
       as a JSON integer, the one spelling a parsed document keeps
       (docs/adr/0009), and accepts a `Value` that is a JSONPath without the
       length bound. Codegen inverts only what the helpers write and leaves
-      a string level, a numeric expiry, a `NotAttributeCondition` or a
-      `Range` generic.
+      a string level, a numeric expiry, a `NotAttributeCondition`, a
+      `Range` or a preferred-agent `MatchCriteria` generic: the helpers
+      write the page's one operator, and the admin guide's range and
+      preferred agents wait on the sweep.
     - Planned probes: `routing-required-set-alone` (the catalog's
       required set alone: one step, its `Expression` alone, the accepted-set
       probe) and `routing-required` (the class's form; expected accepted);
       `routing-no-catch-all` and `routing-no-next` (each a removal alone);
       `routing-contact-type` and `routing-contact-type-set-alone` (the Type
-      spelling); `routing-or` (a static OR), `routing-or-inside-and`,
-      `routing-and-nine` and `routing-or-four` (the admin guide's nesting
-      and limits); `routing-level-0-5`, `routing-level-2-5`,
+      spelling); `routing-or` (a static OR), then `routing-or-inside-and`
+      and `routing-or-four` (the admin guide's nesting and OR limit, both
+      static ORs, so they say something only if `routing-or` is accepted;
+      a Lambda's response read through a JSONPath cannot be tested at
+      create), and `routing-and-eight` and `routing-and-nine` (the AND
+      limit and one over it); `routing-level-0-5`, `routing-level-2-5`,
       `routing-level-5-5` and `routing-level-string` (the levels and their
       spelling; every other probe sends the integer spelling, which is the
       integer probe); `routing-unknown-attribute` (a name the instance has
       not predefined) and `routing-unknown-value`; `routing-name-65`,
-      `routing-value-65` and `routing-value-jsonpath` (the bounds);
-      `routing-operator-range` and `routing-not-condition` (the admin
-      guide's dynamic-only forms, written statically);
+      `routing-value-65` and `routing-value-jsonpath` (the bounds; no
+      65-character name or value exists on the instance, so the first two
+      are read against the two unknown probes, as `PENDING.md` says);
+      `routing-operator-range` (the admin guide's range, which it allows in
+      either form, against the page's one operator);
+      `routing-not-condition` (the admin guide's dynamic-only `NOT`,
+      written statically); `routing-preferred-agent` and
+      `routing-preferred-agent-jsonpath` (the preferred-agent form, a user
+      id and the admin guide's JSONPath);
       `routing-steps-jsonpath` and `routing-criteria-jsonpath` (the two
-      dynamic forms); `routing-empty-steps` and `routing-no-expression`
-      (the page's Required marks); `routing-expiry-number`,
+      dynamic forms); `routing-no-criteria`, `routing-no-steps` and
+      `routing-no-expression` (the page's three Required marks, each
+      removed alone), `routing-expiry-empty` (the expiry's one key, which
+      the catalog requires), and `routing-empty-steps`; `routing-expiry-number`,
       `routing-expiry-jsonpath` and `routing-first-step-no-expiry` (the
       expiry's spelling, its static rule and the admin guide's
       every-step-but-the-last); and `routing-customer-queue`,
@@ -2039,6 +2071,9 @@ is read rather than when the type is modeled.
       leaves it out.
       https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
       https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+      https://docs.aws.amazon.com/connect/latest/APIReference/API_UpdateContactRoutingData.html
+      https://docs.aws.amazon.com/connect/latest/APIReference/API_AttributeCondition.html
+      https://docs.aws.amazon.com/connect/latest/APIReference/API_AgentsCriteria.html
 
 ## Per-action parameter shapes
 

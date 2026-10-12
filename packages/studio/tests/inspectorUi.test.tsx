@@ -573,10 +573,10 @@ describe("routing criteria steps (tasks/D07)", () => {
   // The wired group fixture, so the block is typed and the guard refuses an
   // edit that would leave it generic; the saved document is what the
   // assertions read.
-  const openFixture = async () => {
-    const store = new MemoryStore("opened", [
-      structuredClone(routingFixture) as unknown as FlowDoc,
-    ]);
+  const openFixture = async (edit?: (doc: FlowDoc) => void) => {
+    const doc = structuredClone(routingFixture) as unknown as FlowDoc;
+    edit?.(doc);
+    const store = new MemoryStore("opened", [doc]);
     vi.useFakeTimers();
     await render(<App store={store} />);
     await settleLint();
@@ -590,6 +590,12 @@ describe("routing criteria steps (tasks/D07)", () => {
     const criteria = doc.content.Actions.find((a) => a.Identifier === id)!.Parameters
       .RoutingCriteria as { Steps: unknown };
     return criteria.Steps;
+  };
+  const savedCriteria = async (store: MemoryStore, id: string) => {
+    await settleLint();
+    await click(button("save-button"));
+    const { doc } = await store.read("routing-criteria");
+    return doc.content.Actions.find((a) => a.Identifier === id)!.Parameters.RoutingCriteria;
   };
   const condition = (Name: string, Value: string, ProficiencyLevel: number) => ({
     AttributeCondition: {
@@ -650,6 +656,35 @@ describe("routing criteria steps (tasks/D07)", () => {
       "$.External.criteria",
     );
     expect(await saved(store, "by-proficiency")).toBe("$.External.criteria");
+  });
+
+  it("shows an expiry stored as a number, the admin guide's spelling, as its seconds", async () => {
+    await openFixture((doc) => {
+      const a = doc.content.Actions.find((x) => x.Identifier === "by-proficiency")!;
+      const steps = (a.Parameters.RoutingCriteria as { Steps: { Expiry?: unknown }[] }).Steps;
+      steps[0]!.Expiry = { DurationInSeconds: 30 };
+    });
+    await click(present('[data-testid="node-by-proficiency"]'));
+    expect(testId<HTMLInputElement>("steps-RoutingCriteria-0-expiry").value).toBe("30");
+  });
+
+  it("shows all of the routing criteria as a JSONPath, and edits it without replacing its form", async () => {
+    const store = await openFixture((doc) => {
+      doc.content.Actions.find((x) => x.Identifier === "from-lambda")!.Parameters.RoutingCriteria =
+        "$.External.RoutingCriteria";
+    });
+    await click(present('[data-testid="node-from-lambda"]'));
+    expect(testId<HTMLSelectElement>("steps-RoutingCriteria-mode").value).toBe("criteria");
+    expect(testId<HTMLInputElement>("steps-RoutingCriteria-criteria").value).toBe(
+      "$.External.RoutingCriteria",
+    );
+    expect(query('[data-testid="steps-RoutingCriteria-add"]')).toBeNull();
+    expect(query('[data-testid="steps-RoutingCriteria-0"]')).toBeNull();
+    await typeAndBlur(
+      testId<HTMLInputElement>("steps-RoutingCriteria-criteria"),
+      "$.External.otherCriteria",
+    );
+    expect(await savedCriteria(store, "from-lambda")).toBe("$.External.otherCriteria");
   });
 });
 
