@@ -3031,6 +3031,62 @@ describe("the Customer Profiles actions invert their request and response data",
     });
   });
 
+  describe("GetCustomerProfileObject", () => {
+    const object = (
+      request: Record<string, unknown>,
+      response: unknown = ["OrderStatus"],
+      errors = ["NoMatchingError", "NoneFoundError"],
+    ) =>
+      action(
+        "GetCustomerProfileObject",
+        {
+          ProfileRequestData: {
+            ProfileId: "$.Customer.ProfileId",
+            ObjectType: "Order",
+            ...request,
+          },
+          ProfileResponseData: response,
+        },
+        errors,
+      );
+
+    it("emits the latest object or an identifier pair, with both branches", () => {
+      const latest = typed(object({ UseLatest: "true" }));
+      expect(latest).toContain("latest: true");
+      expect(latest).toContain('objectType: "Order"');
+      expect(latest).toContain('onNoneFound: "bye"');
+      const pair = typed(
+        object({ IdentifierName: "_orderId", IdentifierValue: "$.Attributes.orderId" }, [
+          "OrderAttributes.giftWrap",
+        ]),
+      );
+      expect(pair).toContain('identifier: { name: "_orderId", value: "$.Attributes.orderId" }');
+    });
+
+    it("falls back on another UseLatest spelling, both retrievals or neither, a missing object type, a profile field, or the errors out of shape", () => {
+      generic(object({ UseLatest: true }));
+      generic(object({ UseLatest: "True" }));
+      generic(object({ UseLatest: "false" }));
+      generic(object({ UseLatest: "true", IdentifierName: "_orderId", IdentifierValue: "x" }));
+      generic(object({}));
+      generic(
+        action(
+          "GetCustomerProfileObject",
+          {
+            ProfileRequestData: { ProfileId: "$.Customer.ProfileId", UseLatest: "true" },
+            ProfileResponseData: [],
+          },
+          ["NoMatchingError", "NoneFoundError"],
+        ),
+      );
+      generic(object({ UseLatest: "true" }, ["FirstName"]));
+      generic(object({ UseLatest: "true" }, ["OrderStatus"], ["NoMatchingError"]));
+      generic(
+        object({ UseLatest: "true" }, ["OrderStatus"], ["NoneFoundError", "NoMatchingError"]),
+      );
+    });
+  });
+
   describe("UpdateCustomerProfile", () => {
     const update = (request: unknown, response: unknown = []) =>
       action("UpdateCustomerProfile", {

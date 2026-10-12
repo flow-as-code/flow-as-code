@@ -60,6 +60,7 @@ export const ActionType = {
   CreateCustomerProfile: "CreateCustomerProfile",
   UpdateCustomerProfile: "UpdateCustomerProfile",
   GetCustomerProfile: "GetCustomerProfile",
+  GetCustomerProfileObject: "GetCustomerProfileObject",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -358,6 +359,10 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // REQUIRED_EXTRAS. The published flows wire all three.
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
   [ActionType.GetCustomerProfile]: [NO_MATCHING_ERROR, MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
+  // Catch-all first, as GetCustomerProfile's are written; no published flow
+  // carries the type. Only the catch-all is required, as there.
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+  [ActionType.GetCustomerProfileObject]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
 };
 
 /**
@@ -727,6 +732,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.UpdateCustomerProfile,
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
   ActionType.GetCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+  ActionType.GetCustomerProfileObject,
 ];
 
 /**
@@ -835,6 +842,110 @@ export const PROFILE_FIELD_PATTERNS: readonly string[] = ["^Attributes\\.[^.]+$"
  * or OR" ("Required when using SearchCriteria").
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
  */
+/**
+ * The names GetCustomerProfileObject stores from ProfileResponseData, in the
+ * page's order: the standard Asset, Order and Case object fields, beside
+ * "AssetAttributes.x", "OrderAttributes.x", "CaseAttributes.x" and
+ * "ObjectAttributes.x", which PROFILE_OBJECT_FIELD_PATTERNS spells. "Asset
+ * ID, if a single asset is found, is always persisted under the Customer ->
+ * Asset -> AssetID attribute + $.Customer.Asset.AssetId", and likewise the
+ * order and case ids.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+ */
+export const PROFILE_OBJECT_FIELDS = [
+  "AssetAssetId",
+  "AssetProfileId",
+  "AssetAssetName",
+  "AssetSerialNumber",
+  "AssetModelNumber",
+  "AssetModelName",
+  "AssetProductSKU",
+  "AssetPurchaseDate",
+  "AssetUsageEndDate",
+  "AssetStatus",
+  "AssetPrice",
+  "AssetQuantity",
+  "AssetDescription",
+  "AssetAdditionalInformation",
+  "AssetDataSource",
+  "OrderOrderId",
+  "OrderProfileId",
+  "OrderCustomerEmail",
+  "OrderCustomerPhone",
+  "OrderCreatedDate",
+  "OrderUpdatedDate",
+  "OrderProcessedDate",
+  "OrderClosedDate",
+  "OrderCancelledDate",
+  "OrderCancelReason",
+  "OrderName",
+  "OrderAdditionalInformation",
+  "OrderGateway",
+  "OrderStatus",
+  "OrderStatusCode",
+  "OrderStatusUrl",
+  "OrderCreditCardNumber",
+  "OrderCreditCardCompany",
+  "OrderFulfillmentStatus",
+  "OrderTotalPrice",
+  "OrderTotalTax",
+  "OrderTotalDiscounts",
+  "OrderTotalItemsPrice",
+  "OrderTotalShippingPrice",
+  "OrderTotalTipReceived",
+  "OrderCurrency",
+  "OrderTotalWeight",
+  "OrderBillingName",
+  "OrderBillingAddress1",
+  "OrderBillingAddress2",
+  "OrderBillingAddress3",
+  "OrderBillingAddress4",
+  "OrderBillingCity",
+  "OrderBillingCounty",
+  "OrderBillingCountry",
+  "OrderBillingPostalCode",
+  "OrderBillingProvince",
+  "OrderBillingState",
+  "OrderShippingName",
+  "OrderShippingAddress1",
+  "OrderShippingAddress2",
+  "OrderShippingAddress3",
+  "OrderShippingAddress4",
+  "OrderShippingCity",
+  "OrderShippingCounty",
+  "OrderShippingCountry",
+  "OrderShippingPostalCode",
+  "OrderShippingProvince",
+  "OrderShippingState",
+  "CaseCaseId",
+  "CaseProfileId",
+  "CaseTitle",
+  "CaseSummary",
+  "CaseStatus",
+  "CaseReason",
+  "CaseCreatedBy",
+  "CaseCreatedDate",
+  "CaseUpdatedDate",
+  "CaseClosedDate",
+  "CaseAdditionalInformation",
+  "CaseDataSource",
+] as const;
+export const PROFILE_OBJECT_FIELD_PATTERNS: readonly string[] = [
+  "^AssetAttributes\\.[^.]+$",
+  "^OrderAttributes\\.[^.]+$",
+  "^CaseAttributes\\.[^.]+$",
+  "^ObjectAttributes\\.[^.]+$",
+];
+
+/**
+ * GetCustomerProfileObject.UseLatest, "true / false" on the page. The page
+ * shows no quotes and no published flow carries the type; the class writes
+ * the string "true", the spelling Connect's own flag parameters use in the
+ * published flows (`LinkContactToCase`, `GetLastUpdatedCase`), and rule
+ * 43's probes put the JSON boolean and "True" to the service.
+ */
+export const PROFILE_USE_LATEST = ["true", "false"] as const;
+
 export const PROFILE_SEARCH_CRITERIA_MIN = 1;
 export const PROFILE_SEARCH_CRITERIA_MAX = 5;
 export const PROFILE_LOGICAL_OPERATORS = ["AND", "OR"] as const;

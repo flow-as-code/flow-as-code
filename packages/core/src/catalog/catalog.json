@@ -3221,7 +3221,178 @@
     "GetCustomerProfileObject": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html",
-      "modeled": false
+      "modeled": true,
+      "block": "get_customer_profile_object",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProfileId",
+              "attr": "profile_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            },
+            {
+              "key": "ObjectType",
+              "attr": "object_type",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "IdentifierName",
+              "attr": "identifier_name",
+              "kind": "string",
+              "required": false
+            },
+            {
+              "key": "IdentifierValue",
+              "attr": "identifier_value",
+              "kind": "stringOrJsonPath",
+              "required": false
+            },
+            {
+              "key": "UseLatest",
+              "attr": "use_latest",
+              "kind": "enum",
+              "required": false,
+              "values": [
+                "true",
+                "false"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "rule": "exactlyOne",
+              "groups": [
+                [
+                  "UseLatest"
+                ],
+                [
+                  "IdentifierName",
+                  "IdentifierValue"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "AssetAssetId",
+            "AssetProfileId",
+            "AssetAssetName",
+            "AssetSerialNumber",
+            "AssetModelNumber",
+            "AssetModelName",
+            "AssetProductSKU",
+            "AssetPurchaseDate",
+            "AssetUsageEndDate",
+            "AssetStatus",
+            "AssetPrice",
+            "AssetQuantity",
+            "AssetDescription",
+            "AssetAdditionalInformation",
+            "AssetDataSource",
+            "OrderOrderId",
+            "OrderProfileId",
+            "OrderCustomerEmail",
+            "OrderCustomerPhone",
+            "OrderCreatedDate",
+            "OrderUpdatedDate",
+            "OrderProcessedDate",
+            "OrderClosedDate",
+            "OrderCancelledDate",
+            "OrderCancelReason",
+            "OrderName",
+            "OrderAdditionalInformation",
+            "OrderGateway",
+            "OrderStatus",
+            "OrderStatusCode",
+            "OrderStatusUrl",
+            "OrderCreditCardNumber",
+            "OrderCreditCardCompany",
+            "OrderFulfillmentStatus",
+            "OrderTotalPrice",
+            "OrderTotalTax",
+            "OrderTotalDiscounts",
+            "OrderTotalItemsPrice",
+            "OrderTotalShippingPrice",
+            "OrderTotalTipReceived",
+            "OrderCurrency",
+            "OrderTotalWeight",
+            "OrderBillingName",
+            "OrderBillingAddress1",
+            "OrderBillingAddress2",
+            "OrderBillingAddress3",
+            "OrderBillingAddress4",
+            "OrderBillingCity",
+            "OrderBillingCounty",
+            "OrderBillingCountry",
+            "OrderBillingPostalCode",
+            "OrderBillingProvince",
+            "OrderBillingState",
+            "OrderShippingName",
+            "OrderShippingAddress1",
+            "OrderShippingAddress2",
+            "OrderShippingAddress3",
+            "OrderShippingAddress4",
+            "OrderShippingCity",
+            "OrderShippingCounty",
+            "OrderShippingCountry",
+            "OrderShippingPostalCode",
+            "OrderShippingProvince",
+            "OrderShippingState",
+            "CaseCaseId",
+            "CaseProfileId",
+            "CaseTitle",
+            "CaseSummary",
+            "CaseStatus",
+            "CaseReason",
+            "CaseCreatedBy",
+            "CaseCreatedDate",
+            "CaseUpdatedDate",
+            "CaseClosedDate",
+            "CaseAdditionalInformation",
+            "CaseDataSource"
+          ],
+          "keyPatterns": [
+            "^AssetAttributes\\.[^.]+$",
+            "^OrderAttributes\\.[^.]+$",
+            "^CaseAttributes\\.[^.]+$",
+            "^ObjectAttributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "NoneFoundError",
+            "required": false,
+            "builder": true
+          }
+        ]
+      }
     },
     "GetCalculatedAttributesForCustomerProfile": {
       "category": "interaction",

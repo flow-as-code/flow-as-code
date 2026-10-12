@@ -278,6 +278,19 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
     expect(query('[data-testid="select-ProfileRequestData.LogicalOperator"]')).toBeNull();
   });
 
+  it("switches GetCustomerProfileObject between the latest object and a search identifier", async () => {
+    await addProfileBlock("GetCustomerProfileObject", "get-profile-object");
+    expect(testId<HTMLInputElement>("text-ProfileRequestData.ObjectType").value).toBe("Order");
+    expect(testId<HTMLSelectElement>("form-ProfileRequestData").value).toBe("0");
+    expect(query('[data-testid="text-ProfileRequestData.IdentifierName"]')).toBeNull();
+    await selectOption(testId<HTMLSelectElement>("form-ProfileRequestData"), "1");
+    expect(testId<HTMLInputElement>("text-ProfileRequestData.IdentifierName").value).toBe(
+      "_orderId",
+    );
+    expect(testId("inspector").textContent).not.toContain("read-only generic block");
+    expect(testId<HTMLInputElement>("names-ProfileResponseData-OrderStatus").checked).toBe(false);
+  });
+
   it("ticks response fields from the page's list and holds typed ones to the pattern", async () => {
     await addProfileBlock("CreateCustomerProfile", "create-profile");
     const first = testId<HTMLInputElement>("names-ProfileResponseData-FirstName");

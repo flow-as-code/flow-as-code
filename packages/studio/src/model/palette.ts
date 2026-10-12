@@ -45,6 +45,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.CreateCustomerProfile]: "Integrate",
   [ActionType.UpdateCustomerProfile]: "Integrate",
   [ActionType.GetCustomerProfile]: "Integrate",
+  [ActionType.GetCustomerProfileObject]: "Integrate",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -124,6 +125,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.CreateCustomerProfile]: "create-profile",
   [ActionType.UpdateCustomerProfile]: "update-profile",
   [ActionType.GetCustomerProfile]: "get-profile",
+  [ActionType.GetCustomerProfileObject]: "get-profile-object",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -244,6 +246,18 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
         ProfileRequestData: {
           IdentifierName: "_phone",
           IdentifierValue: "$.CustomerEndpoint.Address",
+        },
+        ProfileResponseData: [],
+      };
+    case ActionType.GetCustomerProfileObject:
+      // The profile a preceding Get profile found and the latest object of
+      // a standard type; the page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+      return {
+        ProfileRequestData: {
+          ProfileId: "$.Customer.ProfileId",
+          ObjectType: "Order",
+          UseLatest: "true",
         },
         ProfileResponseData: [],
       };

@@ -34,6 +34,7 @@ import {
   FlowModule,
   GenericBlock,
   GetCustomerProfile,
+  GetCustomerProfileObject,
   GetMetricData,
   GetParticipantInput,
   INPUT_MENU_ERRORS,
@@ -1834,8 +1835,28 @@ describe("the Customer Profiles actions", () => {
           EmailAddress: "$.Attributes.email",
         },
         response: ["Attributes.preferredLanguage"],
+        next: "latest-order",
+        onError: "bye",
+      }),
+      new GetCustomerProfileObject({
+        id: "latest-order",
+        profileId: "$.Customer.ProfileId",
+        objectType: "Order",
+        latest: true,
+        response: ["OrderStatus", "OrderTotalPrice", "OrderAttributes.giftWrap"],
+        next: "asset-by-id",
+        onError: "bye",
+        onNoneFound: "asset-by-id",
+      }),
+      new GetCustomerProfileObject({
+        id: "asset-by-id",
+        profileId: "$.Customer.ProfileId",
+        objectType: "Asset",
+        identifier: { name: "_assetId", value: "$.Attributes.assetId" },
+        response: ["AssetPrice", "AssetPurchaseDate"],
         next: "bye",
         onError: "bye",
+        onNoneFound: "bye",
       }),
       new DisconnectParticipant({ id: "bye" }),
     );
@@ -2001,6 +2022,79 @@ describe("the Customer Profiles actions", () => {
     expect(
       () => new GetCustomerProfile({ ...base, identifier: one, response: ["Nickname"] }),
     ).toThrow(/response names "Nickname"/);
+  });
+
+  it('write GetCustomerProfileObject with UseLatest "true" or the identifier pair, and its two branches', () => {
+    const base = {
+      id: "o",
+      profileId: "$.Customer.ProfileId",
+      objectType: "Order",
+      next: "n",
+      onError: "e",
+      onNoneFound: "z",
+    };
+    expect(new GetCustomerProfileObject({ ...base, latest: true }).toAction()).toEqual({
+      Identifier: "o",
+      Type: "GetCustomerProfileObject",
+      Parameters: {
+        ProfileRequestData: {
+          ProfileId: "$.Customer.ProfileId",
+          ObjectType: "Order",
+          UseLatest: "true",
+        },
+        ProfileResponseData: [],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoneFoundError", NextAction: "z" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new GetCustomerProfileObject({
+        ...base,
+        identifier: { name: "_orderId", value: "$.Attributes.orderId" },
+        response: ["OrderStatus", "ObjectAttributes.note"],
+      }).toAction().Parameters,
+    ).toEqual({
+      ProfileRequestData: {
+        ProfileId: "$.Customer.ProfileId",
+        ObjectType: "Order",
+        IdentifierName: "_orderId",
+        IdentifierValue: "$.Attributes.orderId",
+      },
+      ProfileResponseData: ["OrderStatus", "ObjectAttributes.note"],
+    });
+  });
+
+  it("refuse an object lookup with both retrievals or neither, no object type, or a profile's field name", () => {
+    const base = {
+      id: "o",
+      profileId: "$.Customer.ProfileId",
+      objectType: "Order",
+      next: "n",
+      onError: "e",
+      onNoneFound: "z",
+    };
+    const identifier = { name: "_orderId", value: "$.Attributes.orderId" };
+    expect(() => new GetCustomerProfileObject(cast<never>(base))).toThrow(
+      /takes latest or an identifier, exactly one/,
+    );
+    expect(
+      () => new GetCustomerProfileObject(cast<never>({ ...base, latest: true, identifier })),
+    ).toThrow(/takes latest or an identifier, exactly one/);
+    expect(() => new GetCustomerProfileObject(cast<never>({ ...base, latest: false }))).toThrow(
+      /latest must be true/,
+    );
+    expect(() => new GetCustomerProfileObject({ ...base, objectType: "", latest: true })).toThrow(
+      /objectType must be a non-empty string/,
+    );
+    expect(
+      () => new GetCustomerProfileObject({ ...base, latest: true, response: ["FirstName"] }),
+    ).toThrow(/response names "FirstName"/);
   });
 
   it("refuse an association without a profile or a contact", () => {

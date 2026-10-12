@@ -200,6 +200,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "CreateTask",
       "CreateWisdomSession",
       "GetCustomerProfile",
+      "GetCustomerProfileObject",
       "GetMetricData",
       "InvokeLambdaFunction",
       "Loop",

@@ -34,6 +34,8 @@ import {
   PROFILE_FIELD_PATTERNS,
   PROFILE_FIELDS,
   PROFILE_LOGICAL_OPERATORS,
+  PROFILE_OBJECT_FIELD_PATTERNS,
+  PROFILE_OBJECT_FIELDS,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
 } from "@flow-as-code/core";
@@ -560,6 +562,51 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           options: PROFILE_LOGICAL_OPERATORS,
         },
         profileResponseField(),
+      ];
+    }
+    case ActionType.GetCustomerProfileObject: {
+      // The profile and object type, then the latest object or a search
+      // identifier, one per block: the form switch clears the other. The
+      // response names are the page's Asset, Order and Case fields, with
+      // the four *Attributes.<name> forms typed.
+      const nested = { key: "ProfileRequestData", onlyWhenPresent: true } as const;
+      return [
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ProfileId",
+          label: "Profile ID (or JSONPath)",
+        },
+        { kind: "text", key: "ProfileRequestData", nested: "ObjectType", label: "Object type" },
+        {
+          kind: "form",
+          key: "ProfileRequestData",
+          label: "Retrieve",
+          forms: [
+            { label: "The latest object", keys: ["UseLatest"], defaults: { UseLatest: "true" } },
+            {
+              label: "By a search identifier",
+              keys: ["IdentifierName", "IdentifierValue"],
+              defaults: { IdentifierName: "_orderId", IdentifierValue: "$.Attributes.orderId" },
+            },
+          ],
+        },
+        { kind: "text", ...nested, nested: "IdentifierName", label: "Identifier name" },
+        {
+          kind: "text",
+          ...nested,
+          nested: "IdentifierValue",
+          label: "Identifier value (or JSONPath)",
+        },
+        {
+          kind: "names",
+          key: "ProfileResponseData",
+          label: "Response fields (stored under $.Customer)",
+          names: PROFILE_OBJECT_FIELDS,
+          patterns: PROFILE_OBJECT_FIELD_PATTERNS,
+          patternHint:
+            "AssetAttributes.<name>, OrderAttributes.<name>, CaseAttributes.<name> or ObjectAttributes.<name>",
+        },
       ];
     }
     case ActionType.CreateCustomerProfile:

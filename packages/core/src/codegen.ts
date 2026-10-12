@@ -100,6 +100,7 @@ import {
   EndFlowModuleExecution,
   GenericBlock,
   GetCustomerProfile,
+  GetCustomerProfileObject,
   GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
@@ -2505,6 +2506,61 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           onError: errors[0]!.NextAction,
           onMultipleFound: errors[1]!.NextAction,
           onNoneFound: errors[2]!.NextAction,
+        }),
+      ),
+    };
+  },
+  // The profile and object type, then UseLatest "true" or the identifier
+  // pair; the catch-all and NoneFoundError in that order.
+  [ActionType.GetCustomerProfileObject]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== NONE_FOUND_ERROR
+    ) {
+      return undefined;
+    }
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData;
+    if (!isStringMap(request) || !isStringList(p.ProfileResponseData)) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["profileId", request.ProfileId ?? ""],
+      ["objectType", request.ObjectType ?? ""],
+    ];
+    const config: Record<string, unknown> = {
+      id: a.Identifier,
+      profileId: request.ProfileId,
+      objectType: request.ObjectType,
+      response: p.ProfileResponseData,
+    };
+    if (request.UseLatest === "true") {
+      entries.push(["latest", true]);
+      config.latest = true;
+    } else {
+      const identifier = { name: request.IdentifierName, value: request.IdentifierValue };
+      entries.push(["identifier", toV(identifier)]);
+      config.identifier = identifier;
+    }
+    if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onNoneFound", errors[1]!.NextAction],
+    );
+    return {
+      cls: "GetCustomerProfileObject",
+      entries,
+      block: new GetCustomerProfileObject(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onNoneFound: errors[1]!.NextAction,
         }),
       ),
     };

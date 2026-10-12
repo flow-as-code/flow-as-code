@@ -1,0 +1,62 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "latest-order",
+      "messageIncludes": "GetCustomerProfileObject does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "customer-profile-check",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "latest-order",
+      "Actions": [
+        {
+          "Identifier": "latest-order",
+          "Type": "GetCustomerProfileObject",
+          "Parameters": {
+            "ProfileRequestData": {
+              "ProfileId": "$.Customer.ProfileId",
+              "ObjectType": "Order",
+              "UseLatest": "true"
+            },
+            "ProfileResponseData": [
+              "OrderStatus"
+            ]
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoneFoundError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "latest-order": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

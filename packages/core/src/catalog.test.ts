@@ -38,6 +38,8 @@ import {
   OPTIONAL_CATCH_ALL,
   PROFILE_FIELD_PATTERNS,
   PROFILE_FIELDS,
+  PROFILE_OBJECT_FIELD_PATTERNS,
+  PROFILE_OBJECT_FIELDS,
   PROFILE_SEARCH_CRITERIA_MAX,
   PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
@@ -610,6 +612,11 @@ describe("the Customer Profiles names", () => {
     ["UpdateCustomerProfile", "ProfileRequestData", PROFILE],
     ["UpdateCustomerProfile", "ProfileResponseData", PROFILE],
     ["GetCustomerProfile", "ProfileResponseData", PROFILE],
+    [
+      "GetCustomerProfileObject",
+      "ProfileResponseData",
+      { keys: [...PROFILE_OBJECT_FIELDS], keyPatterns: [...PROFILE_OBJECT_FIELD_PATTERNS] },
+    ],
   ])("agree for %s.%s", (type, key, expected) => {
     expect(named(type, key)).toEqual(expected);
   });
@@ -728,6 +735,11 @@ describe("the action catalog", () => {
       "NoneFoundError",
     ]);
     expect(requiredErrors("GetCustomerProfile")).toEqual(["NoMatchingError"]);
+    expect(builderErrors("GetCustomerProfileObject")).toEqual([
+      "NoMatchingError",
+      "NoneFoundError",
+    ]);
+    expect(requiredErrors("GetCustomerProfileObject")).toEqual(["NoMatchingError"]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);
     // The page lists none; the service refuses the block without it.
@@ -1288,7 +1300,30 @@ describe("requiredErrorsOf", () => {
   });
 });
 
-describe("GetCustomerProfile's request constraint", () => {
+describe("the Customer Profiles lookups' request constraints", () => {
+  it("hold GetCustomerProfileObject to UseLatest or the identifier pair", () => {
+    const entry = actionCatalog.actions.GetCustomerProfileObject as unknown as {
+      parameters: { key: string; constraints?: CatalogConstraint[] }[];
+    };
+    const constraints = entry.parameters.find((p) => p.key === "ProfileRequestData")!.constraints!;
+    expect(constraints).toEqual([
+      { rule: "exactlyOne", groups: [["UseLatest"], ["IdentifierName", "IdentifierValue"]] },
+    ]);
+    const base = { ProfileId: "p", ObjectType: "Order" };
+    expect(constraintViolations(constraints, { ...base, UseLatest: "true" })).toEqual([]);
+    expect(
+      constraintViolations(constraints, {
+        ...base,
+        IdentifierName: "_orderId",
+        IdentifierValue: "o",
+      }),
+    ).toEqual([]);
+    expect(constraintViolations(constraints, base)).toHaveLength(1);
+    expect(
+      constraintViolations(constraints, { ...base, UseLatest: "true", IdentifierName: "_orderId" }),
+    ).toHaveLength(1);
+  });
+
   it("is the group alternative the page states, read by constraintViolations", () => {
     const entry = actionCatalog.actions.GetCustomerProfile as unknown as {
       parameters: { key: string; constraints?: CatalogConstraint[] }[];

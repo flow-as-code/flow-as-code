@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "customer-profiles",
-  "description": "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, and a custom attribute and an email address updated.",
+  "description": "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, and the latest order and an asset by its identifier read.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -141,10 +141,70 @@
           ]
         },
         "Transitions": {
+          "NextAction": "latest-order",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "latest-order",
+        "Type": "GetCustomerProfileObject",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ObjectType": "Order",
+            "ProfileId": "$.Customer.ProfileId",
+            "UseLatest": "true"
+          },
+          "ProfileResponseData": [
+            "OrderStatus",
+            "OrderTotalPrice",
+            "OrderAttributes.giftWrap"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "asset-by-id",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "asset-by-id"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "asset-by-id",
+        "Type": "GetCustomerProfileObject",
+        "Parameters": {
+          "ProfileRequestData": {
+            "IdentifierName": "_assetId",
+            "IdentifierValue": "$.Attributes.assetId",
+            "ObjectType": "Asset",
+            "ProfileId": "$.Customer.ProfileId"
+          },
+          "ProfileResponseData": [
+            "AssetPrice",
+            "AssetPurchaseDate"
+          ]
+        },
+        "Transitions": {
           "NextAction": "bye",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoneFoundError",
               "NextAction": "bye"
             }
           ],
@@ -160,8 +220,12 @@
     ]
   },
   "layout": {
+    "asset-by-id": {
+      "x": 1580,
+      "y": 20
+    },
     "bye": {
-      "x": 1320,
+      "x": 1840,
       "y": 20
     },
     "create-profile": {
@@ -174,6 +238,10 @@
     },
     "find-caller": {
       "x": 20,
+      "y": 20
+    },
+    "latest-order": {
+      "x": 1320,
       "y": 20
     },
     "link-contact": {

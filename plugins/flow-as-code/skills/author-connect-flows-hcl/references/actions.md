@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-45 modeled types follow. Any other type (16: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+46 modeled types follow. Any other type (15: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `GetCalculatedAttributesForCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -752,6 +752,28 @@ Block `get_customer_profile`. [Action page](https://docs.aws.amazon.com/connect/
 | `profile_response_data` | `ProfileResponseData` | list               | no       |
 
 - `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+
+## GetCustomerProfileObject
+
+Block `get_customer_profile_object`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `NoMatchingError` (required); `NoneFoundError`.
+- Conditions: none.
+- Fields of `profile_request_data`: exactly one of `UseLatest`, (`IdentifierName` and `IdentifierValue`).
+
+| HCL attribute           | Flow language key     | Value               | Required |
+| ----------------------- | --------------------- | ------------------- | -------- |
+| `profile_request_data`  | `ProfileRequestData`  | object              | yes      |
+| .`profile_id`           | `ProfileId`           | string or JSONPath  | yes      |
+| .`object_type`          | `ObjectType`          | string              | yes      |
+| .`identifier_name`      | `IdentifierName`      | string              | no       |
+| .`identifier_value`     | `IdentifierValue`     | string or JSONPath  | no       |
+| .`use_latest`           | `UseLatest`           | `"true"`, `"false"` | no       |
+| `profile_response_data` | `ProfileResponseData` | list                | no       |
+
+- `profile_response_data` values: `AssetAssetId`, `AssetProfileId`, `AssetAssetName`, `AssetSerialNumber`, `AssetModelNumber`, `AssetModelName`, `AssetProductSKU`, `AssetPurchaseDate`, `AssetUsageEndDate`, `AssetStatus`, `AssetPrice`, `AssetQuantity`, `AssetDescription`, `AssetAdditionalInformation`, `AssetDataSource`, `OrderOrderId`, `OrderProfileId`, `OrderCustomerEmail`, `OrderCustomerPhone`, `OrderCreatedDate`, `OrderUpdatedDate`, `OrderProcessedDate`, `OrderClosedDate`, `OrderCancelledDate`, `OrderCancelReason`, `OrderName`, `OrderAdditionalInformation`, `OrderGateway`, `OrderStatus`, `OrderStatusCode`, `OrderStatusUrl`, `OrderCreditCardNumber`, `OrderCreditCardCompany`, `OrderFulfillmentStatus`, `OrderTotalPrice`, `OrderTotalTax`, `OrderTotalDiscounts`, `OrderTotalItemsPrice`, `OrderTotalShippingPrice`, `OrderTotalTipReceived`, `OrderCurrency`, `OrderTotalWeight`, `OrderBillingName`, `OrderBillingAddress1`, `OrderBillingAddress2`, `OrderBillingAddress3`, `OrderBillingAddress4`, `OrderBillingCity`, `OrderBillingCounty`, `OrderBillingCountry`, `OrderBillingPostalCode`, `OrderBillingProvince`, `OrderBillingState`, `OrderShippingName`, `OrderShippingAddress1`, `OrderShippingAddress2`, `OrderShippingAddress3`, `OrderShippingAddress4`, `OrderShippingCity`, `OrderShippingCounty`, `OrderShippingCountry`, `OrderShippingPostalCode`, `OrderShippingProvince`, `OrderShippingState`, `CaseCaseId`, `CaseProfileId`, `CaseTitle`, `CaseSummary`, `CaseStatus`, `CaseReason`, `CaseCreatedBy`, `CaseCreatedDate`, `CaseUpdatedDate`, `CaseClosedDate`, `CaseAdditionalInformation`, `CaseDataSource`, or a name matching `^AssetAttributes\.[^.]+$` or `^OrderAttributes\.[^.]+$` or `^CaseAttributes\.[^.]+$` or `^ObjectAttributes\.[^.]+$`.
 
 ## UpdateCustomerProfile
 

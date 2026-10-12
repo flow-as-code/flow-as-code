@@ -18,6 +18,7 @@ are checked against the instance:
 | ----------------------- | -------------------------------------------------------------------------------------------- |
 | Profiles domain name    | the Customer Profiles domain, encrypted with a KMS key                                        |
 | Profiles domain ARN     | the `Uri` of the instance's integration association, which links the domain to the instance |
+| Object type             | an object type in the domain (`CTR` in the sandbox root) holding one profile object           |
 
 `ListIntegrationAssociations` on the instance, filtered to
 `CUSTOMER_PROFILES`, returns the domain ARN above when the link exists.
@@ -27,9 +28,11 @@ are checked against the instance:
 The run fills `{{ACCOUNT}}`, `{{REGION}}` and `{{INSTANCE}}` as the README
 says, and these names from the environment:
 
-| Placeholder      | Filled from        | What it names                                       |
-| ---------------- | ------------------ | --------------------------------------------------- |
-| `{{PROFILE_ID}}` | `PROBE_PROFILE_ID` | a profile in the domain (a 32-character profile id) |
+| Placeholder             | Filled from               | What it names                                                    |
+| ----------------------- | ------------------------- | ---------------------------------------------------------------- |
+| `{{PROFILE_ID}}`        | `PROBE_PROFILE_ID`        | a profile in the domain (a 32-character profile id)              |
+| `{{OBJECT_TYPE}}`       | `PROBE_OBJECT_TYPE`       | the object type above, by name                                   |
+| `{{OBJECT_IDENTIFIER}}` | `PROBE_OBJECT_IDENTIFIER` | a search key of that object type (its `ObjectTypeKeys` name)     |
 
 ## Order
 

@@ -102,6 +102,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Customer profiles (Create profile) | `CreateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html) |
 | Customer profiles (Update profile) | `UpdateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html) |
 | Customer profiles (Get profile) | `GetCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html) |
+| Customer profiles (Get profile object) | `GetCustomerProfileObject` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html) |
 
 ## Reference-bearing parameters
 
@@ -1624,6 +1625,42 @@ is read rather than when the type is modeled.
       guide's reading of a single criterion), `get-operator-lowercase`,
       `get-six-criteria`, and `get-module` and `get-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+    - `GetCustomerProfileObject` "Retrieve a customer profile object of the
+      desired type, based on recency or any search identifier." "A
+      ProfileId and ObjectType must be present. Either UseLatest, or
+      IdentifierName and IdentifierValue must be present."; `UseLatest`
+      "true / false"; `ProfileResponseData` lists 76 Asset, Order and Case
+      fields and `"AssetAttributes.x"`, `"OrderAttributes.x"`,
+      `"CaseAttributes.x"` and `"ObjectAttributes.x"`, and the asset, order
+      and case ids "always persisted" under `$.Customer.Asset.AssetId` and
+      its kin; errors "NoneFoundError - if no profiles were found for the
+      associated profile search key." and the catch-all. The admin guide's
+      block takes the profile id manually or from an attribute, asks for
+      the object type, and offers "Use latest profile object" or "Use
+      search identifier", with Success and Error branches. No published
+      flow carries the type. The catalog records `ProfileRequestData` as a
+      required object of `ProfileId` (a `stringOrJsonPath`) and
+      `ObjectType` (a `string`), both required, `IdentifierName`,
+      `IdentifierValue` and `UseLatest` (an `enum` of `"true"` and
+      `"false"`, the page's words as the strings Connect's flags are
+      written in the published flows, `LinkContactToCase` among them), with
+      `exactlyOne` over the groups `[UseLatest]` and the pair; and
+      `ProfileResponseData` as a list of strings whose `keys` are the 76
+      fields and whose `keyPatterns` are the four `*Attributes` forms. The
+      class writes `UseLatest` as `"true"` only; a block with `"false"`, the
+      JSON boolean or another spelling stays generic until
+      `object-latest-boolean`, `object-latest-capitalized` and
+      `object-latest-false` are put to the service. The schema clause holds
+      the containers only. The two errors are wired by the builder,
+      catch-all first as `GetCustomerProfile`'s are written; only the
+      catch-all is required. Planned probes: `object-latest` (expected
+      accepted), `object-no-catch-all`, `object-no-none-found` and
+      `object-no-next` (each a removal alone), `object-identifier`,
+      `object-both-forms` and `object-neither-form` (the group alternative
+      given both and neither), `object-no-object-type` and
+      `object-no-profile-id`, `object-unknown-type` (a type the domain does
+      not have), `object-response-names`, and `object-module`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
 
 ## Per-action parameter shapes
 
@@ -1715,6 +1752,9 @@ GetCustomerProfile       { ProfileRequestData: { IdentifierName, IdentifierValue
                                              | { SearchCriteria: { IdentifierName, IdentifierValue }[],   // 1 to 5
                                                  LogicalOperator: "AND" | "OR" },
                            ProfileResponseData: (field | Attributes.<name>)[] }
+GetCustomerProfileObject { ProfileRequestData: { ProfileId, ObjectType,   // each static; ProfileId may be a JSONPath
+                                                 UseLatest: "true" | IdentifierName, IdentifierValue },
+                           ProfileResponseData: (Asset*, Order*, Case* field | *Attributes.<name>)[] }   // 76 names, 4 patterns
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1875,7 +1915,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-45 of the 61. Everything not in the modeled set above parses to a
+46 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1905,10 +1945,10 @@ type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 45      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 46      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 45      |                                                             |
+| Denominator             | 61    | 46      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

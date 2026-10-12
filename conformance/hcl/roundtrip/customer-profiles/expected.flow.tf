@@ -5,7 +5,7 @@ resource "flowascode_contact_flow" "customer_profiles" {
   instance_id = var.connect_instance_id
   name        = "customer-profiles"
   type        = "CONTACT_FLOW"
-  description = "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, and a custom attribute and an email address updated."
+  description = "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, and the latest order and an asset by its identifier read."
 
   action {
     id   = "find-caller"
@@ -99,7 +99,7 @@ resource "flowascode_contact_flow" "customer_profiles" {
 
   action {
     id   = "update-profile"
-    next = "bye"
+    next = "latest-order"
     update_customer_profile {
       profile_request_data = {
         "Attributes.preferredLanguage" = "$.Attributes.language"
@@ -109,6 +109,49 @@ resource "flowascode_contact_flow" "customer_profiles" {
     }
     error {
       type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "latest-order"
+    next = "asset-by-id"
+    get_customer_profile_object {
+      profile_request_data = {
+        object_type = "Order"
+        profile_id  = "$.Customer.ProfileId"
+        use_latest  = "true"
+      }
+      profile_response_data = ["OrderStatus", "OrderTotalPrice", "OrderAttributes.giftWrap"]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "NoneFoundError"
+      next = "asset-by-id"
+    }
+  }
+
+  action {
+    id   = "asset-by-id"
+    next = "bye"
+    get_customer_profile_object {
+      profile_request_data = {
+        identifier_name  = "_assetId"
+        identifier_value = "$.Attributes.assetId"
+        object_type      = "Asset"
+        profile_id       = "$.Customer.ProfileId"
+      }
+      profile_response_data = ["AssetPrice", "AssetPurchaseDate"]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "NoneFoundError"
       next = "bye"
     }
   }

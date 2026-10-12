@@ -55,6 +55,8 @@ import {
   PROFILE_FIELD_PATTERNS,
   PROFILE_FIELDS,
   PROFILE_LOGICAL_OPERATORS,
+  PROFILE_OBJECT_FIELD_PATTERNS,
+  PROFILE_OBJECT_FIELDS,
   PROFILE_SEARCH_CRITERIA_MAX,
   PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
@@ -2478,6 +2480,75 @@ export class GetCustomerProfile extends Block {
 }
 
 /**
+ * "Retrieve a customer profile object of the desired type, based on recency
+ * or any search identifier." "A ProfileId and ObjectType must be present.
+ * Either UseLatest, or IdentifierName and IdentifierValue must be present."
+ * `profileId` is static or a JSONPath (the admin guide's block reads it from
+ * a preceding Get profile); `objectType` names one of the domain's object
+ * types (`Asset`, `Order`, `Case` or the domain's own). The two retrievals
+ * are D01's group alternatives: `latest: true` writes `UseLatest` as the
+ * string "true" (the page's "true / false", unquoted; rule 43 probes the
+ * other spellings), and `identifier` writes the pair. `response` names the
+ * page's Asset, Order and Case fields or `AssetAttributes.<name>`,
+ * `OrderAttributes.<name>`, `CaseAttributes.<name>` and
+ * `ObjectAttributes.<name>`, stored under `$.Customer`. Two errors, the
+ * catch-all and NoneFoundError, catch-all first as GetCustomerProfile's are
+ * written; only the catch-all is required until the sweep.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export type GetCustomerProfileObjectConfig = Wired &
+  ({ latest: true; identifier?: never } | { identifier: ProfileIdentifier; latest?: never }) & {
+    profileId: string;
+    objectType: string;
+    response?: string[];
+    onNoneFound: Target;
+  };
+
+export class GetCustomerProfileObject extends Block {
+  readonly type = ActionType.GetCustomerProfileObject;
+
+  constructor(private readonly config: GetCustomerProfileObjectConfig) {
+    super(config.id);
+    const where = `GetCustomerProfileObject "${config.id}"`;
+    requireText(where, "profileId", config.profileId);
+    requireText(where, "objectType", config.objectType);
+    const latest = config.latest !== undefined;
+    if (latest === (config.identifier !== undefined)) {
+      throw new Error(`${where} takes latest or an identifier, exactly one.`);
+    }
+    if (latest && config.latest !== true) throw new Error(`${where} latest must be true.`);
+    if (config.identifier !== undefined) requireIdentifier(where, "identifier", config.identifier);
+    requireNames(
+      where,
+      "response",
+      config.response ?? [],
+      PROFILE_OBJECT_FIELDS,
+      PROFILE_OBJECT_FIELD_PATTERNS,
+    );
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const request: Record<string, string> = { ProfileId: c.profileId, ObjectType: c.objectType };
+    if (c.identifier !== undefined) {
+      request.IdentifierName = c.identifier.name;
+      request.IdentifierValue = c.identifier.value;
+    } else {
+      request.UseLatest = "true";
+    }
+    return { ProfileRequestData: request, ProfileResponseData: [...(c.response ?? [])] };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [NONE_FOUND_ERROR, this.config.onNoneFound],
+    ]);
+  }
+}
+
+/**
  * "Associate a contact to a customer profile." `ProfileRequestData` holds
  * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
  * each static or a JSONPath (the admin guide's block reads both from
@@ -2712,7 +2783,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 45.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 46.
  */
 export interface GenericBlockConfig {
   id: string;
