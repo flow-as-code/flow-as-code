@@ -1820,8 +1820,12 @@ is read rather than when the type is modeled.
       `create-missing-template` (whether the create validates either id),
       `create-template-arn` and `create-field-arn` (an ARN in place of the
       id), `create-template-jsonpath`, `create-no-template`,
-      `create-no-link-flag`, `create-link-boolean`, and `create-module` and
-      `create-customer-hold` (all flow types).
+      `create-no-link-flag` (the required `LinkContactToCase` removed
+      alone), `create-link-boolean`, `create-read-only-field` (system fields
+      the admin guide says Connect fills, `case_id` and `created_datetime`,
+      set by the flow: the catalog lists every system id as a key and
+      refuses none), and `create-module` and `create-customer-hold` (all
+      flow types).
       https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
     - `GetCase` "Searches all existing cases with the provided customer ID.
       Add request fields to filter by case fields. Specify the case fields
@@ -1873,7 +1877,11 @@ is read rather than when the type is modeled.
       `get-no-multiple-found`, `get-no-none-found` and `get-no-next` (each a
       removal alone), `get-response-fields`, `get-eleven-response-fields`
       and `get-missing-response-field`, `get-customer-id` (the page's
-      parameter, which no flow writes), `get-no-last-updated-flag`, `get-contact-to-link`, `get-error-suffix`
+      parameter, which no flow writes), `get-no-link-flag` and
+      `get-no-last-updated-flag` (each required enum removed alone),
+      `get-repeated-response-field` (the class refuses a repeat, which no
+      page states), `get-reference-id-field` (the system field the admin
+      guide lists as "coming later in 2026"), `get-contact-to-link`, `get-error-suffix`
       (the Customer Profiles spellings), and `get-module` and
       `get-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
@@ -1903,7 +1911,8 @@ is read rather than when the type is modeled.
       `update-linking` (expected accepted),
       `update-linking-no-contact-not-linked` and
       `update-not-linking-contact-not-linked`, `update-no-catch-all` and
-      `update-no-next` (each a removal alone), `update-no-case-id`,
+      `update-no-next` (each a removal alone), `update-no-link-flag` and
+      `update-no-case-id` (each required key removed alone),
       `update-domain-fields` and `update-missing-field`,
       `update-contact-to-link`, and `update-module` and
       `update-customer-hold`.

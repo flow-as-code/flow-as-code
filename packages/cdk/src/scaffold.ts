@@ -70,7 +70,7 @@ const RETURNS: Record<string, string> = {
   queue: "ARN of the queue, e.g. queue.attrQueueArn",
   view: "ARN of the view, with the version the token pins when it pins one",
   tasktemplate: "ARN of the task template, e.g. template.attrArn",
-  casetemplate: "id or ARN of the Cases template, e.g. template.attrTemplateId",
+  casetemplate: "id of the Cases template, e.g. template.attrTemplateId",
   casefield: "id of the Cases field, e.g. field.attrFieldId",
   assistant: "ARN of the Amazon Q in Connect assistant, e.g. assistant.attrAssistantArn",
   phonenumber: "ARN of the claimed phone number, e.g. number.attrPhoneNumberArn",

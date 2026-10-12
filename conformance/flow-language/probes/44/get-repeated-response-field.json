@@ -1,0 +1,49 @@
+{
+  "description": "Rule 44: GetCase storing the same response field twice: the class refuses a repeat, which no page states.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "GetLastUpdatedCase": "true",
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN"
+          },
+          "CaseResponseFields": [
+            "status",
+            "status"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "MultipleFound",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFound",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

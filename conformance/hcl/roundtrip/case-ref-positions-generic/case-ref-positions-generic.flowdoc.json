@@ -1,0 +1,117 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "case-ref-positions-generic",
+  "description": "Literal Cases keys and items that read as reference keys, which the HCL writer writes generic.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "open-case",
+    "Actions": [
+      {
+        "Identifier": "open-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "queue:front-desk": "x",
+            "summary": "$.Attributes.summary"
+          },
+          "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "find-case",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "find-case",
+        "Type": "GetCase",
+        "Parameters": {
+          "CaseResponseFields": [
+            "case_id",
+            "casetemplate:billing-dispute"
+          ],
+          "GetLastUpdatedCase": "true",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "update-case",
+          "Errors": [
+            {
+              "ErrorType": "MultipleFound",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoneFound",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "update-case",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "casefield:priority": "high"
+          },
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 800,
+      "y": 20
+    },
+    "find-case": {
+      "x": 280,
+      "y": 20
+    },
+    "open-case": {
+      "x": 20,
+      "y": 20
+    },
+    "update-case": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:casetemplate:billing-dispute}",
+      "type": "casetemplate",
+      "name": "billing-dispute"
+    }
+  ]
+}

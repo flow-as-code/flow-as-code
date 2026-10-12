@@ -1,5 +1,5 @@
 {
-  "description": "Rule 44: GetCase not linking, searching by customer_id, with a NextAction and the catch-all alone: the required set; expected accepted.",
+  "description": "Rule 44: GetCase not linking, its required set plus a customer_id search (an optional CaseRequestFields), with a NextAction and the catch-all; expected accepted. get-required-set-alone is the required set alone.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",

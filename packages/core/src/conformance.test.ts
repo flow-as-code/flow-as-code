@@ -512,7 +512,8 @@ describe("FlowDoc schema rejections: customer profiles", () => {
 // tasks/D06. Each clause holds what docs/adr/0008 states: a string that
 // opens a token in CaseTemplateId is a whole casetemplate token, and one in
 // a CaseRequestFields key a whole casefield token. A literal template or
-// field id, which the service accepts and every published flow writes,
+// field id, which every published flow writes and the service is expected
+// to accept (rule 44, probe pending),
 // still validates (owner decision 3); codegen leaves it generic. The enums,
 // the link's branch and the system field list stay in the catalog and the
 // builder until rule 44's probes (pending) show the service refusing them.
@@ -534,6 +535,18 @@ describe("FlowDoc schema rejections: cases", () => {
       "a template token of another type",
       mutate("open-case", (a) => {
         a.Parameters.CaseTemplateId = "${cdref:tasktemplate:follow-up}";
+      }),
+    ],
+    [
+      "a template id that is not a string",
+      mutate("open-case", (a) => {
+        a.Parameters.CaseTemplateId = 42;
+      }),
+    ],
+    [
+      "a response field that is not a string",
+      mutate("find-case", (a) => {
+        a.Parameters.CaseResponseFields = [1];
       }),
     ],
     [

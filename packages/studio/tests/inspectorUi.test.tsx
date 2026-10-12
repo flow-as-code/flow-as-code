@@ -11,6 +11,7 @@
 
 import type { FlowDoc } from "@flow-as-code/core";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import casesFixture from "../../../conformance/roundtrip/cases/doc.flowdoc.json";
 import profilesFixture from "../../../conformance/roundtrip/customer-profiles/doc.flowdoc.json";
 import { App } from "../src/App.js";
 import { ErrorBoundary } from "../src/components/ErrorBoundary.js";
@@ -511,5 +512,51 @@ describe("Cases link and field picker (tasks/D06)", () => {
     expect(testId<HTMLTextAreaElement>("names-CaseResponseFields-other").value).toBe(
       "${cdref:casefield:priority}",
     );
+  });
+});
+
+// The wired cases fixture, so every Cases block is typed and the guard
+// refuses any edit that would leave one generic; the saved document is what
+// the assertions read (the pattern of the profile form tests above).
+describe("the Cases link wires ContactNotLinked in the saved document (tasks/D06)", () => {
+  const open = async () => {
+    const store = new MemoryStore("opened", [structuredClone(casesFixture) as unknown as FlowDoc]);
+    vi.useFakeTimers();
+    await render(<App store={store} />);
+    await settleLint();
+    return store;
+  };
+  const saved = async (store: MemoryStore, id: string) => {
+    await settleLint();
+    expect(button("save-button").disabled).toBe(false);
+    await click(button("save-button"));
+    const { doc } = await store.read("cases");
+    return doc.content.Actions.find((a) => a.Identifier === id)!;
+  };
+
+  it("adds the branch first when linking is switched on, and removes it when off", async () => {
+    const store = await open();
+    await click(present('[data-testid="node-log-case"]'));
+    expect(testId<HTMLSelectElement>("caselink-LinkContactToCase").value).toBe("none");
+
+    await selectOption(testId<HTMLSelectElement>("caselink-LinkContactToCase"), "Related");
+    expect(query('[data-testid="mutation-notice"]')?.textContent ?? "").not.toContain(
+      "generic block",
+    );
+    const linked = await saved(store, "log-case");
+    expect(linked.Parameters.LinkContactToCase).toBe("true");
+    expect(linked.Parameters.ContactToLink).toBe("Related");
+    expect(linked.Transitions.Errors).toEqual([
+      { ErrorType: "ContactNotLinked", NextAction: "bye" },
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ]);
+
+    await selectOption(testId<HTMLSelectElement>("caselink-LinkContactToCase"), "none");
+    const unlinked = await saved(store, "log-case");
+    expect(unlinked.Parameters.LinkContactToCase).toBe("false");
+    expect(unlinked.Parameters.ContactToLink).toBeUndefined();
+    expect(unlinked.Transitions.Errors).toEqual([
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ]);
   });
 });

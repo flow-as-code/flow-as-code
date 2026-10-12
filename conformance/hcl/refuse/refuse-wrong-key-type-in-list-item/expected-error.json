@@ -1,0 +1,4 @@
+{
+  "code": "REF_KEY_MALFORMED",
+  "path": "action[find-case].get_case.case_response_fields[1]"
+}

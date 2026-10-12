@@ -247,18 +247,60 @@ Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
 and the Cases domain, its template and its two fields are created by a
 sandbox root that had not been applied (owner actions under "Sandbox
 prerequisites and cost"). No AWS call was made and no result is recorded.
-The inputs are kept in `conformance/flow-language/probes/44/` (52 probes:
-20 for `CreateCase`, 19 for `GetCase`, 13 for `UpdateCase`) with
+The inputs are kept in `conformance/flow-language/probes/44/` (57 probes:
+21 for `CreateCase`, 22 for `GetCase`, 14 for `UpdateCase`) with
 `PENDING.md`, which names the sandbox root's outputs to check and the seven
 placeholders the run fills (the domain id, the template id, the text and
 single-select field ids and an option value, and a missing field and
-template id). Each type has a probe of its required set alone. Each
+template id). Each type has a probe of its required set alone, and one
+removing each required key alone, `LinkContactToCase` included
+(`*-no-link-flag`). Each
 evidence item above has its probes: `ContactNotLinked` removed with
 linking `"true"` (`*-linking-no-contact-not-linked`) and wired with
 `"false"` (`*-not-linking-contact-not-linked`), `create-missing-field` and
 `create-missing-template`, and `create-required` run before the domain is
 associated. When the sweep runs, the catalog, `actions.ts`, the schema
 clauses and the fixtures change only where a result says so.
+
+### Decisions the review asked to state
+
+The review of #50 confirmed eight findings, repaired in
+`fix(core): apply the review of #50`. It also raised four points it judged
+not to be defects; each is a decision, recorded here:
+
+- `reference_id` is in `CASE_SYSTEM_FIELDS` although the admin guide's
+  table marks it "coming later in 2026". The list is an allowlist of ids
+  that stay literal, so leaving it out would make export and the builder
+  treat a documented system field as a domain field. `get-reference-id-field`
+  puts it to the service.
+- System fields Connect fills (`case_id`, `created_by`, `created_datetime`,
+  the `last_*` fields, `reference_number`) are allowed as `CaseRequestFields`
+  keys. The catalog's `keys` say which ids stay literal, not which are
+  writable, and no page or probe shows a create refusing one (owner
+  decision 3); setting one may take the Error branch at run time.
+  `create-read-only-field` puts two to the service.
+- `materializeWithMap` rebuilds a map with `Object.fromEntries`, so a
+  `casefield` token bound to the same id as another key in the same map
+  collapses into one key. Neither emitter can produce that: `emit --target
+tf` binds each token to a unique sentinel, and the CDK binder returns a
+  distinct value per reference. Only a hand-written resource map binding a
+  field to a system id the map also writes literally, or two references to
+  one field, reaches it, which is the author writing one field twice. It is
+  left as is; a materialize refusal of a collapsing key is a change to D01's
+  rule, not this task's.
+- `GetCase` refuses a repeated response field, with no page saying so.
+  The refusal is the class's alone: the catalog, the schema and lint accept
+  a repeat, and codegen leaves such a block generic, with nothing dropped,
+  as D03's profile names do. `get-repeated-response-field` puts it to the
+  service.
+
+The studio's link select adds `ContactNotLinked` aimed where the catch-all
+goes. On a block with no catch-all yet (one just added from the palette)
+there is no target, so the select writes the link alone and the block's
+error handle then offers `ContactNotLinked` (`builderErrorsFor`), as it
+offers any branch the class wires. A UI test on the wired group fixture
+saves the document and reads the branch appearing first when linking is
+switched on and gone when it is switched off.
 
 ### Not done here
 
@@ -267,7 +309,6 @@ clauses and the fixtures change only where a result says so.
   no console was reachable. Until then `ContactToLink`'s `"Related"`, the
   Get case id form's key and `CustomerId`'s use rest on the pages alone.
 - The sweep, above, and the live Cases listings D01 left pending.
-- The review round tasks/README.md asks of each group.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists, including the reference key rule in its reader and
   serializer and `requiredWhenValue` in `builderErrorsFor`'s port if it has

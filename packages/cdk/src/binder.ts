@@ -85,10 +85,10 @@ export interface TokenBinder {
    */
   tasktemplate?(name: string): string;
   /**
-   * The Cases template (FlowDoc 0.3) for `CreateCase.CaseTemplateId`, a
-   * per-domain id or its ARN, as the action accepts it; aws-cdk-lib's
-   * `CfnTemplate` in `aws-connectcases` has `attrTemplateArn` and
-   * `attrTemplateId`.
+   * The Cases template id (FlowDoc 0.3) for `CreateCase.CaseTemplateId`:
+   * the template's id, not its ARN, as every published flow holds it
+   * (conformance/flow-language/actions.md, rule 44); aws-cdk-lib's
+   * `CfnTemplate` in `aws-connectcases` has `attrTemplateId`.
    * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
    */
   casetemplate?(name: string): string;
@@ -96,8 +96,10 @@ export interface TokenBinder {
    * The Cases field id (FlowDoc 0.3) a `${cdref:casefield:<name>}` stands for
    * as a map key of `CaseRequestFields` or an item of `CaseResponseFields`
    * (docs/adr/0008-case-field-ids.md); aws-cdk-lib's `CfnField` has
-   * `attrFieldId`. Resolution of a key is D06's; a token in a value resolves
-   * through this today.
+   * `attrFieldId`. A token standing as a key resolves through this as a
+   * value does (materialize resolves keys since tasks/D01; the Cases types
+   * that hold them are modeled since tasks/D06). A system field id such as
+   * `summary` is literal in the document and never comes here.
    */
   casefield?(name: string): string;
   /**
