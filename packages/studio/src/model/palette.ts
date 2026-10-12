@@ -42,6 +42,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.CreateTask]: "Integrate",
   [ActionType.CreateWisdomSession]: "Integrate",
   [ActionType.AssociateContactToCustomerProfile]: "Integrate",
+  [ActionType.CreateCustomerProfile]: "Integrate",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -118,6 +119,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.CreateTask]: "create-task",
   [ActionType.CreateWisdomSession]: "connect-assistant",
   [ActionType.AssociateContactToCustomerProfile]: "associate-profile",
+  [ActionType.CreateCustomerProfile]: "create-profile",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -225,6 +227,11 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // assistant; the page allows either form.
       // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
       return { WisdomAssistantArn: "$.Attributes.assistantArn" };
+    case ActionType.CreateCustomerProfile:
+      // "All of these fields are optional."; the console writes both
+      // containers, empty until a field is chosen.
+      // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+      return { ProfileRequestData: {}, ProfileResponseData: [] };
     case ActionType.AssociateContactToCustomerProfile:
       // The admin guide's example: the profile found by a preceding Get
       // profile and the current contact, both read from attributes.

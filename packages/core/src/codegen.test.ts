@@ -2955,6 +2955,44 @@ describe("the Customer Profiles actions invert their request and response data",
     expect(out).not.toContain(`new ${a.Type}(`);
   };
 
+  describe("CreateCustomerProfile", () => {
+    const create = (request: unknown, response: unknown = [], errors?: string[]) =>
+      action(
+        "CreateCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+
+    it("emits listed fields and custom attributes, quoting the dotted key", () => {
+      const out = typed(
+        create({ FirstName: "$.Attributes.firstName", "Attributes.loyaltyTier": "new" }, [
+          "FirstName",
+          "Attributes.loyaltyTier",
+        ]),
+      );
+      expect(out).toContain('"Attributes.loyaltyTier": "new"');
+      expect(out).toContain('FirstName: "$.Attributes.firstName"');
+      expect(out).toContain('response: ["FirstName", "Attributes.loyaltyTier"]');
+    });
+
+    it("leaves an empty request and response out of the config", () => {
+      const out = typed(create({}, []));
+      expect(out).not.toContain("request:");
+      expect(out).not.toContain("response:");
+    });
+
+    it("falls back on a name outside the page's lists, a missing container, the page's braces, or the errors out of shape", () => {
+      generic(create({ Nickname: "Sam" }));
+      generic(create({ "Attributes.a.b": "x" }));
+      generic(create({ FirstName: 1 }));
+      generic(create({}, ["Firstname"]));
+      generic(create({}, { FirstName: "FirstName" }));
+      generic(action("CreateCustomerProfile", { ProfileRequestData: {} }));
+      generic(action("CreateCustomerProfile", { ProfileResponseData: [] }));
+      generic(create({}, [], []));
+    });
+  });
+
   describe("AssociateContactToCustomerProfile", () => {
     const associate = (request: unknown, response: unknown = [], errors?: string[]) =>
       action(

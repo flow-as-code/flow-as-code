@@ -2,12 +2,37 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "customer-profiles",
-  "description": "The Customer Profiles actions: the contact associated with the profile.",
+  "description": "The Customer Profiles actions: a profile created with named and custom attributes, and the contact associated with the profile.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "link-contact",
+    "StartAction": "create-profile",
     "Actions": [
+      {
+        "Identifier": "create-profile",
+        "Type": "CreateCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "Attributes.loyaltyTier": "new",
+            "FirstName": "$.Attributes.firstName",
+            "PhoneNumber": "$.CustomerEndpoint.Address"
+          },
+          "ProfileResponseData": [
+            "FirstName",
+            "Attributes.loyaltyTier"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "link-contact",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
       {
         "Identifier": "link-contact",
         "Type": "AssociateContactToCustomerProfile",
@@ -39,11 +64,15 @@
   },
   "layout": {
     "bye": {
-      "x": 280,
+      "x": 540,
+      "y": 20
+    },
+    "create-profile": {
+      "x": 20,
       "y": 20
     },
     "link-contact": {
-      "x": 20,
+      "x": 280,
       "y": 20
     }
   },

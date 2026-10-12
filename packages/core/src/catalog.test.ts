@@ -36,6 +36,8 @@ import {
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
   OPTIONAL_CATCH_ALL,
+  PROFILE_FIELD_PATTERNS,
+  PROFILE_FIELDS,
   QUEUE_PRIORITY_MIN,
   REQUIRED_EXTRAS,
   TAG_LIMIT,
@@ -242,8 +244,16 @@ function elementProblems(where: string, e: CatalogElement, refTypes: readonly st
   if (e.dynamic === true && !DYNAMIC_KINDS.has(e.kind)) {
     out.push(`${where}: dynamic on a ${e.kind}, which has no JSONPath form`);
   }
+  // `keys` and `keyPatterns` name a map's keys or, since tasks/D03, the
+  // strings a list of strings may hold (a Customer Profiles action's
+  // ProfileResponseData), and nothing else.
+  const named = e.kind === "map" || (e.kind === "list" && e.of?.kind === "string");
+  const shape = e.kind === "list" ? `list of ${e.of?.kind ?? "nothing"}` : e.kind;
+  if (e.keys !== undefined && !named) {
+    out.push(`${where}: keys on a ${shape}, not a map or a list of strings`);
+  }
   if (e.keyPatterns !== undefined) {
-    if (e.kind !== "map") out.push(`${where}: keyPatterns on a ${e.kind}, not a map`);
+    if (!named) out.push(`${where}: keyPatterns on a ${shape}, not a map or a list of strings`);
     for (const pattern of e.keyPatterns) {
       if (!pattern.startsWith("^") || !pattern.endsWith("$")) {
         out.push(`${where}: key pattern ${pattern} is not anchored`);
@@ -570,6 +580,34 @@ describe("the event hook names", () => {
     expect(clause.properties.Parameters.properties.EventHooks.propertyNames.enum).toEqual([
       ...EVENT_HOOKS,
     ]);
+  });
+});
+
+describe("the Customer Profiles names", () => {
+  // The page's field lists, hand-copied once into actions.ts and once into
+  // the catalog's `keys` and `keyPatterns` on each parameter that names them.
+  const named = (type: string, key: string) => {
+    const entry = actionCatalog.actions[type] as unknown as {
+      parameters: { key: string; keys?: string[]; keyPatterns?: string[] }[];
+    };
+    const p = entry.parameters.find((x) => x.key === key)!;
+    return { keys: p.keys, keyPatterns: p.keyPatterns };
+  };
+  const PROFILE = { keys: [...PROFILE_FIELDS], keyPatterns: [...PROFILE_FIELD_PATTERNS] };
+
+  it.each([
+    ["CreateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["CreateCustomerProfile", "ProfileResponseData", PROFILE],
+  ])("agree for %s.%s", (type, key, expected) => {
+    expect(named(type, key)).toEqual(expected);
+  });
+
+  it("are anchored patterns that admit one custom name and refuse a nested one", () => {
+    for (const pattern of PROFILE_FIELD_PATTERNS) {
+      expect(new RegExp(pattern).test("Attributes.loyaltyTier")).toBe(true);
+      expect(new RegExp(pattern).test("Attributes.a.b")).toBe(false);
+      expect(new RegExp(pattern).test("FirstName")).toBe(false);
+    }
   });
 });
 
@@ -1081,6 +1119,39 @@ describe("catalogProblems is proven able to fail", () => {
     expect(
       mutate((c) => {
         (eventHooks(c) as { keyPatterns?: string[] }).keyPatterns = ["^Attributes\\.[^.]+$"];
+      }),
+    ).toEqual([]);
+  });
+  it("on names on a list that does not hold strings, and not on a list of strings (tasks/D03)", () => {
+    const participants = (c: ActionCatalog) =>
+      modeledAt(c, "UpdateContactMediaStreamingBehavior").parameters.find(
+        (p) => p.key === "Participants",
+      )!;
+    const tagKeys = (c: ActionCatalog) =>
+      modeledAt(c, "UntagContact").parameters.find((p) => p.key === "TagKeys")!;
+    expect(
+      mutate((c) => {
+        (participants(c) as { keyPatterns?: string[] }).keyPatterns = ["^x$"];
+      }),
+    ).toContainEqual(
+      expect.stringContaining("keyPatterns on a list of object, not a map or a list of strings"),
+    );
+    expect(
+      mutate((c) => {
+        (participants(c) as { keys?: string[] }).keys = ["Customer"];
+      }),
+    ).toContainEqual(
+      expect.stringContaining("keys on a list of object, not a map or a list of strings"),
+    );
+    expect(
+      mutate((c) => {
+        (modeledAt(c, "MessageParticipant").parameters[0] as { keys?: string[] }).keys = ["x"];
+      }),
+    ).toContainEqual(expect.stringContaining("keys on a ref, not a map or a list of strings"));
+    expect(
+      mutate((c) => {
+        (tagKeys(c) as { keys?: string[] }).keys = ["team"];
+        (tagKeys(c) as { keyPatterns?: string[] }).keyPatterns = ["^team\\.[^.]+$"];
       }),
     ).toEqual([]);
   });

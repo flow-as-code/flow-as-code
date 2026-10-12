@@ -17,6 +17,7 @@ import {
   click,
   installDomStubs,
   present,
+  query,
   render,
   selectOption,
   testId,
@@ -211,5 +212,65 @@ describe("delete block", () => {
 describe("schema helper", () => {
   it("is the same validator the write path uses", () => {
     expect(schemaErrorsFor({ flowdoc: "0.3" }).length).toBeGreaterThan(0);
+  });
+});
+
+describe("Customer Profiles request and response fields (tasks/D03)", () => {
+  const addProfileBlock = async (type: string, id: string) => {
+    await renderApp();
+    await click(present(`button[title="Add ${type}"]`));
+    await click(present(`[data-testid="node-${id}"]`));
+  };
+
+  it("chooses request fields from the page's list and types a custom attribute", async () => {
+    await addProfileBlock("CreateCustomerProfile", "create-profile");
+    const add = testId<HTMLSelectElement>("fieldmap-ProfileRequestData-add");
+    expect([...add.options].map((o) => o.value)).toContain("FirstName");
+    await selectOption(add, "FirstName");
+    const value = testId<HTMLInputElement>("fieldmap-ProfileRequestData-FirstName");
+    await typeAndBlur(value, "$.Attributes.firstName");
+    expect(testId<HTMLInputElement>("fieldmap-ProfileRequestData-FirstName").value).toBe(
+      "$.Attributes.firstName",
+    );
+    // A field already present is not offered again.
+    expect(
+      [...testId<HTMLSelectElement>("fieldmap-ProfileRequestData-add").options].map((o) => o.value),
+    ).not.toContain("FirstName");
+
+    await typeAndBlur(testId<HTMLInputElement>("fieldmap-ProfileRequestData-custom"), "Nickname");
+    expect(testId("inspector").textContent).toContain(
+      '"Nickname" is not spelled Attributes.<name>',
+    );
+    expect(query('[data-testid="fieldmap-ProfileRequestData-Nickname"]')).toBeNull();
+    await typeAndBlur(
+      testId<HTMLInputElement>("fieldmap-ProfileRequestData-custom"),
+      "Attributes.loyaltyTier",
+    );
+    expect(
+      query('[data-testid="fieldmap-ProfileRequestData-Attributes.loyaltyTier"]'),
+    ).not.toBeNull();
+
+    await click(testId("fieldmap-ProfileRequestData-FirstName-remove"));
+    expect(query('[data-testid="fieldmap-ProfileRequestData-FirstName"]')).toBeNull();
+  });
+
+  it("ticks response fields from the page's list and holds typed ones to the pattern", async () => {
+    await addProfileBlock("CreateCustomerProfile", "create-profile");
+    const first = testId<HTMLInputElement>("names-ProfileResponseData-FirstName");
+    expect(first.checked).toBe(false);
+    await click(first);
+    expect(testId<HTMLInputElement>("names-ProfileResponseData-FirstName").checked).toBe(true);
+
+    const other = testId<HTMLTextAreaElement>("names-ProfileResponseData-other");
+    await typeAndBlur(other, "Attributes.loyaltyTier\nfirstname");
+    expect(testId("inspector").textContent).toContain(
+      '"firstname" is not spelled Attributes.<name>',
+    );
+    await typeAndBlur(other, "Attributes.loyaltyTier");
+    expect(testId("inspector").textContent).not.toContain("is not spelled");
+    expect(testId<HTMLTextAreaElement>("names-ProfileResponseData-other").value).toBe(
+      "Attributes.loyaltyTier",
+    );
+    expect(testId<HTMLInputElement>("names-ProfileResponseData-FirstName").checked).toBe(true);
   });
 });

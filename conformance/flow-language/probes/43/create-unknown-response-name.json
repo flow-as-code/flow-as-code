@@ -1,0 +1,38 @@
+{
+  "description": "Rule 43: CreateCustomerProfile with a response name the page does not list (Nickname).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "FirstName": "$.Attributes.firstName"
+          },
+          "ProfileResponseData": [
+            "Nickname"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

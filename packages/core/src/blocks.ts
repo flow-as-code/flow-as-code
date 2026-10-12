@@ -50,6 +50,8 @@ import {
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
   PREVIOUS_PARTICIPANT_STATES,
+  PROFILE_FIELD_PATTERNS,
+  PROFILE_FIELDS,
   QUEUE_PRIORITY_MIN,
   SYSTEM_TAG_PREFIX,
   TASK_DELAY_MAX,
@@ -2237,6 +2239,98 @@ function requireText(where: string, key: string, value: unknown): void {
 }
 
 /**
+ * Whether a name is one the page lists or matches one of its patterns
+ * (`Attributes.x` and its kin). The catalog carries the same lists as
+ * `keys` and `keyPatterns`; a name outside them stays in a GenericBlock,
+ * since rule 43's probe of an unknown key has not run.
+ */
+function isListedName(
+  name: string,
+  names: readonly string[],
+  patterns: readonly string[],
+): boolean {
+  return names.includes(name) || patterns.some((p) => new RegExp(p).test(name));
+}
+
+function requireNames(
+  where: string,
+  what: string,
+  given: readonly string[],
+  names: readonly string[],
+  patterns: readonly string[],
+): void {
+  if (!Array.isArray(given)) throw new Error(`${where} ${what} must be a list of names.`);
+  for (const name of given) {
+    if (typeof name !== "string" || !isListedName(name, names, patterns)) {
+      throw new Error(
+        `${where} ${what} names "${String(name)}", which is neither a field the page lists nor a name matching ${patterns.join(" or ")}.`,
+      );
+    }
+  }
+  if (new Set(given).size !== given.length) throw new Error(`${where} ${what} repeats a name.`);
+}
+
+/** ProfileRequestData of a create or update: listed fields and custom attributes. */
+function requireProfileFields(where: string, request: Record<string, string>): void {
+  if (request === null || typeof request !== "object" || Array.isArray(request)) {
+    throw new Error(`${where} request must be an object of field names to values.`);
+  }
+  requireNames(where, "request", Object.keys(request), PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  for (const [key, value] of Object.entries(request)) {
+    if (typeof value !== "string") {
+      throw new Error(`${where} request field "${key}" must be a string or JSONPath.`);
+    }
+  }
+}
+
+/**
+ * The shape `CreateCustomerProfile` and `UpdateCustomerProfile` share.
+ * `request` is ProfileRequestData: each key a field the page lists
+ * (`FirstName`, `PhoneNumber`, `BillingCity`, ...) or a custom attribute
+ * `Attributes.<name>`, each value static or a JSONPath. `response` is
+ * ProfileResponseData, the names stored under `$.Customer` (`$.Customer.FirstName`,
+ * `$.Customer.Attributes.<name>`), from the same list; the console writes
+ * an empty list when none is chosen, and so does the class.
+ */
+export interface CustomerProfileFieldsConfig extends Wired {
+  request?: Record<string, string>;
+  response?: string[];
+}
+
+/**
+ * "Create a customer profile." Every field of `ProfileRequestData` is
+ * optional ("All of these fields are optional."), and "Newly created
+ * profile ID is persisted under the Customer -> ProfileID attribute +
+ * $.Customer.ProfileId". Results "None. Conditions are not supported."; one
+ * error, the catch-all. The page writes both objects as braces around bare
+ * names, which is not JSON; the class writes the published flows' shape
+ * (actions.md, rule 43): an object of strings and a list of names.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export class CreateCustomerProfile extends Block {
+  readonly type = ActionType.CreateCustomerProfile;
+
+  constructor(private readonly config: CustomerProfileFieldsConfig) {
+    super(config.id);
+    const where = `CreateCustomerProfile "${config.id}"`;
+    requireProfileFields(where, config.request ?? {});
+    requireNames(where, "response", config.response ?? [], PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ...(this.config.request ?? {}) },
+      ProfileResponseData: [...(this.config.response ?? [])],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
  * "Associate a contact to a customer profile." `ProfileRequestData` holds
  * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
  * each static or a JSONPath (the admin guide's block reads both from
@@ -2471,7 +2565,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 42.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 43.
  */
 export interface GenericBlockConfig {
   id: string;

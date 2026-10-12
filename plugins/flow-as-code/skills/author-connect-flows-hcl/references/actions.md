@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-42 modeled types follow. Any other type (19: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+43 modeled types follow. Any other type (18: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -225,6 +225,8 @@ Block `update_contact_event_hooks`. [Action page](https://docs.aws.amazon.com/co
 | HCL attribute | Flow language key | Value          | Required |
 | ------------- | ----------------- | -------------- | -------- |
 | `event_hooks` | `EventHooks`      | map of strings | yes      |
+
+- `event_hooks` keys: `AgentHold`, `AgentWhisper`, `CustomerHold`, `CustomerQueue`, `CustomerRemaining`, `CustomerWhisper`, `DefaultAgentUI`, `DisconnectAgentUI`, `PauseContact`, `ResumeContact`.
 
 ## UpdateContactMediaProcessing
 
@@ -691,6 +693,23 @@ Block `create_callback_contact`. [Action page](https://docs.aws.amazon.com/conne
 | `retry_delay_seconds`         | `RetryDelaySeconds`         | number                         | yes      |
 | `contact_flow_id`             | `ContactFlowId`             | reference key (`flow:<name>`)  | no       |
 | `caller_id`                   | `CallerId`                  | string or JSONPath             | no       |
+
+## CreateCustomerProfile
+
+Block `create_customer_profile`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute           | Flow language key     | Value          | Required |
+| ----------------------- | --------------------- | -------------- | -------- |
+| `profile_request_data`  | `ProfileRequestData`  | map of strings | no       |
+| `profile_response_data` | `ProfileResponseData` | list           | no       |
+
+- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+- `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
 
 ## InvokeLambdaFunction
 

@@ -196,6 +196,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
     expect([...FLOW_TYPE_UNRESTRICTED].sort()).toEqual([
       "AssociateContactToCustomerProfile",
       "Compare",
+      "CreateCustomerProfile",
       "CreateTask",
       "CreateWisdomSession",
       "GetMetricData",

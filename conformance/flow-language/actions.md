@@ -99,6 +99,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Create task | `CreateTask` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createtask.html) |
 | Connect assistant (formerly Amazon Q in Connect) | `CreateWisdomSession` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html) |
 | Customer profiles (Associate contact to profile) | `AssociateContactToCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html) |
+| Customer profiles (Create profile) | `CreateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html) |
 
 ## Reference-bearing parameters
 
@@ -1525,6 +1526,38 @@ is read rather than when the type is modeled.
       braces), and `assoc-module` and `assoc-customer-hold` (all flow
       types).
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
+    - `CreateCustomerProfile` "Create a customer profile."
+      `ProfileRequestData` "All of these fields are optional." and lists 55
+      fields (`FirstName` to `BillingState`) and `"Attributes.x"`;
+      `ProfileResponseData` lists the same and "Newly created profile ID is
+      persisted under the Customer -> ProfileID attribute +
+      $.Customer.ProfileId"; Results "None. Conditions are not supported.
+      If an error does not occur, the response's attributes are available
+      dynamically under the $.Customer path"; errors "NoMatchingError - if
+      no other Error matches." The published flows create profiles with
+      `FirstName`, `LastName`, `PhoneNumber` and `EmailAddress`, static or a
+      JSONPath, and store `[]` or a list of names; the admin guide's example
+      creates one with a phone number and a custom attribute `Language` and
+      stores `Attributes.Language`. The catalog records
+      `ProfileRequestData` as an optional `map` whose `keys` are the 55
+      fields and whose `keyPatterns` is `^Attributes\.[^.]+$` (a custom
+      attribute with no further dot), and `ProfileResponseData` as an
+      optional `list` of strings with the same `keys` and `keyPatterns`
+      (the vocabulary's first use on a list, below). The class writes both
+      containers, empty when nothing is chosen, and refuses a name outside
+      the lists, so codegen leaves such a block generic until
+      `create-unknown-key` shows whether the service enforces the list. The
+      catch-all is required and wired by the builder, `next` required.
+      Planned probes: `create-required` (expected accepted),
+      `create-no-catch-all` and `create-no-next` (each a removal alone),
+      `create-named-and-custom` (the fixture's shape),
+      `create-unknown-key` and `create-unknown-response-name` (whether the
+      lists are enforced at create), `create-dotted-custom-key` (the
+      pattern's dot), `create-empty-request`, `create-no-request-data`,
+      `create-no-response-data` and `create-response-object` (the
+      containers, and the page's braces), and `create-module` and
+      `create-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
 
 ## Per-action parameter shapes
 
@@ -1609,6 +1642,8 @@ CreateTask               { ContactFlowId?: flow, Attributes?: { [key]: string },
 CreateWisdomSession      { WisdomAssistantArn: assistant }   // static or JSONPath; voice only (the action page)
 AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId },   // each static or a JSONPath
                            ProfileResponseData: [] }   // the page's "None."; written as the console's empty list
+CreateCustomerProfile    { ProfileRequestData: { [field | Attributes.<name>]: string },   // static or a JSONPath
+                           ProfileResponseData: (field | Attributes.<name>)[] }   // field: the page's 55 names
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1703,7 +1738,15 @@ form, and the schema accepts either. On an `integer` or `integerString`, `min` a
 `list` or `map` they bound the entry count, and a `map` may carry `keys`, the keys its page
 allows, and `keyPatterns`, anchored regular expressions a key may match
 beside them (`^Attributes\.[^.]+$` for the `Attributes.x` keys the Customer
-Profiles pages allow); a map with neither admits any key. `dynamic` sits on a
+Profiles pages allow); a map with neither admits any key. Since 2026-10-12
+(tasks/D03) a `list` whose `of` is a `string` may carry the same two, naming
+the strings it may hold: a Customer Profiles action's `ProfileResponseData`
+is a list of the field names it stores, from the list its page gives and of
+the form `Attributes.<name>` (rule 43). `catalog.test.ts` refuses either on
+any other kind, with a mutation for each. Nothing reads them to refuse a
+document: the builder holds a name to them and codegen leaves a block whose
+names fall outside them generic, until a probe shows the service enforcing
+the list. `dynamic` sits on a
 scalar kind, or since FlowDoc 0.3 on a `list` whose page lets a JSONPath
 stand for the whole list (`UpdateRoutingCriteria.RoutingCriteria.Steps`,
 docs/adr/0009); never on an `object`, `map` or `json`, whose provider
@@ -1761,7 +1804,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-42 of the 61. Everything not in the modeled set above parses to a
+43 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1785,10 +1828,10 @@ re-authors the fixture again (owner decision 10).
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 42      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 43      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 42      |                                                             |
+| Denominator             | 61    | 43      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

@@ -88,6 +88,7 @@ import {
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateCustomerProfile,
   CreateTask,
   CreateWisdomSession,
   DequeueContactAndTransferToQueue,
@@ -545,6 +546,48 @@ function storedValidation(value: unknown): StoredInputValidation | undefined {
  * string parameters exist for the type checker; the comparison catches the
  * JSON number spelling either way.
  */
+/** A list of strings, as ProfileResponseData holds its names. */
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
+
+/**
+ * CreateCustomerProfile and UpdateCustomerProfile: ProfileRequestData an
+ * object of strings and ProfileResponseData a list of names, both present
+ * as the console writes them. The class refuses a name outside the page's
+ * lists, which leaves such a block generic.
+ */
+function invertProfileFields(
+  a: FlowAction,
+  cls: string,
+  make: (config: never) => Block,
+): Inversion | undefined {
+  const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+  if (w === undefined) return undefined;
+  const p = a.Parameters;
+  if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+  if (!isStringMap(p.ProfileRequestData) || !isStringList(p.ProfileResponseData)) return undefined;
+  const entries: [string, V][] = [["id", a.Identifier]];
+  if (Object.keys(p.ProfileRequestData).length > 0) {
+    entries.push(["request", toV(p.ProfileRequestData)]);
+  }
+  if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+  entries.push(["next", w.next], ["onError", w.onError]);
+  return {
+    cls,
+    entries,
+    block: make(
+      cast<never>({
+        id: a.Identifier,
+        request: p.ProfileRequestData,
+        response: p.ProfileResponseData,
+        next: w.next,
+        onError: w.onError,
+      }),
+    ),
+  };
+}
+
 const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefined> = {
   [ActionType.MessageParticipant]: (a, ctx) => {
     // The catch-all is optional: the service accepts the action without it
@@ -2404,6 +2447,9 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       }),
     };
   },
+
+  [ActionType.CreateCustomerProfile]: (a) =>
+    invertProfileFields(a, "CreateCustomerProfile", (c) => new CreateCustomerProfile(c)),
 
   // ProfileRequestData's two ids, static or JSONPath, and the empty
   // response list the console writes; anything else stays generic.

@@ -57,6 +57,7 @@ export const ActionType = {
   CreateTask: "CreateTask",
   CreateWisdomSession: "CreateWisdomSession",
   AssociateContactToCustomerProfile: "AssociateContactToCustomerProfile",
+  CreateCustomerProfile: "CreateCustomerProfile",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -701,6 +702,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
   ActionType.AssociateContactToCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+  ActionType.CreateCustomerProfile,
 ];
 
 /**
@@ -731,6 +734,77 @@ export const CALLBACK_ATTEMPTS_MIN = 1;
  */
 export const TASK_DELAY_MIN = 1;
 export const TASK_DELAY_MAX = 518_400;
+
+/**
+ * The profile fields the Customer Profiles pages list, in their order: the
+ * keys `CreateCustomerProfile` and `UpdateCustomerProfile` take in
+ * `ProfileRequestData`, and the names those two and `GetCustomerProfile`
+ * store from `ProfileResponseData` under `$.Customer`. Beside them the pages
+ * list `"Attributes.x"`, a custom attribute, which PROFILE_FIELD_PATTERNS
+ * spells as a key pattern (a name holding no further dot). The catalog's
+ * `keys` and `keyPatterns` on those parameters are held to these two.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ */
+export const PROFILE_FIELDS = [
+  "FirstName",
+  "MiddleName",
+  "LastName",
+  "PhoneNumber",
+  "EmailAddress",
+  "AccountNumber",
+  "AdditionalInformation",
+  "PartyType",
+  "BusinessName",
+  "BirthDate",
+  "Gender",
+  "MobilePhoneNumber",
+  "HomePhoneNumber",
+  "BusinessPhoneNumber",
+  "BusinessEmailAddress",
+  "Address1",
+  "Address2",
+  "Address3",
+  "Address4",
+  "City",
+  "County",
+  "Country",
+  "PostalCode",
+  "Province",
+  "State",
+  "ShippingAddress1",
+  "ShippingAddress2",
+  "ShippingAddress3",
+  "ShippingAddress4",
+  "ShippingCity",
+  "ShippingCounty",
+  "ShippingCountry",
+  "ShippingPostalCode",
+  "ShippingProvince",
+  "ShippingState",
+  "MailingAddress1",
+  "MailingAddress2",
+  "MailingAddress3",
+  "MailingAddress4",
+  "MailingCity",
+  "MailingCounty",
+  "MailingCountry",
+  "MailingPostalCode",
+  "MailingProvince",
+  "MailingState",
+  "BillingAddress1",
+  "BillingAddress2",
+  "BillingAddress3",
+  "BillingAddress4",
+  "BillingCity",
+  "BillingCounty",
+  "BillingCountry",
+  "BillingPostalCode",
+  "BillingProvince",
+  "BillingState",
+] as const;
+export const PROFILE_FIELD_PATTERNS: readonly string[] = ["^Attributes\\.[^.]+$"];
 
 /**
  * Loop.LoopCount "must be between 0 and 100 (inclusive)", written as a decimal

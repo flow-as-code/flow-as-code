@@ -31,6 +31,8 @@ import {
   QUEUE_PRIORITY_MIN,
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
+  PROFILE_FIELD_PATTERNS,
+  PROFILE_FIELDS,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
 } from "@flow-as-code/core";
@@ -85,6 +87,33 @@ export type FieldDesc =
       label: string;
       /** Keys deleted when this one is set, for alternative forms. */
       clears?: readonly string[];
+    }
+  /**
+   * An object of strings whose keys the page lists (chosen from `names`, not
+   * typed) or that match one of `patterns` (typed, `Attributes.<name>`),
+   * each value static or a JSONPath: a Customer Profiles create or update's
+   * ProfileRequestData (catalog `keys` and `keyPatterns`).
+   */
+  | {
+      kind: "fieldMap";
+      key: string;
+      label: string;
+      names: readonly string[];
+      patterns: readonly string[];
+      /** How a typed key is spelled, shown beside the field. */
+      patternHint: string;
+    }
+  /**
+   * A list of names: those the page lists are ticked, not typed; any other
+   * is typed one per line and held to `patterns`. ProfileResponseData.
+   */
+  | {
+      kind: "names";
+      key: string;
+      label: string;
+      names: readonly string[];
+      patterns: readonly string[];
+      patternHint: string;
     };
 
 /**
@@ -117,6 +146,24 @@ export function bodyIsOptional(type: string): boolean {
   return (
     type === ActionType.GetParticipantInput || type === ActionType.ConnectParticipantWithLexBot
   );
+}
+
+/** The request and response fields of a profile create or update. */
+function profileFieldsFor(): FieldDesc[] {
+  const shared = {
+    names: PROFILE_FIELDS,
+    patterns: PROFILE_FIELD_PATTERNS,
+    patternHint: "Attributes.<name>",
+  };
+  return [
+    { kind: "fieldMap", key: "ProfileRequestData", label: "Request fields", ...shared },
+    {
+      kind: "names",
+      key: "ProfileResponseData",
+      label: "Response fields (stored under $.Customer)",
+      ...shared,
+    },
+  ];
 }
 
 export function fieldsFor(type: string): FieldDesc[] | undefined {
@@ -422,6 +469,12 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           refType: "assistant",
         },
       ];
+    case ActionType.CreateCustomerProfile:
+      // The request fields are chosen from the page's list, and a custom
+      // attribute is typed as Attributes.<name>; the response fields are
+      // ticked from the same list, with custom attributes typed beside them.
+      // A name outside both stays in the raw JSON of a generic block.
+      return profileFieldsFor();
     case ActionType.AssociateContactToCustomerProfile:
       // Both ids sit in ProfileRequestData, each static or a JSONPath; the
       // page's response data is "None.", so there is nothing to choose.

@@ -1,0 +1,45 @@
+{
+  "description": "Rule 43: CreateCustomerProfile in a customer hold flow.",
+  "type": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "FirstName": "$.Attributes.firstName"
+          },
+          "ProfileResponseData": []
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "Text": "Please hold."
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      }
+    ]
+  }
+}

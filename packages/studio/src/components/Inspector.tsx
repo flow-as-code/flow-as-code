@@ -86,6 +86,177 @@ function JsonField({
   );
 }
 
+/** Whether a typed name matches one of a field's patterns. */
+function matchesPattern(name: string, patterns: readonly string[]): boolean {
+  return patterns.some((p) => new RegExp(p).test(name));
+}
+
+function asStringRecord(value: unknown): Record<string, string> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, string>)
+    : {};
+}
+
+/**
+ * An object of strings whose keys come from the page's list (a select, never
+ * typed) or match a pattern (typed, `Attributes.<name>`). Each value is free
+ * text or a JSONPath; a new key starts empty.
+ */
+function FieldMapField({
+  field,
+  value,
+  onCommit,
+}: {
+  field: Extract<FieldDesc, { kind: "fieldMap" }>;
+  value: unknown;
+  onCommit: (next: Record<string, string>) => void;
+}) {
+  const entries = asStringRecord(value);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const unused = field.names.filter((n) => !Object.hasOwn(entries, n));
+  const id = `fieldmap-${field.key}`;
+  return (
+    <fieldset className="space-y-1" data-testid={id}>
+      <legend className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+        {field.label}
+      </legend>
+      {Object.entries(entries).map(([k, v]) => (
+        <div key={k} className="flex items-end gap-1">
+          <div className="min-w-0 flex-1">
+            <TextField
+              label={k}
+              testId={`${id}-${k}`}
+              value={typeof v === "string" ? v : ""}
+              onCommit={(next) => onCommit({ ...entries, [k]: next })}
+            />
+          </div>
+          <button
+            type="button"
+            data-testid={`${id}-${k}-remove`}
+            title={`Remove ${k}`}
+            className="rounded border border-neutral-300 px-1 text-xs dark:border-neutral-600"
+            onClick={() => {
+              const rest = { ...entries };
+              delete rest[k];
+              onCommit(rest);
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <select
+        data-testid={`${id}-add`}
+        aria-label={`Add to ${field.label}`}
+        className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
+        value=""
+        onChange={(e) => {
+          if (e.target.value !== "") onCommit({ ...entries, [e.target.value]: "" });
+        }}
+      >
+        <option value="">(add a field)</option>
+        {unused.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+      <TextField
+        key={Object.keys(entries).join("\n")}
+        label={`Add a custom field (${field.patternHint})`}
+        testId={`${id}-custom`}
+        value=""
+        error={error}
+        onCommit={(next) => {
+          const name = next.trim();
+          if (name === "") return;
+          if (!matchesPattern(name, field.patterns)) {
+            setError(`"${name}" is not spelled ${field.patternHint}.`);
+            return;
+          }
+          setError(undefined);
+          if (!Object.hasOwn(entries, name)) onCommit({ ...entries, [name]: "" });
+        }}
+      />
+    </fieldset>
+  );
+}
+
+/**
+ * A list of names: the page's names are ticked, any other is typed one per
+ * line and held to the patterns. Ticking appends; the typed names follow
+ * the ticked ones in the order typed.
+ */
+function NamesField({
+  field,
+  value,
+  onCommit,
+}: {
+  field: Extract<FieldDesc, { kind: "names" }>;
+  value: unknown;
+  onCommit: (next: string[]) => void;
+}) {
+  const stored = Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === "string")
+    : [];
+  const others = stored.filter((n) => !field.names.includes(n));
+  const [draft, setDraft] = useDraft(others.join("\n"));
+  const [error, setError] = useState<string | undefined>(undefined);
+  const id = `names-${field.key}`;
+  return (
+    <fieldset className="space-y-1" data-testid={id}>
+      <legend className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+        {field.label}
+      </legend>
+      <div className="max-h-40 overflow-y-auto rounded border border-neutral-200 p-1 dark:border-neutral-700">
+        {field.names.map((n) => (
+          <label key={n} className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              data-testid={`${id}-${n}`}
+              checked={stored.includes(n)}
+              onChange={() =>
+                onCommit(stored.includes(n) ? stored.filter((x) => x !== n) : [...stored, n])
+              }
+            />
+            {n}
+          </label>
+        ))}
+      </div>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+          {`Custom fields, one per line (${field.patternHint})`}
+        </span>
+        <textarea
+          data-testid={`${id}-other`}
+          className="h-16 w-full rounded border border-neutral-300 bg-white p-2 font-mono text-xs dark:border-neutral-600 dark:bg-neutral-800"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            const typed = draft
+              .split("\n")
+              .map((l) => l.trim())
+              .filter((l) => l !== "");
+            const bad = typed.find((n) => !matchesPattern(n, field.patterns));
+            if (bad !== undefined) {
+              setError(`"${bad}" is not spelled ${field.patternHint}.`);
+              return;
+            }
+            setError(undefined);
+            const next = [...stored.filter((n) => field.names.includes(n)), ...new Set(typed)];
+            if (JSON.stringify(next) !== JSON.stringify(stored)) onCommit(next);
+          }}
+        />
+      </label>
+      {error !== undefined && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
 /**
  * A free-text field's draft, reset whenever the document underneath it moves.
  *
@@ -494,6 +665,24 @@ export function Inspector() {
               onChange={(v) => mutate(() => (v === undefined ? write(undefined) : write(v, field)))}
             />
           </div>
+        );
+      case "fieldMap":
+        return (
+          <FieldMapField
+            key={`${selected}:${field.key}`}
+            field={field}
+            value={value}
+            onCommit={(next) => mutate(() => setParam(doc, selected, field.key, next))}
+          />
+        );
+      case "names":
+        return (
+          <NamesField
+            key={`${selected}:${field.key}`}
+            field={field}
+            value={value}
+            onCommit={(next) => mutate(() => setParam(doc, selected, field.key, next))}
+          />
         );
       case "json":
         return (

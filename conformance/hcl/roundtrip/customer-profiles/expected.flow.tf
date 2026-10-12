@@ -5,7 +5,24 @@ resource "flowascode_contact_flow" "customer_profiles" {
   instance_id = var.connect_instance_id
   name        = "customer-profiles"
   type        = "CONTACT_FLOW"
-  description = "The Customer Profiles actions: the contact associated with the profile."
+  description = "The Customer Profiles actions: a profile created with named and custom attributes, and the contact associated with the profile."
+
+  action {
+    id   = "create-profile"
+    next = "link-contact"
+    create_customer_profile {
+      profile_request_data = {
+        "Attributes.loyaltyTier" = "new"
+        FirstName                = "$.Attributes.firstName"
+        PhoneNumber              = "$.CustomerEndpoint.Address"
+      }
+      profile_response_data = ["FirstName", "Attributes.loyaltyTier"]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
 
   action {
     id   = "link-contact"

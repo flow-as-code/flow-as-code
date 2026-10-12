@@ -22,6 +22,7 @@ import {
   collectRefs,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateCustomerProfile,
   CreateTask,
   CreateWisdomSession,
   DequeueContactAndTransferToQueue,
@@ -1782,6 +1783,17 @@ describe("the Customer Profiles actions", () => {
       description: expected.description,
       layout: expected.layout,
     }).add(
+      new CreateCustomerProfile({
+        id: "create-profile",
+        request: {
+          FirstName: "$.Attributes.firstName",
+          PhoneNumber: "$.CustomerEndpoint.Address",
+          "Attributes.loyaltyTier": "new",
+        },
+        response: ["FirstName", "Attributes.loyaltyTier"],
+        next: "link-contact",
+        onError: "bye",
+      }),
       new AssociateContactToCustomerProfile({
         id: "link-contact",
         profileId: "$.Customer.ProfileId",
@@ -1816,6 +1828,52 @@ describe("the Customer Profiles actions", () => {
         Conditions: [],
       },
     });
+  });
+
+  it("write CreateCustomerProfile's request as an object and its response as a list, empty when absent", () => {
+    expect(
+      new CreateCustomerProfile({
+        id: "c",
+        request: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        response: ["Attributes.tier"],
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "c",
+      Type: "CreateCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        ProfileResponseData: ["Attributes.tier"],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    expect(
+      new CreateCustomerProfile({ id: "c", next: "n", onError: "e" }).toAction().Parameters,
+    ).toEqual({ ProfileRequestData: {}, ProfileResponseData: [] });
+  });
+
+  it("refuse a profile field or name outside the page's lists, a repeated name, or a value that is not a string", () => {
+    const base = { id: "c", next: "n", onError: "e" };
+    expect(() => new CreateCustomerProfile({ ...base, request: { Nickname: "Sam" } })).toThrow(
+      /request names "Nickname", which is neither a field the page lists nor a name matching/,
+    );
+    expect(
+      () => new CreateCustomerProfile({ ...base, request: { "Attributes.a.b": "x" } }),
+    ).toThrow(/request names "Attributes.a.b"/);
+    expect(() => new CreateCustomerProfile({ ...base, response: ["Firstname"] })).toThrow(
+      /response names "Firstname"/,
+    );
+    expect(
+      () => new CreateCustomerProfile({ ...base, response: ["FirstName", "FirstName"] }),
+    ).toThrow(/response repeats a name/);
+    expect(
+      () => new CreateCustomerProfile({ ...base, request: { FirstName: cast<never>(1) } }),
+    ).toThrow(/request field "FirstName" must be a string or JSONPath/);
   });
 
   it("refuse an association without a profile or a contact", () => {
