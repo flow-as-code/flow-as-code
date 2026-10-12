@@ -1,0 +1,67 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "process-messages",
+      "messageIncludes": "UpdateContactMediaProcessing does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "chat-redaction",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "process-messages",
+      "Actions": [
+        {
+          "Identifier": "process-messages",
+          "Type": "UpdateContactMediaProcessing",
+          "Parameters": {
+            "ChatProcessor": {
+              "ProcessingEnabled": "True",
+              "LambdaProcessorARN": "${cdref:lambda:message-redactor}",
+              "ChatProcessorSettings": {
+                "DeliverUnprocessedMessages": "True"
+              }
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "ChannelMismatch",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "process-messages": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": [
+      {
+        "token": "${cdref:lambda:message-redactor}",
+        "type": "lambda",
+        "name": "message-redactor"
+      }
+    ]
+  }
+}

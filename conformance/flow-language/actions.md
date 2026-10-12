@@ -95,6 +95,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Resume contact | `ResumeContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html) |
 | Hold customer or agent | `UpdatePreviousContactParticipantState` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html) |
 | Start media streaming, Stop media streaming | `UpdateContactMediaStreamingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html) |
+| Set recording, analytics and processing behavior (Set message processor) | `UpdateContactMediaProcessing` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html) |
 
 ## Reference-bearing parameters
 
@@ -116,6 +117,7 @@ is never interpolated into a longer string.
 | `ConnectParticipantWithLexBot` | `PromptId` | `prompt` |
 | `ConnectParticipantWithLexBot` | `LexV2Bot.AliasArn` | `lex` |
 | `ShowView` | `ViewResource.Id` | `view` (may carry a version) |
+| `UpdateContactMediaProcessing` | `ChatProcessor.LambdaProcessorARN` | `lambda` (static: a token, never a JSONPath) |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -1275,6 +1277,48 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
       https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
       https://docs.aws.amazon.com/connect/latest/adminguide/stop-media-streaming.html
+    - `UpdateContactMediaProcessing` "Allows customers to configure their
+      own Lambda processor, which will be applied to in-flight messages."
+      One object, `ChatProcessor`, "Configuration for
+      bring-your-own-processor for chat channel": `ProcessingEnabled`
+      ("either "True" or "False". Must be set statically."),
+      `LambdaProcessorARN` ("The ARN of the Lambda function to process
+      chat messages. Must be set statically.") and
+      `ChatProcessorSettings.DeliverUnprocessedMessages` ("either "True"
+      or "False". Must be set statically. Determines whether to deliver
+      messages that fail Lambda processing."). Results "None."; errors
+      "NoMatchingError - if no other Error matches. Must always be
+      defined." and "ChannelMismatch - if the media channel that initiated
+      the contact is not the same as the one defined in the action. As of
+      now, only chat is supported in this action."; no Restrictions
+      section. The admin guide's Set recording, analytics and processing
+      behavior block carries it as the Set message processor action, chat
+      "Yes" and email, task and voice "No", "supported for all flow types
+      except journey flows", with Success, Error and Channel mismatch
+      branches; its Function ARN "should be integrated with custom message
+      processing", through `CreateIntegrationAssociation` with the
+      `MESSAGE_PROCESSOR` integration type, and its disabled form shows
+      the processing switch alone. The catalog records the Lambda as a
+      `lambda` reference at `ChatProcessor.LambdaProcessorARN` (static, so
+      the schema clause admits a token and not a JSONPath, and
+      `no-literal-arn` fails a literal ARN there), `ProcessingEnabled`
+      required and the other two optional, `channels: ["CHAT"]`, the type
+      unrestricted by flow type, `next` required, the catch-all required
+      and `ChannelMismatch` wired by the builder but not required: the page
+      requires only the catch-all, and D02 asks that the two be required
+      if and only if the service refuses each removed alone. The class
+      requires a Lambda when processing is enabled, the console's form.
+      Planned probes: `processing-required`, `processing-no-catch-all`,
+      `processing-no-channel-mismatch`, `processing-no-next`,
+      `processing-unassociated-lambda` (a function the instance has not
+      associated, to learn whether the create checks the association),
+      `processing-disabled`, `processing-enabled-without-lambda`,
+      `processing-module` and `processing-customer-hold`. They need a
+      Lambda function associated as `MESSAGE_PROCESSOR` and one that is
+      not.
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+      https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateIntegrationAssociation.html
 
 ## Per-action parameter shapes
 
@@ -1351,6 +1395,8 @@ UpdatePreviousContactParticipantState { PreviousContactParticipantState: "AgentO
 UpdateContactMediaStreamingBehavior { MediaStreamingState: "Enabled" | "Disabled",
                            Participants: { ParticipantType: "Customer", MediaDirections: ("From" | "To")[] }[],
                            MediaStreamType: "Audio" }   // each static; voice only
+UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "False", LambdaProcessorARN?: lambda,
+                           ChatProcessorSettings?: { DeliverUnprocessedMessages: "True" | "False" } } }   // static; chat only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1415,7 +1461,9 @@ from the Restrictions sections quoted in rules 22 and 34), and
 `ResumeContact`, `["TASK"]`, from its admin guide block page's channel
 table because its action page names none, and
 `UpdatePreviousContactParticipantState` and
-`UpdateContactMediaStreamingBehavior`, each `["VOICE"]` (rule 41). Absent means the
+`UpdateContactMediaStreamingBehavior`, each `["VOICE"]`, and
+`UpdateContactMediaProcessing`, `["CHAT"]`, read from its ChannelMismatch
+error since its page has no Restrictions section (rule 41). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -1499,7 +1547,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-38 of the 61. Everything not in the modeled set above parses to a
+39 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1516,10 +1564,10 @@ the fixture's, not a console shape.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 38      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 39      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 38      |                                                             |
+| Denominator             | 61    | 39      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

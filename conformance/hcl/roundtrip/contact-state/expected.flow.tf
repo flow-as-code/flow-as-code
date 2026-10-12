@@ -5,7 +5,11 @@ resource "flowascode_contact_flow" "contact_state" {
   instance_id = var.connect_instance_id
   name        = "contact-state"
   type        = "CONTACT_FLOW"
-  description = "The contact-state actions: the previous participants held and conferenced back, the customer's audio streamed and stopped, and a paused task resumed."
+  description = "The contact-state actions: the previous participants held and conferenced back, the customer's audio streamed and stopped, chat messages processed and processing stopped, and a paused task resumed."
+
+  refs = {
+    "lambda:message-redactor" = aws_lambda_function.message_redactor.arn
+  }
 
   action {
     id   = "hold-agent"
@@ -83,7 +87,7 @@ resource "flowascode_contact_flow" "contact_state" {
 
   action {
     id   = "stop-stream"
-    next = "resume-task"
+    next = "process-messages"
     update_contact_media_streaming_behavior {
       media_stream_type     = "Audio"
       media_streaming_state = "Disabled"
@@ -97,6 +101,68 @@ resource "flowascode_contact_flow" "contact_state" {
     error {
       type = "NoMatchingError"
       next = "bye"
+    }
+  }
+
+  action {
+    id   = "process-messages"
+    next = "process-strictly"
+    update_contact_media_processing {
+      chat_processor = {
+        chat_processor_settings = {
+          deliver_unprocessed_messages = "True"
+        }
+        lambda_processor_arn = "lambda:message-redactor"
+        processing_enabled   = "True"
+      }
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "ChannelMismatch"
+      next = "process-strictly"
+    }
+  }
+
+  action {
+    id   = "process-strictly"
+    next = "stop-processing"
+    update_contact_media_processing {
+      chat_processor = {
+        chat_processor_settings = {
+          deliver_unprocessed_messages = "False"
+        }
+        lambda_processor_arn = "lambda:message-redactor"
+        processing_enabled   = "True"
+      }
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "ChannelMismatch"
+      next = "stop-processing"
+    }
+  }
+
+  action {
+    id   = "stop-processing"
+    next = "resume-task"
+    update_contact_media_processing {
+      chat_processor = {
+        processing_enabled = "False"
+      }
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "ChannelMismatch"
+      next = "resume-task"
     }
   }
 

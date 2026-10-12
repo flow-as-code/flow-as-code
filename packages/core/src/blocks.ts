@@ -2035,6 +2035,71 @@ export class UpdateContactMediaStreamingBehavior extends Block {
   }
 }
 
+/**
+ * The Set message processor action of the console's Set recording,
+ * analytics and processing behavior block: "Allows customers to configure
+ * their own Lambda processor, which will be applied to in-flight messages."
+ * One object, `ChatProcessor`: `ProcessingEnabled` ("True" or "False"),
+ * `LambdaProcessorARN` ("The ARN of the Lambda function to process chat
+ * messages. Must be set statically.", here a `lambda` reference and never a
+ * literal ARN or a JSONPath) and `ChatProcessorSettings.DeliverUnprocessedMessages`
+ * ("Determines whether to deliver messages that fail Lambda processing"),
+ * each static. The function must be associated with the instance as a
+ * MESSAGE_PROCESSOR (CreateIntegrationAssociation); whether the create
+ * checks that is rule 41's to learn. The class requires `lambda` when
+ * `enabled` is true, as the console's Function ARN field is part of the
+ * enabled form; the disabled form writes only ProcessingEnabled unless the
+ * others are given. Errors in the page's order, the catch-all ("Must always
+ * be defined") and ChannelMismatch (the contact is not chat, "only chat is
+ * supported"); the admin guide's configured block has Success, Error and
+ * Channel mismatch branches, so the class wires all three. No Restrictions
+ * section; chat only.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+ */
+export interface UpdateContactMediaProcessingConfig extends Wired {
+  enabled: boolean;
+  lambda?: Ref<"lambda">;
+  deliverUnprocessedMessages?: boolean;
+  onChannelMismatch: Target;
+}
+
+export class UpdateContactMediaProcessing extends Block {
+  readonly type = ActionType.UpdateContactMediaProcessing;
+
+  constructor(private readonly config: UpdateContactMediaProcessingConfig) {
+    super(config.id);
+    if (typeof config.enabled !== "boolean") {
+      throw new Error(`UpdateContactMediaProcessing "${config.id}" enabled must be a boolean.`);
+    }
+    if (config.enabled && config.lambda === undefined) {
+      throw new Error(
+        `UpdateContactMediaProcessing "${config.id}" needs a lambda when processing is enabled.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const processor: Record<string, unknown> = {
+      ProcessingEnabled: this.config.enabled ? "True" : "False",
+    };
+    if (this.config.lambda !== undefined) processor.LambdaProcessorARN = this.config.lambda;
+    if (this.config.deliverUnprocessedMessages !== undefined) {
+      processor.ChatProcessorSettings = {
+        DeliverUnprocessedMessages: this.config.deliverUnprocessedMessages ? "True" : "False",
+      };
+    }
+    return { ChatProcessor: processor };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [CHANNEL_MISMATCH, this.config.onChannelMismatch],
+    ]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2233,7 +2298,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 38.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 39.
  */
 export interface GenericBlockConfig {
   id: string;

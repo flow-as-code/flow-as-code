@@ -409,6 +409,26 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.UpdateFlowAttributes:
       return [{ kind: "json", key: "FlowAttributes", label: "Flow attributes" }];
+    case ActionType.UpdateContactMediaProcessing:
+      // The Lambda is ChatProcessor.LambdaProcessorARN, a lambda reference
+      // edited as one key of the object, as ShowView's view is; the rest of
+      // the object (ProcessingEnabled, ChatProcessorSettings) is JSON. The
+      // page wants the reference static, so a JSONPath fails the schema.
+      return [
+        {
+          kind: "ref",
+          key: "ChatProcessor",
+          nested: "LambdaProcessorARN",
+          label: "Message processor Lambda",
+          refType: "lambda",
+          optional: true,
+        },
+        {
+          kind: "json",
+          key: "ChatProcessor",
+          label: "Chat processor (ProcessingEnabled, ChatProcessorSettings)",
+        },
+      ];
     case ActionType.UpdateContactMediaStreamingBehavior:
       // Enabled is Start media streaming and Disabled Stop. The participant
       // is always the customer and the stream audio (the page supports no

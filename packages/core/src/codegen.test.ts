@@ -2717,3 +2717,65 @@ describe("UpdateContactMediaStreamingBehavior inverts the start and stop forms",
     generic(action(extraKey));
   });
 });
+
+describe("UpdateContactMediaProcessing inverts the enabled and disabled chat processor", () => {
+  const action = (
+    processor: Record<string, unknown>,
+    errors = ["NoMatchingError", "ChannelMismatch"],
+  ): FlowAction => ({
+    Identifier: "process",
+    Type: "UpdateContactMediaProcessing",
+    Parameters: { ChatProcessor: processor },
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactMediaProcessing"');
+    expect(out).not.toContain("new UpdateContactMediaProcessing(");
+  };
+  const enabled = {
+    ProcessingEnabled: "True",
+    LambdaProcessorARN: "${cdref:lambda:redactor}",
+    ChatProcessorSettings: { DeliverUnprocessedMessages: "False" },
+  };
+
+  it("emits the class with the Lambda as a reference", () => {
+    const out = codegen(docWith([action(enabled), bye]));
+    expect(out).toContain("new UpdateContactMediaProcessing({");
+    expect(out).toContain("enabled: true");
+    expect(out).toContain('lambda: Refs.lambda("redactor")');
+    expect(out).toContain("deliverUnprocessedMessages: false");
+    expect(out).toContain('onChannelMismatch: "bye"');
+    expect(out).not.toContain("GenericBlock");
+    const off = codegen(docWith([action({ ProcessingEnabled: "False" }), bye]));
+    expect(off).toContain("enabled: false");
+    expect(off).not.toContain("lambda:");
+  });
+
+  it("falls back on a JSONPath or literal Lambda, a missing Lambda, a bad flag, or the errors out of shape", () => {
+    generic(action({ ...enabled, LambdaProcessorARN: "$.Attributes.processor" }));
+    generic(
+      action({
+        ...enabled,
+        LambdaProcessorARN: "arn:aws:lambda:us-east-1:111122223333:function:redactor",
+      }),
+    );
+    generic(action({ ...enabled, LambdaProcessorARN: "${cdref:queue:redactor}" }));
+    generic(action({ ProcessingEnabled: "True" }));
+    generic(action({ ...enabled, ProcessingEnabled: "true" }));
+    generic(action({ ...enabled, ChatProcessorSettings: { DeliverUnprocessedMessages: "Yes" } }));
+    generic(action({ ...enabled, Extra: "1" }));
+    generic(action(enabled, ["NoMatchingError"]));
+    generic(action(enabled, ["ChannelMismatch", "NoMatchingError"]));
+  });
+});

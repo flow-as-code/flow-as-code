@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "contact-state",
-  "description": "The contact-state actions: the previous participants held and conferenced back, the customer's audio streamed and stopped, and a paused task resumed.",
+  "description": "The contact-state actions: the previous participants held and conferenced back, the customer's audio streamed and stopped, chat messages processed and processing stopped, and a paused task resumed.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -129,11 +129,88 @@
           ]
         },
         "Transitions": {
+          "NextAction": "process-messages",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "process-messages",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ChatProcessorSettings": {
+              "DeliverUnprocessedMessages": "True"
+            },
+            "LambdaProcessorARN": "${cdref:lambda:message-redactor}",
+            "ProcessingEnabled": "True"
+          }
+        },
+        "Transitions": {
+          "NextAction": "process-strictly",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "process-strictly"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "process-strictly",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ChatProcessorSettings": {
+              "DeliverUnprocessedMessages": "False"
+            },
+            "LambdaProcessorARN": "${cdref:lambda:message-redactor}",
+            "ProcessingEnabled": "True"
+          }
+        },
+        "Transitions": {
+          "NextAction": "stop-processing",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "stop-processing"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "stop-processing",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ProcessingEnabled": "False"
+          }
+        },
+        "Transitions": {
           "NextAction": "resume-task",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
               "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "resume-task"
             }
           ],
           "Conditions": []
@@ -164,7 +241,7 @@
   },
   "layout": {
     "bye": {
-      "x": 1840,
+      "x": 2620,
       "y": 20
     },
     "conference": {
@@ -179,12 +256,24 @@
       "x": 280,
       "y": 20
     },
-    "resume-task": {
+    "process-messages": {
       "x": 1580,
+      "y": 20
+    },
+    "process-strictly": {
+      "x": 1840,
+      "y": 20
+    },
+    "resume-task": {
+      "x": 2360,
       "y": 20
     },
     "start-stream": {
       "x": 800,
+      "y": 20
+    },
+    "stop-processing": {
+      "x": 2100,
       "y": 20
     },
     "stop-stream": {
@@ -196,5 +285,11 @@
       "y": 20
     }
   },
-  "refs": []
+  "refs": [
+    {
+      "token": "${cdref:lambda:message-redactor}",
+      "type": "lambda",
+      "name": "message-redactor"
+    }
+  ]
 }

@@ -56,6 +56,7 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactMediaProcessing,
   UpdateContactMediaStreamingBehavior,
   UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
@@ -1487,8 +1488,33 @@ describe("the contact-state actions", () => {
         id: "stop-stream",
         state: "Disabled",
         directions: ["From", "To"],
+        next: "process-messages",
+        onError: "bye",
+      }),
+      new UpdateContactMediaProcessing({
+        id: "process-messages",
+        enabled: true,
+        lambda: Refs.lambda("message-redactor"),
+        deliverUnprocessedMessages: true,
+        next: "process-strictly",
+        onError: "bye",
+        onChannelMismatch: "process-strictly",
+      }),
+      new UpdateContactMediaProcessing({
+        id: "process-strictly",
+        enabled: true,
+        lambda: Refs.lambda("message-redactor"),
+        deliverUnprocessedMessages: false,
+        next: "stop-processing",
+        onError: "bye",
+        onChannelMismatch: "stop-processing",
+      }),
+      new UpdateContactMediaProcessing({
+        id: "stop-processing",
+        enabled: false,
         next: "resume-task",
         onError: "bye",
+        onChannelMismatch: "resume-task",
       }),
       new ResumeContact({ id: "resume-task", next: "bye", onError: "bye" }),
       new DisconnectParticipant({ id: "bye" }),
@@ -1547,5 +1573,55 @@ describe("the contact-state actions", () => {
     expect(() => make(["From", "From"])).toThrow(/directions must name From, To or both/);
     expect(() => make(["Both"])).toThrow(/directions must name From, To or both/);
     expect(() => make(["From"], "Paused")).toThrow(/state must be Enabled or Disabled/);
+  });
+
+  it("write the chat processor in the page's shape, its Lambda a reference, and refuse it enabled without one", () => {
+    expect(
+      new UpdateContactMediaProcessing({
+        id: "p",
+        enabled: true,
+        lambda: Refs.lambda("redactor"),
+        next: "n",
+        onError: "e",
+        onChannelMismatch: "c",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "p",
+      Type: "UpdateContactMediaProcessing",
+      Parameters: {
+        ChatProcessor: {
+          ProcessingEnabled: "True",
+          LambdaProcessorARN: "${cdref:lambda:redactor}",
+        },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "ChannelMismatch", NextAction: "c" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      () =>
+        new UpdateContactMediaProcessing({
+          id: "p",
+          enabled: true,
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "c",
+        }),
+    ).toThrow(/needs a lambda when processing is enabled/);
+    expect(
+      () =>
+        new UpdateContactMediaProcessing({
+          id: "p",
+          enabled: cast<never>("True"),
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "c",
+        }),
+    ).toThrow(/enabled must be a boolean/);
   });
 });

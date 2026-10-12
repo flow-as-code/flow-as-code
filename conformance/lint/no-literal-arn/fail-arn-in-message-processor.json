@@ -1,0 +1,65 @@
+{
+  "expect": [
+    {
+      "rule": "no-literal-arn",
+      "blockId": "process-messages",
+      "messageIncludes": "Parameter \"ChatProcessor.LambdaProcessorARN\" contains a literal ARN"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "chat-redaction",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "process-messages",
+      "Actions": [
+        {
+          "Identifier": "process-messages",
+          "Type": "UpdateContactMediaProcessing",
+          "Parameters": {
+            "ChatProcessor": {
+              "ProcessingEnabled": "True",
+              "LambdaProcessorARN": "arn:aws:lambda:us-east-1:111122223333:function:message-redactor",
+              "ChatProcessorSettings": {
+                "DeliverUnprocessedMessages": "True"
+              }
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "ChannelMismatch",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "process-messages": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

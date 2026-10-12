@@ -1615,6 +1615,51 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactMediaProcessing"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ChatProcessor": {
+                    "type": "object",
+                    "properties": {
+                      "ProcessingEnabled": {
+                        "enum": [
+                          "True",
+                          "False"
+                        ]
+                      },
+                      "LambdaProcessorARN": {
+                        "$ref": "#/$defs/token"
+                      },
+                      "ChatProcessorSettings": {
+                        "type": "object",
+                        "properties": {
+                          "DeliverUnprocessedMessages": {
+                            "enum": [
+                              "True",
+                              "False"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

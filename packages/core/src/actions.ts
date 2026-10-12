@@ -53,6 +53,7 @@ export const ActionType = {
   ResumeContact: "ResumeContact",
   UpdatePreviousContactParticipantState: "UpdatePreviousContactParticipantState",
   UpdateContactMediaStreamingBehavior: "UpdateContactMediaStreamingBehavior",
+  UpdateContactMediaProcessing: "UpdateContactMediaProcessing",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -87,6 +88,9 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.ConnectParticipantWithLexBot]: { PromptId: "prompt", "LexV2Bot.AliasArn": "lex" },
   // The view's id, nested; its version rides in the token's alias slot.
   [ActionType.ShowView]: { "ViewResource.Id": "view" },
+  // The chat message processor, nested; "Must be set statically", so a
+  // token and never a JSONPath.
+  [ActionType.UpdateContactMediaProcessing]: { "ChatProcessor.LambdaProcessorARN": "lambda" },
 };
 
 /**
@@ -315,6 +319,16 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // the chat form is not modeled.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
+  // The page's order, catch-all first: "NoMatchingError - if no other Error
+  // matches. Must always be defined." and "ChannelMismatch - if the media
+  // channel that initiated the contact is not the same as the one defined
+  // in the action. As of now, only chat is supported in this action." Only
+  // the catch-all is marked required; the admin guide's block shows both
+  // branches, so the builder wires both, and rule 41's probe decides
+  // whether ChannelMismatch joins REQUIRED_EXTRAS, as it did on the
+  // recording action.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+  [ActionType.UpdateContactMediaProcessing]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
 };
 
 /**
@@ -574,6 +588,12 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
   [ActionType.UpdateContactMediaStreamingBehavior]: ["VOICE"],
+  // The page has no Restrictions section, but its ChannelMismatch error
+  // says "As of now, only chat is supported in this action", and the admin
+  // guide's Set message processor action is "Yes" for chat alone.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+  [ActionType.UpdateContactMediaProcessing]: ["CHAT"],
 };
 
 /**
@@ -634,6 +654,12 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // "This action is available in every type of flow."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
   ActionType.UpdateFlowLoggingBehavior,
+  // No Restrictions section on the page; the admin guide's block "is
+  // supported for all flow types except journey flows", which have no
+  // ConnectType.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+  ActionType.UpdateContactMediaProcessing,
   // "None. This action can be used everywhere."; the admin guide: "You can
   // use this block on all flow types."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html

@@ -38,6 +38,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.ResumeContact]: "Set",
   [ActionType.UpdatePreviousContactParticipantState]: "Set",
   [ActionType.UpdateContactMediaStreamingBehavior]: "Set",
+  [ActionType.UpdateContactMediaProcessing]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -110,6 +111,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.ResumeContact]: "resume-contact",
   [ActionType.UpdatePreviousContactParticipantState]: "hold-participant",
   [ActionType.UpdateContactMediaStreamingBehavior]: "media-streaming",
+  [ActionType.UpdateContactMediaProcessing]: "message-processor",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -200,6 +202,12 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
         Participants: [{ ParticipantType: "Customer", MediaDirections: ["From", "To"] }],
         MediaStreamType: "Audio",
       };
+    case ActionType.UpdateContactMediaProcessing:
+      // The disabled form, the only one with no Lambda: the processor is a
+      // static lambda reference ("Must be set statically"), which the
+      // inspector's picker fills before the author turns processing on.
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+      return { ChatProcessor: { ProcessingEnabled: "False" } };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html

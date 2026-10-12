@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-38 modeled types follow. Any other type (23: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `UpdateContactMediaProcessing`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+39 modeled types follow. Any other type (22: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -190,6 +190,24 @@ Block `update_contact_event_hooks`. [Action page](https://docs.aws.amazon.com/co
 | HCL attribute | Flow language key | Value          | Required |
 | ------------- | ----------------- | -------------- | -------- |
 | `event_hooks` | `EventHooks`      | map of strings | yes      |
+
+## UpdateContactMediaProcessing
+
+Block `update_contact_media_processing`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html).
+
+- Legal in: every flow type.
+- Channels: CHAT only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required); `ChannelMismatch`: the contact's channel is not chat; the page does not say it must be defined, and rule 41's probe decides whether the service requires it.
+- Conditions: none.
+
+| HCL attribute                   | Flow language key            | Value                           | Required |
+| ------------------------------- | ---------------------------- | ------------------------------- | -------- |
+| `chat_processor`                | `ChatProcessor`              | object                          | yes      |
+| .`processing_enabled`           | `ProcessingEnabled`          | `"True"`, `"False"`             | yes      |
+| .`lambda_processor_arn`         | `LambdaProcessorARN`         | reference key (`lambda:<name>`) | no       |
+| .`chat_processor_settings`      | `ChatProcessorSettings`      | object                          | no       |
+| .`deliver_unprocessed_messages` | `DeliverUnprocessedMessages` | `"True"`, `"False"`             | yes      |
 
 ## UpdateContactMediaStreamingBehavior
 

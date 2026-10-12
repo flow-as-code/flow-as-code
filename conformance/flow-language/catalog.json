@@ -651,7 +651,81 @@
     "UpdateContactMediaProcessing": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_media_processing",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "channels": [
+        "CHAT"
+      ],
+      "parameters": [
+        {
+          "key": "ChatProcessor",
+          "attr": "chat_processor",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProcessingEnabled",
+              "attr": "processing_enabled",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "True",
+                "False"
+              ]
+            },
+            {
+              "key": "LambdaProcessorARN",
+              "attr": "lambda_processor_arn",
+              "kind": "ref",
+              "required": false,
+              "ref": "lambda"
+            },
+            {
+              "key": "ChatProcessorSettings",
+              "attr": "chat_processor_settings",
+              "kind": "object",
+              "required": false,
+              "fields": [
+                {
+                  "key": "DeliverUnprocessedMessages",
+                  "attr": "deliver_unprocessed_messages",
+                  "kind": "enum",
+                  "required": true,
+                  "values": [
+                    "True",
+                    "False"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "ChatProcessor.LambdaProcessorARN",
+          "ref": "lambda"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "ChannelMismatch",
+            "required": false,
+            "builder": true,
+            "when": "the contact's channel is not chat; the page does not say it must be defined, and rule 41's probe decides whether the service requires it"
+          }
+        ]
+      }
     },
     "UpdateContactMediaStreamingBehavior": {
       "category": "contact",

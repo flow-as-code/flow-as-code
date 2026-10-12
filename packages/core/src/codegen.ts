@@ -110,6 +110,7 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactMediaProcessing,
   UpdateContactMediaStreamingBehavior,
   UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
@@ -2223,6 +2224,74 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         next: w.next,
         onError: w.onError,
       }),
+    };
+  },
+
+  // The chat processor's enabled and disabled forms, with both of the
+  // page's errors in its order. The Lambda is a token only ("Must be set
+  // statically"): a JSONPath or a literal ARN stays generic, and so does
+  // an enabled form without a Lambda, which the class refuses.
+  [ActionType.UpdateContactMediaProcessing]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== CHANNEL_MISMATCH
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["ChatProcessor"])) return undefined;
+    const cp = a.Parameters.ChatProcessor as Record<string, unknown> | null;
+    if (cp === null || typeof cp !== "object" || Array.isArray(cp)) return undefined;
+    if (!paramKeysAre(cp, ["ProcessingEnabled"], ["LambdaProcessorARN", "ChatProcessorSettings"])) {
+      return undefined;
+    }
+    const flag = (v: unknown): boolean | undefined =>
+      v === "True" ? true : v === "False" ? false : undefined;
+    const enabled = flag(cp.ProcessingEnabled);
+    if (enabled === undefined) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["enabled", enabled],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, enabled };
+    if (cp.LambdaProcessorARN !== undefined) {
+      const arn = cp.LambdaProcessorARN;
+      if (typeof arn !== "string" || parseToken(arn)?.type !== "lambda") return undefined;
+      const ref = refSource(cp.LambdaProcessorARN, "lambda", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["lambda", ref]);
+      config.lambda = cp.LambdaProcessorARN;
+    }
+    if (cp.ChatProcessorSettings !== undefined) {
+      const settings = cp.ChatProcessorSettings as Record<string, unknown> | null;
+      if (settings === null || typeof settings !== "object" || Array.isArray(settings)) {
+        return undefined;
+      }
+      if (!paramKeysAre(settings, ["DeliverUnprocessedMessages"])) return undefined;
+      const deliver = flag(settings.DeliverUnprocessedMessages);
+      if (deliver === undefined) return undefined;
+      entries.push(["deliverUnprocessedMessages", deliver]);
+      config.deliverUnprocessedMessages = deliver;
+    }
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onChannelMismatch", errors[1]!.NextAction],
+    );
+    return {
+      cls: "UpdateContactMediaProcessing",
+      entries,
+      block: new UpdateContactMediaProcessing(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onChannelMismatch: errors[1]!.NextAction,
+        }),
+      ),
     };
   },
 

@@ -343,6 +343,26 @@ describe("FlowDoc schema rejections: contact state", () => {
         a.Parameters.MediaStreamType = "Video";
       }),
     ],
+    [
+      "a literal ARN as the chat message processor",
+      mutate("process-messages", (a) => {
+        (a.Parameters.ChatProcessor as Record<string, unknown>).LambdaProcessorARN =
+          "arn:aws:lambda:us-east-1:111122223333:function:redactor";
+      }),
+    ],
+    [
+      "a JSONPath as the chat message processor, which the page says is static",
+      mutate("process-messages", (a) => {
+        (a.Parameters.ChatProcessor as Record<string, unknown>).LambdaProcessorARN =
+          "$.Attributes.processor";
+      }),
+    ],
+    [
+      "processing enabled spelled other than True or False",
+      mutate("process-messages", (a) => {
+        (a.Parameters.ChatProcessor as Record<string, unknown>).ProcessingEnabled = "true";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });

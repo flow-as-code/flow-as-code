@@ -36,6 +36,7 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   ResumeContact: ["TASK"],
   UpdatePreviousContactParticipantState: ["VOICE"],
   UpdateContactMediaStreamingBehavior: ["VOICE"],
+  UpdateContactMediaProcessing: ["CHAT"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -202,6 +203,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "UpdateContactAttributes",
       "UpdateContactData",
       "UpdateContactEventHooks",
+      "UpdateContactMediaProcessing",
       "UpdateContactRecordingAndAnalyticsBehavior",
       "UpdateContactTextToSpeechVoice",
       "UpdateFlowAttributes",
