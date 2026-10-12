@@ -1,0 +1,37 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "text-back",
+  "Actions": [
+    {
+      "Identifier": "text-back",
+      "Type": "StartOutboundChatContact",
+      "Parameters": {
+        "SourceEndpoint": {
+          "Address": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/phone-number/pppp7777-0000-4000-8000-000000000002",
+          "Type": "CONNECT_PHONENUMBER_ARN"
+        },
+        "DestinationEndpoint": {
+          "Address": "$.CustomerEndpoint.Address",
+          "Type": "TELEPHONE_NUMBER"
+        },
+        "ContactFlowArn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000032",
+        "ContactSubtype": "connect:SMS"
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

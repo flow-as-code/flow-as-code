@@ -228,6 +228,9 @@ describe("ARN parsing", () => {
       "arn:aws:connect:us-east-1:aws:view/after-contact-work",
     );
     expect(normalizeArn(`${INSTANCE}/contact-flow/f1:$SAVED`)).toBe(`${INSTANCE}/contact-flow/f1`);
+    expect(normalizeArn(`${INSTANCE}/phone-number/p1`)).toBe(
+      "arn:aws:connect:us-east-1:111122223333:phone-number/p1",
+    );
   });
 
   // FlowDoc 0.3. The second Connect ARN that nests under no instance, with an
@@ -376,6 +379,10 @@ describe("buildReverseMap", () => {
       lookupArn(phaseD, `arn:aws:connect:us-east-1:111122223333:phone-number/${id}`)?.token;
     expect(number("pppp7777-0000-4000-8000-000000000001")).toBe("${cdref:phonenumber:main-did}");
     expect(number("pppp7777-0000-4000-8000-000000000002")).toBe("${cdref:phonenumber:15555550199}");
+    // The service reference's legacy-phone-number form nests under the instance.
+    expect(
+      lookupArn(phaseD, `${INSTANCE}/phone-number/pppp7777-0000-4000-8000-000000000001`)?.token,
+    ).toBe("${cdref:phonenumber:main-did}");
     expect(phaseD.warnings).toEqual([]);
   });
 
@@ -857,7 +864,11 @@ describe("exportInstance", () => {
 
     expect(result.failures).toEqual([]);
     expect(result.warnings).toEqual([]);
-    expect(result.flows.map((f) => f.doc.name)).toEqual(["case-intake", "task-follow-up"]);
+    expect(result.flows.map((f) => f.doc.name)).toEqual([
+      "case-intake",
+      "task-follow-up",
+      "legacy-text-back",
+    ]);
     const intake = result.flows[0]!.doc;
     expect(intake.refs?.map((r) => r.token)).toEqual([
       "${cdref:assistant:agent-help}",
@@ -869,6 +880,11 @@ describe("exportInstance", () => {
     expect(result.flows[1]!.doc.refs?.map((r) => r.token)).toEqual([
       "${cdref:flow:case-intake}",
       "${cdref:tasktemplate:follow-up}",
+    ]);
+    // The legacy instance-nested phone-number ARN folds onto the un-nested one.
+    expect(result.flows[2]!.doc.refs?.map((r) => r.token)).toEqual([
+      "${cdref:flow:task-follow-up}",
+      "${cdref:phonenumber:15555550199}",
     ]);
     for (const flow of result.flows) {
       expect(serialize(flow.doc), flow.doc.name).not.toContain("arn:aws");

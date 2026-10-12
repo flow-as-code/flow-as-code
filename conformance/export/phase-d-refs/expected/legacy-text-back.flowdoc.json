@@ -1,0 +1,74 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "legacy-text-back",
+  "displayName": "Legacy Text Back",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "text-back",
+    "Actions": [
+      {
+        "Identifier": "text-back",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "ContactFlowArn": "${cdref:flow:task-follow-up}",
+          "ContactSubtype": "connect:SMS",
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "SourceEndpoint": {
+            "Address": "${cdref:phonenumber:15555550199}",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "hang-up": {
+      "x": 280,
+      "y": 20
+    },
+    "text-back": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:flow:task-follow-up}",
+      "type": "flow",
+      "name": "task-follow-up"
+    },
+    {
+      "token": "${cdref:phonenumber:15555550199}",
+      "type": "phonenumber",
+      "name": "15555550199"
+    }
+  ],
+  "meta": {
+    "generator": "core@0.3",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000033",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Legacy Text Back"
+    }
+  }
+}

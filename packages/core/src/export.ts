@@ -254,11 +254,32 @@ export function parseAssistantArn(arn: string): string | undefined {
  * Drops the trailing qualifier a reference may carry, so `:$SAVED` or a version
  * suffix resolves to the same reverse-map entry as the bare resource. A Cases
  * or Q in Connect ARN carries none and is returned as is.
+ *
+ * A phone number has two ARN forms. The service reference
+ * (https://servicereference.us-east-1.amazonaws.com/v1/connect/connect.json,
+ * read 2026-10-12) lists `phone-number` as
+ * `arn:${Partition}:connect:${Region}:${Account}:phone-number/${PhoneNumberId}`,
+ * the form ListPhoneNumbersV2 returns, and `legacy-phone-number` as
+ * `arn:${Partition}:connect:${Region}:${Account}:instance/${InstanceId}/phone-number/${PhoneNumberId}`,
+ * the form tied to the V1 ListPhoneNumbers. The legacy form folds onto the
+ * un-nested one, so a flow saved with either resolves to the same entry.
  */
 export function normalizeArn(arn: string): string {
   const parts = arn.split(":");
   if (parts.length < 6 || parts[0] !== "arn") return arn;
-  if (parts[2] === "connect") return parts.slice(0, 6).join(":");
+  if (parts[2] === "connect") {
+    const segments = (parts[5] ?? "").split("/");
+    if (
+      segments.length === 4 &&
+      segments[0] === "instance" &&
+      segments[2] === "phone-number" &&
+      segments[1] !== "" &&
+      segments[3] !== ""
+    ) {
+      return [...parts.slice(0, 5), `phone-number/${segments[3]}`].join(":");
+    }
+    return parts.slice(0, 6).join(":");
+  }
   if (parts[2] === "lambda" && parts[5] === "function") return parts.slice(0, 7).join(":");
   return arn;
 }
@@ -634,7 +655,7 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
   for (const v of inventory.views) add(v.arn, v.name, "view");
   // FlowDoc 0.3. A phone number has no name of its own: its description when
   // one is set, else the number's digits, which slug to a valid name
-  // (`+15551234567` becomes `15551234567`) and are what an operator reads in
+  // (`+15555550100` becomes `15555550100`) and are what an operator reads in
   // the console anyway. A Cases template or field is keyed by its own ARN,
   // which is a `cases` ARN; `CaseTemplateId` and the field keys may hold the
   // bare id instead, which no reverse map can match (D05 and D06 settle what
