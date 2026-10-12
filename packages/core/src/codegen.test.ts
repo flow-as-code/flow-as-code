@@ -2993,6 +2993,28 @@ describe("the Customer Profiles actions invert their request and response data",
     });
   });
 
+  describe("UpdateCustomerProfile", () => {
+    const update = (request: unknown, response: unknown = []) =>
+      action("UpdateCustomerProfile", {
+        ProfileRequestData: request,
+        ProfileResponseData: response,
+      });
+
+    it("emits its fields as Create does", () => {
+      const out = typed(
+        update({ "Attributes.preferredLanguage": "$.Attributes.language" }, [
+          "Attributes.preferredLanguage",
+        ]),
+      );
+      expect(out).toContain('"Attributes.preferredLanguage": "$.Attributes.language"');
+    });
+
+    it("falls back on a profile id key, which the page does not list, or the page's braces", () => {
+      generic(update({ ProfileId: "$.Customer.ProfileId", FirstName: "x" }));
+      generic(update({}, {}));
+    });
+  });
+
   describe("AssociateContactToCustomerProfile", () => {
     const associate = (request: unknown, response: unknown = [], errors?: string[]) =>
       action(

@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "customer-profiles",
-  "description": "The Customer Profiles actions: a profile created with named and custom attributes, and the contact associated with the profile.",
+  "description": "The Customer Profiles actions: a profile created with named and custom attributes, the contact associated with the profile, and a custom attribute and an email address updated.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -44,6 +44,29 @@
           "ProfileResponseData": []
         },
         "Transitions": {
+          "NextAction": "update-profile",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "update-profile",
+        "Type": "UpdateCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "Attributes.preferredLanguage": "$.Attributes.language",
+            "EmailAddress": "$.Attributes.email"
+          },
+          "ProfileResponseData": [
+            "Attributes.preferredLanguage"
+          ]
+        },
+        "Transitions": {
           "NextAction": "bye",
           "Errors": [
             {
@@ -64,7 +87,7 @@
   },
   "layout": {
     "bye": {
-      "x": 540,
+      "x": 800,
       "y": 20
     },
     "create-profile": {
@@ -73,6 +96,10 @@
     },
     "link-contact": {
       "x": 280,
+      "y": 20
+    },
+    "update-profile": {
+      "x": 540,
       "y": 20
     }
   },

@@ -39,12 +39,13 @@ resource "flowascode_contact_flow" "unknown_actions" {
     id   = "remember-queue"
     next = "load-content"
     generic {
-      type = "UpdateCustomerProfile"
+      type = "UpdateCase"
       parameters = jsonencode({
-        ProfileRequestData = {
-          "Attributes.preferredQueue" = "$${cdref:queue:support}"
+        CaseId = "$.Case.CaseId"
+        CaseRequestFields = {
+          summary = "$${cdref:queue:support}"
         }
-        ProfileResponseData = ["Attributes.preferredQueue"]
+        LinkContactToCase = "false"
       })
     }
     error {

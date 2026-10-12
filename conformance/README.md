@@ -182,8 +182,9 @@ attributes, a description and a delay, from a task template reference
 alone, from both on a schedule read from an attribute, and with its flow
 and delay read from attributes, then a paused task resumed); and a flow of
 the Customer Profiles actions (`customer-profiles`: a profile created with
-listed fields and a custom attribute, storing one of each, and the contact
-associated with it by two JSONPath ids).
+listed fields and a custom attribute, storing one of each, the contact
+associated with it by two JSONPath ids, and a custom attribute and an email
+address updated).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

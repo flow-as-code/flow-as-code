@@ -1,0 +1,38 @@
+{
+  "description": "Rule 43: UpdateCustomerProfile with one custom attribute and its response name, a NextAction and the catch-all; expected accepted.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "Attributes.preferredLanguage": "$.Attributes.language"
+          },
+          "ProfileResponseData": [
+            "Attributes.preferredLanguage"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

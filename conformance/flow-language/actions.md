@@ -100,6 +100,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Connect assistant (formerly Amazon Q in Connect) | `CreateWisdomSession` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html) |
 | Customer profiles (Associate contact to profile) | `AssociateContactToCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html) |
 | Customer profiles (Create profile) | `CreateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html) |
+| Customer profiles (Update profile) | `UpdateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html) |
 
 ## Reference-bearing parameters
 
@@ -1558,6 +1559,20 @@ is read rather than when the type is modeled.
       containers, and the page's braces), and `create-module` and
       `create-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+    - `UpdateCustomerProfile` "Update a customer profile that was
+      previously created or retrieved in the flow." Its page lists the same
+      fields, response, results and errors as `CreateCustomerProfile`'s, and
+      no profile id: the action updates the profile at
+      `$.Customer.ProfileId` (the admin guide: "Before using an Update
+      profile block, use a Get profile block"). No published flow carries
+      the type. The catalog records it as `CreateCustomerProfile` is
+      recorded, and the class writes it the same way; a `ProfileId` key,
+      which the page does not list, keeps a block generic. Planned probes:
+      `update-required` (expected accepted), `update-no-catch-all` and
+      `update-no-next` (each a removal alone), `update-unknown-key`,
+      `update-profile-id-key`, `update-no-response-data` and
+      `update-module`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
 
 ## Per-action parameter shapes
 
@@ -1644,6 +1659,7 @@ AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId }
                            ProfileResponseData: [] }   // the page's "None."; written as the console's empty list
 CreateCustomerProfile    { ProfileRequestData: { [field | Attributes.<name>]: string },   // static or a JSONPath
                            ProfileResponseData: (field | Attributes.<name>)[] }   // field: the page's 55 names
+UpdateCustomerProfile    { ProfileRequestData, ProfileResponseData }   // as CreateCustomerProfile; no profile id
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1804,7 +1820,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-43 of the 61. Everything not in the modeled set above parses to a
+44 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1824,14 +1840,20 @@ end. On 2026-10-12, when D05 modeled `CreateTask`, the flow token moved to
 source number a JSONPath so the document needs no 0.3 token) and the queue
 token to an `Attributes.preferredQueue` value of `UpdateCustomerProfile`'s
 `ProfileRequestData`, two types D04 and D03 will model; each of those tasks
-re-authors the fixture again (owner decision 10).
+re-authors the fixture again (owner decision 10). On 2026-10-12, when D03
+modeled `UpdateCustomerProfile`, the queue token moved to a `summary` value
+in `UpdateCase`'s `CaseRequestFields` (D06's table: `LinkContactToCase`
+`"false"`, `CaseId` a JSONPath, and the system field id `summary`, a key the
+Cases system defines on every domain and AWS's published flows write
+literally, so the document needs no `casefield` token); D06 models that
+type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 43      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 44      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 43      |                                                             |
+| Denominator             | 61    | 44      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

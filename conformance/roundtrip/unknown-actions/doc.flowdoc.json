@@ -35,14 +35,13 @@
       },
       {
         "Identifier": "remember-queue",
-        "Type": "UpdateCustomerProfile",
+        "Type": "UpdateCase",
         "Parameters": {
-          "ProfileRequestData": {
-            "Attributes.preferredQueue": "${cdref:queue:support}"
+          "CaseId": "$.Case.CaseId",
+          "CaseRequestFields": {
+            "summary": "${cdref:queue:support}"
           },
-          "ProfileResponseData": [
-            "Attributes.preferredQueue"
-          ]
+          "LinkContactToCase": "false"
         },
         "Transitions": {
           "NextAction": "load-content",

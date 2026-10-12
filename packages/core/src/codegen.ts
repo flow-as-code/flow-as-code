@@ -123,6 +123,7 @@ import {
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
   UpdateContactTextToSpeechVoice,
+  UpdateCustomerProfile,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
   UpdatePreviousContactParticipantState,
@@ -2450,6 +2451,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
 
   [ActionType.CreateCustomerProfile]: (a) =>
     invertProfileFields(a, "CreateCustomerProfile", (c) => new CreateCustomerProfile(c)),
+  [ActionType.UpdateCustomerProfile]: (a) =>
+    invertProfileFields(a, "UpdateCustomerProfile", (c) => new UpdateCustomerProfile(c)),
 
   // ProfileRequestData's two ids, static or JSONPath, and the empty
   // response list the console writes; anything else stays generic.

@@ -66,6 +66,7 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
+  UpdateCustomerProfile,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
   UpdatePreviousContactParticipantState,
@@ -1798,6 +1799,16 @@ describe("the Customer Profiles actions", () => {
         id: "link-contact",
         profileId: "$.Customer.ProfileId",
         contactId: "$.ContactId",
+        next: "update-profile",
+        onError: "bye",
+      }),
+      new UpdateCustomerProfile({
+        id: "update-profile",
+        request: {
+          "Attributes.preferredLanguage": "$.Attributes.language",
+          EmailAddress: "$.Attributes.email",
+        },
+        response: ["Attributes.preferredLanguage"],
         next: "bye",
         onError: "bye",
       }),
@@ -1874,6 +1885,28 @@ describe("the Customer Profiles actions", () => {
     expect(
       () => new CreateCustomerProfile({ ...base, request: { FirstName: cast<never>(1) } }),
     ).toThrow(/request field "FirstName" must be a string or JSONPath/);
+  });
+
+  it("write UpdateCustomerProfile as Create writes its fields, and refuse the same names", () => {
+    const config = {
+      id: "u",
+      request: { "Attributes.tier": "gold" },
+      response: ["Attributes.tier"],
+      next: "n",
+      onError: "e",
+    };
+    const update = new UpdateCustomerProfile(config).toAction();
+    expect(update.Type).toBe("UpdateCustomerProfile");
+    expect(update.Parameters).toEqual(new CreateCustomerProfile(config).toAction().Parameters);
+    expect(update.Transitions).toEqual({
+      NextAction: "n",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+      Conditions: [],
+    });
+    expect(
+      () =>
+        new UpdateCustomerProfile({ ...config, request: { ProfileId: "$.Customer.ProfileId" } }),
+    ).toThrow(/request names "ProfileId"/);
   });
 
   it("refuse an association without a profile or a contact", () => {

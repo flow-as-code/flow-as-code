@@ -58,6 +58,7 @@ export const ActionType = {
   CreateWisdomSession: "CreateWisdomSession",
   AssociateContactToCustomerProfile: "AssociateContactToCustomerProfile",
   CreateCustomerProfile: "CreateCustomerProfile",
+  UpdateCustomerProfile: "UpdateCustomerProfile",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -704,6 +705,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.AssociateContactToCustomerProfile,
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
   ActionType.CreateCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+  ActionType.UpdateCustomerProfile,
 ];
 
 /**

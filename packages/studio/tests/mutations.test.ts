@@ -144,6 +144,7 @@ describe("addBlock", () => {
       "CreateWisdomSession",
       "AssociateContactToCustomerProfile",
       "CreateCustomerProfile",
+      "UpdateCustomerProfile",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

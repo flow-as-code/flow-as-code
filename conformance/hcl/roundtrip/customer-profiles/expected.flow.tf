@@ -5,7 +5,7 @@ resource "flowascode_contact_flow" "customer_profiles" {
   instance_id = var.connect_instance_id
   name        = "customer-profiles"
   type        = "CONTACT_FLOW"
-  description = "The Customer Profiles actions: a profile created with named and custom attributes, and the contact associated with the profile."
+  description = "The Customer Profiles actions: a profile created with named and custom attributes, the contact associated with the profile, and a custom attribute and an email address updated."
 
   action {
     id   = "create-profile"
@@ -26,13 +26,29 @@ resource "flowascode_contact_flow" "customer_profiles" {
 
   action {
     id   = "link-contact"
-    next = "bye"
+    next = "update-profile"
     associate_contact_to_customer_profile {
       profile_request_data = {
         contact_id = "$.ContactId"
         profile_id = "$.Customer.ProfileId"
       }
       profile_response_data = []
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "update-profile"
+    next = "bye"
+    update_customer_profile {
+      profile_request_data = {
+        "Attributes.preferredLanguage" = "$.Attributes.language"
+        EmailAddress                   = "$.Attributes.email"
+      }
+      profile_response_data = ["Attributes.preferredLanguage"]
     }
     error {
       type = "NoMatchingError"

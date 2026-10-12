@@ -598,6 +598,8 @@ describe("the Customer Profiles names", () => {
   it.each([
     ["CreateCustomerProfile", "ProfileRequestData", PROFILE],
     ["CreateCustomerProfile", "ProfileResponseData", PROFILE],
+    ["UpdateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["UpdateCustomerProfile", "ProfileResponseData", PROFILE],
   ])("agree for %s.%s", (type, key, expected) => {
     expect(named(type, key)).toEqual(expected);
   });

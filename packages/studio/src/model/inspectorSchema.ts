@@ -470,6 +470,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     case ActionType.CreateCustomerProfile:
+    case ActionType.UpdateCustomerProfile:
       // The request fields are chosen from the page's list, and a custom
       // attribute is typed as Attributes.<name>; the response fields are
       // ticked from the same list, with custom attributes typed beside them.

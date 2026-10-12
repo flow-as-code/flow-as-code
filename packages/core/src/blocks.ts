@@ -2331,6 +2331,38 @@ export class CreateCustomerProfile extends Block {
 }
 
 /**
+ * "Update a customer profile that was previously created or retrieved in
+ * the flow." The same fields as CreateCustomerProfile, each optional, and
+ * no profile id: the action updates the profile a preceding Get or Create
+ * profile left at `$.Customer.ProfileId` (the admin guide's block: "Before
+ * using an Update profile block, use a Get profile block"). Results "None.
+ * Conditions are not supported."; one error, the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export class UpdateCustomerProfile extends Block {
+  readonly type = ActionType.UpdateCustomerProfile;
+
+  constructor(private readonly config: CustomerProfileFieldsConfig) {
+    super(config.id);
+    const where = `UpdateCustomerProfile "${config.id}"`;
+    requireProfileFields(where, config.request ?? {});
+    requireNames(where, "response", config.response ?? [], PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ...(this.config.request ?? {}) },
+      ProfileResponseData: [...(this.config.response ?? [])],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
  * "Associate a contact to a customer profile." `ProfileRequestData` holds
  * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
  * each static or a JSONPath (the admin guide's block reads both from
@@ -2565,7 +2597,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 43.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 44.
  */
 export interface GenericBlockConfig {
   id: string;

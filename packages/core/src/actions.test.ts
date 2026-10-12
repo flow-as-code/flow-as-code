@@ -211,6 +211,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "UpdateContactMediaProcessing",
       "UpdateContactRecordingAndAnalyticsBehavior",
       "UpdateContactTextToSpeechVoice",
+      "UpdateCustomerProfile",
       "UpdateFlowAttributes",
       "UpdateFlowLoggingBehavior",
       "Wait",
