@@ -1963,7 +1963,7 @@ is read rather than when the type is modeled.
       integers `4`, `2` and `1`, and `DurationInSeconds` as the number `30`.
     - The Type spelling is in doubt, and it is the first thing the sweep
       settles. An AWS sample
-      (https://github.com/aws-samples/sample-apj-sup-sa/blob/main/connect/multi-tenant-agentic-contact-center/connect-routing/lib/flows.ts,
+      (https://github.com/aws-samples/sample-apj-sup-sa/blob/1f164c387f4ebc504920e368e664882b6916ea02/connect/multi-tenant-agentic-contact-center/connect-routing/lib/flows.ts,
       read 2026-10-12) writes `Type: "UpdateContactRoutingCriteria"` with
       the comment "Flow-language type is UpdateContactRoutingCriteria (the
       dev guide page is titled "UpdateRoutingCriteria", which Connect
@@ -1981,9 +1981,11 @@ is read rather than when the type is modeled.
       keeps the page's Type until `routing-required-set-alone` and
       `routing-contact-type-set-alone` run; if the first is refused as an
       unknown type and the second accepted, the type is renamed in the
-      catalog, the builder and every fixture in one commit, the page's
-      spelling is recorded here as refused, and the census (rule 40)
-      gains the note.
+      catalog, the builder and every fixture in one commit, and the page's
+      spelling is recorded here as refused. That rename also touches D00's
+      census (rule 40): the Developer Guide page names a Type the service
+      does not take, so the 61-Type denominator and its Developer Guide
+      row change with it. Rule 40 is not changed before that evidence.
     - The catalog records `RoutingCriteria` as a required `object` whose
       `Steps` is a required `list` of objects with `dynamic` (a JSONPath
       for the whole list, the first `dynamic` on a list); each step's

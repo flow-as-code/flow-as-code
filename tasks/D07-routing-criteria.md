@@ -97,11 +97,15 @@ read again on 2026-10-12 and say what the table above says; rule 45 in
 
 The search for a published flow carrying the type found two that do not
 spell it the page's way. An AWS sample
-(`aws-samples/sample-apj-sup-sa`, `connect-routing/lib/flows.ts`) writes
+(`aws-samples/sample-apj-sup-sa` at `1f164c3`,
+https://github.com/aws-samples/sample-apj-sup-sa/blob/1f164c387f4ebc504920e368e664882b6916ea02/connect/multi-tenant-agentic-contact-center/connect-routing/lib/flows.ts)
+writes
 `UpdateContactRoutingCriteria` and says in a comment that Connect rejects
 `UpdateRoutingCriteria` as an action type; it also writes the whole of
 `RoutingCriteria` as a JSONPath. A third-party library
-(`mgaffigan/pulumi-amazon-connect` at `05a26ef`) records the same refusal
+(`mgaffigan/pulumi-amazon-connect` at `05a26ef`,
+https://github.com/mgaffigan/pulumi-amazon-connect/blob/05a26ef747118fe685f4ffadfb99ab3d5afd2af2/docs/wire-format-checks.md)
+records the same refusal
 in a table of `CreateContactFlow` rejections whose other rows
 (`UnTagContact`, Wait's `TimeoutSeconds`) match rules 28 and 22, and writes
 `ProficiencyLevel` as the string `"4.0"` and `DurationInSeconds` as the
@@ -112,7 +116,11 @@ first two probes of rule 45 (`routing-required-set-alone` and
 `routing-contact-type-set-alone`) settle it, and `PENDING.md` says to rerun
 the set under the other spelling if the page's is refused. Until then a
 document carrying `UpdateContactRoutingCriteria` is an unknown type and
-round-trips as a GenericBlock.
+round-trips as a GenericBlock. These two sources are why the
+spelling probes exist, and the spelling is the first open question of this
+task. A rename on create evidence also touches D00's census (rule 40) and
+the 61-Type denominator, since the Developer Guide page would name a Type
+the service does not take; rule 40 is left as it is until then.
 
 ### What the type records, and why
 
