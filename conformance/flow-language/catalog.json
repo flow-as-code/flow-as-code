@@ -3397,7 +3397,59 @@
     "GetCalculatedAttributesForCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "get_calculated_attributes_for_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProfileId",
+              "attr": "profile_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "CalculatedAttributes._average_hold_time",
+            "CalculatedAttributes._frequent_caller"
+          ],
+          "keyPatterns": [
+            "^CalculatedAttributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "NoneFoundError",
+            "required": false,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateCustomerProfile": {
       "category": "interaction",

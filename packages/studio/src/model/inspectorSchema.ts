@@ -31,6 +31,8 @@ import {
   QUEUE_PRIORITY_MIN,
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
+  CALCULATED_ATTRIBUTE_FIELDS,
+  CALCULATED_ATTRIBUTE_PATTERNS,
   PROFILE_FIELD_PATTERNS,
   PROFILE_FIELDS,
   PROFILE_LOGICAL_OPERATORS,
@@ -609,6 +611,25 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     }
+    case ActionType.GetCalculatedAttributesForCustomerProfile:
+      // The profile id, and the calculated attributes to store: the two the
+      // page names ticked, the domain's own typed.
+      return [
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ProfileId",
+          label: "Profile ID (or JSONPath)",
+        },
+        {
+          kind: "names",
+          key: "ProfileResponseData",
+          label: "Calculated attributes (stored under $.Customer)",
+          names: CALCULATED_ATTRIBUTE_FIELDS,
+          patterns: CALCULATED_ATTRIBUTE_PATTERNS,
+          patternHint: "CalculatedAttributes.<name>",
+        },
+      ];
     case ActionType.CreateCustomerProfile:
     case ActionType.UpdateCustomerProfile:
       // The request fields are chosen from the page's list, and a custom

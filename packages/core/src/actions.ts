@@ -61,6 +61,7 @@ export const ActionType = {
   UpdateCustomerProfile: "UpdateCustomerProfile",
   GetCustomerProfile: "GetCustomerProfile",
   GetCustomerProfileObject: "GetCustomerProfileObject",
+  GetCalculatedAttributesForCustomerProfile: "GetCalculatedAttributesForCustomerProfile",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -363,6 +364,10 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // carries the type. Only the catch-all is required, as there.
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
   [ActionType.GetCustomerProfileObject]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
+  // Catch-all first, the order of the one published flow that carries the
+  // type (actions.md, rule 43); only the catch-all is required.
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
 };
 
 /**
@@ -734,6 +739,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.GetCustomerProfile,
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
   ActionType.GetCustomerProfileObject,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+  ActionType.GetCalculatedAttributesForCustomerProfile,
 ];
 
 /**
@@ -936,6 +943,22 @@ export const PROFILE_OBJECT_FIELD_PATTERNS: readonly string[] = [
   "^CaseAttributes\\.[^.]+$",
   "^ObjectAttributes\\.[^.]+$",
 ];
+
+/**
+ * The names GetCalculatedAttributesForCustomerProfile stores, as the page
+ * lists them: two predefined calculated attributes, and
+ * "CalculatedAttributes.x" for any other, which the pattern spells. The
+ * admin guide: "The options under Response fields are the Calculated
+ * Attribute definitions defined for your Customer Profiles domain", so a
+ * domain's own names are typed against the pattern.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export const CALCULATED_ATTRIBUTE_FIELDS = [
+  "CalculatedAttributes._average_hold_time",
+  "CalculatedAttributes._frequent_caller",
+] as const;
+export const CALCULATED_ATTRIBUTE_PATTERNS: readonly string[] = ["^CalculatedAttributes\\.[^.]+$"];
 
 /**
  * GetCustomerProfileObject.UseLatest, "true / false" on the page. The page

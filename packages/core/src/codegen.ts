@@ -99,6 +99,7 @@ import {
   EndFlowExecution,
   EndFlowModuleExecution,
   GenericBlock,
+  GetCalculatedAttributesForCustomerProfile,
   GetCustomerProfile,
   GetCustomerProfileObject,
   GetMetricData,
@@ -2563,6 +2564,46 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           onNoneFound: errors[1]!.NextAction,
         }),
       ),
+    };
+  },
+  // The profile id and the names to store; the catch-all and NoneFoundError
+  // in that order.
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== NONE_FOUND_ERROR
+    ) {
+      return undefined;
+    }
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData;
+    if (!isStringMap(request) || !isStringList(p.ProfileResponseData)) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["profileId", request.ProfileId ?? ""],
+    ];
+    if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onNoneFound", errors[1]!.NextAction],
+    );
+    return {
+      cls: "GetCalculatedAttributesForCustomerProfile",
+      entries,
+      block: new GetCalculatedAttributesForCustomerProfile({
+        id: a.Identifier,
+        profileId: request.ProfileId!,
+        response: p.ProfileResponseData,
+        next: t.NextAction,
+        onError: errors[0]!.NextAction,
+        onNoneFound: errors[1]!.NextAction,
+      }),
     };
   },
   [ActionType.UpdateCustomerProfile]: (a) =>

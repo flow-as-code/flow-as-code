@@ -19,6 +19,8 @@ import {
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
   CALLBACK_DELAY_MIN,
+  CALCULATED_ATTRIBUTE_FIELDS,
+  CALCULATED_ATTRIBUTE_PATTERNS,
   CHANNEL_RESTRICTIONS,
   CONDITION_CATCH_ALL,
   EXTRA_ERRORS,
@@ -613,6 +615,11 @@ describe("the Customer Profiles names", () => {
     ["UpdateCustomerProfile", "ProfileResponseData", PROFILE],
     ["GetCustomerProfile", "ProfileResponseData", PROFILE],
     [
+      "GetCalculatedAttributesForCustomerProfile",
+      "ProfileResponseData",
+      { keys: [...CALCULATED_ATTRIBUTE_FIELDS], keyPatterns: [...CALCULATED_ATTRIBUTE_PATTERNS] },
+    ],
+    [
       "GetCustomerProfileObject",
       "ProfileResponseData",
       { keys: [...PROFILE_OBJECT_FIELDS], keyPatterns: [...PROFILE_OBJECT_FIELD_PATTERNS] },
@@ -740,6 +747,13 @@ describe("the action catalog", () => {
       "NoneFoundError",
     ]);
     expect(requiredErrors("GetCustomerProfileObject")).toEqual(["NoMatchingError"]);
+    expect(builderErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
+      "NoMatchingError",
+      "NoneFoundError",
+    ]);
+    expect(requiredErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
+      "NoMatchingError",
+    ]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);
     // The page lists none; the service refuses the block without it.

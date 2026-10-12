@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-46 modeled types follow. Any other type (15: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `GetCalculatedAttributesForCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+47 modeled types follow. Any other type (14: `CompleteOutboundCall`, `CreateCase`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -774,6 +774,23 @@ Block `get_customer_profile_object`. [Action page](https://docs.aws.amazon.com/c
 | `profile_response_data` | `ProfileResponseData` | list                | no       |
 
 - `profile_response_data` values: `AssetAssetId`, `AssetProfileId`, `AssetAssetName`, `AssetSerialNumber`, `AssetModelNumber`, `AssetModelName`, `AssetProductSKU`, `AssetPurchaseDate`, `AssetUsageEndDate`, `AssetStatus`, `AssetPrice`, `AssetQuantity`, `AssetDescription`, `AssetAdditionalInformation`, `AssetDataSource`, `OrderOrderId`, `OrderProfileId`, `OrderCustomerEmail`, `OrderCustomerPhone`, `OrderCreatedDate`, `OrderUpdatedDate`, `OrderProcessedDate`, `OrderClosedDate`, `OrderCancelledDate`, `OrderCancelReason`, `OrderName`, `OrderAdditionalInformation`, `OrderGateway`, `OrderStatus`, `OrderStatusCode`, `OrderStatusUrl`, `OrderCreditCardNumber`, `OrderCreditCardCompany`, `OrderFulfillmentStatus`, `OrderTotalPrice`, `OrderTotalTax`, `OrderTotalDiscounts`, `OrderTotalItemsPrice`, `OrderTotalShippingPrice`, `OrderTotalTipReceived`, `OrderCurrency`, `OrderTotalWeight`, `OrderBillingName`, `OrderBillingAddress1`, `OrderBillingAddress2`, `OrderBillingAddress3`, `OrderBillingAddress4`, `OrderBillingCity`, `OrderBillingCounty`, `OrderBillingCountry`, `OrderBillingPostalCode`, `OrderBillingProvince`, `OrderBillingState`, `OrderShippingName`, `OrderShippingAddress1`, `OrderShippingAddress2`, `OrderShippingAddress3`, `OrderShippingAddress4`, `OrderShippingCity`, `OrderShippingCounty`, `OrderShippingCountry`, `OrderShippingPostalCode`, `OrderShippingProvince`, `OrderShippingState`, `CaseCaseId`, `CaseProfileId`, `CaseTitle`, `CaseSummary`, `CaseStatus`, `CaseReason`, `CaseCreatedBy`, `CaseCreatedDate`, `CaseUpdatedDate`, `CaseClosedDate`, `CaseAdditionalInformation`, `CaseDataSource`, or a name matching `^AssetAttributes\.[^.]+$` or `^OrderAttributes\.[^.]+$` or `^CaseAttributes\.[^.]+$` or `^ObjectAttributes\.[^.]+$`.
+
+## GetCalculatedAttributesForCustomerProfile
+
+Block `get_calculated_attributes_for_customer_profile`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `NoMatchingError` (required); `NoneFoundError`.
+- Conditions: none.
+
+| HCL attribute           | Flow language key     | Value              | Required |
+| ----------------------- | --------------------- | ------------------ | -------- |
+| `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
+| .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
+| `profile_response_data` | `ProfileResponseData` | list               | no       |
+
+- `profile_response_data` values: `CalculatedAttributes._average_hold_time`, `CalculatedAttributes._frequent_caller`, or a name matching `^CalculatedAttributes\.[^.]+$`.
 
 ## UpdateCustomerProfile
 

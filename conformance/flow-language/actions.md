@@ -103,6 +103,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Customer profiles (Update profile) | `UpdateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html) |
 | Customer profiles (Get profile) | `GetCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html) |
 | Customer profiles (Get profile object) | `GetCustomerProfileObject` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html) |
+| Customer profiles (Get calculated attributes) | `GetCalculatedAttributesForCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html) |
 
 ## Reference-bearing parameters
 
@@ -1661,6 +1662,40 @@ is read rather than when the type is modeled.
       `object-no-profile-id`, `object-unknown-type` (a type the domain does
       not have), `object-response-names`, and `object-module`.
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+    - `GetCalculatedAttributesForCustomerProfile` "Retrieve calculated
+      attributes for a customer profile." "A ProfileId must be present.";
+      `ProfileResponseData` lists `"CalculatedAttributes._average_hold_time"`,
+      `"CalculatedAttributes._frequent_caller"` and
+      `"CalculatedAttributes.x"`; errors "NoneFoundError - if no profiles
+      were found for the associated profile search key." and the
+      catch-all. The admin guide's block: "The options under Response
+      fields are the Calculated Attribute definitions defined for your
+      Customer Profiles domain", a threshold makes a value "True/False",
+      the branches are Success, Error and None Found, and the instance
+      needs `ListCalculatedAttributeDefinitions` and
+      `GetCalculatedAttributeForProfile` on the Connect service-linked
+      role. No AWS sample carries the type; one third-party repository
+      does
+      (https://github.com/photosphere/connect-cdk-voice-channel/blob/deed32be0add277319054519bf1c8bb2d28e0cc4/examples/flows/screenpop_message_flow/screenpop_message_flow.json,
+      read 2026-10-12, not an AWS publication): a `ProfileId` read from
+      `$.Customer.ProfileId`, five predefined names
+      (`CalculatedAttributes._last_agent_id`, `._last_channel`,
+      `._new_customer`, `._most_frequent_channel` and `._frequent_caller`),
+      and the catch-all before `NoneFoundError`. The catalog records
+      `ProfileRequestData` as a required object of `ProfileId` (a
+      `stringOrJsonPath`, required) and `ProfileResponseData` as a list of
+      strings whose `keys` are the page's two names and whose
+      `keyPatterns` is `^CalculatedAttributes\.[^.]+$`, which admits the
+      other predefined names and a domain's own; the names are the
+      domain's strings, not references (tasks/D03: no new ref type). The
+      two errors are wired by the builder in that repository's order; only
+      the catch-all is required. Planned probes: `calc-required` (expected
+      accepted), `calc-no-catch-all`, `calc-no-none-found` and
+      `calc-no-next` (each a removal alone), `calc-custom-name` (the
+      domain's own definition), `calc-unknown-name` (a name the domain does
+      not define), `calc-other-name` (a name without the prefix),
+      `calc-no-profile-id`, and `calc-module`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
 
 ## Per-action parameter shapes
 
@@ -1755,6 +1790,10 @@ GetCustomerProfile       { ProfileRequestData: { IdentifierName, IdentifierValue
 GetCustomerProfileObject { ProfileRequestData: { ProfileId, ObjectType,   // each static; ProfileId may be a JSONPath
                                                  UseLatest: "true" | IdentifierName, IdentifierValue },
                            ProfileResponseData: (Asset*, Order*, Case* field | *Attributes.<name>)[] }   // 76 names, 4 patterns
+GetCalculatedAttributesForCustomerProfile { ProfileRequestData: { ProfileId },   // static or a JSONPath
+                           ProfileResponseData: ("CalculatedAttributes._average_hold_time"
+                                                 | "CalculatedAttributes._frequent_caller"
+                                                 | CalculatedAttributes.<name>)[] }
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1915,7 +1954,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-46 of the 61. Everything not in the modeled set above parses to a
+47 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1945,10 +1984,10 @@ type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 46      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 47      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 46      |                                                             |
+| Denominator             | 61    | 47      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

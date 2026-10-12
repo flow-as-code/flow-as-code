@@ -50,6 +50,8 @@ import {
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
   PREVIOUS_PARTICIPANT_STATES,
+  CALCULATED_ATTRIBUTE_FIELDS,
+  CALCULATED_ATTRIBUTE_PATTERNS,
   MULTIPLE_FOUND_ERROR,
   NONE_FOUND_ERROR,
   PROFILE_FIELD_PATTERNS,
@@ -2549,6 +2551,56 @@ export class GetCustomerProfileObject extends Block {
 }
 
 /**
+ * "Retrieve calculated attributes for a customer profile." "A ProfileId must
+ * be present." in `ProfileRequestData`, static or a JSONPath. `response`
+ * names `CalculatedAttributes._average_hold_time`,
+ * `CalculatedAttributes._frequent_caller` or any `CalculatedAttributes.<name>`
+ * the domain defines, stored under `$.Customer`. Two errors, the catch-all
+ * and NoneFoundError, in the order the one published flow that carries the
+ * type writes them; only the catch-all is required. The Connect
+ * service-linked role needs `ListCalculatedAttributeDefinitions` and
+ * `GetCalculatedAttributeForProfile` at run time (the admin guide).
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export interface GetCalculatedAttributesForCustomerProfileConfig extends Wired {
+  profileId: string;
+  response?: string[];
+  onNoneFound: Target;
+}
+
+export class GetCalculatedAttributesForCustomerProfile extends Block {
+  readonly type = ActionType.GetCalculatedAttributesForCustomerProfile;
+
+  constructor(private readonly config: GetCalculatedAttributesForCustomerProfileConfig) {
+    super(config.id);
+    const where = `GetCalculatedAttributesForCustomerProfile "${config.id}"`;
+    requireText(where, "profileId", config.profileId);
+    requireNames(
+      where,
+      "response",
+      config.response ?? [],
+      CALCULATED_ATTRIBUTE_FIELDS,
+      CALCULATED_ATTRIBUTE_PATTERNS,
+    );
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ProfileId: this.config.profileId },
+      ProfileResponseData: [...(this.config.response ?? [])],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [NONE_FOUND_ERROR, this.config.onNoneFound],
+    ]);
+  }
+}
+
+/**
  * "Associate a contact to a customer profile." `ProfileRequestData` holds
  * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
  * each static or a JSONPath (the admin guide's block reads both from
@@ -2783,7 +2835,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 46.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 47.
  */
 export interface GenericBlockConfig {
   id: string;

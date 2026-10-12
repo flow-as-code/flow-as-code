@@ -5,7 +5,7 @@ resource "flowascode_contact_flow" "customer_profiles" {
   instance_id = var.connect_instance_id
   name        = "customer-profiles"
   type        = "CONTACT_FLOW"
-  description = "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, and the latest order and an asset by its identifier read."
+  description = "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, the latest order and an asset by its identifier read, and a predefined and a custom calculated attribute read."
 
   action {
     id   = "find-caller"
@@ -136,7 +136,7 @@ resource "flowascode_contact_flow" "customer_profiles" {
 
   action {
     id   = "asset-by-id"
-    next = "bye"
+    next = "calculated"
     get_customer_profile_object {
       profile_request_data = {
         identifier_name  = "_assetId"
@@ -145,6 +145,25 @@ resource "flowascode_contact_flow" "customer_profiles" {
         profile_id       = "$.Customer.ProfileId"
       }
       profile_response_data = ["AssetPrice", "AssetPurchaseDate"]
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+    error {
+      type = "NoneFoundError"
+      next = "calculated"
+    }
+  }
+
+  action {
+    id   = "calculated"
+    next = "bye"
+    get_calculated_attributes_for_customer_profile {
+      profile_request_data = {
+        profile_id = "$.Customer.ProfileId"
+      }
+      profile_response_data = ["CalculatedAttributes._frequent_caller", "CalculatedAttributes.lifetimeValue"]
     }
     error {
       type = "NoMatchingError"

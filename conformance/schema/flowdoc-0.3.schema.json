@@ -1853,6 +1853,35 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "GetCalculatedAttributesForCustomerProfile"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ProfileRequestData": {
+                    "type": "object"
+                  },
+                  "ProfileResponseData": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

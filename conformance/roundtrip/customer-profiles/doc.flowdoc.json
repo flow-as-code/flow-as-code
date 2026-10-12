@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "customer-profiles",
-  "description": "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, and the latest order and an asset by its identifier read.",
+  "description": "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, the latest order and an asset by its identifier read, and a predefined and a custom calculated attribute read.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -197,6 +197,33 @@
           ]
         },
         "Transitions": {
+          "NextAction": "calculated",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "calculated"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "calculated",
+        "Type": "GetCalculatedAttributesForCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ProfileId": "$.Customer.ProfileId"
+          },
+          "ProfileResponseData": [
+            "CalculatedAttributes._frequent_caller",
+            "CalculatedAttributes.lifetimeValue"
+          ]
+        },
+        "Transitions": {
           "NextAction": "bye",
           "Errors": [
             {
@@ -225,6 +252,10 @@
       "y": 20
     },
     "bye": {
+      "x": 2100,
+      "y": 20
+    },
+    "calculated": {
       "x": 1840,
       "y": 20
     },

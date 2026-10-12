@@ -33,6 +33,7 @@ import {
   Flow,
   FlowModule,
   GenericBlock,
+  GetCalculatedAttributesForCustomerProfile,
   GetCustomerProfile,
   GetCustomerProfileObject,
   GetMetricData,
@@ -1854,6 +1855,14 @@ describe("the Customer Profiles actions", () => {
         objectType: "Asset",
         identifier: { name: "_assetId", value: "$.Attributes.assetId" },
         response: ["AssetPrice", "AssetPurchaseDate"],
+        next: "calculated",
+        onError: "bye",
+        onNoneFound: "calculated",
+      }),
+      new GetCalculatedAttributesForCustomerProfile({
+        id: "calculated",
+        profileId: "$.Customer.ProfileId",
+        response: ["CalculatedAttributes._frequent_caller", "CalculatedAttributes.lifetimeValue"],
         next: "bye",
         onError: "bye",
         onNoneFound: "bye",
@@ -2095,6 +2104,43 @@ describe("the Customer Profiles actions", () => {
     expect(
       () => new GetCustomerProfileObject({ ...base, latest: true, response: ["FirstName"] }),
     ).toThrow(/response names "FirstName"/);
+  });
+
+  it("write GetCalculatedAttributesForCustomerProfile with its profile and names, and refuse a profile field", () => {
+    const base = {
+      id: "k",
+      profileId: "$.Customer.ProfileId",
+      next: "n",
+      onError: "e",
+      onNoneFound: "z",
+    };
+    expect(
+      new GetCalculatedAttributesForCustomerProfile({
+        ...base,
+        response: ["CalculatedAttributes._average_hold_time"],
+      }).toAction(),
+    ).toEqual({
+      Identifier: "k",
+      Type: "GetCalculatedAttributesForCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { ProfileId: "$.Customer.ProfileId" },
+        ProfileResponseData: ["CalculatedAttributes._average_hold_time"],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoneFoundError", NextAction: "z" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      () => new GetCalculatedAttributesForCustomerProfile({ ...base, response: ["FirstName"] }),
+    ).toThrow(/response names "FirstName"/);
+    expect(() => new GetCalculatedAttributesForCustomerProfile({ ...base, profileId: "" })).toThrow(
+      /profileId must be a non-empty string/,
+    );
   });
 
   it("refuse an association without a profile or a contact", () => {

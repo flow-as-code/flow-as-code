@@ -19,9 +19,15 @@ are checked against the instance:
 | Profiles domain name    | the Customer Profiles domain, encrypted with a KMS key                                        |
 | Profiles domain ARN     | the `Uri` of the instance's integration association, which links the domain to the instance |
 | Object type             | an object type in the domain (`CTR` in the sandbox root) holding one profile object           |
+| Calculated attribute    | one calculated attribute definition in the domain                                             |
 
 `ListIntegrationAssociations` on the instance, filtered to
-`CUSTOMER_PROFILES`, returns the domain ARN above when the link exists.
+`CUSTOMER_PROFILES`, returns the domain ARN above when the link exists. The
+calculated attribute probes also need the Connect service-linked role
+allowed `ListCalculatedAttributeDefinitions` and
+`GetCalculatedAttributeForProfile` (an owner action; the admin guide's
+Customer profiles block names both), although a create is not expected to
+call either.
 
 ## Placeholders
 
@@ -33,6 +39,7 @@ says, and these names from the environment:
 | `{{PROFILE_ID}}`        | `PROBE_PROFILE_ID`        | a profile in the domain (a 32-character profile id)              |
 | `{{OBJECT_TYPE}}`       | `PROBE_OBJECT_TYPE`       | the object type above, by name                                   |
 | `{{OBJECT_IDENTIFIER}}` | `PROBE_OBJECT_IDENTIFIER` | a search key of that object type (its `ObjectTypeKeys` name)     |
+| `{{CALCULATED_ATTRIBUTE}}` | `PROBE_CALCULATED_ATTRIBUTE` | the calculated attribute definition above, by name      |
 
 ## Order
 

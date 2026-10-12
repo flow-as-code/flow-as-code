@@ -3087,6 +3087,40 @@ describe("the Customer Profiles actions invert their request and response data",
     });
   });
 
+  describe("GetCalculatedAttributesForCustomerProfile", () => {
+    const calc = (
+      request: unknown,
+      response: unknown = ["CalculatedAttributes._frequent_caller"],
+      errors = ["NoMatchingError", "NoneFoundError"],
+    ) =>
+      action(
+        "GetCalculatedAttributesForCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+
+    it("emits the profile id, a predefined and a domain's own name, and both branches", () => {
+      const out = typed(
+        calc({ ProfileId: "$.Customer.ProfileId" }, [
+          "CalculatedAttributes._frequent_caller",
+          "CalculatedAttributes.lifetimeValue",
+        ]),
+      );
+      expect(out).toContain('profileId: "$.Customer.ProfileId"');
+      expect(out).toContain('onNoneFound: "bye"');
+    });
+
+    it("falls back on a missing or extra request key, a name without the prefix, or the errors out of shape", () => {
+      generic(calc({}));
+      generic(calc({ ProfileId: "p", ObjectType: "x" }));
+      generic(calc({ ProfileId: "p" }, ["FirstName"]));
+      generic(calc({ ProfileId: "p" }, ["CalculatedAttributes.a.b"]));
+      generic(
+        calc({ ProfileId: "p" }, ["CalculatedAttributes._frequent_caller"], ["NoMatchingError"]),
+      );
+    });
+  });
+
   describe("UpdateCustomerProfile", () => {
     const update = (request: unknown, response: unknown = []) =>
       action("UpdateCustomerProfile", {

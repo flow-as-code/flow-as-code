@@ -291,6 +291,23 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
     expect(testId<HTMLInputElement>("names-ProfileResponseData-OrderStatus").checked).toBe(false);
   });
 
+  it("ticks a predefined calculated attribute and types the domain's own", async () => {
+    await addProfileBlock("GetCalculatedAttributesForCustomerProfile", "calculated-attributes");
+    await click(testId("names-ProfileResponseData-CalculatedAttributes._frequent_caller"));
+    await typeAndBlur(
+      testId<HTMLTextAreaElement>("names-ProfileResponseData-other"),
+      "CalculatedAttributes.lifetimeValue",
+    );
+    expect(testId("inspector").textContent).not.toContain("is not spelled");
+    await typeAndBlur(
+      testId<HTMLTextAreaElement>("names-ProfileResponseData-other"),
+      "lifetimeValue",
+    );
+    expect(testId("inspector").textContent).toContain(
+      '"lifetimeValue" is not spelled CalculatedAttributes.<name>',
+    );
+  });
+
   it("ticks response fields from the page's list and holds typed ones to the pattern", async () => {
     await addProfileBlock("CreateCustomerProfile", "create-profile");
     const first = testId<HTMLInputElement>("names-ProfileResponseData-FirstName");

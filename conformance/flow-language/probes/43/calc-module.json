@@ -1,0 +1,43 @@
+{
+  "description": "Rule 43: GetCalculatedAttributesForCustomerProfile in a flow module.",
+  "type": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCalculatedAttributesForCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ProfileId": "$.Customer.ProfileId"
+          },
+          "ProfileResponseData": [
+            "CalculatedAttributes._frequent_caller"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

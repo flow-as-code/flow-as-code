@@ -1,0 +1,38 @@
+{
+  "description": "Rule 43: GetCalculatedAttributesForCustomerProfile without NoneFoundError, a removal alone; the catalog does not require it.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCalculatedAttributesForCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ProfileId": "$.Customer.ProfileId"
+          },
+          "ProfileResponseData": [
+            "CalculatedAttributes._frequent_caller"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}
