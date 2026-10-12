@@ -1,5 +1,5 @@
 {
-  "description": "Rule 44: UpdateCase with no request fields; the admin guide says such a block takes the Error branch at run time, which a create may not check.",
+  "description": "Rule 44: GetCase with the catalog's required set alone: LinkContactToCase \"false\", GetLastUpdatedCase, a NextAction and the catch-all, with no search, no response fields and neither lookup branch; expected accepted, which also settles each optional parameter and branch.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -7,10 +7,10 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "UpdateCase",
+        "Type": "GetCase",
         "Parameters": {
           "LinkContactToCase": "false",
-          "CaseId": "$.Case.case_id"
+          "GetLastUpdatedCase": "true"
         },
         "Transitions": {
           "NextAction": "done",

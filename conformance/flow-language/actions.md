@@ -1803,9 +1803,12 @@ is read rather than when the type is modeled.
       `pass-create-case-not-linking`, `pass-create-case-link-from-attribute`).
       The catch-all is required and `next` required. The class writes
       `ContactToLink` only when linking, and a block carrying it without
-      linking stays generic. Planned probes: `create-required` (expected
-      accepted; run before the Cases domain is associated, it is also the
-      probe of an instance with no Cases domain), `create-linking`
+      linking stays generic. Planned probes: `create-required` (the
+      catalog's required set alone, with no request fields, no
+      `ContactToLink` and no `ContactNotLinked`; expected accepted, which
+      also settles `CaseRequestFields`' `required: false`; run before the
+      Cases domain is associated, it is also the probe of an instance with
+      no Cases domain), `create-linking`
       (expected accepted), `create-linking-no-contact-not-linked` and
       `create-not-linking-contact-not-linked` (`ContactNotLinked` removed
       with linking `"true"`, and wired with `"false"`),
@@ -1859,15 +1862,18 @@ is read rather than when the type is modeled.
       `fail-get-case-linking-without-contact-not-linked`). The bound of 10
       is in the catalog and the class, not the schema, until
       `get-eleven-response-fields` shows the service refusing an eleventh.
-      Planned probes: `get-required` and `get-all-branches` (expected
+      Planned probes: `get-required-set-alone` (the catalog's required set
+      alone, with no search, no response fields and neither lookup branch;
+      expected accepted, which also settles each optional parameter and
+      branch, and the admin guide's "at least one search criteria" as a
+      run-time rule), `get-required` and `get-all-branches` (expected
       accepted), `get-linking` (expected accepted),
       `get-linking-no-contact-not-linked` and
       `get-not-linking-contact-not-linked`, `get-no-catch-all`,
       `get-no-multiple-found`, `get-no-none-found` and `get-no-next` (each a
       removal alone), `get-response-fields`, `get-eleven-response-fields`
       and `get-missing-response-field`, `get-customer-id` (the page's
-      parameter, which no flow writes), `get-no-search`,
-      `get-no-last-updated-flag`, `get-contact-to-link`, `get-error-suffix`
+      parameter, which no flow writes), `get-no-last-updated-flag`, `get-contact-to-link`, `get-error-suffix`
       (the Customer Profiles spellings), and `get-module` and
       `get-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
@@ -1890,11 +1896,15 @@ is read rather than when the type is modeled.
       `stringOrJsonPath`, and `CaseRequestFields` as `CreateCase`'s, its
       keys a `casefield` reference path; the transitions are `CreateCase`'s
       (`fail-update-case-linking-without-contact-not-linked`). Planned
-      probes: `update-required` and `update-linking` (expected accepted),
+      probes: `update-required-set-alone` (the catalog's required set
+      alone, with no request fields; expected accepted, which also settles
+      `CaseRequestFields`' `required: false` and the admin guide's "at
+      least one Request field" as a run-time rule), `update-required` and
+      `update-linking` (expected accepted),
       `update-linking-no-contact-not-linked` and
       `update-not-linking-contact-not-linked`, `update-no-catch-all` and
       `update-no-next` (each a removal alone), `update-no-case-id`,
-      `update-no-fields`, `update-domain-fields` and `update-missing-field`,
+      `update-domain-fields` and `update-missing-field`,
       `update-contact-to-link`, and `update-module` and
       `update-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
