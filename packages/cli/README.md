@@ -141,6 +141,14 @@ the loader's reason, since the install command is not the fix. `simulate` also
 checks that the installed SDK exposes the TestCase operations, which are
 recent, and names the version that has them all when it does not.
 
+`@aws-sdk/client-qconnect` is a second optional peer, read by `export` and
+`diff` when it is installed: it lists the account's AI agents assistants
+(Amazon Q in Connect `ListAssistants`), so a `CreateWisdomSession` exports its
+assistant as an `assistant` reference. Without it the command runs as before,
+names no assistant, and leaves an assistant ARN in flow content literal, which
+export reports as it does any ARN it cannot name. It needs
+`wisdom:ListAssistants` beside the Connect read permissions.
+
 Every other command works with no SDK installed and makes no network calls.
 
 ## init
