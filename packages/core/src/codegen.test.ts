@@ -3770,3 +3770,96 @@ describe("LoadContactContent inverts the admin guide's form", () => {
     generic(twoErrors);
   });
 });
+
+describe("TransferParticipantToThirdParty inverts the kept export's form", () => {
+  const action = (cont = "True"): FlowAction => ({
+    Identifier: "transfer-desk",
+    Type: "TransferParticipantToThirdParty",
+    Parameters: {
+      ContinueFlowExecution: cont,
+      ThirdPartyConnectionTimeLimitSeconds: "30",
+      ThirdPartyPhoneNumber: "$.Attributes.deskPhone",
+    },
+    Transitions: {
+      NextAction: "bye",
+      Errors:
+        cont === "True"
+          ? [
+              { ErrorType: "CallFailed", NextAction: "bye" },
+              { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "bye" },
+              { ErrorType: "NoMatchingError", NextAction: "bye" },
+            ]
+          : [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new TransferParticipantToThirdParty({");
+    expect(out).not.toContain("GenericBlock");
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "TransferParticipantToThirdParty"');
+    expect(out).not.toContain("new TransferParticipantToThirdParty(");
+  };
+
+  it("emits the class for each form, the number a jsonPath and the limit a number", () => {
+    const out = typed(action());
+    expect(out).toContain('number: jsonPath("$.Attributes.deskPhone")');
+    expect(out).toContain("timeLimitSeconds: 30");
+    expect(out).toContain("continueFlow: true");
+    expect(out).toContain('onCallFailed: "bye"');
+    expect(out).toContain('onTimeout: "bye"');
+    expect(typed(action("False"))).toContain("continueFlow: false");
+    const endWithTimeout = action("False");
+    endWithTimeout.Transitions.Errors = [
+      { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "bye" },
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ];
+    expect(typed(endWithTimeout)).toContain('onTimeout: "bye"');
+  });
+
+  it("falls back on a static number, another spelling, another key, or other wiring", () => {
+    const set = (k: string, v: unknown) => {
+      const a = action();
+      a.Parameters[k] = v;
+      return a;
+    };
+    generic(set("ThirdPartyPhoneNumber", "+15555550100"));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", 30));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", "0"));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", "$.Attributes.ring"));
+    generic(set("ContinueFlowExecution", "true"));
+    generic(set("CallerId", "$.Attributes.callerId"));
+    const noLimit = action();
+    delete noLimit.Parameters.ThirdPartyConnectionTimeLimitSeconds;
+    generic(noLimit);
+    const noNext = action();
+    delete noNext.Transitions.NextAction;
+    generic(noNext);
+    // The continuing form needs all three; the service refused it without
+    // any one of them (VERIFY 16.8, 2026-09-30).
+    const twoErrors = action();
+    twoErrors.Transitions.Errors = twoErrors.Transitions.Errors!.slice(1);
+    generic(twoErrors);
+    const reordered = action();
+    reordered.Transitions.Errors = [...reordered.Transitions.Errors!].reverse();
+    generic(reordered);
+    const noCatchAll = action("False");
+    noCatchAll.Transitions.Errors = [];
+    generic(noCatchAll);
+    const withCondition = action();
+    withCondition.Transitions.Conditions = [
+      { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["Busy"] } },
+    ];
+    generic(withCondition);
+  });
+});

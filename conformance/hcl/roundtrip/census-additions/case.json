@@ -1,5 +1,5 @@
 {
-  "description": "The census additions as typed sub-blocks: load_contact_content, the Get stored content block, with its one content type, EmailMessage. Awaits the provider release that carries the block (tasks/D10), so it has no validate directory yet.",
+  "description": "The census additions as typed sub-blocks: transfer_participant_to_third_party twice, resuming the flow with its CallFailed, ConnectionTimeLimitExceeded and catch-all branches and ending it with the catch-all alone, each number a JSONPath and its time limit a decimal string; and load_contact_content with its one content type, EmailMessage. Awaits the provider release that carries the blocks (tasks/D10), so it has no validate directory yet.",
   "doc": "../../../roundtrip/census-additions/doc.flowdoc.json",
   "validate": "awaits-provider"
 }

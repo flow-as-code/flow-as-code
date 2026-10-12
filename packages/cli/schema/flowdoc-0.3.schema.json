@@ -2132,6 +2132,38 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "TransferParticipantToThirdParty"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ThirdPartyPhoneNumber": {
+                    "type": "string"
+                  },
+                  "ThirdPartyConnectionTimeLimitSeconds": {
+                    "type": "string"
+                  },
+                  "ContinueFlowExecution": {
+                    "enum": [
+                      "True",
+                      "False"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

@@ -41,7 +41,7 @@ resource "flowascode_contact_flow" "unknown_actions" {
 
   action {
     id   = "dial-connector"
-    next = "transfer-third-party"
+    next = "hand-off"
     generic {
       type = "CompleteOutboundCall"
       parameters = jsonencode({
@@ -57,39 +57,14 @@ resource "flowascode_contact_flow" "unknown_actions" {
   }
 
   action {
-    id   = "transfer-third-party"
-    next = "hand-off"
-    generic {
-      type = "TransferParticipantToThirdParty"
-      parameters = jsonencode({
-        ContinueFlowExecution                = "True"
-        ThirdPartyConnectionTimeLimitSeconds = "30"
-        ThirdPartyPhoneNumber                = "$.Attributes.deskPhone"
-      })
-    }
-    error {
-      type = "CallFailed"
-      next = "hand-off"
-    }
-    error {
-      type = "ConnectionTimeLimitExceeded"
-      next = "hand-off"
-    }
-    error {
-      type = "NoMatchingError"
-      next = "hand-off"
-    }
-  }
-
-  action {
     id   = "hand-off"
-    next = "transfer-third-party"
+    next = "dial-connector"
     generic {
       type = "StartVoiceIdStream"
     }
     error {
       type = "NoMatchingError"
-      next = "transfer-third-party"
+      next = "dial-connector"
     }
   }
 }

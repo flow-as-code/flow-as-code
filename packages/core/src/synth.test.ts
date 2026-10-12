@@ -69,6 +69,7 @@ import {
   TagContact,
   TransferContactToAgent,
   TransferContactToQueue,
+  TransferParticipantToThirdParty,
   UntagContact,
   UpdateCase,
   UpdateContactCallbackNumber,
@@ -2829,10 +2830,117 @@ describe("the census additions", () => {
       description: expected.description,
       layout: expected.layout,
     }).add(
+      new TransferParticipantToThirdParty({
+        id: "transfer-desk",
+        number: jsonPath("$.Attributes.deskPhone"),
+        timeLimitSeconds: 30,
+        continueFlow: true,
+        next: "load-email",
+        onCallFailed: "transfer-on-call",
+        onTimeout: "transfer-on-call",
+        onError: "bye",
+      }),
+      new TransferParticipantToThirdParty({
+        id: "transfer-on-call",
+        number: jsonPath("$.Attributes.onCallPhone"),
+        timeLimitSeconds: 45,
+        continueFlow: false,
+        next: "load-email",
+        onError: "load-email",
+      }),
       new LoadContactContent({ id: "load-email", next: "bye", onError: "bye" }),
       new DisconnectParticipant({ id: "bye" }),
     );
     expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write TransferParticipantToThirdParty's export keys, with the branches each form takes", () => {
+    const base = {
+      id: "t",
+      number: jsonPath("$.Attributes.deskPhone"),
+      timeLimitSeconds: 30,
+      next: "n",
+      onError: "e",
+    };
+    const parameters = (cont: string) => ({
+      ThirdPartyPhoneNumber: "$.Attributes.deskPhone",
+      ThirdPartyConnectionTimeLimitSeconds: "30",
+      ContinueFlowExecution: cont,
+    });
+    expect(
+      new TransferParticipantToThirdParty({
+        ...base,
+        continueFlow: true,
+        onCallFailed: "f",
+        onTimeout: "o",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "t",
+      Type: "TransferParticipantToThirdParty",
+      Parameters: parameters("True"),
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "CallFailed", NextAction: "f" },
+          { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "o" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new TransferParticipantToThirdParty({ ...base, continueFlow: false }).toAction(),
+    ).toEqual({
+      Identifier: "t",
+      Type: "TransferParticipantToThirdParty",
+      Parameters: parameters("False"),
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    expect(
+      new TransferParticipantToThirdParty({
+        ...base,
+        continueFlow: false,
+        onTimeout: "o",
+      }).toAction().Transitions.Errors,
+    ).toEqual([
+      { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "o" },
+      { ErrorType: "NoMatchingError", NextAction: "e" },
+    ]);
+  });
+
+  it("refuse a static number, a time limit that is not a positive integer, or no flag", () => {
+    const base = { id: "t", next: "n", onError: "e", continueFlow: false as const };
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          number: "+15555550100" as never,
+          timeLimitSeconds: 30,
+        }),
+    ).toThrow(/must be a JSONPath/);
+    for (const t of [0, -5, 2.5]) {
+      expect(
+        () =>
+          new TransferParticipantToThirdParty({
+            ...base,
+            number: jsonPath("$.Attributes.deskPhone"),
+            timeLimitSeconds: t,
+          }),
+      ).toThrow(/positive integer/);
+    }
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: "True" as never,
+          number: jsonPath("$.Attributes.deskPhone"),
+          timeLimitSeconds: 30,
+        }),
+    ).toThrow(/true or false/);
   });
 
   it("write LoadContactContent with the page's one content type and the catch-all", () => {

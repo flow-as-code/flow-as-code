@@ -18,6 +18,7 @@
 import {
   AGENT_METRIC_TYPES,
   ActionType,
+  CALL_FAILED,
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
@@ -29,6 +30,7 @@ import {
   CASE_SYSTEM_FIELDS,
   CHANNEL_MISMATCH,
   CONTACT_NOT_LINKED,
+  CONNECTION_TIME_LIMIT_EXCEEDED,
   DTMF_DIGITS,
   EVENT_HOOKS,
   INVALID_CALLBACK_NUMBER,
@@ -3607,6 +3609,93 @@ export class LoadContactContent extends Block {
   }
 }
 
+/**
+ * The Transfer to phone number block: "Transfers the customer to a phone
+ * number external to your instance." No AWS page documents the Type (its
+ * API Reference page renders only its title); the shape is the kept export
+ * (conformance/flow-language/exports/), whose three keys the class writes:
+ * `ThirdPartyPhoneNumber`, `ThirdPartyConnectionTimeLimitSeconds` (the
+ * console's Set timeout, 30 seconds in the block page's example) and
+ * `ContinueFlowExecution` (the console's Resume flow after disconnect, which
+ * "works only if the external party disconnects, and the customer doesn't
+ * disconnect"). Voice only (chat, task and email "No - Error branch");
+ * inbound, customer queue, transfer to agent and transfer to queue flows.
+ *
+ * The number is a JSONPath: the console's static form (a country code and a
+ * number) has no recorded export, and a destination number is the kind of
+ * value a deployment supplies at run time rather than commits; rule 47's
+ * `third-static-number` probe records whether the service takes a static
+ * one, and until then codegen leaves a static number generic.
+ *
+ * `continueFlow: true` writes the export's three errors in its order:
+ * `onCallFailed` (Call failed), `onTimeout` (Timeout) and `onError`. The
+ * service refused that form without any one of them on 2026-09-30, so they
+ * are required here. `continueFlow: false` requires only the catch-all and
+ * writes the other two when given: a cookbook comment of 2026-09-29 says
+ * that form takes only the catch-all, no message was recorded, and rule
+ * 47's probes settle whether the service refuses, allows or requires them.
+ * Taking them in both forms lets an author wire the branches before
+ * switching the flag, without a step where the block is generic. The page's Send
+ * DTMF, Caller ID number and Caller ID name have no key in the export and
+ * are not modeled; a document carrying any other key stays generic.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+ * https://docs.aws.amazon.com/connect/latest/APIReference/participant-actions-transferparticipanttothirdparty.html
+ */
+interface TransferParticipantToThirdPartyBase extends Wired {
+  /** A JSONPath to the destination, an E.164 number at run time. */
+  number: JsonPath;
+  /** Seconds the third party may take to answer; a positive integer. */
+  timeLimitSeconds: number;
+}
+
+export type TransferParticipantToThirdPartyConfig = TransferParticipantToThirdPartyBase &
+  (
+    | { continueFlow: true; onCallFailed: Target; onTimeout: Target }
+    | { continueFlow: false; onCallFailed?: Target; onTimeout?: Target }
+  );
+
+export class TransferParticipantToThirdParty extends Block {
+  readonly type = ActionType.TransferParticipantToThirdParty;
+
+  constructor(private readonly config: TransferParticipantToThirdPartyConfig) {
+    super(config.id);
+    if (typeof config.number !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(config.number)) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${config.id}" number must be a JSONPath (jsonPath("$.Attributes...")).`,
+      );
+    }
+    const t = config.timeLimitSeconds;
+    if (!Number.isInteger(t) || t < 1) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${config.id}" timeLimitSeconds must be a positive integer, got ${t}.`,
+      );
+    }
+    if (typeof (config as { continueFlow: unknown }).continueFlow !== "boolean") {
+      throw new Error(
+        `TransferParticipantToThirdParty "${config.id}" continueFlow must be true or false.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    return {
+      ThirdPartyPhoneNumber: c.number,
+      ThirdPartyConnectionTimeLimitSeconds: String(c.timeLimitSeconds),
+      ContinueFlowExecution: c.continueFlow ? "True" : "False",
+    };
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    const errors: [string, Target][] = [];
+    if (c.onCallFailed !== undefined) errors.push([CALL_FAILED, c.onCallFailed]);
+    if (c.onTimeout !== undefined) errors.push([CONNECTION_TIME_LIMIT_EXCEEDED, c.onTimeout]);
+    errors.push([NO_MATCHING_ERROR, c.onError]);
+    return wire(c.next, errors);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Passthrough
 // ---------------------------------------------------------------------------
@@ -3615,7 +3704,7 @@ export class LoadContactContent extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 55.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 56.
  */
 export interface GenericBlockConfig {
   id: string;

@@ -864,8 +864,10 @@ describe("FlowDoc schema rejections: outbound", () => {
 
 // The census-additions round-trip fixture is the subject for the 0.3 clauses
 // of tasks/D09. LoadContactContent's clause holds the admin guide's one
-// content type; rule 47's probes (pending) put another to the service.
-// Each case below fails if its part of the clause is deleted.
+// content type; TransferParticipantToThirdParty's holds the kept export's
+// JSON types and its True and False. Rule 47's probes (pending) put another
+// value or spelling of each to the service (owner decision 3). Each case
+// below fails if its part of the clause is deleted.
 describe("FlowDoc schema rejections: census additions", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/census-additions/doc.flowdoc.json");
@@ -884,6 +886,24 @@ describe("FlowDoc schema rejections: census additions", () => {
       "a stored content type the page does not list",
       mutate("load-email", (a) => {
         a.Parameters.ContentType = "EmailAttachment";
+      }),
+    ],
+    [
+      "a destination number that is not a string",
+      mutate("transfer-desk", (a) => {
+        a.Parameters.ThirdPartyPhoneNumber = 15555550100;
+      }),
+    ],
+    [
+      "a connection time limit that is not a string",
+      mutate("transfer-desk", (a) => {
+        a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 30;
+      }),
+    ],
+    [
+      "a resume flag spelled other than True or False",
+      mutate("transfer-on-call", (a) => {
+        a.Parameters.ContinueFlowExecution = "false";
       }),
     ],
   ])("rejects %s", (_label, doc) => {

@@ -1,0 +1,39 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "transfer-third-party",
+  "Actions": [
+    {
+      "Identifier": "transfer-third-party",
+      "Type": "TransferParticipantToThirdParty",
+      "Parameters": {
+        "ContinueFlowExecution": "True",
+        "ThirdPartyConnectionTimeLimitSeconds": "30",
+        "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+      },
+      "Transitions": {
+        "NextAction": "hand-off",
+        "Errors": [
+          {
+            "ErrorType": "CallFailed",
+            "NextAction": "hand-off"
+          },
+          {
+            "ErrorType": "ConnectionTimeLimitExceeded",
+            "NextAction": "hand-off"
+          },
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hand-off"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hand-off",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

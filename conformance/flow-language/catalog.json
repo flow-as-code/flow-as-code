@@ -4199,9 +4199,84 @@
     },
     "TransferParticipantToThirdParty": {
       "category": "other",
-      "doc": "conformance/roundtrip/unknown-actions/doc.flowdoc.json",
-      "modeled": false,
-      "source": "console-export"
+      "doc": "conformance/flow-language/exports/transfer-participant-to-third-party.json",
+      "modeled": true,
+      "source": "console-export",
+      "block": "transfer_participant_to_third_party",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "ThirdPartyPhoneNumber",
+          "attr": "third_party_phone_number",
+          "kind": "stringOrJsonPath",
+          "required": true
+        },
+        {
+          "key": "ThirdPartyConnectionTimeLimitSeconds",
+          "attr": "third_party_connection_time_limit_seconds",
+          "kind": "integerString",
+          "required": true
+        },
+        {
+          "key": "ContinueFlowExecution",
+          "attr": "continue_flow_execution",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "True",
+            "False"
+          ]
+        }
+      ],
+      "shapes": [
+        {
+          "when": {
+            "key": "ContinueFlowExecution",
+            "equals": "True"
+          },
+          "requires": {
+            "errors": [
+              "CallFailed",
+              "ConnectionTimeLimitExceeded"
+            ]
+          },
+          "source": "The service, on 2026-09-30 (sandbox, us-west-2; VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript): with ContinueFlowExecution \"True\" it refused the action without CallFailed, without ConnectionTimeLimitExceeded and without NoMatchingError, each removed alone (\"Action is missing required error. Error: <branch>, Path: Actions[0]\"). No page documents the action."
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "CallFailed",
+            "required": false,
+            "builder": true,
+            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" the builder writes only the catch-all, and rule 47's probes decide what that form takes"
+          },
+          {
+            "type": "ConnectionTimeLimitExceeded",
+            "required": false,
+            "builder": true,
+            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" the builder writes only the catch-all, and rule 47's probes decide what that form takes"
+          },
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     }
   }
 }

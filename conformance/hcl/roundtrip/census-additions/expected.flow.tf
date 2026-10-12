@@ -5,7 +5,43 @@ resource "flowascode_contact_flow" "census_additions" {
   instance_id = var.connect_instance_id
   name        = "census-additions"
   type        = "CONTACT_FLOW"
-  description = "The Types no Developer Guide category page lists (tasks/D09): an email message body loaded for a later branch."
+  description = "The Types no Developer Guide category page lists (tasks/D09): a transfer to a desk phone that resumes the flow when the third party hangs up, a transfer to an on-call number that ends it, and an email message body loaded for a later branch."
+
+  action {
+    id   = "transfer-desk"
+    next = "load-email"
+    transfer_participant_to_third_party {
+      continue_flow_execution                   = "True"
+      third_party_connection_time_limit_seconds = 30
+      third_party_phone_number                  = "$.Attributes.deskPhone"
+    }
+    error {
+      type = "CallFailed"
+      next = "transfer-on-call"
+    }
+    error {
+      type = "ConnectionTimeLimitExceeded"
+      next = "transfer-on-call"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "transfer-on-call"
+    next = "load-email"
+    transfer_participant_to_third_party {
+      continue_flow_execution                   = "False"
+      third_party_connection_time_limit_seconds = 45
+      third_party_phone_number                  = "$.Attributes.onCallPhone"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "load-email"
+    }
+  }
 
   action {
     id   = "load-email"

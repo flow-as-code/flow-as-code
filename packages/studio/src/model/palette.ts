@@ -74,6 +74,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.GetCustomerProfileObject]: "Integrate",
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "Integrate",
   [ActionType.LoadContactContent]: "Set",
+  [ActionType.TransferParticipantToThirdParty]: "Terminate",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -164,6 +165,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.GetCustomerProfileObject]: "get-profile-object",
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "calculated-attributes",
   [ActionType.LoadContactContent]: "get-stored-content",
+  [ActionType.TransferParticipantToThirdParty]: "transfer-to-phone",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -398,6 +400,16 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // guide's Flow language example writes it.
       // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
       return { ContentType: "EmailMessage" };
+    case ActionType.TransferParticipantToThirdParty:
+      // The block page's example timeout, 30 seconds, and the form that
+      // ends the flow on transfer, whose one branch is the catch-all; the
+      // number is a JSONPath, since a destination is supplied at run time.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+      return {
+        ThirdPartyPhoneNumber: "$.Attributes.transferNumber",
+        ThirdPartyConnectionTimeLimitSeconds: "30",
+        ContinueFlowExecution: "False",
+      };
     case ActionType.UpdateContactRoutingBehavior:
       // "The default priority for new contacts is 5", so a fresh block starts
       // where the contact already is and the author moves it from there.

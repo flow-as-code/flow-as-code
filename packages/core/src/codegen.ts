@@ -26,7 +26,9 @@ import {
   AGENT_METRIC_TYPES,
   ActionType,
   CALLBACK_NUMBER_NOT_DIALABLE,
+  CALL_FAILED,
   CHANNEL_MISMATCH,
+  CONNECTION_TIME_LIMIT_EXCEEDED,
   DTMF_DIGITS,
   EVENT_HOOKS,
   INPUT_TIME_LIMIT_EXCEEDED,
@@ -127,6 +129,7 @@ import {
   GetCustomerProfile,
   GetCustomerProfileObject,
   LoadContactContent,
+  TransferParticipantToThirdParty,
   GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
@@ -2498,6 +2501,65 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         ["onError", w.onError],
       ],
       block: new LoadContactContent({ id: a.Identifier, next: w.next, onError: w.onError }),
+    };
+  },
+
+  // The kept export's three keys: the number a JSONPath, the time limit the
+  // console's positive decimal string, ContinueFlowExecution "True" with the
+  // export's three errors in its order, or "False" with the catch-all and
+  // either or both of the others before it, in the same order. A static number, another key (the page's Send DTMF or caller ID, whose
+  // keys no export shows) or another error set stays generic.
+  [ActionType.TransferParticipantToThirdParty]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const p = a.Parameters;
+    const keys = [
+      "ThirdPartyPhoneNumber",
+      "ThirdPartyConnectionTimeLimitSeconds",
+      "ContinueFlowExecution",
+    ];
+    if (!paramKeysAre(p, keys)) return undefined;
+    const number = p.ThirdPartyPhoneNumber;
+    if (typeof number !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(number)) return undefined;
+    const seconds = p.ThirdPartyConnectionTimeLimitSeconds;
+    if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+    if (p.ContinueFlowExecution !== "True" && p.ContinueFlowExecution !== "False") return undefined;
+    const errors = t.Errors ?? [];
+    const order = [CALL_FAILED, CONNECTION_TIME_LIMIT_EXCEEDED, NO_MATCHING_ERROR];
+    const names = { [CALL_FAILED]: "onCallFailed", [CONNECTION_TIME_LIMIT_EXCEEDED]: "onTimeout" };
+    const wiring: Record<string, string> = {};
+    let at = -1;
+    for (const e of errors) {
+      const i = order.indexOf(e.ErrorType);
+      if (i <= at) return undefined;
+      at = i;
+      wiring[names[e.ErrorType as keyof typeof names] ?? "onError"] = e.NextAction;
+    }
+    if (wiring.onError === undefined) return undefined;
+    if (p.ContinueFlowExecution === "True" && errors.length !== 3) return undefined;
+    ctx.jsonPath = true;
+    const continueFlow = p.ContinueFlowExecution === "True";
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["number", new Raw(`jsonPath(${quoteString(number)})`)],
+      ["timeLimitSeconds", Number(seconds)],
+      ["continueFlow", continueFlow],
+      ["next", t.NextAction],
+      ...Object.entries(wiring),
+    ];
+    return {
+      cls: "TransferParticipantToThirdParty",
+      entries,
+      block: new TransferParticipantToThirdParty(
+        cast<never>({
+          id: a.Identifier,
+          number,
+          timeLimitSeconds: Number(seconds),
+          continueFlow,
+          next: t.NextAction,
+          ...wiring,
+        }),
+      ),
     };
   },
 

@@ -112,6 +112,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Call phone number | `CompleteOutboundCall` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html) |
 | Send message (SMS) | `StartOutboundChatContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html) |
 | Get stored content | `LoadContactContent` | other | [doc](https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html) (admin guide; no Developer Guide page) |
+| Transfer to phone number | `TransferParticipantToThirdParty` | other | [export](exports/transfer-participant-to-third-party.json), [block](https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html) (no page documents the Type) |
 
 ## Reference-bearing parameters
 
@@ -2394,6 +2395,79 @@ is read rather than when the type is modeled.
       types no other probe covers, the last one the page does not name).
       The type has no optional container.
       https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+    - `TransferParticipantToThirdParty`, modeled from the kept export
+      (its catalog `doc`,
+      `conformance/flow-language/exports/transfer-participant-to-third-party.json`,
+      `source` `console-export`; the export's README says what it is: the
+      action `roundtrip/unknown-actions` carried from 2026-09-11 in the
+      shape of the console's sample flows, not a file the console wrote as
+      it stands). No AWS page documents the Type: its API Reference page,
+      https://docs.aws.amazon.com/connect/latest/APIReference/participant-actions-transferparticipanttothirdparty.html,
+      renders only its title (rule 40). The export carries
+      `ThirdPartyPhoneNumber` (a JSONPath), `ThirdPartyConnectionTimeLimitSeconds`
+      (`"30"`) and `ContinueFlowExecution` (`"True"`), a `NextAction`, and
+      `CallFailed`, `ConnectionTimeLimitExceeded` and `NoMatchingError` in
+      that order. The Transfer to phone number block page, which the
+      console writes as this Type, gives the restrictions: channels voice
+      "Yes", chat, task and email "No - Error branch"; flow types inbound,
+      customer queue, transfer to agent and transfer to queue; branches
+      Success, Call Failed, Timeout and Error; Resume flow after disconnect
+      "works only if the external party disconnects, and the customer
+      doesn't disconnect"; Send DTMF, Caller ID number and Caller ID name,
+      none with a key the export shows. The service evidence is the
+      showcase repository's VERIFY 16.8
+      (https://github.com/flow-as-code/hollow-hour-example-typescript/blob/84db5c0c849d456a90cf5a94bf76ba6681ef5d8b/VERIFY.md,
+      read 2026-10-12): on 2026-09-30 (us-west-2) the export's shape with
+      a JSONPath number was accepted in a contact flow, and each of the
+      three errors removed alone was refused, "Action is missing required
+      error. Error: <branch>, Path: Actions[0]"; and rule 40's create of the
+      same shape was accepted on 2026-10-05. A comment in this repository's
+      Terraform cookbook (2026-09-29) said that with `ContinueFlowExecution`
+      `"False"` the action takes only the catch-all; no message was
+      recorded with it.
+      The catalog records the three keys as required (the export's), the
+      number a `stringOrJsonPath`, the time limit an `integerString` with
+      no bound (no page states one), `ContinueFlowExecution` an `enum` of
+      `"True"` and `"False"` (the export's capitalisation), channels
+      `VOICE`, flow types `CONTACT_FLOW`, `CUSTOMER_QUEUE`,
+      `AGENT_TRANSFER`, `QUEUE_TRANSFER` and `MODULE` (a module by the note
+      above `IN_MODULE`), `next` required, the catch-all required, and a
+      shape: with `ContinueFlowExecution` `"True"`, `CallFailed` and
+      `ConnectionTimeLimitExceeded` are required, which the
+      `conditional-shape` lint rule enforces. With `"False"` neither is
+      required: the cookbook's reading, until the sweep. The builder takes
+      the number as a JSONPath only (a destination is supplied at run time,
+      and whether the service takes a static one is the sweep's), writes
+      the time limit as a decimal string and refuses one that is not a
+      positive integer, writes all three branches with `continueFlow:
+      true`, and with `continueFlow: false` the catch-all and whichever of
+      the other two the author wires. Codegen reads back only those forms;
+      a static number, a numeric or JSONPath time limit, another
+      `ContinueFlowExecution` spelling, another key (Send DTMF or caller
+      ID) or another error order stays generic. The 0.3 schema clause holds
+      the number and the time limit to strings and the flag to its two
+      values.
+      Planned probes: `third-required-set-alone` (the catalog's required
+      set alone: the three keys, `"False"`, the catch-all alone; the
+      accepted-set probe) and `third-required` (the export's form);
+      `third-continue-no-call-failed`, `third-continue-no-timeout` and
+      `third-continue-no-catch-all` (the shape's branches and the
+      catch-all, each removed alone from the `"True"` form) and
+      `third-end-no-catch-all` (from the `"False"` form);
+      `third-end-all-branches` (the cookbook's reading of the `"False"`
+      form); `third-continue-no-next` and `third-end-no-next` (each form
+      without `NextAction`); `third-no-continue`, `third-no-time-limit`
+      and `third-no-number` (each required key removed alone);
+      `third-static-number` (a static destination, which tasks/D09 asks
+      the sweep to record); `third-continue-lowercase` and
+      `third-time-limit-number` (the clause's spellings);
+      `third-time-limit-zero`, `third-time-limit-600` and
+      `third-time-limit-jsonpath` (a bound and a dynamic form); and
+      `third-customer-queue`, `third-agent-transfer`, `third-queue-transfer`
+      and `third-module` (allowed) against `third-customer-whisper` and
+      `third-customer-hold` (forbidden). The type has no optional
+      container.
+      https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
 
 ## Per-action parameter shapes
 
@@ -2517,6 +2591,10 @@ StartOutboundChatContact { SourceEndpoint: { Address: phonenumber, Type: "CONNEC
                            ContactFlowArn: flow, ContactSubtype: "connect:SMS",
                            InitialSystemMessage?: { Content }, RelatedContact?: "CURRENT" }
 LoadContactContent       { ContentType?: "EmailMessage" }   // the admin guide's example; email only
+TransferParticipantToThirdParty { ThirdPartyPhoneNumber,   // a JSONPath in the builder; static pending rule 47
+                           ThirdPartyConnectionTimeLimitSeconds,   // decimal string
+                           ContinueFlowExecution: "True" | "False" }   // "True": CallFailed and
+                                                                       // ConnectionTimeLimitExceeded required; voice only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2689,7 +2767,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-55 of the 61. Everything not in the modeled set above parses to a
+56 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only actions the builder does not model (with tokens inside their
@@ -2751,19 +2829,27 @@ no other modeled type.
 https://docs.aws.amazon.com/connect/latest/APIReference/API_StartOutboundChatContact.html
 On 2026-10-12, when D09 modeled `LoadContactContent`, the fixture dropped
 it: `CompleteOutboundCall` goes on to `TransferParticipantToThirdParty`,
-and `StartVoiceIdStream` loops back to that action instead.
+and `StartVoiceIdStream` loops back to that action instead. When D09 then
+modeled `TransferParticipantToThirdParty`, the fixture dropped it too:
+`CompleteOutboundCall` goes on to `StartVoiceIdStream`, which loops back
+to `CompleteOutboundCall`. The flow token stays in
+`StartOutboundChatContact` and the queue token in `CompleteOutboundCall`,
+in the two generic forms of modeled types, and `StartVoiceIdStream` is the
+one unmodeled type left. The Terraform cookbook's generic recipe moved from
+`TransferParticipantToThirdParty` to `StartVoiceIdStream` the same day.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
 | Developer Guide pages   | 56    | 54      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 1       | `catalog.json` category `other`, `source` `adminguide`      |
-| Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 55      |                                                             |
+| Console export          | 1     | 1       | `catalog.json` category `other`, `source` `console-export`  |
+| Denominator             | 61    | 56      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the
 2026-10-05 create probes, rule 47 what D09 modeled and why the rest wait;
-`LoadContactContent` is modeled, the others are `modeled: false`.
+`LoadContactContent` and `TransferParticipantToThirdParty` are modeled,
+the other three are `modeled: false`.
 Of the five, the service accepted `LoadContactContent` and
 `TransferParticipantToThirdParty`, refused `AuthenticateParticipant` naming
 its required keys and branch, and refused `CheckSegmentMembership` and

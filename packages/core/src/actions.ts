@@ -70,6 +70,7 @@ export const ActionType = {
   CompleteOutboundCall: "CompleteOutboundCall",
   StartOutboundChatContact: "StartOutboundChatContact",
   LoadContactContent: "LoadContactContent",
+  TransferParticipantToThirdParty: "TransferParticipantToThirdParty",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -267,6 +268,14 @@ export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
  */
 export const CHANNEL_MISMATCH = "ChannelMismatch";
+
+/**
+ * TransferParticipantToThirdParty's two errors besides the catch-all, the
+ * console's Call failed and Timeout branches, spelled as the kept export
+ * writes them (conformance/flow-language/exports/).
+ */
+export const CALL_FAILED = "CallFailed";
+export const CONNECTION_TIME_LIMIT_EXCEEDED = "ConnectionTimeLimitExceeded";
 export const IN_FLIGHT_REDACTION_CONFIGURATION_FAILED = "InFlightRedactionConfigurationFailed";
 
 /**
@@ -451,6 +460,17 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // As CreateCase's: the order of every published flow (rule 44).
   // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
   [ActionType.UpdateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
+  // The kept export's order, catch-all last. No page documents the action.
+  // With ContinueFlowExecution "True" the service requires all three (the
+  // catalog's shape); with "False" only the catch-all is required, which a
+  // cookbook comment says is all that form takes and rule 47's probes
+  // settle, and the builder writes the other two only when wired.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+  [ActionType.TransferParticipantToThirdParty]: [
+    CALL_FAILED,
+    CONNECTION_TIME_LIMIT_EXCEEDED,
+    NO_MATCHING_ERROR,
+  ],
 };
 
 /**
@@ -686,6 +706,18 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
   [ActionType.CompleteOutboundCall]: ["OUTBOUND_WHISPER", ...IN_MODULE],
+  // No page documents the action. The Transfer to phone number block, which
+  // the console writes as it, lists inbound, customer queue, transfer to
+  // agent and transfer to queue flows; a module by the note above
+  // IN_MODULE. Rule 47's probes put each, and a customer whisper and a
+  // customer hold flow, to the service.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+  [ActionType.TransferParticipantToThirdParty]: [
+    ...INBOUND,
+    ...CUSTOMER_QUEUE,
+    ...TRANSFER,
+    ...IN_MODULE,
+  ],
 };
 
 /**
@@ -762,6 +794,10 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // body. The admin guide is the only page (actions.md, rule 47).
   // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
   [ActionType.LoadContactContent]: ["EMAIL"],
+  // The Transfer to phone number block's channel table: voice "Yes", chat,
+  // task and email "No - Error branch". No page documents the action.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+  [ActionType.TransferParticipantToThirdParty]: ["VOICE"],
 };
 
 /**

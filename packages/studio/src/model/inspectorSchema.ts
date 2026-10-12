@@ -942,6 +942,31 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
         { kind: "select", key: "MediaStreamType", label: "Stream type", options: ["Audio"] },
       ];
+    case ActionType.TransferParticipantToThirdParty:
+      // The number is a JSONPath (codegen leaves a static one generic until
+      // rule 47 records whether the service takes it). Resume flow after
+      // disconnect True carries the Call failed and Timeout branches, which
+      // the service requires in that form; False carries the catch-all alone.
+      return [
+        {
+          kind: "text",
+          key: "ThirdPartyPhoneNumber",
+          label: "Phone number (JSONPath to an E.164 number)",
+        },
+        {
+          kind: "number",
+          key: "ThirdPartyConnectionTimeLimitSeconds",
+          label: "Timeout (seconds)",
+          min: 1,
+          asString: true,
+        },
+        {
+          kind: "select",
+          key: "ContinueFlowExecution",
+          label: "Resume flow after disconnect",
+          options: ["True", "False"],
+        },
+      ];
     case ActionType.UpdatePreviousContactParticipantState:
       // AgentOnHold keeps the customer on the call, CustomerOnHold the
       // agent, and OffHold is the console's Conference all.

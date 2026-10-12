@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-55 modeled types follow. Any other type (6: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+56 modeled types follow. Any other type (5: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `AuthenticateParticipant`, `CheckSegmentMembership`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -947,3 +947,20 @@ Block `load_contact_content`. [Action page](https://docs.aws.amazon.com/connect/
 | HCL attribute  | Flow language key | Value            | Required |
 | -------------- | ----------------- | ---------------- | -------- |
 | `content_type` | `ContentType`     | `"EmailMessage"` | no       |
+
+## TransferParticipantToThirdParty
+
+Block `transfer_participant_to_third_party`. [Action page](conformance/flow-language/exports/transfer-participant-to-third-party.json).
+
+- Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `CallFailed`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the builder writes only the catch-all, and rule 47's probes decide what that form takes; `ConnectionTimeLimitExceeded`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the builder writes only the catch-all, and rule 47's probes decide what that form takes; `NoMatchingError` (required).
+- Conditions: none.
+- Shape with `ContinueFlowExecution` "True": needs branches `CallFailed`, `ConnectionTimeLimitExceeded`.
+
+| HCL attribute                               | Flow language key                      | Value               | Required |
+| ------------------------------------------- | -------------------------------------- | ------------------- | -------- |
+| `third_party_phone_number`                  | `ThirdPartyPhoneNumber`                | string or JSONPath  | yes      |
+| `third_party_connection_time_limit_seconds` | `ThirdPartyConnectionTimeLimitSeconds` | number              | yes      |
+| `continue_flow_execution`                   | `ContinueFlowExecution`                | `"True"`, `"False"` | yes      |

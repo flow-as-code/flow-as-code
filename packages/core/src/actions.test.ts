@@ -41,6 +41,7 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   CheckOutboundCallStatus: ["VOICE"],
   CompleteOutboundCall: ["VOICE"],
   LoadContactContent: ["EMAIL"],
+  TransferParticipantToThirdParty: ["VOICE"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -162,6 +163,13 @@ const EXPECTED: Record<string, string[]> = {
     "MODULE",
   ],
   CompleteOutboundCall: ["OUTBOUND_WHISPER", "MODULE"],
+  TransferParticipantToThirdParty: [
+    "CONTACT_FLOW",
+    "CUSTOMER_QUEUE",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "MODULE",
+  ],
   UpdateContactMediaStreamingBehavior: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",
