@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-52 modeled types follow. Any other type (9: `CompleteOutboundCall`, `StartOutboundChatContact`, `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+53 modeled types follow. Any other type (8: `StartOutboundChatContact`, `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -41,6 +41,22 @@ generic {
   parameters = jsonencode({ ... })
 }
 ```
+
+## CompleteOutboundCall
+
+Block `complete_outbound_call`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html).
+
+- Legal in: OUTBOUND_WHISPER, MODULE.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: none; the service refuses any.
+- Conditions: none.
+
+| HCL attribute                   | Flow language key            | Value              | Required |
+| ------------------------------- | ---------------------------- | ------------------ | -------- |
+| `caller_id`                     | `CallerId`                   | object             | no       |
+| .`number`                       | `Number`                     | string or JSONPath | yes      |
+| `connection_time_limit_seconds` | `ConnectionTimeLimitSeconds` | number             | no       |
 
 ## CreateCase
 

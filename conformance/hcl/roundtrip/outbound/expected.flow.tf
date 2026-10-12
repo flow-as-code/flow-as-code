@@ -5,7 +5,55 @@ resource "flowascode_contact_flow" "outbound" {
   instance_id = var.connect_instance_id
   name        = "outbound"
   type        = "OUTBOUND_WHISPER"
-  description = "The outbound actions in an outbound whisper flow: the call's progress checked, a person answering greeted, either voicemail result noted, and no detection ending the whisper."
+  description = "The outbound actions in an outbound whisper flow: the call placed with a static caller ID, or through a Chime voice connector read from attributes (a form that stays generic, owner decision 4), then the call's progress checked on all four statuses, a person answering greeted, either voicemail result noted, and no detection ending the whisper."
+
+  action {
+    id   = "choose-route"
+    next = "place-call"
+    compare {
+      comparison_value = "$.Attributes.route"
+    }
+    condition {
+      operator = "Equals"
+      operands = ["sip"]
+      next     = "place-call-via-sip"
+    }
+    error {
+      type = "NoMatchingCondition"
+      next = "place-call"
+    }
+  }
+
+  action {
+    id   = "place-call"
+    next = "check-progress"
+    complete_outbound_call {
+      caller_id = {
+        number = "+15555550100"
+      }
+    }
+  }
+
+  action {
+    id   = "place-call-via-sip"
+    next = "check-progress"
+    generic {
+      type = "CompleteOutboundCall"
+      parameters = jsonencode({
+        ConnectionTimeLimitSeconds = "30"
+        VoiceConnector = {
+          FromUser           = "$.Attributes.fromUser"
+          ToUser             = "$.CustomerEndpoint.Address"
+          VoiceConnectorArn  = "$.Attributes.voiceConnectorArn"
+          VoiceConnectorType = "ChimeConnector"
+        }
+      })
+    }
+    position {
+      x = 280
+      y = 180
+    }
+  }
 
   action {
     id   = "check-progress"
@@ -52,7 +100,7 @@ resource "flowascode_contact_flow" "outbound" {
       text = "The call reached voicemail."
     }
     position {
-      x = 280
+      x = 800
       y = 180
     }
   }

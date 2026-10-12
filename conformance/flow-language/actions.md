@@ -109,6 +109,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Cases (Update case) | `UpdateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html) |
 | Set routing criteria | `UpdateRoutingCriteria` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
 | Check call progress | `CheckOutboundCallStatus` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html) |
+| Call phone number | `CompleteOutboundCall` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html) |
 
 ## Reference-bearing parameters
 
@@ -2157,6 +2158,83 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
       https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
       https://docs.aws.amazon.com/connect/latest/adminguide/enable-outbound-campaigns.html
+    - `CompleteOutboundCall` "When a flow is run before an outbound call is
+      made as part of an outbound contact, this action calls the outbound
+      destination. If this action is not used, the first participant
+      action implicitly completes the outbound call." Parameters: `CallerId`
+      "Optional, an override of the caller ID to present when calling. Is
+      ignored when using VoiceConnectors", whose `Number` "Can either be
+      fully static or a single valid JSONPath identifier"; `VoiceConnector`
+      "Optional", with `VoiceConnectorType` ("Only support
+      "ChimeConnector". Must be defined statically."),
+      `VoiceConnectorArn`, `FromUser`, `ToUser` and an optional
+      `UserToUserInformation`, each static or dynamic; and
+      `ConnectionTimeLimitSeconds` "Optional, Only used for Voice Connector
+      use case. An integer between 1 and 600 (inclusive) ... Can be set
+      statically or dynamically." Results "None."; errors "None.";
+      Restrictions "This action can be used only when the contact is in the
+      process of making an outbound call, but has not yet called the
+      outbound number." The admin guide's Call phone number block: "Use
+      this block to set the caller ID number for an outbound call in an
+      **Outbound Whisper** flow", that flow type alone, voice "Yes" and
+      chat, task and email "No", and "There is no error branch for the
+      block." Four flows published on GitHub, read 2026-10-12, carry the
+      type: two console exports whose `Metadata.type` is
+      `outboundWhisper` (service-cloud-voice/examples-from-doc at
+      `77cadf6`,
+      https://github.com/service-cloud-voice/examples-from-doc/blob/77cadf6bcfaa9379fa30393b78ad6c92d8266b7d/ContactFlows/Sample%20SCV%20Outbound%20Flow%20From%20Rep%20With%20Caller%20ID%20Override.json,
+      and CloudInteract/ci-blogs-set-outbound-cli at `384d4cd`,
+      https://github.com/CloudInteract/ci-blogs-set-outbound-cli/blob/384d4cd64f7ba90b31a9e06bca1176691be1d3d0/Contact%20flow/Outbound%20Select%20Identity)
+      and two exports kept as files
+      (https://github.com/GoodMeasuresLLC/connect/blob/4169d98a471c5384f6a299535625c6dc176c9993/environments/production/contact_flows/_0x_gm_outbound.json,
+      https://github.com/Carter-Sondrol/aws-sync-tool/blob/f6a7006f385cdbf4ac6ed719099597d73ab8f913/cdtfa-copy-cdk/flows/DirectDialOutbound.json).
+      Each writes `CallerId.Number` alone, three as a JSONPath and one as a
+      static E.164 number, and none carries an error branch,
+      `ConnectionTimeLimitSeconds` or `VoiceConnector`. The catalog records
+      `CallerId` as an optional object whose `Number` is a required
+      `stringOrJsonPath` (the number itself, not a `phonenumber`
+      reference: the static export holds the digits), and
+      `ConnectionTimeLimitSeconds` as an optional `integerString` from 1 to
+      600 with `dynamic` (no export carries it, so the decimal string
+      follows every other seconds field the console writes, rule 39);
+      `next` required and no error, so the type joins `WITHOUT_CATCH_ALL`
+      as `UpdateContactRecordingBehavior` did, on the pages' and the
+      exports' reading until `complete-with-catch-all` runs. Flow types
+      `OUTBOUND_WHISPER` and `MODULE`: the admin guide's reading, with a
+      module by the note above `IN_MODULE`; the action page names none.
+      `channels` `["VOICE"]`, from the admin guide's table. `VoiceConnector`
+      is not in the catalog (owner decision 4: no `voiceconnector`
+      reference type): a block carrying it is a GenericBlock in codegen,
+      the studio and HCL, as Lex V1's `LexBot` is, and the group fixture
+      holds one. The 0.3 clause holds JSON types only: `CallerId` an
+      object whose `Number` is a string, `ConnectionTimeLimitSeconds` a
+      string and `VoiceConnector` an object. Deployable; not exercised: an
+      outbound whisper flow runs on an agent's outbound call or a callback,
+      and the sandbox places neither; the voice connector form needs a
+      Chime voice connector, which no task here creates.
+      Planned probes: `complete-required-set-alone` (no parameters and a
+      `NextAction`: the accepted-set probe; `CallerId` and the time limit
+      are each optional, so it is also the probe of each absent) and
+      `complete-required` (the class's form with the claimed DID; expected
+      accepted); `complete-with-catch-all` (decides the error branch) and
+      `complete-no-next`; `complete-caller-id-jsonpath`,
+      `complete-caller-id-unclaimed` (whether the number is validated) and
+      `complete-caller-id-arn` (whether the field could hold a reference);
+      `complete-time-limit`, `complete-time-limit-number`,
+      `complete-time-limit-601` and `complete-time-limit-jsonpath` (the
+      spelling, the bound and the dynamic form, without a connector);
+      `complete-voice-connector` (an invented connector ARN, to learn
+      whether the create validates it) and
+      `complete-voice-connector-other-type`; and `complete-contact-flow`,
+      `complete-customer-queue`, `complete-customer-hold`,
+      `complete-agent-hold`, `complete-customer-whisper`,
+      `complete-agent-whisper`, `complete-agent-transfer`,
+      `complete-queue-transfer` and `complete-module` (every other flow
+      type). If the service accepts the type outside an outbound whisper
+      flow, the catalog widens to what it accepts; if it refuses, the
+      restriction is recorded here as the service's.
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
 
 ## Per-action parameter shapes
 
@@ -2273,6 +2351,8 @@ RoutingExpression        { AttributeCondition: { Name, Value,   // 1 to 64 each;
                          | { AndExpression: AttributeCondition[] }   // 1 to 8
                          | { OrExpression: (AttributeCondition | AndExpression)[] }   // 1 to 3, top only
 CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected"
+CompleteOutboundCall     { CallerId?: { Number },   // E.164 or a JSONPath
+                           ConnectionTimeLimitSeconds?: "1".."600" }   // or a JSONPath; VoiceConnector stays generic
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2342,8 +2422,9 @@ table because its action page names none, and
 error since its page has no Restrictions section (rule 41), and
 `CreateWisdomSession`, `["VOICE"]`, from its Restrictions section where the
 admin guide's block allows every channel (rule 42), and
-`CheckOutboundCallStatus`, `["VOICE"]`, from its admin guide block page's
-channel table because its action page names none (rule 46). Absent means the
+`CheckOutboundCallStatus` and `CompleteOutboundCall`, each `["VOICE"]`,
+from their admin guide block pages' channel tables because their action
+pages name none (rule 46). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -2444,10 +2525,12 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-52 of the 61. Everything not in the modeled set above parses to a
+53 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
-only unmodeled types (with tokens inside their parameters) so passthrough
+only actions the builder does not model (with tokens inside their
+parameters): unmodeled types, and since D04 one unmodeled form of a modeled
+type, named below, so passthrough
 is exercised by the conformance suite; the demo flow carried an unmodeled
 action for that purpose until 2026-09-11, when its logging block was
 modeled (rule 36). On 2026-10-12, when D02 modeled `ResumeContact` and
@@ -2483,14 +2566,18 @@ ARN, `FromUser` and `ToUser` each a JSONPath, so the document needs no
 `voiceconnector` reference, which owner decision 4 does not add). Owner
 decision 4 also keeps a block carrying `VoiceConnector` generic once D04
 models the type's caller-id form, so the token stays in passthrough until a
-task takes that form up.
+task takes that form up. On 2026-10-12 D04 modeled that caller-id form, and
+the fixture became the one place a modeled type stands in it: in a form
+its class does not write, which codegen, the studio and HCL keep generic.
+The two tests that hold the fixture name that form (`CompleteOutboundCall`
+with `VoiceConnector`) and allow no other modeled type.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 52      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 53      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 52      |                                                             |
+| Denominator             | 61    | 53      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

@@ -137,7 +137,47 @@
     "CompleteOutboundCall": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html",
-      "modeled": false
+      "modeled": true,
+      "block": "complete_outbound_call",
+      "terminal": false,
+      "flowTypes": [
+        "OUTBOUND_WHISPER",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "CallerId",
+          "attr": "caller_id",
+          "kind": "object",
+          "required": false,
+          "fields": [
+            {
+              "key": "Number",
+              "attr": "number",
+              "kind": "stringOrJsonPath",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "ConnectionTimeLimitSeconds",
+          "attr": "connection_time_limit_seconds",
+          "kind": "integerString",
+          "required": false,
+          "min": 1,
+          "max": 600,
+          "dynamic": true
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": []
+      }
     },
     "CreateCase": {
       "category": "contact",

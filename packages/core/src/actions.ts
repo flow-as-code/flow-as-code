@@ -67,6 +67,7 @@ export const ActionType = {
   UpdateCase: "UpdateCase",
   UpdateRoutingCriteria: "UpdateRoutingCriteria",
   CheckOutboundCallStatus: "CheckOutboundCallStatus",
+  CompleteOutboundCall: "CompleteOutboundCall",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -283,6 +284,16 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
   // rule 37).
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html
   ActionType.UpdateContactRecordingBehavior,
+  // Errors "None."; the admin guide's Call phone number block: "There is no
+  // error branch for the block. If a call is not successfully initiated,
+  // the flow ends and the agent is placed in an AfterContactWork (ACW)."
+  // Every published export of the block carries no error (actions.md, rule
+  // 46). Rule 37 found the service refusing NoMatchingError on
+  // UpdateContactRecordingBehavior, whose page also says "None";
+  // complete-with-catch-all puts the same question to this type.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+  ActionType.CompleteOutboundCall,
 ];
 
 /**
@@ -652,6 +663,18 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
   [ActionType.UpdateRoutingCriteria]: [...INBOUND, ...CUSTOMER_QUEUE, ...TRANSFER, ...IN_MODULE],
+  // The action page's Restrictions name no flow type: "This action can be
+  // used only when the contact is in the process of making an outbound
+  // call, but has not yet called the outbound number." The admin guide's
+  // Call phone number block: "Use this block to set the caller ID number
+  // for an outbound call in an Outbound Whisper flow", and its flow types
+  // list that one alone. The admin guide's reading is recorded, with a
+  // module by the note above IN_MODULE; rule 46's probes put every other
+  // flow type to the service, and a refusal makes the restriction the
+  // service's.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+  [ActionType.CompleteOutboundCall]: ["OUTBOUND_WHISPER", ...IN_MODULE],
 };
 
 /**
@@ -718,6 +741,11 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
   [ActionType.CheckOutboundCallStatus]: ["VOICE"],
+  // The action page names no channel; the admin guide's Call phone number
+  // block: voice "Yes", chat, task and email "No". It places a call.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+  [ActionType.CompleteOutboundCall]: ["VOICE"],
 };
 
 /**
@@ -1201,6 +1229,16 @@ export const OUTBOUND_CALL_STATUSES = [
   "NotDetected",
 ] as const;
 export type OutboundCallStatus = (typeof OUTBOUND_CALL_STATUSES)[number];
+
+/**
+ * CompleteOutboundCall.ConnectionTimeLimitSeconds: "Optional, Only used for
+ * Voice Connector use case. An integer between 1 and 600 (inclusive)
+ * representing the number of seconds to wait for the voice connector to
+ * answer before canceling the call. Can be set statically or dynamically."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+ */
+export const OUTBOUND_CONNECTION_TIME_LIMIT_MIN = 1;
+export const OUTBOUND_CONNECTION_TIME_LIMIT_MAX = 600;
 
 /**
  * DistributeByPercentage draws "a random number between 1 and 100

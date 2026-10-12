@@ -2,12 +2,71 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "outbound",
-  "description": "The outbound actions in an outbound whisper flow: the call's progress checked, a person answering greeted, either voicemail result noted, and no detection ending the whisper.",
+  "description": "The outbound actions in an outbound whisper flow: the call placed with a static caller ID, or through a Chime voice connector read from attributes (a form that stays generic, owner decision 4), then the call's progress checked on all four statuses, a person answering greeted, either voicemail result noted, and no detection ending the whisper.",
   "connectType": "OUTBOUND_WHISPER",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "check-progress",
+    "StartAction": "choose-route",
     "Actions": [
+      {
+        "Identifier": "choose-route",
+        "Type": "Compare",
+        "Parameters": {
+          "ComparisonValue": "$.Attributes.route"
+        },
+        "Transitions": {
+          "NextAction": "place-call",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingCondition",
+              "NextAction": "place-call"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "place-call-via-sip",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "sip"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "place-call",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "CallerId": {
+            "Number": "+15555550100"
+          }
+        },
+        "Transitions": {
+          "NextAction": "check-progress",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "place-call-via-sip",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "ConnectionTimeLimitSeconds": "30",
+          "VoiceConnector": {
+            "FromUser": "$.Attributes.fromUser",
+            "ToUser": "$.CustomerEndpoint.Address",
+            "VoiceConnectorArn": "$.Attributes.voiceConnectorArn",
+            "VoiceConnectorType": "ChimeConnector"
+          }
+        },
+        "Transitions": {
+          "NextAction": "check-progress",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
       {
         "Identifier": "check-progress",
         "Type": "CheckOutboundCallStatus",
@@ -94,18 +153,30 @@
   },
   "layout": {
     "check-progress": {
+      "x": 540,
+      "y": 20
+    },
+    "choose-route": {
       "x": 20,
       "y": 20
     },
     "done": {
-      "x": 540,
+      "x": 1060,
       "y": 20
     },
     "greet": {
-      "x": 280,
+      "x": 800,
       "y": 20
     },
     "leave-message": {
+      "x": 800,
+      "y": 180
+    },
+    "place-call": {
+      "x": 280,
+      "y": 20
+    },
+    "place-call-via-sip": {
       "x": 280,
       "y": 180
     }

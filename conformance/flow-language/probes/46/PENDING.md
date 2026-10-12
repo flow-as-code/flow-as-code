@@ -18,10 +18,22 @@ them as such. If either is refused as an invalid action type, the type
 stays generic until the campaigns gate is opened, and rule 46 says so
 (rule 37 saw "Invalid Action type" for a feature the instance lacked).
 
+`CompleteOutboundCall`'s probes name the sandbox's one claimed US DID
+(owner decision 7), by number and by id; the sandbox root claims it and
+never releases it. `complete-caller-id-unclaimed` uses the fictional
+`+15555550100`, which no instance can claim, and `complete-voice-connector`
+an invented Chime voice connector ARN (`vc/fac-probe-invented`), so neither
+needs a resource.
+
 ## Placeholders
 
 The run fills `{{ACCOUNT}}`, `{{REGION}}` and `{{INSTANCE}}` as the README
-says.
+says, and these names from the environment:
+
+| Placeholder      | Filled from        | What it names                                    |
+| ---------------- | ------------------ | ------------------------------------------------ |
+| `{{DID_NUMBER}}` | `PROBE_DID_NUMBER` | the claimed DID in E.164 form                    |
+| `{{DID_ID}}`     | `PROBE_DID_ID`     | the claimed DID's phone number id, in its ARN    |
 
 When the set has run, its `results.json` replaces this file, rule 46 records
 what the service said, and the catalog changes only where a result says so.

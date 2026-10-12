@@ -1,0 +1,33 @@
+{
+  "description": "Rule 46: CompleteOutboundCall with a VoiceConnectorType other than ChimeConnector; the page: Only support \"ChimeConnector\".",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "VoiceConnector": {
+            "VoiceConnectorType": "SipConnector",
+            "VoiceConnectorArn": "arn:aws:chime:{{REGION}}:{{ACCOUNT}}:vc/fac-probe-invented",
+            "FromUser": "+15555550101",
+            "ToUser": "+15555550102"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -762,6 +762,17 @@ export function Inspector() {
       const object = { ...(holder ?? {}) };
       if (next === undefined) delete object[nested];
       else object[nested] = next;
+      // An optional key emptied out of an object that held nothing else
+      // removes the object (CompleteOutboundCall's CallerId), rather than
+      // leaving an empty one no block class writes.
+      if (
+        next === undefined &&
+        Object.keys(object).length === 0 &&
+        "optional" in field &&
+        field.optional === true
+      ) {
+        return setParam(doc, selected, field.key, undefined, options);
+      }
       return setParam(doc, selected, field.key, object, options);
     };
     switch (field.kind) {

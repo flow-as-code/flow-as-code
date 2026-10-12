@@ -84,6 +84,8 @@ import {
   TAG_LIMIT,
   TIME_LIMIT_EXCEEDED,
   OUTBOUND_CALL_STATUSES,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -1071,6 +1073,69 @@ export class CheckOutboundCallStatus extends Block {
         operands: [s],
       })),
     );
+  }
+}
+
+/**
+ * Call phone number: place the outbound call a flow runs ahead of ("When a
+ * flow is run before an outbound call is made as part of an outbound
+ * contact, this action calls the outbound destination. If this action is
+ * not used, the first participant action implicitly completes the outbound
+ * call."). `callerId` is `CallerId.Number`, the caller ID to present, an
+ * E.164 number or a single JSONPath; `connectionTimeLimitSeconds` is 1 to
+ * 600, static or a JSONPath, written as a decimal string, and the page says
+ * it is "Only used for Voice Connector use case". The page's
+ * `VoiceConnector` form (a Chime voice connector) is not modeled (owner
+ * decision 4): a block carrying it stays a GenericBlock. Results and errors
+ * "None."; the admin guide's block "has no error branch", so the class
+ * wires `next` alone. Outbound whisper flows (the admin guide's block),
+ * voice only.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+ */
+export interface CompleteOutboundCallConfig {
+  id: string;
+  /** The caller ID number to present: E.164, or a single JSONPath. */
+  callerId?: string | JsonPath;
+  connectionTimeLimitSeconds?: number | JsonPath;
+  next: Target;
+}
+
+export class CompleteOutboundCall extends Block {
+  readonly type = ActionType.CompleteOutboundCall;
+
+  constructor(private readonly config: CompleteOutboundCallConfig) {
+    super(config.id);
+    const where = `CompleteOutboundCall "${config.id}"`;
+    if (
+      config.callerId !== undefined &&
+      (typeof config.callerId !== "string" || config.callerId === "")
+    ) {
+      throw new Error(`${where} callerId must be a non-empty number or JSONPath.`);
+    }
+    const t = config.connectionTimeLimitSeconds;
+    if (
+      typeof t === "number" &&
+      (!Number.isInteger(t) ||
+        t < OUTBOUND_CONNECTION_TIME_LIMIT_MIN ||
+        t > OUTBOUND_CONNECTION_TIME_LIMIT_MAX)
+    ) {
+      throw new Error(
+        `${where} connectionTimeLimitSeconds must be an integer between ${OUTBOUND_CONNECTION_TIME_LIMIT_MIN} and ${OUTBOUND_CONNECTION_TIME_LIMIT_MAX}, got ${t}.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {};
+    if (this.config.callerId !== undefined) p.CallerId = { Number: this.config.callerId };
+    const t = this.config.connectionTimeLimitSeconds;
+    if (t !== undefined) p.ConnectionTimeLimitSeconds = typeof t === "number" ? String(t) : t;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, []);
   }
 }
 
@@ -3428,7 +3493,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 52.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 53.
  */
 export interface GenericBlockConfig {
   id: string;

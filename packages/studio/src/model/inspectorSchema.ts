@@ -13,6 +13,8 @@ import {
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
   INPUT_TIMEOUT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   INPUT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
   LAMBDA_TIMEOUT_MIN,
@@ -1126,6 +1128,32 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       // No parameters; the branches are the condition editor, each operand
       // the threshold below which a draw takes that branch.
       return [];
+    case ActionType.CompleteOutboundCall:
+      // Both optional: with no caller ID the queue's is used (the admin
+      // guide's Call phone number block). The caller ID is CallerId.Number,
+      // an E.164 number or a JSONPath; emptying it removes CallerId. The
+      // page uses the time limit only with a voice connector, whose form is
+      // generic (owner decision 4), but the typed form may carry it.
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+      // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+      return [
+        {
+          kind: "text",
+          key: "CallerId",
+          nested: "Number",
+          label: "Caller ID number (E.164 or JSONPath)",
+          optional: true,
+        },
+        {
+          kind: "number",
+          key: "ConnectionTimeLimitSeconds",
+          label: "Connection time limit (seconds)",
+          min: OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
+          max: OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+          asString: true,
+          optional: true,
+        },
+      ];
     case ActionType.CheckOutboundCallStatus:
       // No parameters ("{}"); the four statuses are the condition editor,
       // one Equals branch each, added by drags in the page's order.

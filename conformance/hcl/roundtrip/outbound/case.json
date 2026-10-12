@@ -1,5 +1,5 @@
 {
-  "description": "The outbound actions in an outbound whisper flow: check_outbound_call_status as a typed sub-block with no attributes, its four Equals conditions on the page's statuses in the page's order and its catch-all, with two message_participant blocks (the second carrying a position block, its layout off the default row) and end_flow_execution around it. No refs. Awaits the provider release that carries these blocks (tasks/D10), so it has no validate directory yet.",
+  "description": "The outbound actions in an outbound whisper flow: compare on a JSONPath routing to complete_outbound_call as a typed sub-block whose caller_id is an object holding a static number, or to the same type carrying VoiceConnector and ConnectionTimeLimitSeconds as a generic block (owner decision 4) with a position block; then check_outbound_call_status as a typed sub-block with no attributes, its four Equals conditions on the page's statuses in the page's order and its catch-all, with two message_participant blocks (the second carrying a position block, its layout off the default row) and end_flow_execution around it. No refs. Awaits the provider release that carries these blocks (tasks/D10), so it has no validate directory yet.",
   "doc": "../../../roundtrip/outbound/doc.flowdoc.json",
   "validate": "awaits-provider"
 }

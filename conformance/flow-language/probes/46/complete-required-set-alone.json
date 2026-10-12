@@ -1,0 +1,26 @@
+{
+  "description": "Rule 46: CompleteOutboundCall with the catalog's required set alone: no parameters (CallerId and ConnectionTimeLimitSeconds are optional) and a NextAction, no error branch; the accepted-set probe, in the outbound whisper flow the admin guide names.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

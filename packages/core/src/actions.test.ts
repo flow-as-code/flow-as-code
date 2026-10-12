@@ -39,6 +39,7 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   UpdateContactMediaProcessing: ["CHAT"],
   CreateWisdomSession: ["VOICE"],
   CheckOutboundCallStatus: ["VOICE"],
+  CompleteOutboundCall: ["VOICE"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -159,6 +160,7 @@ const EXPECTED: Record<string, string[]> = {
     "QUEUE_TRANSFER",
     "MODULE",
   ],
+  CompleteOutboundCall: ["OUTBOUND_WHISPER", "MODULE"],
   UpdateContactMediaStreamingBehavior: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",

@@ -59,6 +59,8 @@ import {
   WAIT_COMPLETED,
   WAIT_EVENTS,
   OUTBOUND_CALL_STATUSES,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
   INPUT_MENU_ERRORS,
@@ -100,6 +102,7 @@ import {
   CheckHoursOfOperation,
   CheckMetricData,
   CheckOutboundCallStatus,
+  CompleteOutboundCall,
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
@@ -1515,6 +1518,58 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         onStatus: cast<never>(config),
         onError: errors[0]!.NextAction,
       }),
+    };
+  },
+
+  // The caller ID and time limit form only: VoiceConnector (owner decision
+  // 4) and any other key stay generic. No error branch; NextAction alone.
+  [ActionType.CompleteOutboundCall]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, [], ["CallerId", "ConnectionTimeLimitSeconds"])) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (p.CallerId !== undefined) {
+      const caller = p.CallerId;
+      if (!isStringMap(caller) || !paramKeysAre(caller, ["Number"])) return undefined;
+      const number = caller.Number!;
+      if (number === "") return undefined;
+      if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(number)) {
+        ctx.jsonPath = true;
+        entries.push(["callerId", new Raw(`jsonPath(${quoteString(number)})`)]);
+      } else {
+        entries.push(["callerId", number]);
+      }
+      config.callerId = number;
+    }
+    if (p.ConnectionTimeLimitSeconds !== undefined) {
+      const raw = p.ConnectionTimeLimitSeconds;
+      if (typeof raw !== "string") return undefined;
+      if (/^[1-9][0-9]*$/.test(raw)) {
+        const seconds = Number(raw);
+        if (
+          seconds < OUTBOUND_CONNECTION_TIME_LIMIT_MIN ||
+          seconds > OUTBOUND_CONNECTION_TIME_LIMIT_MAX
+        ) {
+          return undefined;
+        }
+        entries.push(["connectionTimeLimitSeconds", seconds]);
+        config.connectionTimeLimitSeconds = seconds;
+      } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) {
+        ctx.jsonPath = true;
+        entries.push(["connectionTimeLimitSeconds", new Raw(`jsonPath(${quoteString(raw)})`)]);
+        config.connectionTimeLimitSeconds = raw;
+      } else {
+        return undefined;
+      }
+    }
+    entries.push(["next", t.NextAction]);
+    return {
+      cls: "CompleteOutboundCall",
+      entries,
+      block: new CompleteOutboundCall(cast<never>({ ...config, next: t.NextAction })),
     };
   },
 

@@ -201,9 +201,10 @@ setting routing criteria before a transfer to queue (`routing-criteria`:
 the steps read from a JSONPath, then three typed steps, an OR of an AND and
 a requirement, an AND of two requirements, and a requirement whose value is
 read from an attribute, the last never expiring); and an outbound whisper
-flow of the outbound actions (`outbound`: the call's progress checked on
-all four statuses, a person answering greeted, either voicemail result
-noted).
+flow of the outbound actions (`outbound`: the call placed with a static
+caller ID, or through a Chime voice connector, a form that stays generic,
+then the call's progress checked on all four statuses, a person answering
+greeted, either voicemail result noted).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

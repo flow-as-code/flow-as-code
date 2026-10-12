@@ -21,6 +21,8 @@ import {
   CheckMetricData,
   CheckOutboundCallStatus,
   collectRefs,
+  Compare,
+  CompleteOutboundCall,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
   CreateCase,
@@ -2609,6 +2611,32 @@ describe("the outbound actions", () => {
       description: expected.description,
       layout: expected.layout,
     }).add(
+      new Compare({
+        id: "choose-route",
+        value: jsonPath("$.Attributes.route"),
+        branches: [{ operator: "Equals", operands: ["sip"], target: "place-call-via-sip" }],
+        onNoMatch: "place-call",
+      }),
+      new CompleteOutboundCall({
+        id: "place-call",
+        callerId: "+15555550100",
+        next: "check-progress",
+      }),
+      // The Chime voice connector form is not modeled (owner decision 4).
+      new GenericBlock({
+        id: "place-call-via-sip",
+        type: "CompleteOutboundCall",
+        parameters: {
+          ConnectionTimeLimitSeconds: "30",
+          VoiceConnector: {
+            FromUser: "$.Attributes.fromUser",
+            ToUser: "$.CustomerEndpoint.Address",
+            VoiceConnectorArn: "$.Attributes.voiceConnectorArn",
+            VoiceConnectorType: "ChimeConnector",
+          },
+        },
+        next: "check-progress",
+      }),
       new CheckOutboundCallStatus({
         id: "check-progress",
         onStatus: {
@@ -2654,6 +2682,44 @@ describe("the outbound actions", () => {
         ],
       },
     });
+  });
+
+  it("write CompleteOutboundCall's caller ID and time limit, NextAction alone", () => {
+    expect(
+      new CompleteOutboundCall({
+        id: "c",
+        callerId: jsonPath("$.Attributes.callerId"),
+        connectionTimeLimitSeconds: 45,
+        next: "n",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "c",
+      Type: "CompleteOutboundCall",
+      Parameters: {
+        CallerId: { Number: "$.Attributes.callerId" },
+        ConnectionTimeLimitSeconds: "45",
+      },
+      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
+    expect(new CompleteOutboundCall({ id: "c", next: "n" }).toAction().Parameters).toEqual({});
+    expect(
+      new CompleteOutboundCall({
+        id: "c",
+        connectionTimeLimitSeconds: jsonPath("$.Attributes.limit"),
+        next: "n",
+      }).toAction().Parameters,
+    ).toEqual({ ConnectionTimeLimitSeconds: "$.Attributes.limit" });
+  });
+
+  it("refuse a call with an empty caller ID or a time limit outside 1 to 600", () => {
+    expect(() => new CompleteOutboundCall({ id: "c", callerId: "", next: "n" })).toThrow(
+      /callerId must be a non-empty number or JSONPath/,
+    );
+    for (const bad of [0, 601, 1.5]) {
+      expect(
+        () => new CompleteOutboundCall({ id: "c", connectionTimeLimitSeconds: bad, next: "n" }),
+      ).toThrow(/connectionTimeLimitSeconds must be an integer between 1 and 600/);
+    }
   });
 
   it("refuse a status check with no branch or a status the page does not list", () => {

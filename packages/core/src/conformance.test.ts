@@ -135,7 +135,12 @@ describe("demo flow invariants", () => {
     };
     const types = unknown.content.Actions.map((a) => a.Type);
     expect(types.length).toBeGreaterThan(0);
-    expect(types.filter((t) => modeled.has(t))).toEqual([]);
+    // A modeled type stands there only in a form its class does not write:
+    // since tasks/D04, CompleteOutboundCall's VoiceConnector form (owner
+    // decision 4); codegen.test.ts holds every action generic.
+    expect(types.filter((t) => modeled.has(t))).toEqual(
+      types.filter((t) => t === "CompleteOutboundCall"),
+    );
   });
 });
 
@@ -747,6 +752,54 @@ describe("FlowDoc schema rejections: routing criteria", () => {
         }),
       ),
     ).toBe(true);
+  });
+});
+
+// The outbound round-trip fixture is the subject for the 0.3 clauses of
+// tasks/D04. Each holds JSON types and reference forms only: nothing about
+// the outbound types is known to be enforced at create until rule 46's
+// probes (pending) run (owner decision 3). CheckOutboundCallStatus has no
+// parameter and no clause.
+describe("FlowDoc schema rejections: outbound", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/outbound/doc.flowdoc.json");
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(d.content.Actions.find((a) => a.Identifier === id) as unknown as Action);
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a caller ID that is not an object",
+      mutate("place-call", (a) => {
+        a.Parameters.CallerId = "+15555550100";
+      }),
+    ],
+    [
+      "a caller ID number that is not a string",
+      mutate("place-call", (a) => {
+        a.Parameters.CallerId = { Number: 15555550100 };
+      }),
+    ],
+    [
+      "a connection time limit written as a JSON number, not the decimal string",
+      mutate("place-call-via-sip", (a) => {
+        a.Parameters.ConnectionTimeLimitSeconds = 30;
+      }),
+    ],
+    [
+      "a voice connector that is not an object",
+      mutate("place-call-via-sip", (a) => {
+        a.Parameters.VoiceConnector = "$.Attributes.voiceConnector";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
   });
 });
 

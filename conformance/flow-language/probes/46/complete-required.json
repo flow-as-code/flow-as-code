@@ -1,0 +1,30 @@
+{
+  "description": "Rule 46: CompleteOutboundCall in the class's form: the claimed DID as a static caller ID and a NextAction, no error branch; expected accepted.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "CallerId": {
+            "Number": "{{DID_NUMBER}}"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

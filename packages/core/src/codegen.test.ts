@@ -2327,7 +2327,14 @@ describe("ConnectParticipantWithLexBot inverts the V2 form with its intents", ()
   });
 });
 
-describe("the unknown-actions fixture holds only types the builder does not model", () => {
+describe("the unknown-actions fixture holds only actions the builder does not model", () => {
+  // An unmodeled type, or a modeled type in a form its class does not write
+  // and that form's key: since tasks/D04, CompleteOutboundCall carrying
+  // VoiceConnector, which owner decision 4 keeps generic.
+  const UNMODELED_FORMS: Readonly<Record<string, string>> = {
+    CompleteOutboundCall: "VoiceConnector",
+  };
+
   it("emits a GenericBlock for every action, tokens kept verbatim", () => {
     const doc = JSON.parse(
       readFileSync(
@@ -2336,7 +2343,10 @@ describe("the unknown-actions fixture holds only types the builder does not mode
       ),
     ) as FlowDoc;
     for (const a of doc.content.Actions) {
-      expect(Object.values(ActionType) as string[]).not.toContain(a.Type);
+      if ((Object.values(ActionType) as string[]).includes(a.Type)) {
+        expect(UNMODELED_FORMS[a.Type], a.Type).toBeDefined();
+        expect(a.Parameters).toHaveProperty(UNMODELED_FORMS[a.Type]!);
+      }
     }
     const out = codegen(doc);
     expect(out.match(/new GenericBlock\(/g)).toHaveLength(doc.content.Actions.length);
@@ -3494,6 +3504,79 @@ describe("the outbound actions invert to their classes", () => {
     expect(out).toContain(`type: "${a.Type}"`);
     expect(out).not.toContain(`new ${a.Type}(`);
   };
+
+  describe("CompleteOutboundCall", () => {
+    const call = (
+      parameters: Record<string, unknown>,
+      opts: { next?: string; errors?: string[] } = {},
+    ): FlowAction => ({
+      Identifier: "call",
+      Type: "CompleteOutboundCall",
+      Parameters: parameters,
+      Transitions: {
+        ...(opts.next === "" ? {} : { NextAction: opts.next ?? "done" }),
+        Errors: (opts.errors ?? []).map((ErrorType) => ({ ErrorType, NextAction: "done" })),
+        Conditions: [],
+      },
+    });
+    const typed = (a: FlowAction) => {
+      const out = codegen(docWith([a, end]));
+      expect(out).toContain("new CompleteOutboundCall({");
+      expect(out).not.toContain("GenericBlock");
+      return out;
+    };
+
+    it("emits the caller ID static or by JSONPath, the time limit as a number or JSONPath, or neither", () => {
+      expect(typed(call({ CallerId: { Number: "+15555550100" } }))).toContain(
+        'callerId: "+15555550100"',
+      );
+      expect(typed(call({ CallerId: { Number: "$.Attributes.callerId" } }))).toContain(
+        'callerId: jsonPath("$.Attributes.callerId")',
+      );
+      expect(typed(call({ ConnectionTimeLimitSeconds: "600" }))).toContain(
+        "connectionTimeLimitSeconds: 600",
+      );
+      expect(typed(call({ ConnectionTimeLimitSeconds: "$.Attributes.limit" }))).toContain(
+        'connectionTimeLimitSeconds: jsonPath("$.Attributes.limit")',
+      );
+      typed(call({}));
+    });
+
+    it("leaves the voice connector form generic (owner decision 4), and anything else out of shape", () => {
+      generic(
+        call({
+          VoiceConnector: {
+            VoiceConnectorType: "ChimeConnector",
+            VoiceConnectorArn: "$.Attributes.voiceConnectorArn",
+            FromUser: "$.Attributes.fromUser",
+            ToUser: "$.CustomerEndpoint.Address",
+          },
+        }),
+      );
+      generic(call({ CallerId: { Number: "+15555550100", Name: "Front desk" } }));
+      generic(call({ CallerId: { Number: "" } }));
+      generic(call({ CallerId: "+15555550100" }));
+      generic(call({ ConnectionTimeLimitSeconds: "0" }));
+      generic(call({ ConnectionTimeLimitSeconds: "601" }));
+      generic(call({ ConnectionTimeLimitSeconds: 30 }));
+      generic(call({}, { errors: ["NoMatchingError"] }));
+      generic(call({}, { next: "" }));
+    });
+
+    it("keeps the group fixture's voice connector call generic beside the typed one", () => {
+      const doc = JSON.parse(
+        readFileSync(
+          new URL("../../../conformance/roundtrip/outbound/doc.flowdoc.json", import.meta.url),
+          "utf8",
+        ),
+      ) as FlowDoc;
+      const out = codegen(doc);
+      expect(out).toContain("new CompleteOutboundCall({");
+      expect(out).toMatch(
+        /new GenericBlock\(\{\s+id: "place-call-via-sip",\s+type: "CompleteOutboundCall"/,
+      );
+    });
+  });
 
   describe("CheckOutboundCallStatus", () => {
     const status = (

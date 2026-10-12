@@ -1,0 +1,28 @@
+{
+  "description": "Rule 46: CompleteOutboundCall with ConnectionTimeLimitSeconds a JSONPath (\"Can be set statically or dynamically\").",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "ConnectionTimeLimitSeconds": "$.Attributes.connectionLimit"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}
