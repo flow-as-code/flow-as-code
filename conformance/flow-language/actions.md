@@ -2125,7 +2125,17 @@ is read rather than when the type is modeled.
       supported call type ("For other call types, the contact routes to the
       **Error** branch"), voice "Yes" and chat, task and email "No - Error
       branch", and "All flow types", noting that the block "functions only
-      for the call types listed". The catalog records no parameters,
+      for the call types listed". An AWS sample's console export of every
+      block
+      (https://github.com/aws-samples/sample-aicc-builder-for-amazon-connect-ai-agent/blob/e7d1ab65d505cbdfb0d22e1d9f47c68f963a65b1/knowledge-base-docs/contact-flow/_reference-console-export-all-blocks.json,
+      read 2026-10-12, the file rule 43 also cites; its `Metadata.type` is
+      `contactFlow`) carries the type with `Parameters` `{}`, the four
+      Equals conditions in the page's order and `NoMatchingError`, every
+      target empty because the block was never wired; it settles the
+      operands and their order but not `NextAction`. A third-party library
+      (https://github.com/mgaffigan/pulumi-amazon-connect/blob/05a26ef747118fe685f4ffadfb99ab3d5afd2af2/src/flow/actions/outbound.ts,
+      read 2026-10-12, not an AWS publication) writes the same shape. The
+      catalog records no parameters,
       `conditions` `enum` with the four operands in the page's order, the
       catch-all required and wired by the builder, and `next`
       `mirrors:error:NoMatchingError` (the catch-all is the page's
@@ -2193,7 +2203,11 @@ is read rather than when the type is modeled.
       https://github.com/Carter-Sondrol/aws-sync-tool/blob/f6a7006f385cdbf4ac6ed719099597d73ab8f913/cdtfa-copy-cdk/flows/DirectDialOutbound.json).
       Each writes `CallerId.Number` alone, three as a JSONPath and one as a
       static E.164 number, and none carries an error branch,
-      `ConnectionTimeLimitSeconds` or `VoiceConnector`. The catalog records
+      `ConnectionTimeLimitSeconds` or `VoiceConnector`. The third-party
+      library's wire-format notes (the file rule 45 cites) record
+      "`CompleteOutboundCall` is rejected in `CONTACT_FLOW`", which agrees
+      with the admin guide; it is not a create recorded here, and
+      `complete-contact-flow` settles it. The catalog records
       `CallerId` as an optional object whose `Number` is a required
       `stringOrJsonPath` (the number itself, not a `phonenumber`
       reference: the static export holds the digits), and
@@ -2260,7 +2274,10 @@ is read rather than when the type is modeled.
       To manually or dynamically "in E.164 format", Flow manually or
       dynamically "that points to a flow ARN", and offers Link to contact;
       and adds WhatsApp, email and template forms whose keys it does not
-      give. The catalog records the page's six keys in its order:
+      give. No published console export carrying the type was found
+      (GitHub code search, 2026-10-12); the third-party library above
+      writes the page's shape with the source as an ARN, the catalog's
+      reading. The catalog records the page's six keys in its order:
       `SourceEndpoint` a required object of `Address`, a `phonenumber`
       reference (the D01 type; static or a JSONPath), and `Type`, a
       single-value enum; `DestinationEndpoint` a required object of
