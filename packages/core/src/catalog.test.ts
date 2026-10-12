@@ -16,6 +16,8 @@ import {
   ActionType,
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
+  TASK_DELAY_MAX,
+  TASK_DELAY_MIN,
   CALLBACK_DELAY_MIN,
   CHANNEL_RESTRICTIONS,
   CONDITION_CATCH_ALL,
@@ -147,6 +149,7 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   },
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
   Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
+  CreateTask: { DelaySeconds: { min: TASK_DELAY_MIN, max: TASK_DELAY_MAX } },
   TagContact: { Tags: { max: TAG_LIMIT } },
   // The service refuses an empty key list (live check, tasks/B01).
   UntagContact: { TagKeys: { min: 1 } },

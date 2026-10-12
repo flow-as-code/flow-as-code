@@ -52,6 +52,8 @@ import {
   PREVIOUS_PARTICIPANT_STATES,
   QUEUE_PRIORITY_MIN,
   SYSTEM_TAG_PREFIX,
+  TASK_DELAY_MAX,
+  TASK_DELAY_MIN,
   VOICE_ID_RESPONSE_TIME_MAX,
   VOICE_ID_RESPONSE_TIME_MIN,
   VOICE_ID_THRESHOLD_MAX,
@@ -2100,6 +2102,88 @@ export class UpdateContactMediaProcessing extends Block {
   }
 }
 
+/**
+ * "Creates a new task to run an assigned flow." The Create task block, in
+ * the page's parameter order: `ContactFlowId` ("A flow ID or flow ARN. Must
+ * be fully static or a single valid JSONPath identifier", a `flow`
+ * reference here), `Attributes` (keys and values "may be defined statically
+ * or dynamically"), `Name`, `Description`, `DelaySeconds` (1 to 518400, "If
+ * ScheduledTime is specified, this parameter may not be specified"),
+ * `ScheduledTime` and `TaskTemplateId` ("This must be defined statically",
+ * a `tasktemplate` reference and never a JSONPath). Results "None."; one
+ * error, the catch-all; "supported on all channels and in all contact flow
+ * types".
+ *
+ * The class takes a flow, a template or both, since the admin guide's Use
+ * template option needs a flow only "If the selected template does not
+ * include a flow". It writes `DelaySeconds` as a decimal string, the
+ * console's spelling of every integer parameter recorded so far, and takes
+ * `ScheduledTime` as a JSONPath only: the admin guide's "Set date and time
+ * using attribute" form, whose attribute holds Unix epoch seconds. The
+ * static spelling of either, and the shape of `References` (the page's
+ * `"Type": "Value"` against StartTaskContact's Reference object), are not
+ * recorded from a console export yet, so the class writes no References and
+ * a document carrying one, a static ScheduledTime or a numeric DelaySeconds
+ * stays a GenericBlock (actions.md, rule 42, probe pending).
+ * https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/create-task-block.html
+ * https://docs.aws.amazon.com/connect/latest/APIReference/API_StartTaskContact.html
+ */
+export interface CreateTaskConfig extends Wired {
+  name: string;
+  flow?: Ref<"flow"> | JsonPath;
+  template?: Ref<"tasktemplate">;
+  description?: string;
+  attributes?: Record<string, string>;
+  delaySeconds?: number | JsonPath;
+  scheduledTime?: JsonPath;
+}
+
+export class CreateTask extends Block {
+  readonly type = ActionType.CreateTask;
+
+  constructor(private readonly config: CreateTaskConfig) {
+    super(config.id);
+    if (typeof config.name !== "string") {
+      throw new Error(`CreateTask "${config.id}" name must be a string.`);
+    }
+    if (config.flow === undefined && config.template === undefined) {
+      throw new Error(`CreateTask "${config.id}" needs a flow, a template, or both.`);
+    }
+    if (config.delaySeconds !== undefined && config.scheduledTime !== undefined) {
+      throw new Error(`CreateTask "${config.id}" takes delaySeconds or scheduledTime, not both.`);
+    }
+    const d = config.delaySeconds;
+    if (
+      typeof d === "number" &&
+      (!Number.isInteger(d) || d < TASK_DELAY_MIN || d > TASK_DELAY_MAX)
+    ) {
+      throw new Error(
+        `CreateTask "${config.id}" delaySeconds must be an integer between ${TASK_DELAY_MIN} and ${TASK_DELAY_MAX}, got ${d}.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const p: Record<string, unknown> = {};
+    if (c.flow !== undefined) p.ContactFlowId = c.flow;
+    if (c.attributes !== undefined) p.Attributes = c.attributes;
+    p.Name = c.name;
+    if (c.description !== undefined) p.Description = c.description;
+    if (c.delaySeconds !== undefined) {
+      p.DelaySeconds = typeof c.delaySeconds === "number" ? String(c.delaySeconds) : c.delaySeconds;
+    }
+    if (c.scheduledTime !== undefined) p.ScheduledTime = c.scheduledTime;
+    if (c.template !== undefined) p.TaskTemplateId = c.template;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2298,7 +2382,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 39.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 40.
  */
 export interface GenericBlockConfig {
   id: string;

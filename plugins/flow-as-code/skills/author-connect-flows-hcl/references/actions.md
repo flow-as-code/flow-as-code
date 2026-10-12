@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-39 modeled types follow. Any other type (22: `CompleteOutboundCall`, `CreateCase`, `CreateTask`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+40 modeled types follow. Any other type (21: `CompleteOutboundCall`, `CreateCase`, `CreateWisdomSession`, `GetCase`, `StartOutboundChatContact`, `UpdateCase`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `UpdateRoutingCriteria`, `AssociateContactToCustomerProfile`, `CreateCustomerProfile`, `GetCustomerProfile`, `GetCustomerProfileObject`, `GetCalculatedAttributesForCustomerProfile`, `UpdateCustomerProfile`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -41,6 +41,27 @@ generic {
   parameters = jsonencode({ ... })
 }
 ```
+
+## CreateTask
+
+Block `create_task`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/createtask.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+- Parameters: at most one of `DelaySeconds`, `ScheduledTime`.
+
+| HCL attribute      | Flow language key | Value                                 | Required |
+| ------------------ | ----------------- | ------------------------------------- | -------- |
+| `contact_flow_id`  | `ContactFlowId`   | reference key (`flow:<name>`)         | no       |
+| `attributes`       | `Attributes`      | map of strings                        | no       |
+| `name`             | `Name`            | string                                | yes      |
+| `description`      | `Description`     | string                                | no       |
+| `references`       | `References`      | jsonencode(...)                       | no       |
+| `delay_seconds`    | `DelaySeconds`    | number                                | no       |
+| `scheduled_time`   | `ScheduledTime`   | string or JSONPath                    | no       |
+| `task_template_id` | `TaskTemplateId`  | reference key (`tasktemplate:<name>`) | no       |
 
 ## DequeueContactAndTransferToQueue
 

@@ -77,8 +77,9 @@ by the round-trip tests, and the release that reads FlowDoc 0.3 (tasks/D10)
 adds the directory and flips it to `pass`, leaving none. The provider's own
 conformance runner plans every `roundtrip` golden, so an `awaits-provider`
 case fails that runner until the provider's main reads 0.3; its first case is
-`roundtrip/casefield-key`, every FlowDoc 0.3 reference type as the generic
-blocks that hold them, a `casefield` token standing as a map key among them.
+`roundtrip/casefield-key`, every FlowDoc 0.3 reference type in the blocks
+that hold them (typed once a group task models the type, generic before), a
+`casefield` token standing as a map key among them.
 
 ## The resource
 
@@ -146,13 +147,13 @@ resource "flowascode_contact_flow" "appointment_line" {
   }
 
   action {
-    id   = "create-task"
+    id   = "text-back"
     next = "hang-up"
     generic {
-      type = "CreateTask"
+      type = "StartOutboundChatContact"
       parameters = jsonencode({
-        ContactFlowId = "$${cdref:flow:task-flow}"
-        Name          = "Follow up"
+        ContactFlowArn = "$${cdref:flow:task-flow}"
+        ContactSubtype = "connect:SMS"
       })
     }
     error {

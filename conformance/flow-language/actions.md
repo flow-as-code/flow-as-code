@@ -96,6 +96,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Hold customer or agent | `UpdatePreviousContactParticipantState` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html) |
 | Start media streaming, Stop media streaming | `UpdateContactMediaStreamingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html) |
 | Set recording, analytics and processing behavior (Set message processor) | `UpdateContactMediaProcessing` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html) |
+| Create task | `CreateTask` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createtask.html) |
 
 ## Reference-bearing parameters
 
@@ -118,6 +119,8 @@ is never interpolated into a longer string.
 | `ConnectParticipantWithLexBot` | `LexV2Bot.AliasArn` | `lex` |
 | `ShowView` | `ViewResource.Id` | `view` (may carry a version) |
 | `UpdateContactMediaProcessing` | `ChatProcessor.LambdaProcessorARN` | `lambda` (static: a token, never a JSONPath) |
+| `CreateTask` | `ContactFlowId` | `flow` |
+| `CreateTask` | `TaskTemplateId` | `tasktemplate` (static: a token, never a JSONPath) |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -1325,6 +1328,85 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateIntegrationAssociation.html
 
+42. Tasks and AI agents (tasks/D05; the Developer Guide pages read
+    2026-10-04 and again 2026-10-12 with the admin guide's block pages and
+    the StartTaskContact API reference). The group's types are modeled from
+    their pages. **Probe pending**: the create sweep the evidence rule asks
+    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
+    AWS credentials had expired, and the instance had no task template.
+    Its inputs are kept in `probes/42/`, with `PENDING.md` saying what the
+    run needs. No console export of either block has been taken (owner
+    decision 8), so nothing under `exports/` records their stored shape
+    yet. Until the sweep and an export, every required key, error,
+    `next`, spelling and flow-type entry below is the pages' reading, and
+    each bullet names the probes that settle it.
+    - `CreateTask` "Creates a new task to run an assigned flow." Parameters
+      in the page's order: `ContactFlowId` ("A flow ID or flow ARN. Must be
+      fully static or a single valid JSONPath identifier"), `Attributes`
+      ("[Optional] ... Both the key and value may be defined statically or
+      dynamically"), `Name` ("Name of the task that needs to be created.
+      This is a string."), `Description` ("[Optional]"), `References`
+      ("[Optional] { an Object that holds the references to be set.
+      "Type": "Value" ... }"), `DelaySeconds` ("[Optional] ... The integer
+      value between 1 and 518400 (6 days). If ScheduledTime is specified,
+      this parameter may not be specified."), `ScheduledTime` ("[Optional]
+      The date and time at which the task should be created. If
+      DelaySeconds is specified, this parameter may not be specified."),
+      and `TaskTemplateId` ("[Optional] ID of the task template that will
+      be used to create the task. This must be defined statically.").
+      Results "None. No conditions are supported."; errors "NoMatchingError
+      - if no other Error matches."; Restrictions "This action is supported
+      on all channels and in all contact flow types." The admin guide's
+      Create task block agrees on channels (voice, chat, task and email
+      "Yes") and flow types ("All flows"), offers Create manually and Use
+      template ("If the selected template does not include a flow, you
+      must specify the flow"), schedules "Using attribute" with "Values for
+      date fields ... in Unix timestamp (Epoch seconds)", and has Success
+      and Error branches. StartTaskContact, the API the block calls, takes
+      `ScheduledTime` as "The timestamp, in Unix Epoch seconds format",
+      `References` as a map of Reference objects (`Type`, `Value`) and
+      `Name` as required.
+      The catalog records `ContactFlowId` as a `flow` reference that is not
+      required (the template form may omit it; a reference already admits
+      a single JSONPath, so it carries no `dynamic` flag, which the
+      vocabulary keeps for scalar kinds), `Name` required, `Description` a
+      string, `Attributes` a string map, `References` a `json` value
+      because its value shape is unrecorded, `DelaySeconds` an
+      `integerString` from 1 to 518400 with `dynamic` (the decimal string
+      the console writes for every integer recorded so far, rule 39's
+      `MaximumLength` among them), `ScheduledTime` a `stringOrJsonPath`
+      whose static format is not recorded, `TaskTemplateId` a `tasktemplate`
+      reference that the 0.3 schema clause holds to a token (static), the
+      two timing keys `atMostOne`, the type unrestricted and on every
+      channel, `next` required and the catch-all required and wired by the
+      builder. The schema clause holds the two references' forms and
+      nothing else; the bound and the `atMostOne` stay in the catalog until
+      the service is seen to refuse them (owner decision 3). The class
+      takes a flow, a template or both, writes `DelaySeconds` as a decimal
+      string and `ScheduledTime` as a JSONPath only, and writes no
+      `References`; codegen leaves a document with `References`, a static
+      `ScheduledTime` or a numeric `DelaySeconds` generic. Whether
+      `TaskTemplateId` holds an id or an ARN is unsettled: export maps the
+      ARN form through D01's inventory and a bare id stays literal.
+      Planned probes: `task-required` (expected accepted),
+      `task-no-catch-all` and `task-no-next` (each a removal alone),
+      `task-no-name` and `task-no-flow` (the two keys the page leaves
+      unmarked), `task-template-only` and `task-template-and-flow` (the
+      admin guide's two template forms), `task-template-bare-id` and
+      `task-flow-bare-id` (id against ARN), `task-template-missing` (a
+      template the instance does not have), `task-template-jsonpath`
+      (static), `task-flow-jsonpath`, `task-delay-string`,
+      `task-delay-number` and `task-delay-out-of-range` (the spelling and
+      the bound), `task-delay-and-schedule` (the `atMostOne`),
+      `task-schedule-epoch-string`, `task-schedule-epoch-number`,
+      `task-schedule-iso` and `task-schedule-jsonpath` (the format),
+      `task-references-object` and `task-references-flat` (the value
+      shape), and `task-module` and `task-customer-hold` ("all contact flow
+      types").
+      https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/create-task-block.html
+      https://docs.aws.amazon.com/connect/latest/APIReference/API_StartTaskContact.html
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -1402,6 +1484,9 @@ UpdateContactMediaStreamingBehavior { MediaStreamingState: "Enabled" | "Disabled
                            MediaStreamType: "Audio" }   // each static; voice only
 UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "False", LambdaProcessorARN?: lambda,
                            ChatProcessorSettings?: { DeliverUnprocessedMessages: "True" | "False" } } }   // static; chat only
+CreateTask               { ContactFlowId?: flow, Attributes?: { [key]: string }, Name: string,
+                           Description?: string, References?: json, DelaySeconds?: "1".."518400",
+                           ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1552,7 +1637,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-39 of the 61. Everything not in the modeled set above parses to a
+40 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1567,14 +1652,19 @@ and `TransferParticipantToThirdParty`. Every action is in the console's
 shape, the last included: no unmodeled type is terminal, so
 `StartVoiceIdStream` takes its `NextAction` and catch-all (the shape the
 D08 probe `start-stream` sent) back to `load-content`, a loop rather than an
-end.
+end. On 2026-10-12, when D05 modeled `CreateTask`, the flow token moved to
+`StartOutboundChatContact`'s `ContactFlowArn` (in the page's shape, with its
+source number a JSONPath so the document needs no 0.3 token) and the queue
+token to an `Attributes.preferredQueue` value of `UpdateCustomerProfile`'s
+`ProfileRequestData`, two types D04 and D03 will model; each of those tasks
+re-authors the fixture again (owner decision 10).
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 39      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 40      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 39      |                                                             |
+| Denominator             | 61    | 40      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

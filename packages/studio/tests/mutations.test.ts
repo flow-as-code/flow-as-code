@@ -140,6 +140,7 @@ describe("addBlock", () => {
       "UpdatePreviousContactParticipantState",
       "UpdateContactMediaStreamingBehavior",
       "UpdateContactMediaProcessing",
+      "CreateTask",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

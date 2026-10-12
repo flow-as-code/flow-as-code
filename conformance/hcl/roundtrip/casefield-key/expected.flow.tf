@@ -65,13 +65,10 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "follow-up"
     next = "assist"
-    generic {
-      type = "CreateTask"
-      parameters = jsonencode({
-        ContactFlowId  = "$${cdref:flow:task-line}"
-        Name           = "Follow up"
-        TaskTemplateId = "$${cdref:tasktemplate:follow-up}"
-      })
+    create_task {
+      contact_flow_id  = "flow:task-line"
+      name             = "Follow up"
+      task_template_id = "tasktemplate:follow-up"
     }
     error {
       type = "NoMatchingError"

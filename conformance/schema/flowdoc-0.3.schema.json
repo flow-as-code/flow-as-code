@@ -1659,6 +1659,32 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CreateTask"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ContactFlowId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "TaskTemplateId": {
+                    "$ref": "#/$defs/token"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
