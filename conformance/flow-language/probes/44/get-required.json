@@ -1,0 +1,37 @@
+{
+  "description": "Rule 44: GetCase not linking, searching by customer_id, with a NextAction and the catch-all alone: the required set; expected accepted.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "GetLastUpdatedCase": "true",
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

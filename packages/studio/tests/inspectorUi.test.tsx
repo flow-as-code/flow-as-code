@@ -498,4 +498,18 @@ describe("Cases link and field picker (tasks/D06)", () => {
     );
     expect(testId("inspector").textContent).toContain("is not spelled ${cdref:casefield:<name>}");
   });
+  it("ticks GetCase response fields and adds a domain field to them by reference", async () => {
+    await renderApp();
+    await click(present('button[title="Add GetCase"]'));
+    await click(present('[data-testid="node-get-case"]'));
+    expect(testId<HTMLInputElement>("names-CaseResponseFields-status").checked).toBe(true);
+    await click(testId("names-CaseResponseFields-title"));
+    expect(testId<HTMLInputElement>("names-CaseResponseFields-title").checked).toBe(true);
+    const picker = testId("names-CaseResponseFields-ref");
+    await selectOption(picker.querySelector("select")!, "__custom__");
+    await typeAndBlur(picker.querySelector("input")!, "${cdref:casefield:priority}");
+    expect(testId<HTMLTextAreaElement>("names-CaseResponseFields-other").value).toBe(
+      "${cdref:casefield:priority}",
+    );
+  });
 });

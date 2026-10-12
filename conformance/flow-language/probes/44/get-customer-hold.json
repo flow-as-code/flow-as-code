@@ -1,0 +1,54 @@
+{
+  "description": "Rule 44: GetCase in a customer hold flow.",
+  "type": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "GetLastUpdatedCase": "true",
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "MultipleFound",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFound",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "Text": "Please hold."
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      }
+    ]
+  }
+}

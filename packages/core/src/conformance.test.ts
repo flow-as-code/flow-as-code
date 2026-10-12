@@ -560,6 +560,24 @@ describe("FlowDoc schema rejections: cases", () => {
         a.Parameters.CaseRequestFields = ["summary"];
       }),
     ],
+    [
+      "a search field key token of another type",
+      mutate("find-case", (a) => {
+        a.Parameters.CaseRequestFields = { "${cdref:queue:front-desk}": "x" };
+      }),
+    ],
+    [
+      "a response field token of another type",
+      mutate("find-case", (a) => {
+        a.Parameters.CaseResponseFields = ["${cdref:casetemplate:billing-dispute}"];
+      }),
+    ],
+    [
+      "response fields that are not a list",
+      mutate("find-case", (a) => {
+        a.Parameters.CaseResponseFields = "case_id";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
@@ -570,6 +588,13 @@ describe("FlowDoc schema rejections: cases", () => {
         mutate("open-case", (a) => {
           a.Parameters.CaseTemplateId = "f9b90c5f-5cc6-4d9b-a18d-fc14f601ef88";
           a.Parameters.CaseRequestFields = { "12345678-aaaa-bbbb-cccc-123456789012": "x" };
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      validate(
+        mutate("find-case", (a) => {
+          a.Parameters.CaseResponseFields = ["12345678-aaaa-bbbb-cccc-123456789012"];
         }),
       ),
     ).toBe(true);

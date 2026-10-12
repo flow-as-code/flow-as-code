@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ActionType,
+  CASE_RESPONSE_FIELDS_MAX,
   CASE_SYSTEM_FIELDS,
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
@@ -167,6 +168,8 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
     },
   },
   TagContact: { Tags: { max: TAG_LIMIT } },
+  // "You can specify up to 10 Response fields on a Cases block."
+  GetCase: { CaseResponseFields: { max: CASE_RESPONSE_FIELDS_MAX } },
   // The service refuses an empty key list (live check, tasks/B01).
   UntagContact: { TagKeys: { min: 1 } },
   // A nested field, keyed by its dotted path.
@@ -650,7 +653,11 @@ describe("the Cases system field ids", () => {
     return { keys: p.keys, keyPatterns: p.keyPatterns };
   };
 
-  it.each([["CreateCase", "CaseRequestFields"]])("agree for %s.%s", (type, key) => {
+  it.each([
+    ["CreateCase", "CaseRequestFields"],
+    ["GetCase", "CaseRequestFields"],
+    ["GetCase", "CaseResponseFields"],
+  ])("agree for %s.%s", (type, key) => {
     expect(named(type, key)).toEqual({ keys: [...CASE_SYSTEM_FIELDS], keyPatterns: undefined });
   });
 });

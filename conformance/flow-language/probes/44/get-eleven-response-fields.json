@@ -1,0 +1,58 @@
+{
+  "description": "Rule 44: GetCase storing eleven response fields: the admin guide says publishing more than 10 shows \"Invalid or missing parameter data\".",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "GetLastUpdatedCase": "true",
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN"
+          },
+          "CaseResponseFields": [
+            "assigned_queue",
+            "assigned_user",
+            "case_id",
+            "case_reason",
+            "created_by",
+            "customer_id",
+            "created_datetime",
+            "last_updated_datetime",
+            "reference_number",
+            "status",
+            "summary"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "MultipleFound",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFound",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

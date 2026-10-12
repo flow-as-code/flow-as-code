@@ -725,6 +725,27 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         { kind: "ref", key: "CaseTemplateId", label: "Case template", refType: "casetemplate" },
         caseRequestField("Request fields"),
       ];
+    case ActionType.GetCase:
+      // The search fields and the stored response fields name case fields
+      // as CreateCase's do; at most ten response fields (the admin guide).
+      // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+      return [
+        caseLinkField(),
+        {
+          kind: "select",
+          key: "GetLastUpdatedCase",
+          label: "Get last updated case",
+          options: ["true", "false"],
+        },
+        { kind: "text", key: "CustomerId", label: "Customer ID (or JSONPath)", optional: true },
+        caseRequestField("Search fields"),
+        {
+          kind: "names",
+          key: "CaseResponseFields",
+          label: "Response fields (stored under $.Case, at most 10)",
+          ...CASE_FIELD_NAMES,
+        },
+      ];
     case ActionType.CreateCustomerProfile:
     case ActionType.UpdateCustomerProfile:
       // The request fields are chosen from the page's list, and a custom

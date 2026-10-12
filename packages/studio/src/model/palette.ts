@@ -41,6 +41,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactMediaProcessing]: "Set",
   [ActionType.CreateTask]: "Integrate",
   [ActionType.CreateCase]: "Integrate",
+  [ActionType.GetCase]: "Integrate",
   [ActionType.CreateWisdomSession]: "Integrate",
   [ActionType.AssociateContactToCustomerProfile]: "Integrate",
   [ActionType.CreateCustomerProfile]: "Integrate",
@@ -123,6 +124,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactMediaProcessing]: "message-processor",
   [ActionType.CreateTask]: "create-task",
   [ActionType.CreateCase]: "create-case",
+  [ActionType.GetCase]: "get-case",
   [ActionType.CreateWisdomSession]: "connect-assistant",
   [ActionType.AssociateContactToCustomerProfile]: "associate-profile",
   [ActionType.CreateCustomerProfile]: "create-profile",
@@ -241,6 +243,17 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
         LinkContactToCase: "false",
         CaseTemplateId: "${cdref:casetemplate:case-template}",
         CaseRequestFields: { customer_id: "$.Customer.ProfileARN" },
+      };
+    case ActionType.GetCase:
+      // The admin guide's example: the customer's cases found by profile
+      // ARN, the case id, status and summary stored; "You must provide at
+      // least one search criteria".
+      // https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+      return {
+        LinkContactToCase: "false",
+        GetLastUpdatedCase: "true",
+        CaseRequestFields: { customer_id: "$.Customer.ProfileARN" },
+        CaseResponseFields: ["case_id", "status", "summary"],
       };
     case ActionType.CreateWisdomSession:
       // A JSONPath placeholder until the inspector's picker names an

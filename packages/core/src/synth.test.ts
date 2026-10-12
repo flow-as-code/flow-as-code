@@ -35,6 +35,7 @@ import {
   FlowModule,
   GenericBlock,
   GetCalculatedAttributesForCustomerProfile,
+  GetCase,
   GetCustomerProfile,
   GetCustomerProfileObject,
   GetMetricData,
@@ -2165,6 +2166,27 @@ describe("the Cases actions", () => {
       description: expected.description,
       layout: expected.layout,
     }).add(
+      new GetCase({
+        id: "find-case",
+        lastUpdated: false,
+        fields: { customer_id: "$.Customer.ProfileARN", status: "open" },
+        response: ["case_id", "status", Refs.casefield("priority")],
+        link: { onContactNotLinked: "bye" },
+        next: "bye",
+        onError: "bye",
+        onMultipleFound: "find-latest",
+        onNoneFound: "open-case",
+      }),
+      new GetCase({
+        id: "find-latest",
+        lastUpdated: true,
+        customerId: "$.Customer.ProfileARN",
+        response: ["case_id"],
+        next: "bye",
+        onError: "bye",
+        onMultipleFound: "bye",
+        onNoneFound: "open-case",
+      }),
       new CreateCase({
         id: "open-case",
         template: Refs.casetemplate("billing-dispute"),
@@ -2261,6 +2283,69 @@ describe("the Cases actions", () => {
     ).toThrow(/link contact must be one of Current, Related/);
     expect(() => new CreateCase({ ...base, link: cast<never>({}) })).toThrow(
       /link needs onContactNotLinked/,
+    );
+  });
+});
+
+describe("GetCase", () => {
+  const base = {
+    id: "g",
+    lastUpdated: true,
+    next: "n",
+    onError: "e",
+    onMultipleFound: "m",
+    onNoneFound: "z",
+  };
+
+  it("writes its lookups and the catch-all after ContactNotLinked, as the published flows do", () => {
+    expect(
+      new GetCase({
+        ...base,
+        customerId: "$.Customer.ProfileARN",
+        response: ["case_id", Refs.casefield("priority")],
+        link: { onContactNotLinked: "l", contact: "Current" },
+      }).toAction(),
+    ).toEqual({
+      Identifier: "g",
+      Type: "GetCase",
+      Parameters: {
+        LinkContactToCase: "true",
+        ContactToLink: "Current",
+        GetLastUpdatedCase: "true",
+        CustomerId: "$.Customer.ProfileARN",
+        CaseResponseFields: ["case_id", "${cdref:casefield:priority}"],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "ContactNotLinked", NextAction: "l" },
+          { ErrorType: "MultipleFound", NextAction: "m" },
+          { ErrorType: "NoneFound", NextAction: "z" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(new GetCase({ ...base, lastUpdated: false }).toAction().Parameters).toEqual({
+      LinkContactToCase: "false",
+      GetLastUpdatedCase: "false",
+    });
+  });
+
+  it("refuses a response field that is not a reference or a system field, a repeat, or an eleventh", () => {
+    expect(
+      () => new GetCase({ ...base, response: ["12345678-aaaa-bbbb-cccc-123456789012"] }),
+    ).toThrow(/neither a Cases system field id nor a casefield reference/);
+    expect(() => new GetCase({ ...base, response: ["status", "status"] })).toThrow(
+      /repeats a field/,
+    );
+    const eleven = Array.from({ length: 11 }, (_, i) => Refs.casefield(`f${String(i)}`));
+    expect(() => new GetCase({ ...base, response: eleven })).toThrow(/at most 10/);
+    expect(() => new GetCase({ ...base, lastUpdated: cast<boolean>("true") })).toThrow(
+      /lastUpdated must be true or false/,
+    );
+    expect(() => new GetCase({ ...base, onNoneFound: cast<string>(undefined) })).toThrow(
+      /needs onMultipleFound and onNoneFound/,
     );
   });
 });

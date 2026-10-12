@@ -1,0 +1,71 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "find-case",
+      "messageIncludes": "GetCase does not wire its \"ContactNotLinked\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "case-lookup",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "find-case",
+      "Actions": [
+        {
+          "Identifier": "find-case",
+          "Type": "GetCase",
+          "Parameters": {
+            "LinkContactToCase": "true",
+            "GetLastUpdatedCase": "true",
+            "CaseRequestFields": {
+              "customer_id": "$.Customer.ProfileARN"
+            },
+            "CaseResponseFields": [
+              "case_id",
+              "status"
+            ]
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "MultipleFound",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "NoneFound",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "find-case": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

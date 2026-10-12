@@ -3208,6 +3208,52 @@ describe("the Cases actions invert their link, template and field ids", () => {
   };
   const linked = ["ContactNotLinked", "NoMatchingError"];
 
+  describe("GetCase", () => {
+    const lookups = ["MultipleFound", "NoneFound", "NoMatchingError"];
+    const get = (parameters: Record<string, unknown>, errors = ["ContactNotLinked", ...lookups]) =>
+      action("GetCase", parameters, errors);
+    const base = { LinkContactToCase: "true", GetLastUpdatedCase: "true" };
+
+    it("emits the flag, the customer, the search and response fields, and the three branches", () => {
+      const out = typed(
+        get({
+          ...base,
+          CustomerId: "$.Customer.ProfileARN",
+          CaseRequestFields: { "${cdref:casefield:priority}": "high", status: "open" },
+          CaseResponseFields: ["case_id", "${cdref:casefield:priority}"],
+        }),
+      );
+      expect(out).toContain("lastUpdated: true");
+      expect(out).toContain('customerId: "$.Customer.ProfileARN"');
+      expect(out).toContain('[Refs.casefield("priority")]: "high"');
+      expect(out).toContain('response: ["case_id", Refs.casefield("priority")]');
+      expect(out).toContain('onMultipleFound: "bye"');
+      expect(out).toContain('onNoneFound: "bye"');
+      typed(get({ ...base, LinkContactToCase: "false" }, lookups));
+    });
+
+    it("falls back on a literal field id, a lookup missing or out of order, or the flag out of shape", () => {
+      generic(get({ ...base, CaseResponseFields: ["12345678-aaaa-bbbb-cccc-123456789012"] }));
+      generic(get({ ...base, CaseResponseFields: "case_id" }));
+      generic(get(base, ["ContactNotLinked", "NoneFound", "MultipleFound", "NoMatchingError"]));
+      generic(get(base, ["ContactNotLinked", "NoMatchingError", "MultipleFound", "NoneFound"]));
+      generic(get(base, ["ContactNotLinked", "NoMatchingError"]));
+      generic(get({ ...base, GetLastUpdatedCase: "True" }));
+      generic(get({ ...base, CustomerId: 7 }));
+      generic(get({ LinkContactToCase: "true" }));
+      // Eleven response fields, more than the class writes.
+      generic(
+        get({
+          ...base,
+          CaseResponseFields: Array.from(
+            { length: 11 },
+            (_, i) => `\${cdref:casefield:f${String(i)}}`,
+          ),
+        }),
+      );
+    });
+  });
+
   describe("CreateCase", () => {
     const create = (parameters: Record<string, unknown>, errors = linked) =>
       action("CreateCase", parameters, errors);

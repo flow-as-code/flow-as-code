@@ -146,6 +146,7 @@ describe("addBlock", () => {
       "UpdateContactMediaProcessing",
       "CreateTask",
       "CreateCase",
+      "GetCase",
       "CreateWisdomSession",
       "AssociateContactToCustomerProfile",
       "CreateCustomerProfile",

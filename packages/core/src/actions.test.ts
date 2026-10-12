@@ -201,6 +201,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "CreateTask",
       "CreateWisdomSession",
       "GetCalculatedAttributesForCustomerProfile",
+      "GetCase",
       "GetCustomerProfile",
       "GetCustomerProfileObject",
       "GetMetricData",

@@ -23,6 +23,9 @@ import {
   CALLBACK_DELAY_MIN,
   CALLBACK_NUMBER_NOT_DIALABLE,
   CASE_CONTACTS_TO_LINK,
+  CASE_MULTIPLE_FOUND,
+  CASE_NONE_FOUND,
+  CASE_RESPONSE_FIELDS_MAX,
   CASE_SYSTEM_FIELDS,
   CHANNEL_MISMATCH,
   CONTACT_NOT_LINKED,
@@ -2780,6 +2783,92 @@ export class CreateCase extends Block {
   }
 }
 
+/**
+ * "Searches all existing cases with the provided customer ID. Add request
+ * fields to filter by case fields. Specify the case fields to be returned
+ * in the response to persist in the context." `lastUpdated` is
+ * `GetLastUpdatedCase` ("You can specify to get only the last updated case
+ * for any search criteria"); `customerId` is `CustomerId` ("Search all
+ * cases for this customer Id."); `fields` is `CaseRequestFields`, the search
+ * fields, keyed as CreateCase's are; `response` is `CaseResponseFields`,
+ * "An optional list of field names that should be persisted in the case
+ * namespace", each a system field id or a casefield reference, at most ten
+ * (the admin guide's configuration tips). Results "None."; errors
+ * ContactNotLinked (when linking), MultipleFound, NoneFound and the
+ * catch-all, in the order every published flow writes them; the admin
+ * guide: "You must provide at least one search criteria. Otherwise this
+ * block will take the Error branch."
+ * https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+ */
+export interface GetCaseConfig extends Wired {
+  lastUpdated: boolean;
+  customerId?: string;
+  fields?: Readonly<Record<string, string>>;
+  response?: readonly string[];
+  link?: CaseLink;
+  onMultipleFound: Target;
+  onNoneFound: Target;
+}
+
+export class GetCase extends Block {
+  readonly type = ActionType.GetCase;
+
+  constructor(private readonly config: GetCaseConfig) {
+    super(config.id);
+    const where = `GetCase "${config.id}"`;
+    if (typeof config.lastUpdated !== "boolean") {
+      throw new Error(`${where} lastUpdated must be true or false.`);
+    }
+    if (config.customerId !== undefined) requireText(where, "customerId", config.customerId);
+    if (config.fields !== undefined) requireCaseFields(where, config.fields);
+    const response = config.response;
+    if (response !== undefined) {
+      if (!Array.isArray(response)) throw new Error(`${where} response must be a list.`);
+      for (const item of response) {
+        if (!isCaseFieldId(item)) {
+          throw new Error(
+            `${where} response names "${String(item)}", which is neither a Cases system field id nor a casefield reference.`,
+          );
+        }
+      }
+      if (new Set(response).size !== response.length) {
+        throw new Error(`${where} response repeats a field.`);
+      }
+      if (response.length > CASE_RESPONSE_FIELDS_MAX) {
+        throw new Error(
+          `${where} response names ${String(response.length)} fields; a Cases block takes at most ${String(CASE_RESPONSE_FIELDS_MAX)}.`,
+        );
+      }
+    }
+    requireCaseLink(where, config.link);
+    if (config.onMultipleFound === undefined || config.onNoneFound === undefined) {
+      throw new Error(`${where} needs onMultipleFound and onNoneFound.`);
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    return {
+      ...caseLinkParameters(c.link),
+      GetLastUpdatedCase: c.lastUpdated ? "true" : "false",
+      ...(c.customerId === undefined ? {} : { CustomerId: c.customerId }),
+      ...(c.fields === undefined ? {} : { CaseRequestFields: { ...c.fields } }),
+      ...(c.response === undefined ? {} : { CaseResponseFields: [...c.response] }),
+    };
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    return wire(c.next, [
+      ...caseLinkErrors(c.link),
+      [CASE_MULTIPLE_FOUND, c.onMultipleFound],
+      [CASE_NONE_FOUND, c.onNoneFound],
+      [NO_MATCHING_ERROR, c.onError],
+    ]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2978,7 +3067,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 48.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 49.
  */
 export interface GenericBlockConfig {
   id: string;

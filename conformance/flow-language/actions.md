@@ -105,6 +105,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Customer profiles (Get profile object) | `GetCustomerProfileObject` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html) |
 | Customer profiles (Get calculated attributes) | `GetCalculatedAttributesForCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html) |
 | Cases (Create case) | `CreateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createcase.html) |
+| Cases (Get case) | `GetCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/getcase.html) |
 
 ## Reference-bearing parameters
 
@@ -132,6 +133,8 @@ is never interpolated into a longer string.
 | `CreateWisdomSession` | `WisdomAssistantArn` | `assistant` |
 | `CreateCase` | `CaseTemplateId` | `casetemplate` |
 | `CreateCase` | `CaseRequestFields.*~` (every key) | `casefield` (a system field id stays literal; docs/adr/0008) |
+| `GetCase` | `CaseRequestFields.*~` (every key) | `casefield` (as `CreateCase`'s) |
+| `GetCase` | `CaseResponseFields[]` (every item) | `casefield` (a system field id stays literal) |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -1815,6 +1818,57 @@ is read rather than when the type is modeled.
       `create-no-link-flag`, `create-link-boolean`, and `create-module` and
       `create-customer-hold` (all flow types).
       https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+    - `GetCase` "Searches all existing cases with the provided customer ID.
+      Add request fields to filter by case fields. Specify the case fields
+      to be returned in the response to persist in the context."
+      `LinkContactToCase`, `"GetLastUpdatedCase": "true" or "false", You
+      can specify to get only the last updated case for any search
+      criteria.`, `"CustomerId": "Customer's Id", Search all cases for this
+      customer Id.`, `CaseRequestFields` ("An optional map of cases request
+      fields") and `"CaseResponseFields": [ ] An optional list of field
+      names that should be persisted in the case namespace.`; Results
+      "None."; errors "NoMatchingError", "ContactNotLinked", "MultipleFound
+      - Multiple cases are found with the search criteria." and "NoneFound
+      - No cases are found with the search criteria.", spelled without the
+      `Error` suffix the Customer Profiles lookups carry. The admin guide's
+      block: "You must provide at least one search criteria. Otherwise this
+      block will take the Error branch.", "You can specify up to 10
+      Response fields on a Cases block. If you specify more than 10 and
+      then publish the flow, the following error is displayed: Invalid or
+      missing parameter data", and a second action, Get case id, which
+      takes a "Contact to search" (current, initial, task, previous or
+      related contact) under a key no page or flow records, so a block in
+      that form stays generic. The flows above hold four blocks of the
+      type, none with `CustomerId`: each searches by `CaseRequestFields`
+      (`customer_id`, `case_id`, `title`, `status`), stores system fields,
+      and wires `ContactNotLinked` (when linking), `MultipleFound`,
+      `NoneFound` and the catch-all, in that order. The catalog records
+      `LinkContactToCase` and `ContactToLink` as `CreateCase`'s,
+      `GetLastUpdatedCase` as a required `enum` of `"true"` and `"false"`,
+      `CustomerId` as an optional `stringOrJsonPath`, `CaseRequestFields`
+      as `CreateCase`'s, and `CaseResponseFields` as an optional `list` of
+      strings with `max` 10 whose `keys` are the system field ids and whose
+      items are a `casefield` reference path (`CaseResponseFields[]`). The
+      four errors are wired by the builder in the flows' order;
+      `ContactNotLinked` is required when linking, the catch-all always,
+      and neither lookup, which the page does not mark "Must always be
+      defined" (rule 43's reading of the Customer Profiles lookups), although
+      every flow wires both (`pass-get-case-catch-all-only`,
+      `fail-get-case-linking-without-contact-not-linked`). The bound of 10
+      is in the catalog and the class, not the schema, until
+      `get-eleven-response-fields` shows the service refusing an eleventh.
+      Planned probes: `get-required` and `get-all-branches` (expected
+      accepted), `get-linking` (expected accepted),
+      `get-linking-no-contact-not-linked` and
+      `get-not-linking-contact-not-linked`, `get-no-catch-all`,
+      `get-no-multiple-found`, `get-no-none-found` and `get-no-next` (each a
+      removal alone), `get-response-fields`, `get-eleven-response-fields`
+      and `get-missing-response-field`, `get-customer-id` (the page's
+      parameter, which no flow writes), `get-no-search`,
+      `get-no-last-updated-flag`, `get-contact-to-link`, `get-error-suffix`
+      (the Customer Profiles spellings), and `get-module` and
+      `get-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
 
 ## Per-action parameter shapes
 
@@ -1916,6 +1970,10 @@ GetCalculatedAttributesForCustomerProfile { ProfileRequestData: { ProfileId },  
 CreateCase               { LinkContactToCase: "true" | "false", ContactToLink?: "Current" | "Related",   // the export's key, linking only
                            CaseTemplateId: casetemplate,
                            CaseRequestFields?: { [system field id | casefield]: string } }   // static or a JSONPath
+GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase: "true" | "false",
+                           CustomerId?,   // static or a JSONPath
+                           CaseRequestFields?: { [system field id | casefield]: string },   // the search
+                           CaseResponseFields?: (system field id | casefield)[] }   // at most 10, stored under $.Case
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2085,7 +2143,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-48 of the 61. Everything not in the modeled set above parses to a
+49 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -2115,10 +2173,10 @@ type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 48      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 49      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 48      |                                                             |
+| Denominator             | 61    | 49      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

@@ -44,14 +44,11 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "read-case"
     next = "follow-up"
-    generic {
-      type = "GetCase"
-      parameters = jsonencode({
-        CaseResponseFields = ["$${cdref:casefield:priority}"]
-        CustomerId         = "$.Customer.ProfileId"
-        GetLastUpdatedCase = "true"
-        LinkContactToCase  = "false"
-      })
+    get_case {
+      case_response_fields  = ["casefield:priority"]
+      customer_id           = "$.Customer.ProfileId"
+      get_last_updated_case = "true"
+      link_contact_to_case  = "false"
     }
     error {
       type = "NoMatchingError"

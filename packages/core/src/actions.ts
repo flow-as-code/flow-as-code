@@ -63,6 +63,7 @@ export const ActionType = {
   GetCustomerProfileObject: "GetCustomerProfileObject",
   GetCalculatedAttributesForCustomerProfile: "GetCalculatedAttributesForCustomerProfile",
   CreateCase: "CreateCase",
+  GetCase: "GetCase",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -111,6 +112,12 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   // as the whole key (docs/adr/0008-case-field-ids.md). A system field id
   // (CASE_SYSTEM_FIELDS) is the same on every domain and stays literal.
   [ActionType.CreateCase]: { CaseTemplateId: "casetemplate", "CaseRequestFields.*~": "casefield" },
+  // The search fields' keys, as CreateCase's, and every item of the list
+  // of fields stored in the case namespace.
+  [ActionType.GetCase]: {
+    "CaseRequestFields.*~": "casefield",
+    "CaseResponseFields[]": "casefield",
+  },
 };
 
 /**
@@ -212,6 +219,16 @@ export const NONE_FOUND_ERROR = "NoneFoundError";
  * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
  */
 export const CONTACT_NOT_LINKED = "ContactNotLinked";
+
+/**
+ * GetCase's lookups: "MultipleFound - Multiple cases are found with the
+ * search criteria." and "NoneFound - No cases are found with the search
+ * criteria.", spelled without the Customer Profiles lookups' `Error`
+ * suffix, as the page and every published flow write them (rule 44).
+ * https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+ */
+export const CASE_MULTIPLE_FOUND = "MultipleFound";
+export const CASE_NONE_FOUND = "NoneFound";
 
 /**
  * ShowView's error when the view is not answered within
@@ -392,6 +409,18 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // always required.
   // https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
   [ActionType.CreateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
+  // ContactNotLinked, the two lookups and the catch-all last, the order of
+  // every published flow (rule 44); the page lists the catch-all first.
+  // Only the catch-all is always required: the page marks neither lookup
+  // "Must always be defined", the reading rule 43 gave the Customer
+  // Profiles lookups, although every published flow wires both.
+  // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+  [ActionType.GetCase]: [
+    CONTACT_NOT_LINKED,
+    CASE_MULTIPLE_FOUND,
+    CASE_NONE_FOUND,
+    NO_MATCHING_ERROR,
+  ],
 };
 
 /**
@@ -771,6 +800,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
   ActionType.CreateCase,
+  // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+  ActionType.GetCase,
 ];
 
 /**
@@ -1039,6 +1070,14 @@ export type CaseSystemField = (typeof CASE_SYSTEM_FIELDS)[number];
  * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
  */
 export const CASE_FLAGS = ["true", "false"] as const;
+
+/**
+ * GetCase's CaseResponseFields: "You can specify up to 10 Response fields on
+ * a Cases block. If you specify more than 10 and then publish the flow, the
+ * following error is displayed: Invalid or missing parameter data".
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html#create-case-tips
+ */
+export const CASE_RESPONSE_FIELDS_MAX = 10;
 
 /**
  * Which contact a linking Cases block links: the admin guide's "Current

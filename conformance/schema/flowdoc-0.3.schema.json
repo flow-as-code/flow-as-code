@@ -1917,6 +1917,38 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "GetCase"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "CaseRequestFields": {
+                    "type": "object",
+                    "propertyNames": {
+                      "$ref": "#/$defs/caseFieldId"
+                    }
+                  },
+                  "CaseResponseFields": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/caseFieldId"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

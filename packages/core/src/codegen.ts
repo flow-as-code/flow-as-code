@@ -68,6 +68,8 @@ import {
   NONE_FOUND_ERROR,
   REFERENCE_FIELDS,
   CASE_CONTACTS_TO_LINK,
+  CASE_MULTIPLE_FOUND,
+  CASE_NONE_FOUND,
   CASE_SYSTEM_FIELDS,
   CONTACT_NOT_LINKED,
 } from "./actions.js";
@@ -105,6 +107,7 @@ import {
   EndFlowModuleExecution,
   GenericBlock,
   GetCalculatedAttributesForCustomerProfile,
+  GetCase,
   GetCustomerProfile,
   GetCustomerProfileObject,
   GetMetricData,
@@ -2684,6 +2687,78 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   // A casetemplate token, field keys that are system ids or casefield
   // tokens, the link, and the catch-all last. A literal template or field
   // id, a JSONPath template, or ContactToLink without linking stays generic.
+  // The flag, an optional customer id, the search fields and response
+  // fields as CreateCase's field ids, the link, and MultipleFound, NoneFound
+  // and the catch-all in the published flows' order.
+  [ActionType.GetCase]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const p = a.Parameters;
+    if (
+      !paramKeysAre(
+        p,
+        ["LinkContactToCase", "GetLastUpdatedCase"],
+        ["ContactToLink", "CustomerId", "CaseRequestFields", "CaseResponseFields"],
+      )
+    ) {
+      return undefined;
+    }
+    if (p.GetLastUpdatedCase !== "true" && p.GetLastUpdatedCase !== "false") return undefined;
+    const linked = invertCaseLink(p, t.Errors ?? []);
+    if (linked === undefined) return undefined;
+    const order = [CASE_MULTIPLE_FOUND, CASE_NONE_FOUND, NO_MATCHING_ERROR];
+    const rest = linked.rest;
+    if (rest.length !== 3 || rest.some((e, i) => e.ErrorType !== order[i])) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["lastUpdated", p.GetLastUpdatedCase === "true"],
+    ];
+    if (p.CustomerId !== undefined) {
+      if (typeof p.CustomerId !== "string") return undefined;
+      entries.push(["customerId", p.CustomerId]);
+    }
+    if (p.CaseRequestFields !== undefined) {
+      const fields = caseFieldsV(p.CaseRequestFields, ctx);
+      if (fields === undefined) return undefined;
+      entries.push(["fields", fields]);
+    }
+    if (p.CaseResponseFields !== undefined) {
+      if (!isStringList(p.CaseResponseFields)) return undefined;
+      const items: V[] = [];
+      for (const item of p.CaseResponseFields) {
+        const source = caseFieldSource(item, ctx);
+        if (source === undefined) return undefined;
+        items.push(source);
+      }
+      entries.push(["response", new ArrV(items)]);
+    }
+    if (linked.source !== undefined) entries.push(["link", linked.source]);
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", rest[2]!.NextAction],
+      ["onMultipleFound", rest[0]!.NextAction],
+      ["onNoneFound", rest[1]!.NextAction],
+    );
+    return {
+      cls: "GetCase",
+      entries,
+      block: new GetCase({
+        id: a.Identifier,
+        lastUpdated: p.GetLastUpdatedCase === "true",
+        ...(p.CustomerId === undefined ? {} : { customerId: p.CustomerId as string }),
+        ...(p.CaseRequestFields === undefined
+          ? {}
+          : { fields: p.CaseRequestFields as Record<string, string> }),
+        ...(p.CaseResponseFields === undefined ? {} : { response: p.CaseResponseFields }),
+        ...(linked.link === undefined ? {} : { link: linked.link }),
+        next: t.NextAction,
+        onError: rest[2]!.NextAction,
+        onMultipleFound: rest[0]!.NextAction,
+        onNoneFound: rest[1]!.NextAction,
+      }),
+    };
+  },
+
   [ActionType.CreateCase]: (a, ctx) => {
     const t = a.Transitions;
     if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;

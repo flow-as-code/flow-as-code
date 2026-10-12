@@ -5,13 +5,66 @@ resource "flowascode_contact_flow" "cases" {
   instance_id = var.connect_instance_id
   name        = "cases"
   type        = "CONTACT_FLOW"
-  description = "The Cases actions: a case opened from a template with a domain field by reference and three system fields, linking the current contact, then a call log case opened without linking."
+  description = "The Cases actions: the caller's open cases searched by customer and status, linking the contact and storing three fields, the last updated case read by customer id when several match, and when none does a case opened from a template with a domain field by reference and three system fields, linking the current contact, then a call log case opened without linking."
 
   refs = {
     "casefield:channel"            = awscc_connectcases_field.channel.field_id
     "casefield:priority"           = awscc_connectcases_field.priority.field_id
     "casetemplate:billing-dispute" = awscc_connectcases_template.billing_dispute.template_id
     "casetemplate:call-log"        = awscc_connectcases_template.call_log.template_id
+  }
+
+  action {
+    id   = "find-case"
+    next = "bye"
+    get_case {
+      case_request_fields = {
+        customer_id = "$.Customer.ProfileARN"
+        status      = "open"
+      }
+      case_response_fields  = ["case_id", "status", "casefield:priority"]
+      get_last_updated_case = "false"
+      link_contact_to_case  = "true"
+    }
+    error {
+      type = "ContactNotLinked"
+      next = "bye"
+    }
+    error {
+      type = "MultipleFound"
+      next = "find-latest"
+    }
+    error {
+      type = "NoneFound"
+      next = "open-case"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
+  }
+
+  action {
+    id   = "find-latest"
+    next = "bye"
+    get_case {
+      case_response_fields  = ["case_id"]
+      customer_id           = "$.Customer.ProfileARN"
+      get_last_updated_case = "true"
+      link_contact_to_case  = "false"
+    }
+    error {
+      type = "MultipleFound"
+      next = "bye"
+    }
+    error {
+      type = "NoneFound"
+      next = "open-case"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "bye"
+    }
   }
 
   action {
