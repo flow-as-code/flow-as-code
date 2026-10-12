@@ -1,5 +1,5 @@
 {
-  "description": "Rule 42: CreateTask with DelaySeconds and ScheduledTime together, which the page says may not both be specified.",
+  "description": "Rule 42: CreateTask with DelaySeconds and ScheduledTime together, which the page says may not both be specified; the schedule is the JSONPath form the class writes (task-schedule-jsonpath alone is the control), so the second timing key is the only variable.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -12,7 +12,7 @@
           "ContactFlowId": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:instance/{{INSTANCE}}/contact-flow/{{TASK_FLOW_ID}}",
           "Name": "Probe task",
           "DelaySeconds": "3600",
-          "ScheduledTime": "2000000000"
+          "ScheduledTime": "$.Attributes.scheduledTaskTime"
         },
         "Transitions": {
           "NextAction": "done",

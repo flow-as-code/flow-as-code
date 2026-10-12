@@ -130,7 +130,11 @@ Rule 42 in `conformance/flow-language/actions.md` quotes them.
   form is not recorded: the class writes a JSONPath schedule only (the
   admin guide's "Set date and time using attribute") and no `References`,
   and codegen leaves a static schedule, a numeric delay or any
-  `References` generic. The class takes a flow, a template or both.
+  `References` generic. The class takes a flow, a template or both. The
+  both form follows the admin guide; StartTaskContact says to "include only
+  one of" a flow, a quick connect or a template and returns an error for
+  more than one, so it is unsettled until `task-template-and-flow` runs, and
+  the group fixture's `scheduled` task holds the pair pending that probe.
   Unrestricted by flow type and channel.
 - `CreateWisdomSession`: one `assistant` reference, required, a JSONPath
   allowed. The action page says voice only and every flow type; the admin

@@ -858,9 +858,9 @@ so does `CreateWisdomSession` (rule 42).
 The catalog records that as `channels` and `channel-restricted-action` (added
 2026-10-05) reports it, at severity warning: a document does not record which
 channels its flow serves, since that is the contact's to decide, so the rule
-cannot tell a chat-only inbound flow from a voice one. Unmodeled types with a
-channel restriction (`CreateWisdomSession`, voice only) carry nothing in the
-catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
+cannot tell a chat-only inbound flow from a voice one. Since D01 an unmodeled
+entry may carry `channels` too, so a page's restriction is recorded when it
+is read rather than when the type is modeled.
 
 37. Service validation sweep (2026-09-29, sandbox, us-west-2). Every modeled
     type was created in a minimal flow carrying only the error branches the
@@ -1368,7 +1368,12 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       and Error branches. StartTaskContact, the API the block calls, takes
       `ScheduledTime` as "The timestamp, in Unix Epoch seconds format",
       `References` as a map of Reference objects (`Type`, `Value`) and
-      `Name` as required.
+      `Name` as required, and says to "include only one of these
+      parameters: `ContactFlowID`, `QuickConnectID`, or `TaskTemplateID`
+      ... If more than one parameter is specified, or only the
+      `TaskTemplateID` is specified but it does not have a flow
+      configured, the request returns an error", where the block page
+      lets a template and a flow be given together.
       The catalog records `ContactFlowId` as a `flow` reference that is not
       required (the template form may omit it; a reference already admits
       a single JSONPath, so it carries no `dynamic` flag, which the
@@ -1385,7 +1390,10 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       builder. The schema clause holds the two references' forms and
       nothing else; the bound and the `atMostOne` stay in the catalog until
       the service is seen to refuse them (owner decision 3). The class
-      takes a flow, a template or both, writes `DelaySeconds` as a decimal
+      takes a flow, a template or both; the both form follows the admin
+      guide against StartTaskContact's one-of clause, is unsettled until
+      `task-template-and-flow` runs, and the group fixture's `scheduled`
+      task holds it pending that probe. The class writes `DelaySeconds` as a decimal
       string and `ScheduledTime` as a JSONPath only, and writes no
       `References`; codegen leaves a document with `References`, a static
       `ScheduledTime` or a numeric `DelaySeconds` generic. Whether
@@ -1400,7 +1408,8 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       template the instance does not have), `task-template-jsonpath`
       (static), `task-flow-jsonpath`, `task-delay-string`,
       `task-delay-number` and `task-delay-out-of-range` (the spelling and
-      the bound), `task-delay-and-schedule` (the `atMostOne`),
+      the bound), `task-delay-and-schedule` (the `atMostOne`, with the
+      JSONPath schedule the class writes),
       `task-schedule-epoch-string`, `task-schedule-epoch-number`,
       `task-schedule-iso` and `task-schedule-jsonpath` (the format),
       `task-references-object` and `task-references-flat` (the value
