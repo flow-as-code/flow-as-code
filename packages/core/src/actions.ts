@@ -446,9 +446,9 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.CreateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
   // ContactNotLinked, the two lookups and the catch-all last, the order of
   // every published flow (rule 44); the page lists the catch-all first.
-  // Only the catch-all is always required: the page marks neither lookup
-  // "Must always be defined", the reading rule 43 gave the Customer
-  // Profiles lookups, although every published flow wires both.
+  // The page marks neither lookup "Must always be defined", but the service
+  // requires both (rule 44, 2026-10-13), as it does the Customer Profiles
+  // lookups (rule 43); every published flow wires both.
   // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
   [ActionType.GetCase]: [
     CONTACT_NOT_LINKED,
@@ -509,6 +509,11 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.GetCustomerProfile]: [MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
   [ActionType.GetCustomerProfileObject]: [NONE_FOUND_ERROR],
   [ActionType.GetCalculatedAttributesForCustomerProfile]: [NONE_FOUND_ERROR],
+  // GetCase's page does not mark its lookups "Must always be defined"
+  // either, and CreateContactFlow refuses it without them ("Action is
+  // missing required error. Error: MultipleFound", and NoneFound,
+  // us-west-2, 2026-10-13; actions.md, rule 44).
+  [ActionType.GetCase]: [CASE_MULTIPLE_FOUND, CASE_NONE_FOUND],
 };
 
 // The Restrictions section of an action page names flow types in the console's

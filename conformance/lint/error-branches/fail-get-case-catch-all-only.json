@@ -1,0 +1,69 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "find-case",
+      "messageIncludes": "MultipleFound"
+    },
+    {
+      "rule": "error-branches",
+      "blockId": "find-case",
+      "messageIncludes": "NoneFound"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "case-lookup",
+    "description": "GetCase that does not link, with the catch-all alone. Its page marks neither lookup \"Must always be defined\", but the service refuses the action without MultipleFound and without NoneFound (actions.md, rule 44, 2026-10-13), so error-branches reports both.",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "find-case",
+      "Actions": [
+        {
+          "Identifier": "find-case",
+          "Type": "GetCase",
+          "Parameters": {
+            "LinkContactToCase": "false",
+            "GetLastUpdatedCase": "true",
+            "CaseRequestFields": {
+              "customer_id": "$.Customer.ProfileARN"
+            },
+            "CaseResponseFields": [
+              "case_id",
+              "status"
+            ]
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "find-case": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

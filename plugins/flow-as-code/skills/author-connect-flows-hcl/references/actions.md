@@ -66,6 +66,7 @@ Block `create_case`. [Action page](https://docs.aws.amazon.com/connect/latest/de
 - `next`: required.
 - Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `NoMatchingError` (required).
 - Conditions: none.
+- Shape with `LinkContactToCase` "false": must not wire `ContactNotLinked`.
 
 | HCL attribute          | Flow language key   | Value                                 | Required |
 | ---------------------- | ------------------- | ------------------------------------- | -------- |
@@ -141,14 +142,15 @@ Block `get_case`. [Action page](https://docs.aws.amazon.com/connect/latest/devgu
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `MultipleFound`; `NoneFound`; `NoMatchingError` (required).
+- Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `MultipleFound` (required); `NoneFound` (required); `NoMatchingError` (required).
 - Conditions: none.
+- Shape with `LinkContactToCase` "false": must not wire `ContactNotLinked`.
 
 | HCL attribute           | Flow language key    | Value                    | Required |
 | ----------------------- | -------------------- | ------------------------ | -------- |
 | `link_contact_to_case`  | `LinkContactToCase`  | `"true"`, `"false"`      | yes      |
 | `contact_to_link`       | `ContactToLink`      | `"Current"`, `"Related"` | no       |
-| `get_last_updated_case` | `GetLastUpdatedCase` | `"true"`, `"false"`      | yes      |
+| `get_last_updated_case` | `GetLastUpdatedCase` | `"true"`, `"false"`      | no       |
 | `customer_id`           | `CustomerId`         | string or JSONPath       | no       |
 | `case_request_fields`   | `CaseRequestFields`  | map of strings           | no       |
 | `case_response_fields`  | `CaseResponseFields` | list                     | no       |
@@ -246,6 +248,7 @@ Block `update_case`. [Action page](https://docs.aws.amazon.com/connect/latest/de
 - `next`: required.
 - Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `NoMatchingError` (required).
 - Conditions: none.
+- Shape with `LinkContactToCase` "false": must not wire `ContactNotLinked`.
 
 | HCL attribute          | Flow language key   | Value                    | Required |
 | ---------------------- | ------------------- | ------------------------ | -------- |

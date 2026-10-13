@@ -395,9 +395,9 @@ export function builderErrors(type: string): string[] {
  * is the builder's only on an action holding that value: the Cases classes
  * wire `ContactNotLinked` on a linking block and on no other, as the
  * console's export and every published flow do (actions.md, rule 44). The
- * catalog's shapes could have said so with a `forbids`, but conditional-shape
- * would then report the branch on a non-linking block, which no page and no
- * probe says the service refuses (tasks/D06).
+ * service refuses the branch on a block whose LinkContactToCase is "false"
+ * (rule 44, 2026-10-13), which each Cases entry's shape `forbids`, so
+ * conditional-shape reports it there; on a JSONPath link it is neither.
  * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
  */
 export function builderErrorsFor(action: {

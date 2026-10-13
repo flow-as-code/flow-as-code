@@ -81,8 +81,8 @@ for this phase", for each type; and:
       (`conformance/export/cases`, D01's
       `conformance/materialize/casefield-key-with-map`,
       `conformance/hcl/roundtrip/cases`).
-- [x] Probe inputs under `conformance/flow-language/probes/44/`; the sweep
-      itself has not run (see "Evidence" under "Record").
+- [x] Probe inputs under `conformance/flow-language/probes/44/`, run on
+      2026-10-13 (see "Evidence" under "Record").
 - [ ] Provider: re-vendor, oracles re-recorded, the value-dependent error
       ported to `internal/lint`, map-key refs in `flowmodel` and the
       serializer (lines 11 to 14); the provider commit recorded here.
@@ -188,14 +188,14 @@ search") has no recorded key and stays generic.
 it on a linking block (`fail-create-case-linking-without-contact-not-linked`
 and its `get` and `update` siblings) and stays quiet on a block that does
 not link or reads the flag from an attribute
-(`pass-create-case-not-linking`, `pass-create-case-link-from-attribute`,
-`pass-get-case-catch-all-only`), the fixture D01's record said this task
-would land. D01 left open how the builder wires it. `builderErrorsFor` now
+(`pass-create-case-not-linking`, `pass-create-case-link-from-attribute`),
+the fixture D01's record said this task would land. D01 left open how the builder wires it. `builderErrorsFor` now
 reads `requiredWhenValue` too: a branch carrying it is the builder's, and
 the studio's to offer, only on an action holding the value. A `shapes`
 entry with `forbids` would have said the same for the builder, and would
 also have made conditional-shape report the branch on a block that does
-not link, which no page or probe says the service refuses. In the studio,
+not link, which no page said the service refuses; the sweep showed it
+does, so each type now carries that shape (see "Evidence"). In the studio,
 one select sets the link (`setCaseLink`), adding `ContactNotLinked` first,
 aimed where the catch-all goes, when linking is switched on, and removing
 it with `ContactToLink` when it is switched off, in one mutation, so the
@@ -243,24 +243,42 @@ the fixture for `tf`, `cdk` and `flowascode` (the last with
 
 ### Evidence
 
-Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
-and the Cases domain, its template and its two fields are created by a
-sandbox root that had not been applied (owner actions under "Sandbox
-prerequisites and cost"). No AWS call was made and no result is recorded.
-The inputs are kept in `conformance/flow-language/probes/44/` (57 probes:
-21 for `CreateCase`, 22 for `GetCase`, 14 for `UpdateCase`) with
-`PENDING.md`, which names the sandbox root's outputs to check and the seven
-placeholders the run fills (the domain id, the template id, the text and
-single-select field ids and an option value, and a missing field and
-template id). Each type has a probe of its required set alone, and one
-removing each required key alone, `LinkContactToCase` included
-(`*-no-link-flag`). Each
-evidence item above has its probes: `ContactNotLinked` removed with
-linking `"true"` (`*-linking-no-contact-not-linked`) and wired with
-`"false"` (`*-not-linking-contact-not-linked`), `create-missing-field` and
-`create-missing-template`, and `create-required` run before the domain is
-associated. When the sweep runs, the catalog, `actions.ts`, the schema
-clauses and the fixtures change only where a result says so.
+Run on 2026-10-13, 17:09 to 17:10 UTC, on the sandbox (us-west-2), after
+the sandbox-features root (provider repository,
+`acceptance/sandbox-features`) put a Cases domain on the instance
+(`CASES_DOMAIN`), with a template, a text field and a single-select field.
+The 57 inputs in `conformance/flow-language/probes/44/` gave 33 accepted
+and 24 refused; `results.json` holds each, and `PENDING.md` is gone. The
+domain was associated before the run, so no probe saw an instance without
+one. Rule 44's last bullet quotes every result. What moved the model:
+
+- `GetCase` without `MultipleFound` or `NoneFound` was refused, so both are
+  required in the catalog and `REQUIRED_EXTRAS`, and
+  `pass-get-case-catch-all-only` became a fail fixture.
+- `ContactNotLinked` on a block whose `LinkContactToCase` is `"false"` was
+  refused ("Invalid Action error. Error: ContactNotLinked") on all three
+  types. Each entry now carries a shape forbidding it there, which
+  conditional-shape reports (three fail fixtures, and a pass for a JSONPath
+  link, which the shape does not judge).
+- An eleventh response field was refused, so the 0.3 clause holds
+  `CaseResponseFields` to ten.
+- `GetCase` without `GetLastUpdatedCase` was accepted, so it is optional in
+  the catalog; the class still writes it.
+
+What the run settled without a change:
+
+- docs/adr/0008 stands: a template id and a field id naming nothing were
+  accepted, and so were each given as an `arn:aws:cases:` ARN and the
+  template as a JSONPath. The create checks neither an id nor its form.
+- `reference_id`, a repeated response field, `CustomerId`, `ContactToLink`
+  (both values, and on a block that does not link) and the read-only
+  system fields `case_id` and `created_datetime` as request keys were each
+  accepted; the class's stricter refusals stay its own.
+- `LinkContactToCase` is required on all three types and refused as a JSON
+  boolean; the template and `CaseId` are required; the lookup errors
+  without the `Error` suffix are the service's spelling.
+- Each type was accepted in a module and a customer hold flow, so all three
+  stay unrestricted.
 
 ### Decisions the review asked to state
 
@@ -271,14 +289,14 @@ not to be defects; each is a decision, recorded here:
 - `reference_id` is in `CASE_SYSTEM_FIELDS` although the admin guide's
   table marks it "coming later in 2026". The list is an allowlist of ids
   that stay literal, so leaving it out would make export and the builder
-  treat a documented system field as a domain field. `get-reference-id-field`
-  puts it to the service.
+  treat a documented system field as a domain field. The service accepted it
+  as a response field (`get-reference-id-field`, 2026-10-13).
 - System fields Connect fills (`case_id`, `created_by`, `created_datetime`,
   the `last_*` fields, `reference_number`) are allowed as `CaseRequestFields`
   keys. The catalog's `keys` say which ids stay literal, not which are
-  writable, and no page or probe shows a create refusing one (owner
-  decision 3); setting one may take the Error branch at run time.
-  `create-read-only-field` puts two to the service.
+  writable, and the service accepted two at create (`create-read-only-field`,
+  2026-10-13; owner decision 3); setting one may take the Error branch at
+  run time.
 - `materializeWithMap` rebuilds a map with `Object.fromEntries`, so a
   `casefield` token bound to the same id as another key in the same map
   collapses into one key. Neither emitter can produce that: `emit --target
@@ -291,8 +309,9 @@ tf` binds each token to a unique sentinel, and the CDK binder returns a
 - `GetCase` refuses a repeated response field, with no page saying so.
   The refusal is the class's alone: the catalog, the schema and lint accept
   a repeat, and codegen leaves such a block generic, with nothing dropped,
-  as D03's profile names do. `get-repeated-response-field` puts it to the
-  service.
+  as D03's profile names do. The service accepted a repeat
+  (`get-repeated-response-field`, 2026-10-13), so the refusal stays the
+  class's alone.
 
 The studio's link select adds `ContactNotLinked` aimed where the catch-all
 goes. On a block with no catch-all yet (one just added from the palette)
@@ -308,7 +327,12 @@ switched on and gone when it is switched off.
   `conformance/flow-language/exports/` with ids replaced (owner decision 8);
   no console was reachable. Until then `ContactToLink`'s `"Related"`, the
   Get case id form's key and `CustomerId`'s use rest on the pages alone.
-- The sweep, above, and the live Cases listings D01 left pending.
+- The live Cases listings D01 left pending.
+- Export reads a template or field id only in its bare form. The service
+  also accepts the `arn:aws:cases:` ARN form (rule 44), so a flow written
+  that way would export with a literal ARN, which `no-literal-arn`
+  refuses; mapping that form too is a follow-up for export, not a model
+  change.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists, including the reference key rule in its reader and
   serializer and `requiredWhenValue` in `builderErrorsFor`'s port if it has

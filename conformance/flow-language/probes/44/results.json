@@ -1,0 +1,651 @@
+[
+  {
+    "probe": "create-contact-to-link-not-linking",
+    "description": "Rule 44: CreateCase with ContactToLink but LinkContactToCase \"false\": whether the key is refused without linking.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-contact-to-link-related",
+    "description": "Rule 44: CreateCase linking the related contact, ContactToLink \"Related\" (the admin guide's Related contact; the spelling is unrecorded).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:44Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-contact-to-link",
+    "description": "Rule 44: CreateCase linking the current contact with ContactToLink \"Current\", the key the console's export writes and no page names; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:46Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-customer-hold",
+    "description": "Rule 44: CreateCase in a customer hold flow; the page: \"can be used in any type of flow\".",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:47Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-field-arn",
+    "description": "Rule 44: CreateCase with a field's ARN as the request key in place of its id.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-fields",
+    "description": "Rule 44: CreateCase with the domain's text and single-select fields by id and two system fields, the fixture's shape; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-link-boolean",
+    "description": "Rule 44: CreateCase with LinkContactToCase as the JSON boolean true rather than the string the published flows write.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:52Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: CreateCase, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "create-linking-no-contact-not-linked",
+    "description": "Rule 44: CreateCase linking the contact without ContactNotLinked, a removal alone; the catalog requires it when LinkContactToCase is \"true\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:53Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: ContactNotLinked, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "create-linking",
+    "description": "Rule 44: CreateCase linking the contact (LinkContactToCase \"true\") with ContactNotLinked before the catch-all, the console's order; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:53Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-missing-field",
+    "description": "Rule 44: CreateCase with a request field id the domain does not have: whether the create validates field ids (docs/adr/0008).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:55Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-missing-template",
+    "description": "Rule 44: CreateCase with a template id the domain does not have: whether the create validates the template.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:56Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-module",
+    "description": "Rule 44: CreateCase in a flow module; the page: \"can be used in any type of flow\".",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:58Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-no-catch-all",
+    "description": "Rule 44: CreateCase without its catch-all, a removal alone; the catalog requires it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:59Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "create-no-link-flag",
+    "description": "Rule 44: CreateCase without LinkContactToCase, which every published flow writes.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.LinkContactToCase"
+    ]
+  },
+  {
+    "probe": "create-no-next",
+    "description": "Rule 44: CreateCase without NextAction, a removal alone; the catalog requires it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "create-no-template",
+    "description": "Rule 44: CreateCase without CaseTemplateId; the admin guide: \"You must provide a case template\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:01Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.CaseTemplateId"
+    ]
+  },
+  {
+    "probe": "create-not-linking-contact-not-linked",
+    "description": "Rule 44: CreateCase not linking with ContactNotLinked wired anyway: whether the service refuses the branch where the page says it does not appear.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:02Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: ContactNotLinked, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "create-read-only-field",
+    "description": "Rule 44: CreateCase setting system fields the admin guide says Connect fills (case_id, created_datetime): whether the create refuses a key the catalog lists as a system field id.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:02Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-required",
+    "description": "Rule 44: CreateCase not linking, with its template and no request fields, a NextAction and the catch-all: the required set alone; expected accepted. Run before the Cases domain is associated, it is also the probe of an instance with no Cases domain.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:04Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-template-arn",
+    "description": "Rule 44: CreateCase with the template's ARN in place of its id: whether the service takes the id the published flows write, the ARN, or both.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-template-jsonpath",
+    "description": "Rule 44: CreateCase with the template read from an attribute: the page does not say whether CaseTemplateId may be dynamic.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:07Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-all-branches",
+    "description": "Rule 44: GetCase not linking with MultipleFound, NoneFound and the catch-all, the published flows' order; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-contact-to-link",
+    "description": "Rule 44: GetCase linking the current contact with ContactToLink \"Current\", the key the console's export writes on CreateCase.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:10Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-customer-hold",
+    "description": "Rule 44: GetCase in a customer hold flow.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:11Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-customer-id",
+    "description": "Rule 44: GetCase searching by the page's CustomerId parameter rather than a customer_id request field.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:13Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-eleven-response-fields",
+    "description": "Rule 44: GetCase storing eleven response fields: the admin guide says publishing more than 10 shows \"Invalid or missing parameter data\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:15Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].More than 10 fields in Parameters.CaseResponseFields"
+    ]
+  },
+  {
+    "probe": "get-error-suffix",
+    "description": "Rule 44: GetCase with the Customer Profiles lookups' spellings, MultipleFoundError and NoneFoundError, in place of the page's.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:15Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: MultipleFoundError, Path: Actions[0]",
+      "Invalid Action error. Error: NoneFoundError, Path: Actions[0]",
+      "Action is missing required error. Error: MultipleFound, Path: Actions[0]",
+      "Action is missing required error. Error: NoneFound, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-linking-no-contact-not-linked",
+    "description": "Rule 44: GetCase linking the contact without ContactNotLinked, a removal alone; the catalog requires it when LinkContactToCase is \"true\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:16Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: ContactNotLinked, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-linking",
+    "description": "Rule 44: GetCase linking the contact with ContactNotLinked first, then the lookups and the catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:16Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-missing-response-field",
+    "description": "Rule 44: GetCase storing a field id the domain does not have.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:18Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-module",
+    "description": "Rule 44: GetCase in a flow module; the page: \"can be used in any type of flow\".",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:19Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-no-catch-all",
+    "description": "Rule 44: GetCase without its catch-all, a removal alone; the catalog requires it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:21Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-no-last-updated-flag",
+    "description": "Rule 44: GetCase without GetLastUpdatedCase, which every published flow writes.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:21Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-no-link-flag",
+    "description": "Rule 44: GetCase without LinkContactToCase, a removal alone from its required set (GetLastUpdatedCase, a NextAction and the catch-all kept); the catalog marks LinkContactToCase required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:23Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.LinkContactToCase",
+      "Action is missing required error. Error: MultipleFound, Path: Actions[0]",
+      "Action is missing required error. Error: NoneFound, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-no-multiple-found",
+    "description": "Rule 44: GetCase without MultipleFound, a removal alone; the catalog does not require it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:23Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: MultipleFound, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-no-next",
+    "description": "Rule 44: GetCase without NextAction, a removal alone; the catalog requires it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:24Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "get-no-none-found",
+    "description": "Rule 44: GetCase without NoneFound, a removal alone; the catalog does not require it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:24Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoneFound, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-not-linking-contact-not-linked",
+    "description": "Rule 44: GetCase not linking with ContactNotLinked wired anyway.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:25Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: ContactNotLinked, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-reference-id-field",
+    "description": "Rule 44: GetCase searching by and storing reference_id, the system field the admin guide lists as \"coming later in 2026\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:25Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-repeated-response-field",
+    "description": "Rule 44: GetCase storing the same response field twice: the class refuses a repeat, which no page states.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:27Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-required-set-alone",
+    "description": "Rule 44: GetCase with the catalog's required set alone: LinkContactToCase \"false\", GetLastUpdatedCase, a NextAction and the catch-all, with no search, no response fields and neither lookup branch; expected accepted, which also settles each optional parameter and branch.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: MultipleFound, Path: Actions[0]",
+      "Action is missing required error. Error: NoneFound, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-required",
+    "description": "Rule 44: GetCase not linking, its required set plus a customer_id search (an optional CaseRequestFields), with a NextAction and the catch-all; expected accepted. get-required-set-alone is the required set alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: MultipleFound, Path: Actions[0]",
+      "Action is missing required error. Error: NoneFound, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-response-fields",
+    "description": "Rule 44: GetCase storing system fields and the domain's text field by id; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:30Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-contact-to-link",
+    "description": "Rule 44: UpdateCase linking the current contact with ContactToLink \"Current\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-customer-hold",
+    "description": "Rule 44: UpdateCase in a customer hold flow.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:33Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-domain-fields",
+    "description": "Rule 44: UpdateCase setting the domain's text and single-select fields by id; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-linking-no-contact-not-linked",
+    "description": "Rule 44: UpdateCase linking the contact without ContactNotLinked, a removal alone; the catalog requires it when LinkContactToCase is \"true\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: ContactNotLinked, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "update-linking",
+    "description": "Rule 44: UpdateCase linking the contact with ContactNotLinked before the catch-all, the published flows' order; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-missing-field",
+    "description": "Rule 44: UpdateCase setting a field id the domain does not have.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-module",
+    "description": "Rule 44: UpdateCase in a flow module; the page: \"can be used in any type of flow\".",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-no-case-id",
+    "description": "Rule 44: UpdateCase without CaseId; the admin guide calls it the only field that identifies the case.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:41Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.CaseId"
+    ]
+  },
+  {
+    "probe": "update-no-catch-all",
+    "description": "Rule 44: UpdateCase without its catch-all, a removal alone; the catalog requires it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "update-no-link-flag",
+    "description": "Rule 44: UpdateCase without LinkContactToCase, a removal alone from its required set (CaseId, a NextAction and the catch-all kept); the catalog marks LinkContactToCase required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.LinkContactToCase"
+    ]
+  },
+  {
+    "probe": "update-no-next",
+    "description": "Rule 44: UpdateCase without NextAction, a removal alone; the catalog requires it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "update-not-linking-contact-not-linked",
+    "description": "Rule 44: UpdateCase not linking with ContactNotLinked wired anyway.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: ContactNotLinked, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "update-required-set-alone",
+    "description": "Rule 44: UpdateCase with the catalog's required set alone: LinkContactToCase \"false\", CaseId, a NextAction and the catch-all, with no request fields; expected accepted, which also settles CaseRequestFields' required: false.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:44Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-required",
+    "description": "Rule 44: UpdateCase not linking, with a case id read from the case namespace, one system field, a NextAction and the catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:45Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  }
+]

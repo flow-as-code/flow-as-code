@@ -185,9 +185,10 @@ and every channel. Every type requires its catch-all and `next`.
 `MultipleFoundError` and `NoneFoundError` are wired by the builder and not
 required: the pages list them without "Must always be defined", the
 reading D02 gave `ChannelMismatch` on the message processor, although
-every published flow wires them. `pass-get-profile-catch-all-only` holds
-that reading, and the `*-no-multiple-found` and `*-no-none-found` probes
-settle it.
+every published flow wires them. The `*-no-multiple-found` and
+`*-no-none-found` probes settled it the other way on 2026-10-13: the
+service requires them, and the fixture that held the pages' reading is now
+`fail-get-profile-catch-all-only` (see "Evidence").
 
 ### Vocabulary
 

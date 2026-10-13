@@ -1916,17 +1916,17 @@ is read rather than when the type is modeled.
 44. Cases (tasks/D06; the Developer Guide pages read 2026-10-04 and again
     2026-10-12 with the admin guide's Cases block and case fields pages).
     The group's types are modeled from their pages and from flows AWS
-    publishes. **Probe pending**: the create sweep the evidence rule asks
-    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
-    AWS credentials had expired, and the Cases domain the sweep needs, with
-    its template and two fields, is created by a sandbox root that had not
-    been applied. Its inputs are kept in `probes/44/`, with `PENDING.md`
-    saying what the run needs. No console export of the block has been
-    taken in this repository (owner decision 8). In its place the stored
-    shape is read from flows AWS publishes, listed below at the commits read
-    on 2026-10-12, one of them a console export of every block. Until the
-    sweep, every required key, error, `next`, spelling and flow-type entry
-    below is that reading, and each bullet names the probes that settle it.
+    publishes, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a Cases domain associated to the instance
+    (`CASES_DOMAIN`), a template, a text field and a single-select field.
+    Its inputs and `results.json` are in `probes/44/`. No console export
+    of the block has been taken in this repository (owner decision 8). In
+    its place the stored shape is read from flows AWS publishes, listed
+    below at the commits read on 2026-10-12, one of them a console export
+    of every block. The bullets below are that reading as modeled; the
+    last bullet is what the service said, and where the two differ the
+    catalog follows the service.
     Each action page says "None. This can be used in any type of flow and
     any channel.", and the admin guide's block lists "All flows" and voice,
     chat, task and email each "Yes", so every type here is unrestricted and
@@ -1954,8 +1954,9 @@ is read rather than when the type is modeled.
     (`CASE_SYSTEM_FIELDS` in `packages/core/src/actions.ts`). A literal
     domain field id or template id, which the flows above write and the
     service is expected to accept, still validates and round-trips, and
-    codegen leaves such a block generic; no lint reports it unless this
-    sweep shows the service validating ids at create (docs/adr/0008).
+    codegen leaves such a block generic; no lint reports it, and the sweep
+    found the service validating neither ids nor their form at create
+    (docs/adr/0008).
     https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
     https://docs.aws.amazon.com/connect/latest/adminguide/case-fields.html
     The published flows:
@@ -2045,19 +2046,20 @@ is read rather than when the type is modeled.
       and wires `ContactNotLinked` (when linking), `MultipleFound`,
       `NoneFound` and the catch-all, in that order. The catalog records
       `LinkContactToCase` and `ContactToLink` as `CreateCase`'s,
-      `GetLastUpdatedCase` as a required `enum` of `"true"` and `"false"`,
+      `GetLastUpdatedCase` as an optional `enum` of `"true"` and `"false"`
+      (required until the sweep accepted a block without it),
       `CustomerId` as an optional `stringOrJsonPath`, `CaseRequestFields`
       as `CreateCase`'s, and `CaseResponseFields` as an optional `list` of
       strings with `max` 10 whose `keys` are the system field ids and whose
       items are a `casefield` reference path (`CaseResponseFields[]`). The
       four errors are wired by the builder in the flows' order;
-      `ContactNotLinked` is required when linking, the catch-all always,
-      and neither lookup, which the page does not mark "Must always be
-      defined" (rule 43's reading of the Customer Profiles lookups), although
-      every flow wires both (`pass-get-case-catch-all-only`,
+      `ContactNotLinked` is required when linking, and the catch-all and
+      both lookups always: the page does not mark the lookups "Must always
+      be defined", but the service requires them, as every flow wires them
+      (`fail-get-case-catch-all-only`,
       `fail-get-case-linking-without-contact-not-linked`). The bound of 10
-      is in the catalog and the class, not the schema, until
-      `get-eleven-response-fields` shows the service refusing an eleventh.
+      is in the catalog, the class and, since the service refused an
+      eleventh, the schema clause.
       Planned probes: `get-required-set-alone` (the catalog's required set
       alone, with no search, no response fields and neither lookup branch;
       expected accepted, which also settles each optional parameter and
@@ -2109,6 +2111,62 @@ is read rather than when the type is modeled.
       `update-contact-to-link`, and `update-module` and
       `update-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+    - The sweep (2026-10-13, 17:09 to 17:10 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 57 probes, 33 accepted and 24 refused,
+      every refusal an `InvalidContactFlowException`. The domain was
+      associated before the run, so no probe saw an instance without one.
+      - Ids are not checked at create. `create-missing-template` and
+        `create-missing-field` (well-formed ids naming nothing),
+        `update-missing-field` and `get-missing-response-field` were
+        accepted, and so were `create-template-arn` and `create-field-arn`
+        (each id given as its `arn:aws:cases:` ARN) and
+        `create-template-jsonpath`. docs/adr/0008's reading stands: no
+        lint reports a literal id, and codegen leaves one generic.
+      - The link. `LinkContactToCase` is required on all three
+        (`create-no-link-flag`, `get-no-link-flag`, `update-no-link-flag`
+        refused "Action is missing required property. Path:
+        Actions[0].Parameters.LinkContactToCase") and a JSON boolean is
+        refused (`create-link-boolean`, "Invalid Action type").
+        `ContactNotLinked` is required when linking (each
+        `*-linking-no-contact-not-linked` refused "Action is missing
+        required error. Error: ContactNotLinked") and refused when not
+        (each `*-not-linking-contact-not-linked` refused "Invalid Action
+        error. Error: ContactNotLinked, Path: Actions[0]"). The second
+        half is new: each type's catalog entry now carries a shape that
+        forbids the branch where `LinkContactToCase` is `"false"`, which
+        conditional-shape reports (three fail fixtures, and a pass for a
+        JSONPath link). `ContactToLink` was accepted with both values and
+        on a block that does not link, which the class still refuses.
+      - `CreateCase`: `create-required`, `create-linking`, `create-fields`
+        (the domain's two fields by id beside system fields),
+        `create-read-only-field` (`case_id` and `created_datetime` set by
+        the flow), `create-module` and `create-customer-hold` accepted;
+        `create-no-template` refused "...CaseTemplateId", and the
+        catch-all and `next` were each refused removed alone.
+      - `GetCase`: `get-all-branches`, `get-linking`,
+        `get-response-fields`, `get-customer-id`, `get-contact-to-link`,
+        `get-reference-id-field`, `get-repeated-response-field`,
+        `get-module` and `get-customer-hold` accepted.
+        `get-required-set-alone` and `get-required`, which wire the
+        catch-all alone, refused "Action is missing required error.
+        Error: MultipleFound" and the same for `NoneFound`, as did each
+        lookup removed alone: both are required, in the catalog and
+        `REQUIRED_EXTRAS`, and `pass-get-case-catch-all-only` became a fail
+        fixture. The set-alone probe has no search criterion and drew no
+        complaint about one, so "at least one search criteria" is a
+        run-time rule. `get-no-last-updated-flag` was accepted, so
+        `GetLastUpdatedCase` is optional. `get-eleven-response-fields`
+        refused "Invalid Action property value. Path: Actions[0].More than
+        10 fields in Parameters.CaseResponseFields", so the schema clause
+        holds the bound. `get-error-suffix` refused "Invalid Action error.
+        Error: MultipleFoundError" and `NoneFoundError`, so the Cases
+        spellings stand.
+      - `UpdateCase`: `update-required-set-alone` (no request fields),
+        `update-required`, `update-linking`, `update-domain-fields`,
+        `update-contact-to-link`, `update-module` and
+        `update-customer-hold` accepted; `update-no-case-id` refused
+        "...CaseId", and the catch-all and `next` were each refused
+        removed alone. "At least one Request field" is a run-time rule.
 
 45. Routing criteria (tasks/D07; the Developer Guide page read 2026-10-04
     and again 2026-10-12 with the admin guide's Set routing criteria block

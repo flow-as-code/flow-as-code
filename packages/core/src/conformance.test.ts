@@ -635,11 +635,12 @@ describe("FlowDoc schema rejections: customer profiles", () => {
 // tasks/D06. Each clause holds what docs/adr/0008 states: a string that
 // opens a token in CaseTemplateId is a whole casetemplate token, and one in
 // a CaseRequestFields key a whole casefield token. A literal template or
-// field id, which every published flow writes and the service is expected
-// to accept (rule 44, probe pending),
-// still validates (owner decision 3); codegen leaves it generic. The enums,
-// the link's branch and the system field list stay in the catalog and the
-// builder until rule 44's probes (pending) show the service refusing them.
+// field id, which every published flow writes and the service accepted
+// (rule 44, 2026-10-13: an id naming nothing, and an ARN, alike), still
+// validates (owner decision 3); codegen leaves it generic. Of what rule 44's
+// probes saw refused, the clause holds the bound of ten response fields;
+// the link's branch is conditional-shape's, and the enums stay in the
+// catalog and the builder.
 describe("FlowDoc schema rejections: cases", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/cases/doc.flowdoc.json");
@@ -747,6 +748,24 @@ describe("FlowDoc schema rejections: cases", () => {
       "response fields that are not a list",
       mutate("find-case", (a) => {
         a.Parameters.CaseResponseFields = "case_id";
+      }),
+    ],
+    [
+      "eleven response fields, which the service refuses",
+      mutate("find-case", (a) => {
+        a.Parameters.CaseResponseFields = [
+          "assigned_queue",
+          "assigned_user",
+          "case_id",
+          "case_reason",
+          "created_datetime",
+          "customer_id",
+          "reference_number",
+          "status",
+          "summary",
+          "title",
+          "last_updated_datetime",
+        ];
       }),
     ],
   ])("rejects %s", (_label, doc) => {

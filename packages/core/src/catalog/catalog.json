@@ -248,6 +248,20 @@
           "ref": "casefield"
         }
       ],
+      "shapes": [
+        {
+          "when": {
+            "key": "LinkContactToCase",
+            "equals": "false"
+          },
+          "forbids": {
+            "errors": [
+              "ContactNotLinked"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 44): with LinkContactToCase \"false\" it refused the action with ContactNotLinked wired (\"Invalid Action error. Error: ContactNotLinked, Path: Actions[0]\"). No page says so."
+        }
+      ],
       "transitions": {
         "next": "required",
         "conditions": "none",
@@ -510,7 +524,7 @@
           "key": "GetLastUpdatedCase",
           "attr": "get_last_updated_case",
           "kind": "enum",
-          "required": true,
+          "required": false,
           "values": [
             "true",
             "false"
@@ -583,6 +597,20 @@
           "ref": "casefield"
         }
       ],
+      "shapes": [
+        {
+          "when": {
+            "key": "LinkContactToCase",
+            "equals": "false"
+          },
+          "forbids": {
+            "errors": [
+              "ContactNotLinked"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 44): with LinkContactToCase \"false\" it refused the action with ContactNotLinked wired (\"Invalid Action error. Error: ContactNotLinked, Path: Actions[0]\"). No page says so."
+        }
+      ],
       "transitions": {
         "next": "required",
         "conditions": "none",
@@ -598,12 +626,12 @@
           },
           {
             "type": "MultipleFound",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
             "type": "NoneFound",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
@@ -941,6 +969,20 @@
         {
           "path": "CaseRequestFields.*~",
           "ref": "casefield"
+        }
+      ],
+      "shapes": [
+        {
+          "when": {
+            "key": "LinkContactToCase",
+            "equals": "false"
+          },
+          "forbids": {
+            "errors": [
+              "ContactNotLinked"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 44): with LinkContactToCase \"false\" it refused the action with ContactNotLinked wired (\"Invalid Action error. Error: ContactNotLinked, Path: Actions[0]\"). No page says so."
         }
       ],
       "transitions": {

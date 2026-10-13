@@ -1,0 +1,62 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "case-intake",
+  "description": "CreateCase whose link is read from an attribute, with ContactNotLinked wired. The shape forbids the branch only where LinkContactToCase is the literal \"false\" (actions.md, rule 44), so a JSONPath link passes.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "open-case",
+    "Actions": [
+      {
+        "Identifier": "open-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "LinkContactToCase": "$.Attributes.linkCase",
+          "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN",
+            "summary": "$.Attributes.summary"
+          }
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "open-case": {
+      "x": 0,
+      "y": 0
+    },
+    "bye": {
+      "x": 200,
+      "y": 0
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:casetemplate:billing-dispute}",
+      "type": "casetemplate",
+      "name": "billing-dispute"
+    }
+  ]
+}
