@@ -56,6 +56,12 @@ export const ActionType = {
   UpdateContactMediaProcessing: "UpdateContactMediaProcessing",
   CreateTask: "CreateTask",
   CreateWisdomSession: "CreateWisdomSession",
+  AssociateContactToCustomerProfile: "AssociateContactToCustomerProfile",
+  CreateCustomerProfile: "CreateCustomerProfile",
+  UpdateCustomerProfile: "UpdateCustomerProfile",
+  GetCustomerProfile: "GetCustomerProfile",
+  GetCustomerProfileObject: "GetCustomerProfileObject",
+  GetCalculatedAttributesForCustomerProfile: "GetCalculatedAttributesForCustomerProfile",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -179,6 +185,16 @@ export const CALLBACK_NUMBER_NOT_DIALABLE = "CallbackNumberNotDialable";
 
 /** Wait's second error, raised when no bot participant is on the contact. */
 export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
+
+/**
+ * The Customer Profiles lookups' branches: "MultipleFoundError - if
+ * multiple profiles were found for the associated profile search key." and
+ * "NoneFoundError - if no profiles were found for the associated profile
+ * search key."
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ */
+export const MULTIPLE_FOUND_ERROR = "MultipleFoundError";
+export const NONE_FOUND_ERROR = "NoneFoundError";
 
 /**
  * ShowView's error when the view is not answered within
@@ -337,6 +353,21 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // recording action.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
   [ActionType.UpdateContactMediaProcessing]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
+  // The order every published flow writes (actions.md, rule 43), the
+  // catch-all first; the page lists the two lookups' errors first. Only the
+  // catch-all is marked required: the page marks none "Must always be
+  // defined", and rule 43's probes decide whether either joins
+  // REQUIRED_EXTRAS. The published flows wire all three.
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+  [ActionType.GetCustomerProfile]: [NO_MATCHING_ERROR, MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
+  // Catch-all first, as GetCustomerProfile's are written; no published flow
+  // carries the type. Only the catch-all is required, as there.
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+  [ActionType.GetCustomerProfileObject]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
+  // Catch-all first, the order of the one published flow that carries the
+  // type (actions.md, rule 43); only the catch-all is required.
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
 };
 
 /**
@@ -694,6 +725,22 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
   ActionType.CreateWisdomSession,
+  // The Customer Profiles actions' pages have no Restrictions section; the
+  // admin guide's Customer profiles block: "All flow types", and voice,
+  // chat, task and email each "Yes".
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+  ActionType.AssociateContactToCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+  ActionType.CreateCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+  ActionType.UpdateCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+  ActionType.GetCustomerProfile,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+  ActionType.GetCustomerProfileObject,
+  // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+  ActionType.GetCalculatedAttributesForCustomerProfile,
 ];
 
 /**
@@ -724,6 +771,208 @@ export const CALLBACK_ATTEMPTS_MIN = 1;
  */
 export const TASK_DELAY_MIN = 1;
 export const TASK_DELAY_MAX = 518_400;
+
+/**
+ * The profile fields the Customer Profiles pages list, in their order: the
+ * keys `CreateCustomerProfile` and `UpdateCustomerProfile` take in
+ * `ProfileRequestData`, and the names those two and `GetCustomerProfile`
+ * store from `ProfileResponseData` under `$.Customer`. Beside them the pages
+ * list `"Attributes.x"`, a custom attribute, which PROFILE_FIELD_PATTERNS
+ * spells as a key pattern (a name holding no further dot). The catalog's
+ * `keys` and `keyPatterns` on those parameters are held to these two.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ */
+export const PROFILE_FIELDS = [
+  "FirstName",
+  "MiddleName",
+  "LastName",
+  "PhoneNumber",
+  "EmailAddress",
+  "AccountNumber",
+  "AdditionalInformation",
+  "PartyType",
+  "BusinessName",
+  "BirthDate",
+  "Gender",
+  "MobilePhoneNumber",
+  "HomePhoneNumber",
+  "BusinessPhoneNumber",
+  "BusinessEmailAddress",
+  "Address1",
+  "Address2",
+  "Address3",
+  "Address4",
+  "City",
+  "County",
+  "Country",
+  "PostalCode",
+  "Province",
+  "State",
+  "ShippingAddress1",
+  "ShippingAddress2",
+  "ShippingAddress3",
+  "ShippingAddress4",
+  "ShippingCity",
+  "ShippingCounty",
+  "ShippingCountry",
+  "ShippingPostalCode",
+  "ShippingProvince",
+  "ShippingState",
+  "MailingAddress1",
+  "MailingAddress2",
+  "MailingAddress3",
+  "MailingAddress4",
+  "MailingCity",
+  "MailingCounty",
+  "MailingCountry",
+  "MailingPostalCode",
+  "MailingProvince",
+  "MailingState",
+  "BillingAddress1",
+  "BillingAddress2",
+  "BillingAddress3",
+  "BillingAddress4",
+  "BillingCity",
+  "BillingCounty",
+  "BillingCountry",
+  "BillingPostalCode",
+  "BillingProvince",
+  "BillingState",
+] as const;
+export const PROFILE_FIELD_PATTERNS: readonly string[] = ["^Attributes\\.[^.]+$"];
+
+/**
+ * GetCustomerProfile's SearchCriteria: "Retrieve a customer profile based
+ * any search identifier, up to five total", joined by a LogicalOperator "AND
+ * or OR" ("Required when using SearchCriteria").
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ */
+/**
+ * The names GetCustomerProfileObject stores from ProfileResponseData, in the
+ * page's order: the standard Asset, Order and Case object fields, beside
+ * "AssetAttributes.x", "OrderAttributes.x", "CaseAttributes.x" and
+ * "ObjectAttributes.x", which PROFILE_OBJECT_FIELD_PATTERNS spells. "Asset
+ * ID, if a single asset is found, is always persisted under the Customer ->
+ * Asset -> AssetID attribute + $.Customer.Asset.AssetId", and likewise the
+ * order and case ids.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+ */
+export const PROFILE_OBJECT_FIELDS = [
+  "AssetAssetId",
+  "AssetProfileId",
+  "AssetAssetName",
+  "AssetSerialNumber",
+  "AssetModelNumber",
+  "AssetModelName",
+  "AssetProductSKU",
+  "AssetPurchaseDate",
+  "AssetUsageEndDate",
+  "AssetStatus",
+  "AssetPrice",
+  "AssetQuantity",
+  "AssetDescription",
+  "AssetAdditionalInformation",
+  "AssetDataSource",
+  "OrderOrderId",
+  "OrderProfileId",
+  "OrderCustomerEmail",
+  "OrderCustomerPhone",
+  "OrderCreatedDate",
+  "OrderUpdatedDate",
+  "OrderProcessedDate",
+  "OrderClosedDate",
+  "OrderCancelledDate",
+  "OrderCancelReason",
+  "OrderName",
+  "OrderAdditionalInformation",
+  "OrderGateway",
+  "OrderStatus",
+  "OrderStatusCode",
+  "OrderStatusUrl",
+  "OrderCreditCardNumber",
+  "OrderCreditCardCompany",
+  "OrderFulfillmentStatus",
+  "OrderTotalPrice",
+  "OrderTotalTax",
+  "OrderTotalDiscounts",
+  "OrderTotalItemsPrice",
+  "OrderTotalShippingPrice",
+  "OrderTotalTipReceived",
+  "OrderCurrency",
+  "OrderTotalWeight",
+  "OrderBillingName",
+  "OrderBillingAddress1",
+  "OrderBillingAddress2",
+  "OrderBillingAddress3",
+  "OrderBillingAddress4",
+  "OrderBillingCity",
+  "OrderBillingCounty",
+  "OrderBillingCountry",
+  "OrderBillingPostalCode",
+  "OrderBillingProvince",
+  "OrderBillingState",
+  "OrderShippingName",
+  "OrderShippingAddress1",
+  "OrderShippingAddress2",
+  "OrderShippingAddress3",
+  "OrderShippingAddress4",
+  "OrderShippingCity",
+  "OrderShippingCounty",
+  "OrderShippingCountry",
+  "OrderShippingPostalCode",
+  "OrderShippingProvince",
+  "OrderShippingState",
+  "CaseCaseId",
+  "CaseProfileId",
+  "CaseTitle",
+  "CaseSummary",
+  "CaseStatus",
+  "CaseReason",
+  "CaseCreatedBy",
+  "CaseCreatedDate",
+  "CaseUpdatedDate",
+  "CaseClosedDate",
+  "CaseAdditionalInformation",
+  "CaseDataSource",
+] as const;
+export const PROFILE_OBJECT_FIELD_PATTERNS: readonly string[] = [
+  "^AssetAttributes\\.[^.]+$",
+  "^OrderAttributes\\.[^.]+$",
+  "^CaseAttributes\\.[^.]+$",
+  "^ObjectAttributes\\.[^.]+$",
+];
+
+/**
+ * The names GetCalculatedAttributesForCustomerProfile stores, as the page
+ * lists them: two predefined calculated attributes, and
+ * "CalculatedAttributes.x" for any other, which the pattern spells. The
+ * admin guide: "The options under Response fields are the Calculated
+ * Attribute definitions defined for your Customer Profiles domain", so a
+ * domain's own names are typed against the pattern.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export const CALCULATED_ATTRIBUTE_FIELDS = [
+  "CalculatedAttributes._average_hold_time",
+  "CalculatedAttributes._frequent_caller",
+] as const;
+export const CALCULATED_ATTRIBUTE_PATTERNS: readonly string[] = ["^CalculatedAttributes\\.[^.]+$"];
+
+/**
+ * GetCustomerProfileObject.UseLatest, "true / false" on the page. The page
+ * shows no quotes and no published flow carries the type; the class writes
+ * the string "true", the spelling Connect's own flag parameters use in the
+ * published flows (`LinkContactToCase`, `GetLastUpdatedCase`), and rule
+ * 43's probes put the JSON boolean and "True" to the service.
+ */
+export const PROFILE_USE_LATEST = ["true", "false"] as const;
+
+export const PROFILE_SEARCH_CRITERIA_MIN = 1;
+export const PROFILE_SEARCH_CRITERIA_MAX = 5;
+export const PROFILE_LOGICAL_OPERATORS = ["AND", "OR"] as const;
+export type ProfileLogicalOperator = (typeof PROFILE_LOGICAL_OPERATORS)[number];
 
 /**
  * Loop.LoopCount "must be between 0 and 100 (inclusive)", written as a decimal

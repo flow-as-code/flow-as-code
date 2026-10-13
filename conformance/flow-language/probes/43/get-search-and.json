@@ -1,0 +1,56 @@
+{
+  "description": "Rule 43: GetCustomerProfile by two SearchCriteria joined by AND.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "SearchCriteria": [
+              {
+                "IdentifierName": "_phone",
+                "IdentifierValue": "$.CustomerEndpoint.Address"
+              },
+              {
+                "IdentifierName": "_email",
+                "IdentifierValue": "$.Attributes.email"
+              }
+            ],
+            "LogicalOperator": "AND"
+          },
+          "ProfileResponseData": [
+            "FirstName"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "MultipleFoundError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

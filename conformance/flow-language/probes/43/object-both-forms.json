@@ -1,0 +1,44 @@
+{
+  "description": "Rule 43: GetCustomerProfileObject with UseLatest and the identifier pair together; the catalog's exactlyOne refuses it.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCustomerProfileObject",
+        "Parameters": {
+          "ProfileRequestData": {
+            "ProfileId": "$.Customer.ProfileId",
+            "ObjectType": "{{OBJECT_TYPE}}",
+            "UseLatest": "true",
+            "IdentifierName": "{{OBJECT_IDENTIFIER}}",
+            "IdentifierValue": "$.Attributes.objectKey"
+          },
+          "ProfileResponseData": []
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFoundError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

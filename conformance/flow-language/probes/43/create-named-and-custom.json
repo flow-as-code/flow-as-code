@@ -1,0 +1,41 @@
+{
+  "description": "Rule 43: CreateCustomerProfile with named and Attributes.x request fields and response names, the group fixture's shape.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "FirstName": "$.Attributes.firstName",
+            "PhoneNumber": "$.CustomerEndpoint.Address",
+            "Attributes.loyaltyTier": "new"
+          },
+          "ProfileResponseData": [
+            "FirstName",
+            "Attributes.loyaltyTier"
+          ]
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

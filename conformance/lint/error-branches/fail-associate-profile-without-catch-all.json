@@ -1,0 +1,54 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "link-contact",
+      "messageIncludes": "AssociateContactToCustomerProfile does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "customer-profile-check",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "link-contact",
+      "Actions": [
+        {
+          "Identifier": "link-contact",
+          "Type": "AssociateContactToCustomerProfile",
+          "Parameters": {
+            "ProfileRequestData": {
+              "ProfileId": "$.Customer.ProfileId",
+              "ContactId": "$.ContactId"
+            },
+            "ProfileResponseData": []
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "link-contact": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

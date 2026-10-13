@@ -180,7 +180,14 @@ and AI agent actions (`tasks-and-assistants`: an AI agents assistant
 associated by reference and by attribute, a task created from a flow reference with
 attributes, a description and a delay, from a task template reference
 alone, from both on a schedule read from an attribute, and with its flow
-and delay read from attributes, then a paused task resumed).
+and delay read from attributes, then a paused task resumed); and a flow of
+the Customer Profiles actions (`customer-profiles`: the caller looked up by
+one identifier, then by two search criteria joined by AND when several
+match, a profile created with
+listed fields and a custom attribute, storing one of each, the contact
+associated with it by two JSONPath ids, and a custom attribute and an email
+address updated, the latest order and an asset by its identifier read,
+and a predefined and a custom calculated attribute read).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

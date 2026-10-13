@@ -98,6 +98,12 @@ The two differ, and the console name is what task A01 originally listed.
 | Set recording, analytics and processing behavior (Set message processor) | `UpdateContactMediaProcessing` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html) |
 | Create task | `CreateTask` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createtask.html) |
 | Connect assistant (formerly Amazon Q in Connect) | `CreateWisdomSession` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html) |
+| Customer profiles (Associate contact to profile) | `AssociateContactToCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html) |
+| Customer profiles (Create profile) | `CreateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html) |
+| Customer profiles (Update profile) | `UpdateCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html) |
+| Customer profiles (Get profile) | `GetCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html) |
+| Customer profiles (Get profile object) | `GetCustomerProfileObject` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html) |
+| Customer profiles (Get calculated attributes) | `GetCalculatedAttributesForCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html) |
 
 ## Reference-bearing parameters
 
@@ -1459,6 +1465,254 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
       https://docs.aws.amazon.com/connect/latest/adminguide/ai-agent-initial-setup.html
 
+43. Customer Profiles (tasks/D03; the Developer Guide pages read 2026-10-04
+    and again 2026-10-12 with the admin guide's Customer profiles block
+    page). The group's types are modeled from their pages and from flows AWS
+    publishes. **Probe pending**: the create sweep the evidence rule asks
+    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
+    AWS credentials had expired, and the Customer Profiles domain the sweep
+    needs is created by a sandbox root that had not been applied. Its inputs
+    are kept in `probes/43/`, with `PENDING.md` saying what the run needs.
+    No console export of the block has been taken (owner decision 8), so
+    nothing under `exports/` records its stored shape. In its place the
+    shape is read from contact flows AWS publishes in its sample
+    repositories, listed below at the commits read on 2026-10-12: every one
+    writes `ProfileRequestData` as an object of strings and
+    `ProfileResponseData` as a list of names, empty when no response field
+    is chosen, where the pages write `{ "FirstName", ... }`, which is not
+    JSON. The catalog follows the published flows where they and the pages
+    differ, and records the pages' form here. Until the sweep and an export,
+    every required key, error, `next`, spelling and flow-type entry below is
+    that reading, and each bullet names the probes that settle it.
+    The action pages have no Restrictions section, and the admin guide's
+    block lists "All flow types" and voice, chat, task and email each
+    "Yes", so every type here is unrestricted and carries no `channels`.
+    No parameter is a reference: the Customer Profiles domain is the
+    instance's integration, not a parameter (tasks/D03), and a profile id
+    is a run-time value read from `$.Customer.ProfileId`. The admin guide's
+    Error branch is taken when Customer Profiles is not enabled, when a
+    request value is over 255 characters, and when the API is throttled or
+    unavailable, each a run-time condition.
+    https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/enable-customer-profiles.html
+    The published flows:
+    https://github.com/aws-samples/amazon-connect-step-by-step-guides-module-library/tree/1d0cf558d024600e6aa05aea3d7d93ffd425b547
+    (`modules/Cases/SBSGuides_Modules_Cases.json`,
+    `examples/Cards/SBSGuides_Example_Cards_Guide.json`,
+    `examples/AgentWorkspace/SBSGuides_Example_AgentWorkspace_Handler.json`,
+    `examples/AgentWorkspace/SBSGuides_Example_AgentWorkspace_Guide.json`,
+    `examples/BackendIntegration/SBSGuides_Example_Backend_Guide.json`),
+    https://github.com/aws-solutions-library-samples/guidance-for-integrating-amazon-connect-with-sap-sales-and-service-cloud-on-aws/blob/bc606393c101d2b185f214a62d2791e77c50f37b/contact-flow/2-ChatFlow-Manual.json,
+    https://github.com/aws-samples/sample-agentic-connect-experience/blob/678c66b870392baaa3e25d32fe5037d17cc6e155/assets/connect/contact_flow.json,
+    https://github.com/aws-samples/sample-amazon-connect-speed-dial/blob/e87f5e2304ab744d0b499bd97bb69e4353067d2a/templates/cdk-app/flows/get-customer-profile.json,
+    https://github.com/aws-samples/sample-aicc-builder-for-amazon-connect-ai-agent/blob/e7d1ab65d505cbdfb0d22e1d9f47c68f963a65b1/knowledge-base-docs/contact-flow/_reference-console-export-all-blocks.json,
+    and
+    https://github.com/aws-samples/sample-ai-enhanced-email-workflow/blob/90ef631c2452394bbb2ad6220bae34c93224ce30/contact-flows/EmailSuggestedResponseConfidenceScore.json.
+    - `AssociateContactToCustomerProfile` "Associate a contact to a
+      customer profile." "A ProfileId and ContactId must be present." in
+      `ProfileRequestData`; `ProfileResponseData` "None."; Results "None.
+      Conditions are not supported."; errors "NoMatchingError - if no other
+      Error matches." The admin guide's block reads the profile id from a
+      preceding Get profile and the contact id from attributes, and has
+      Success and Error branches. No published flow carries the type. The
+      catalog records `ProfileRequestData` as a required object of the two
+      ids, each a `stringOrJsonPath` and required, and `ProfileResponseData`
+      as an optional list of strings with no names; the class writes the
+      empty list the console writes for the other five types with no
+      response field, and codegen leaves any other response data generic.
+      The catch-all is required and wired by the builder, `next` required.
+      Planned probes: `assoc-required-set-alone` (the catalog's required
+      set alone, without the optional response list; expected accepted),
+      `assoc-required` (the class's form; run before the domain is linked,
+      it is also the probe of an instance with no Profiles domain), `assoc-no-catch-all` and `assoc-no-next` (each a
+      removal alone), `assoc-static-profile` (the admin guide's manual
+      Profile ID), `assoc-no-contact-id`, `assoc-no-response-data` and
+      `assoc-response-object` (the page's "None." read as absent and as
+      braces), and `assoc-module` and `assoc-customer-hold` (all flow
+      types).
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
+    - `CreateCustomerProfile` "Create a customer profile."
+      `ProfileRequestData` "All of these fields are optional." and lists 55
+      fields (`FirstName` to `BillingState`) and `"Attributes.x"`;
+      `ProfileResponseData` lists the same and "Newly created profile ID is
+      persisted under the Customer -> ProfileID attribute +
+      $.Customer.ProfileId"; Results "None. Conditions are not supported.
+      If an error does not occur, the response's attributes are available
+      dynamically under the $.Customer path"; errors "NoMatchingError - if
+      no other Error matches." The published flows create profiles with
+      `FirstName`, `LastName`, `PhoneNumber` and `EmailAddress`, static or a
+      JSONPath, and store `[]` or a list of names; the admin guide's example
+      creates one with a phone number and a custom attribute `Language` and
+      stores `Attributes.Language`. The catalog records
+      `ProfileRequestData` as an optional `map` whose `keys` are the 55
+      fields and whose `keyPatterns` is `^Attributes\.[^.]+$` (a custom
+      attribute with no further dot), and `ProfileResponseData` as an
+      optional `list` of strings with the same `keys` and `keyPatterns`
+      (the vocabulary's first use on a list, below). The class writes both
+      containers, empty when nothing is chosen, and refuses a name outside
+      the lists, so codegen leaves such a block generic until
+      `create-unknown-key` shows whether the service enforces the list. The
+      catch-all is required and wired by the builder, `next` required.
+      Planned probes: `create-required-set-alone` (the catalog's required
+      set alone: no `Parameters` at all, since both containers are
+      optional; it settles both `required: false`), `create-required`
+      (one field, the class's form; expected accepted),
+      `create-no-catch-all` and `create-no-next` (each a removal alone),
+      `create-named-and-custom` (the fixture's shape),
+      `create-unknown-key` and `create-unknown-response-name` (whether the
+      lists are enforced at create), `create-dotted-custom-key` (the
+      pattern's dot), `create-empty-request`, `create-no-request-data`,
+      `create-no-response-data` and `create-response-object` (the
+      containers, and the page's braces), and `create-module` and
+      `create-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+    - `UpdateCustomerProfile` "Update a customer profile that was
+      previously created or retrieved in the flow." Its page lists the same
+      fields, response, results and errors as `CreateCustomerProfile`'s, and
+      no profile id: the action updates the profile at
+      `$.Customer.ProfileId` (the admin guide: "Before using an Update
+      profile block, use a Get profile block"). No published flow carries
+      the type. The catalog records it as `CreateCustomerProfile` is
+      recorded, and the class writes it the same way; a `ProfileId` key,
+      which the page does not list, keeps a block generic. Planned probes:
+      `update-required-set-alone` (the catalog's required set alone: no
+      `Parameters` at all; it settles both containers' `required: false`),
+      `update-required` (the class's form; expected accepted),
+      `update-no-catch-all` and
+      `update-no-next` (each a removal alone), `update-unknown-key`,
+      `update-profile-id-key`, `update-no-response-data` and
+      `update-module`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+    - `GetCustomerProfile` "Retrieve a customer profile based any search
+      identifier, up to five total." "At least one search identifier must
+      be present." `ProfileRequestData` "Requires either IdentiferName and
+      IdentifierValue, or SearchCriteria": `"IdentifierName"`,
+      `"IdentiferValue"` (so spelled in the example; the prose misspells
+      the name key instead), or `"SearchCriteria"`, a list of
+      `IdentifierName` and `IdentifierValue`, with `"LogicalOperator": AND
+      or OR` "Required when using SearchCriteria"; `ProfileResponseData` as
+      `CreateCustomerProfile`'s; errors "MultipleFoundError - if multiple
+      profiles were found for the associated profile search key.",
+      "NoneFoundError - if no profiles were found for the associated
+      profile search key." and the catch-all. The admin guide's block asks
+      for "at least one search identifier, up to five total" and an
+      operator "If multiple search identifiers are provided", and names
+      Success, Error, Multiple Found and None Found branches. The
+      published flows hold eleven blocks of the type: every one spells
+      `IdentifierName`
+      and `IdentifierValue`; six search by one identifier (`_phone` or
+      `_email`), four by a named profile field (`{ "PhoneNumber": ... }`,
+      AWS's step-by-step guide flows), which is neither of the page's
+      forms, and one holds `{}` (an unconfigured block in a console export
+      of every block); none uses `SearchCriteria`; and every one wires
+      `NoMatchingError`, `MultipleFoundError` and `NoneFoundError` in that
+      order. The catalog records `ProfileRequestData` as a required object
+      of `IdentifierName` (a `string`), `IdentifierValue` (a
+      `stringOrJsonPath`), `SearchCriteria` (a `list` of one to five
+      objects of the same two, each required) and `LogicalOperator` (an
+      `enum` of `AND` and `OR`), with the first `groups` constraint:
+      `exactlyOne` of the pair and of `SearchCriteria` with
+      `LogicalOperator`, so half of either group, both, or neither breaks
+      it. The 0.3 schema clause does not hold it: the named-field form in
+      AWS's own flows would fail it, and no probe has shown the service
+      refusing either (owner decision 3); the class refuses both and
+      neither, and codegen leaves the named-field form generic. The three
+      errors are in the published flows' order, all wired by the builder;
+      only the catch-all is required, since the page marks neither of the
+      others "Must always be defined" (as `ChannelMismatch` on rule 41's
+      message processor), although every published flow wires both.
+      Planned probes: `get-required-set-alone` (the catalog's required
+      set alone: one identifier, no response list, and the catch-all
+      without either lookup branch; it is the probe that settles whether
+      `MultipleFoundError` and `NoneFoundError` are optional, and whether
+      the response list is), `get-identifier` (the published flows' form,
+      every branch wired; expected accepted),
+      `get-no-catch-all`, `get-no-multiple-found`, `get-no-none-found` and
+      `get-no-next` (each a removal alone), `get-identifer-spelling` (the
+      page's spelling, as `UnTagContact`'s was put to the service, rule
+      28), `get-search-and` and `get-search-or`, `get-both-forms` and
+      `get-neither-form` (the group alternative given both and neither),
+      `get-named-key` (the step-by-step flows' form),
+      `get-identifier-name-only`, `get-search-without-operator` and
+      `get-search-one-without-operator` (half a group, and the admin
+      guide's reading of a single criterion), `get-operator-lowercase`,
+      `get-six-criteria`, and `get-module` and `get-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+    - `GetCustomerProfileObject` "Retrieve a customer profile object of the
+      desired type, based on recency or any search identifier." "A
+      ProfileId and ObjectType must be present. Either UseLatest, or
+      IdentifierName and IdentifierValue must be present."; `UseLatest`
+      "true / false"; `ProfileResponseData` lists 76 Asset, Order and Case
+      fields and `"AssetAttributes.x"`, `"OrderAttributes.x"`,
+      `"CaseAttributes.x"` and `"ObjectAttributes.x"`, and the asset, order
+      and case ids "always persisted" under `$.Customer.Asset.AssetId` and
+      its kin; errors "NoneFoundError - if no profiles were found for the
+      associated profile search key." and the catch-all. The admin guide's
+      block takes the profile id manually or from an attribute, asks for
+      the object type, and offers "Use latest profile object" or "Use
+      search identifier", with Success and Error branches. No published
+      flow carries the type. The catalog records `ProfileRequestData` as a
+      required object of `ProfileId` (a `stringOrJsonPath`) and
+      `ObjectType` (a `string`), both required, `IdentifierName`,
+      `IdentifierValue` and `UseLatest` (an `enum` of `"true"` and
+      `"false"`, the page's words as the strings Connect's flags are
+      written in the published flows, `LinkContactToCase` among them), with
+      `exactlyOne` over the groups `[UseLatest]` and the pair; and
+      `ProfileResponseData` as a list of strings whose `keys` are the 76
+      fields and whose `keyPatterns` are the four `*Attributes` forms. The
+      class writes `UseLatest` as `"true"` only; a block with `"false"`, the
+      JSON boolean or another spelling stays generic until
+      `object-latest-boolean`, `object-latest-capitalized` and
+      `object-latest-false` are put to the service. The schema clause holds
+      the containers only. The two errors are wired by the builder,
+      catch-all first as `GetCustomerProfile`'s are written; only the
+      catch-all is required. Planned probes:
+      `object-required-set-alone` (the catalog's required set alone: no
+      response list and the catch-all without `NoneFoundError`),
+      `object-latest` (the class's form; expected accepted), `object-no-catch-all`, `object-no-none-found` and
+      `object-no-next` (each a removal alone), `object-identifier`,
+      `object-both-forms` and `object-neither-form` (the group alternative
+      given both and neither), `object-no-object-type` and
+      `object-no-profile-id`, `object-unknown-type` (a type the domain does
+      not have), `object-response-names`, and `object-module`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+    - `GetCalculatedAttributesForCustomerProfile` "Retrieve calculated
+      attributes for a customer profile." "A ProfileId must be present.";
+      `ProfileResponseData` lists `"CalculatedAttributes._average_hold_time"`,
+      `"CalculatedAttributes._frequent_caller"` and
+      `"CalculatedAttributes.x"`; errors "NoneFoundError - if no profiles
+      were found for the associated profile search key." and the
+      catch-all. The admin guide's block: "The options under Response
+      fields are the Calculated Attribute definitions defined for your
+      Customer Profiles domain", a threshold makes a value "True/False",
+      the branches are Success, Error and None Found, and the instance
+      needs `ListCalculatedAttributeDefinitions` and
+      `GetCalculatedAttributeForProfile` on the Connect service-linked
+      role. No AWS sample carries the type; one third-party repository
+      does
+      (https://github.com/photosphere/connect-cdk-voice-channel/blob/deed32be0add277319054519bf1c8bb2d28e0cc4/examples/flows/screenpop_message_flow/screenpop_message_flow.json,
+      read 2026-10-12, not an AWS publication): a `ProfileId` read from
+      `$.Customer.ProfileId`, five predefined names
+      (`CalculatedAttributes._last_agent_id`, `._last_channel`,
+      `._new_customer`, `._most_frequent_channel` and `._frequent_caller`),
+      and the catch-all before `NoneFoundError`. The catalog records
+      `ProfileRequestData` as a required object of `ProfileId` (a
+      `stringOrJsonPath`, required) and `ProfileResponseData` as a list of
+      strings whose `keys` are the page's two names and whose
+      `keyPatterns` is `^CalculatedAttributes\.[^.]+$`, which admits the
+      other predefined names and a domain's own; the names are the
+      domain's strings, not references (tasks/D03: no new ref type). The
+      two errors are wired by the builder in that repository's order; only
+      the catch-all is required. Planned probes:
+      `calc-required-set-alone` (the catalog's required set alone: no
+      response list and the catch-all without `NoneFoundError`),
+      `calc-required` (the class's form; expected accepted), `calc-no-catch-all`, `calc-no-none-found` and
+      `calc-no-next` (each a removal alone), `calc-custom-name` (the
+      domain's own definition), `calc-unknown-name` (a name the domain does
+      not define), `calc-other-name` (a name without the prefix),
+      `calc-no-profile-id`, and `calc-module`.
+      https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -1540,6 +1794,22 @@ CreateTask               { ContactFlowId?: flow, Attributes?: { [key]: string },
                            Description?: string, References?: json, DelaySeconds?: "1".."518400",
                            ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both
 CreateWisdomSession      { WisdomAssistantArn: assistant }   // static or JSONPath; voice only (the action page)
+AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId },   // each static or a JSONPath
+                           ProfileResponseData: [] }   // the page's "None."; written as the console's empty list
+CreateCustomerProfile    { ProfileRequestData: { [field | Attributes.<name>]: string },   // static or a JSONPath
+                           ProfileResponseData: (field | Attributes.<name>)[] }   // field: the page's 55 names
+UpdateCustomerProfile    { ProfileRequestData, ProfileResponseData }   // as CreateCustomerProfile; no profile id
+GetCustomerProfile       { ProfileRequestData: { IdentifierName, IdentifierValue }   // the page's example: IdentiferValue
+                                             | { SearchCriteria: { IdentifierName, IdentifierValue }[],   // 1 to 5
+                                                 LogicalOperator: "AND" | "OR" },
+                           ProfileResponseData: (field | Attributes.<name>)[] }
+GetCustomerProfileObject { ProfileRequestData: { ProfileId, ObjectType,   // each static; ProfileId may be a JSONPath
+                                                 UseLatest: "true" | IdentifierName, IdentifierValue },
+                           ProfileResponseData: (Asset*, Order*, Case* field | *Attributes.<name>)[] }   // 76 names, 4 patterns
+GetCalculatedAttributesForCustomerProfile { ProfileRequestData: { ProfileId },   // static or a JSONPath
+                           ProfileResponseData: ("CalculatedAttributes._average_hold_time"
+                                                 | "CalculatedAttributes._frequent_caller"
+                                                 | CalculatedAttributes.<name>)[] }
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1634,7 +1904,15 @@ form, and the schema accepts either. On an `integer` or `integerString`, `min` a
 `list` or `map` they bound the entry count, and a `map` may carry `keys`, the keys its page
 allows, and `keyPatterns`, anchored regular expressions a key may match
 beside them (`^Attributes\.[^.]+$` for the `Attributes.x` keys the Customer
-Profiles pages allow); a map with neither admits any key. `dynamic` sits on a
+Profiles pages allow); a map with neither admits any key. Since 2026-10-12
+(tasks/D03) a `list` whose `of` is a `string` may carry the same two, naming
+the strings it may hold: a Customer Profiles action's `ProfileResponseData`
+is a list of the field names it stores, from the list its page gives and of
+the form `Attributes.<name>` (rule 43). `catalog.test.ts` refuses either on
+any other kind, with a mutation for each. Nothing reads them to refuse a
+document: the builder holds a name to them and codegen leaves a block whose
+names fall outside them generic, until a probe shows the service enforcing
+the list. `dynamic` sits on a
 scalar kind, or since FlowDoc 0.3 on a `list` whose page lets a JSONPath
 stand for the whole list (`UpdateRoutingCriteria.RoutingCriteria.Steps`,
 docs/adr/0009); never on an `object`, `map` or `json`, whose provider
@@ -1692,7 +1970,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-41 of the 61. Everything not in the modeled set above parses to a
+47 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1712,14 +1990,20 @@ end. On 2026-10-12, when D05 modeled `CreateTask`, the flow token moved to
 source number a JSONPath so the document needs no 0.3 token) and the queue
 token to an `Attributes.preferredQueue` value of `UpdateCustomerProfile`'s
 `ProfileRequestData`, two types D04 and D03 will model; each of those tasks
-re-authors the fixture again (owner decision 10).
+re-authors the fixture again (owner decision 10). On 2026-10-12, when D03
+modeled `UpdateCustomerProfile`, the queue token moved to a `summary` value
+in `UpdateCase`'s `CaseRequestFields` (D06's table: `LinkContactToCase`
+`"false"`, `CaseId` a JSONPath, and the system field id `summary`, a key the
+Cases system defines on every domain and AWS's published flows write
+literally, so the document needs no `casefield` token); D06 models that
+type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 41      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 47      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 41      |                                                             |
+| Denominator             | 61    | 47      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

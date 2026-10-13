@@ -2921,3 +2921,255 @@ describe("CreateWisdomSession inverts its assistant by reference or JSONPath", (
     generic(action({ WisdomAssistantArn: "${cdref:assistant:agent-help}" }, []));
   });
 });
+
+describe("the Customer Profiles actions invert their request and response data", () => {
+  const action = (
+    type: string,
+    parameters: Record<string, unknown>,
+    errors = ["NoMatchingError"],
+  ): FlowAction => ({
+    Identifier: "profile",
+    Type: type,
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain(`new ${a.Type}({`);
+    expect(out).not.toContain("GenericBlock");
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain(`type: "${a.Type}"`);
+    expect(out).not.toContain(`new ${a.Type}(`);
+  };
+
+  describe("CreateCustomerProfile", () => {
+    const create = (request: unknown, response: unknown = [], errors?: string[]) =>
+      action(
+        "CreateCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+
+    it("emits listed fields and custom attributes, quoting the dotted key", () => {
+      const out = typed(
+        create({ FirstName: "$.Attributes.firstName", "Attributes.loyaltyTier": "new" }, [
+          "FirstName",
+          "Attributes.loyaltyTier",
+        ]),
+      );
+      expect(out).toContain('"Attributes.loyaltyTier": "new"');
+      expect(out).toContain('FirstName: "$.Attributes.firstName"');
+      expect(out).toContain('response: ["FirstName", "Attributes.loyaltyTier"]');
+    });
+
+    it("leaves an empty request and response out of the config", () => {
+      const out = typed(create({}, []));
+      expect(out).not.toContain("request:");
+      expect(out).not.toContain("response:");
+    });
+
+    it("falls back on a name outside the page's lists, a missing container, the page's braces, or the errors out of shape", () => {
+      generic(create({ Nickname: "Sam" }));
+      generic(create({ "Attributes.a.b": "x" }));
+      generic(create({ FirstName: 1 }));
+      generic(create({}, ["Firstname"]));
+      generic(create({}, { FirstName: "FirstName" }));
+      generic(action("CreateCustomerProfile", { ProfileRequestData: {} }));
+      generic(action("CreateCustomerProfile", { ProfileResponseData: [] }));
+      generic(create({}, [], []));
+    });
+  });
+
+  describe("GetCustomerProfile", () => {
+    const get = (
+      request: unknown,
+      response: unknown = ["FirstName"],
+      errors = ["NoMatchingError", "MultipleFoundError", "NoneFoundError"],
+    ) =>
+      action(
+        "GetCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+    const one = { IdentifierName: "_phone", IdentifierValue: "$.CustomerEndpoint.Address" };
+
+    it("emits one identifier or SearchCriteria with its operator, and every branch", () => {
+      const out = typed(get(one));
+      expect(out).toContain('identifier: { name: "_phone", value: "$.CustomerEndpoint.Address" }');
+      expect(out).toContain('onMultipleFound: "bye"');
+      expect(out).toContain('onNoneFound: "bye"');
+      const search = typed(get({ SearchCriteria: [one, one], LogicalOperator: "OR" }));
+      expect(search).toContain('operator: "OR"');
+      expect(search).toContain("criteria: [");
+    });
+
+    it("falls back on both forms, neither, half a group, a named field, the page's spelling, or the errors out of shape", () => {
+      generic(get({ ...one, SearchCriteria: [one], LogicalOperator: "AND" }));
+      generic(get({}));
+      generic(get({ IdentifierName: "_phone" }));
+      generic(get({ SearchCriteria: [one] }));
+      generic(get({ PhoneNumber: "$.CustomerEndpoint.Address" }));
+      generic(get({ IdentifierName: "_phone", IdentiferValue: "$.CustomerEndpoint.Address" }));
+      generic(get({ SearchCriteria: [one], LogicalOperator: "and" }));
+      generic(get({ SearchCriteria: [one, one, one, one, one, one], LogicalOperator: "OR" }));
+      generic(get(one, ["Nickname"]));
+      generic(get(one, ["FirstName"], ["NoMatchingError"]));
+      generic(get(one, ["FirstName"], ["NoMatchingError", "NoneFoundError", "MultipleFoundError"]));
+    });
+  });
+
+  describe("GetCustomerProfileObject", () => {
+    const object = (
+      request: Record<string, unknown>,
+      response: unknown = ["OrderStatus"],
+      errors = ["NoMatchingError", "NoneFoundError"],
+    ) =>
+      action(
+        "GetCustomerProfileObject",
+        {
+          ProfileRequestData: {
+            ProfileId: "$.Customer.ProfileId",
+            ObjectType: "Order",
+            ...request,
+          },
+          ProfileResponseData: response,
+        },
+        errors,
+      );
+
+    it("emits the latest object or an identifier pair, with both branches", () => {
+      const latest = typed(object({ UseLatest: "true" }));
+      expect(latest).toContain("latest: true");
+      expect(latest).toContain('objectType: "Order"');
+      expect(latest).toContain('onNoneFound: "bye"');
+      const pair = typed(
+        object({ IdentifierName: "_orderId", IdentifierValue: "$.Attributes.orderId" }, [
+          "OrderAttributes.giftWrap",
+        ]),
+      );
+      expect(pair).toContain('identifier: { name: "_orderId", value: "$.Attributes.orderId" }');
+    });
+
+    it("falls back on another UseLatest spelling, both retrievals or neither, a missing object type, a profile field, or the errors out of shape", () => {
+      generic(object({ UseLatest: true }));
+      generic(object({ UseLatest: "True" }));
+      generic(object({ UseLatest: "false" }));
+      generic(object({ UseLatest: "true", IdentifierName: "_orderId", IdentifierValue: "x" }));
+      generic(object({}));
+      generic(
+        action(
+          "GetCustomerProfileObject",
+          {
+            ProfileRequestData: { ProfileId: "$.Customer.ProfileId", UseLatest: "true" },
+            ProfileResponseData: [],
+          },
+          ["NoMatchingError", "NoneFoundError"],
+        ),
+      );
+      generic(object({ UseLatest: "true" }, ["FirstName"]));
+      generic(object({ UseLatest: "true" }, ["OrderStatus"], ["NoMatchingError"]));
+      generic(
+        object({ UseLatest: "true" }, ["OrderStatus"], ["NoneFoundError", "NoMatchingError"]),
+      );
+    });
+  });
+
+  describe("GetCalculatedAttributesForCustomerProfile", () => {
+    const calc = (
+      request: unknown,
+      response: unknown = ["CalculatedAttributes._frequent_caller"],
+      errors = ["NoMatchingError", "NoneFoundError"],
+    ) =>
+      action(
+        "GetCalculatedAttributesForCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+
+    it("emits the profile id, a predefined and a domain's own name, and both branches", () => {
+      const out = typed(
+        calc({ ProfileId: "$.Customer.ProfileId" }, [
+          "CalculatedAttributes._frequent_caller",
+          "CalculatedAttributes.lifetimeValue",
+        ]),
+      );
+      expect(out).toContain('profileId: "$.Customer.ProfileId"');
+      expect(out).toContain('onNoneFound: "bye"');
+    });
+
+    it("falls back on a missing or extra request key, a name without the prefix, or the errors out of shape", () => {
+      generic(calc({}));
+      generic(calc({ ProfileId: "p", ObjectType: "x" }));
+      generic(calc({ ProfileId: "p" }, ["FirstName"]));
+      generic(calc({ ProfileId: "p" }, ["CalculatedAttributes.a.b"]));
+      generic(
+        calc({ ProfileId: "p" }, ["CalculatedAttributes._frequent_caller"], ["NoMatchingError"]),
+      );
+    });
+  });
+
+  describe("UpdateCustomerProfile", () => {
+    const update = (request: unknown, response: unknown = []) =>
+      action("UpdateCustomerProfile", {
+        ProfileRequestData: request,
+        ProfileResponseData: response,
+      });
+
+    it("emits its fields as Create does", () => {
+      const out = typed(
+        update({ "Attributes.preferredLanguage": "$.Attributes.language" }, [
+          "Attributes.preferredLanguage",
+        ]),
+      );
+      expect(out).toContain('"Attributes.preferredLanguage": "$.Attributes.language"');
+    });
+
+    it("falls back on a profile id key, which the page does not list, or the page's braces", () => {
+      generic(update({ ProfileId: "$.Customer.ProfileId", FirstName: "x" }));
+      generic(update({}, {}));
+    });
+  });
+
+  describe("AssociateContactToCustomerProfile", () => {
+    const associate = (request: unknown, response: unknown = [], errors?: string[]) =>
+      action(
+        "AssociateContactToCustomerProfile",
+        { ProfileRequestData: request, ProfileResponseData: response },
+        errors,
+      );
+
+    it("emits both ids, static or JSONPath", () => {
+      const out = typed(associate({ ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" }));
+      expect(out).toContain('profileId: "$.Customer.ProfileId"');
+      expect(out).toContain('contactId: "$.ContactId"');
+      typed(associate({ ProfileId: "profile-1", ContactId: "$.ContactId" }));
+    });
+
+    it("falls back on a missing id, an extra key, response fields, or the errors out of shape", () => {
+      generic(associate({ ProfileId: "$.Customer.ProfileId" }));
+      generic(associate({ ProfileId: "p", ContactId: "c", ObjectType: "x" }));
+      generic(associate({ ProfileId: "p", ContactId: 1 }));
+      generic(associate({ ProfileId: "p", ContactId: "c" }, ["FirstName"]));
+      generic(associate({ ProfileId: "p", ContactId: "c" }, {}));
+      generic(
+        action("AssociateContactToCustomerProfile", {
+          ProfileRequestData: { ProfileId: "p", ContactId: "c" },
+        }),
+      );
+      generic(associate({ ProfileId: "p", ContactId: "c" }, [], []));
+    });
+  });
+});

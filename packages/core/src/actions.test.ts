@@ -194,9 +194,14 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
 
   it("records the unrestricted actions rather than leaving a gap", () => {
     expect([...FLOW_TYPE_UNRESTRICTED].sort()).toEqual([
+      "AssociateContactToCustomerProfile",
       "Compare",
+      "CreateCustomerProfile",
       "CreateTask",
       "CreateWisdomSession",
+      "GetCalculatedAttributesForCustomerProfile",
+      "GetCustomerProfile",
+      "GetCustomerProfileObject",
       "GetMetricData",
       "InvokeLambdaFunction",
       "Loop",
@@ -209,6 +214,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "UpdateContactMediaProcessing",
       "UpdateContactRecordingAndAnalyticsBehavior",
       "UpdateContactTextToSpeechVoice",
+      "UpdateCustomerProfile",
       "UpdateFlowAttributes",
       "UpdateFlowLoggingBehavior",
       "Wait",

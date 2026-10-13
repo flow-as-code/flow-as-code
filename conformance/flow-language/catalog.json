@@ -2666,7 +2666,53 @@
     "AssociateContactToCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "associate_contact_to_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProfileId",
+              "attr": "profile_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            },
+            {
+              "key": "ContactId",
+              "attr": "contact_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          }
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "CreateCallbackContact": {
       "category": "interaction",
@@ -2771,7 +2817,159 @@
     "CreateCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "create_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "map",
+          "required": false,
+          "keys": [
+            "FirstName",
+            "MiddleName",
+            "LastName",
+            "PhoneNumber",
+            "EmailAddress",
+            "AccountNumber",
+            "AdditionalInformation",
+            "PartyType",
+            "BusinessName",
+            "BirthDate",
+            "Gender",
+            "MobilePhoneNumber",
+            "HomePhoneNumber",
+            "BusinessPhoneNumber",
+            "BusinessEmailAddress",
+            "Address1",
+            "Address2",
+            "Address3",
+            "Address4",
+            "City",
+            "County",
+            "Country",
+            "PostalCode",
+            "Province",
+            "State",
+            "ShippingAddress1",
+            "ShippingAddress2",
+            "ShippingAddress3",
+            "ShippingAddress4",
+            "ShippingCity",
+            "ShippingCounty",
+            "ShippingCountry",
+            "ShippingPostalCode",
+            "ShippingProvince",
+            "ShippingState",
+            "MailingAddress1",
+            "MailingAddress2",
+            "MailingAddress3",
+            "MailingAddress4",
+            "MailingCity",
+            "MailingCounty",
+            "MailingCountry",
+            "MailingPostalCode",
+            "MailingProvince",
+            "MailingState",
+            "BillingAddress1",
+            "BillingAddress2",
+            "BillingAddress3",
+            "BillingAddress4",
+            "BillingCity",
+            "BillingCounty",
+            "BillingCountry",
+            "BillingPostalCode",
+            "BillingProvince",
+            "BillingState"
+          ],
+          "keyPatterns": [
+            "^Attributes\\.[^.]+$"
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "FirstName",
+            "MiddleName",
+            "LastName",
+            "PhoneNumber",
+            "EmailAddress",
+            "AccountNumber",
+            "AdditionalInformation",
+            "PartyType",
+            "BusinessName",
+            "BirthDate",
+            "Gender",
+            "MobilePhoneNumber",
+            "HomePhoneNumber",
+            "BusinessPhoneNumber",
+            "BusinessEmailAddress",
+            "Address1",
+            "Address2",
+            "Address3",
+            "Address4",
+            "City",
+            "County",
+            "Country",
+            "PostalCode",
+            "Province",
+            "State",
+            "ShippingAddress1",
+            "ShippingAddress2",
+            "ShippingAddress3",
+            "ShippingAddress4",
+            "ShippingCity",
+            "ShippingCounty",
+            "ShippingCountry",
+            "ShippingPostalCode",
+            "ShippingProvince",
+            "ShippingState",
+            "MailingAddress1",
+            "MailingAddress2",
+            "MailingAddress3",
+            "MailingAddress4",
+            "MailingCity",
+            "MailingCounty",
+            "MailingCountry",
+            "MailingPostalCode",
+            "MailingProvince",
+            "MailingState",
+            "BillingAddress1",
+            "BillingAddress2",
+            "BillingAddress3",
+            "BillingAddress4",
+            "BillingCity",
+            "BillingCounty",
+            "BillingCountry",
+            "BillingPostalCode",
+            "BillingProvince",
+            "BillingState"
+          ],
+          "keyPatterns": [
+            "^Attributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "InvokeLambdaFunction": {
       "category": "interaction",
@@ -2852,22 +3050,563 @@
     "GetCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "get_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "IdentifierName",
+              "attr": "identifier_name",
+              "kind": "string",
+              "required": false
+            },
+            {
+              "key": "IdentifierValue",
+              "attr": "identifier_value",
+              "kind": "stringOrJsonPath",
+              "required": false
+            },
+            {
+              "key": "SearchCriteria",
+              "attr": "search_criteria",
+              "kind": "list",
+              "required": false,
+              "of": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "IdentifierName",
+                    "attr": "identifier_name",
+                    "kind": "string",
+                    "required": true
+                  },
+                  {
+                    "key": "IdentifierValue",
+                    "attr": "identifier_value",
+                    "kind": "stringOrJsonPath",
+                    "required": true
+                  }
+                ]
+              },
+              "min": 1,
+              "max": 5
+            },
+            {
+              "key": "LogicalOperator",
+              "attr": "logical_operator",
+              "kind": "enum",
+              "required": false,
+              "values": [
+                "AND",
+                "OR"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "rule": "exactlyOne",
+              "groups": [
+                [
+                  "IdentifierName",
+                  "IdentifierValue"
+                ],
+                [
+                  "SearchCriteria",
+                  "LogicalOperator"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "FirstName",
+            "MiddleName",
+            "LastName",
+            "PhoneNumber",
+            "EmailAddress",
+            "AccountNumber",
+            "AdditionalInformation",
+            "PartyType",
+            "BusinessName",
+            "BirthDate",
+            "Gender",
+            "MobilePhoneNumber",
+            "HomePhoneNumber",
+            "BusinessPhoneNumber",
+            "BusinessEmailAddress",
+            "Address1",
+            "Address2",
+            "Address3",
+            "Address4",
+            "City",
+            "County",
+            "Country",
+            "PostalCode",
+            "Province",
+            "State",
+            "ShippingAddress1",
+            "ShippingAddress2",
+            "ShippingAddress3",
+            "ShippingAddress4",
+            "ShippingCity",
+            "ShippingCounty",
+            "ShippingCountry",
+            "ShippingPostalCode",
+            "ShippingProvince",
+            "ShippingState",
+            "MailingAddress1",
+            "MailingAddress2",
+            "MailingAddress3",
+            "MailingAddress4",
+            "MailingCity",
+            "MailingCounty",
+            "MailingCountry",
+            "MailingPostalCode",
+            "MailingProvince",
+            "MailingState",
+            "BillingAddress1",
+            "BillingAddress2",
+            "BillingAddress3",
+            "BillingAddress4",
+            "BillingCity",
+            "BillingCounty",
+            "BillingCountry",
+            "BillingPostalCode",
+            "BillingProvince",
+            "BillingState"
+          ],
+          "keyPatterns": [
+            "^Attributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "MultipleFoundError",
+            "required": false,
+            "builder": true
+          },
+          {
+            "type": "NoneFoundError",
+            "required": false,
+            "builder": true
+          }
+        ]
+      }
     },
     "GetCustomerProfileObject": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html",
-      "modeled": false
+      "modeled": true,
+      "block": "get_customer_profile_object",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProfileId",
+              "attr": "profile_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            },
+            {
+              "key": "ObjectType",
+              "attr": "object_type",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "key": "IdentifierName",
+              "attr": "identifier_name",
+              "kind": "string",
+              "required": false
+            },
+            {
+              "key": "IdentifierValue",
+              "attr": "identifier_value",
+              "kind": "stringOrJsonPath",
+              "required": false
+            },
+            {
+              "key": "UseLatest",
+              "attr": "use_latest",
+              "kind": "enum",
+              "required": false,
+              "values": [
+                "true",
+                "false"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "rule": "exactlyOne",
+              "groups": [
+                [
+                  "UseLatest"
+                ],
+                [
+                  "IdentifierName",
+                  "IdentifierValue"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "AssetAssetId",
+            "AssetProfileId",
+            "AssetAssetName",
+            "AssetSerialNumber",
+            "AssetModelNumber",
+            "AssetModelName",
+            "AssetProductSKU",
+            "AssetPurchaseDate",
+            "AssetUsageEndDate",
+            "AssetStatus",
+            "AssetPrice",
+            "AssetQuantity",
+            "AssetDescription",
+            "AssetAdditionalInformation",
+            "AssetDataSource",
+            "OrderOrderId",
+            "OrderProfileId",
+            "OrderCustomerEmail",
+            "OrderCustomerPhone",
+            "OrderCreatedDate",
+            "OrderUpdatedDate",
+            "OrderProcessedDate",
+            "OrderClosedDate",
+            "OrderCancelledDate",
+            "OrderCancelReason",
+            "OrderName",
+            "OrderAdditionalInformation",
+            "OrderGateway",
+            "OrderStatus",
+            "OrderStatusCode",
+            "OrderStatusUrl",
+            "OrderCreditCardNumber",
+            "OrderCreditCardCompany",
+            "OrderFulfillmentStatus",
+            "OrderTotalPrice",
+            "OrderTotalTax",
+            "OrderTotalDiscounts",
+            "OrderTotalItemsPrice",
+            "OrderTotalShippingPrice",
+            "OrderTotalTipReceived",
+            "OrderCurrency",
+            "OrderTotalWeight",
+            "OrderBillingName",
+            "OrderBillingAddress1",
+            "OrderBillingAddress2",
+            "OrderBillingAddress3",
+            "OrderBillingAddress4",
+            "OrderBillingCity",
+            "OrderBillingCounty",
+            "OrderBillingCountry",
+            "OrderBillingPostalCode",
+            "OrderBillingProvince",
+            "OrderBillingState",
+            "OrderShippingName",
+            "OrderShippingAddress1",
+            "OrderShippingAddress2",
+            "OrderShippingAddress3",
+            "OrderShippingAddress4",
+            "OrderShippingCity",
+            "OrderShippingCounty",
+            "OrderShippingCountry",
+            "OrderShippingPostalCode",
+            "OrderShippingProvince",
+            "OrderShippingState",
+            "CaseCaseId",
+            "CaseProfileId",
+            "CaseTitle",
+            "CaseSummary",
+            "CaseStatus",
+            "CaseReason",
+            "CaseCreatedBy",
+            "CaseCreatedDate",
+            "CaseUpdatedDate",
+            "CaseClosedDate",
+            "CaseAdditionalInformation",
+            "CaseDataSource"
+          ],
+          "keyPatterns": [
+            "^AssetAttributes\\.[^.]+$",
+            "^OrderAttributes\\.[^.]+$",
+            "^CaseAttributes\\.[^.]+$",
+            "^ObjectAttributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "NoneFoundError",
+            "required": false,
+            "builder": true
+          }
+        ]
+      }
     },
     "GetCalculatedAttributesForCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "get_calculated_attributes_for_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProfileId",
+              "attr": "profile_id",
+              "kind": "stringOrJsonPath",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "CalculatedAttributes._average_hold_time",
+            "CalculatedAttributes._frequent_caller"
+          ],
+          "keyPatterns": [
+            "^CalculatedAttributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "NoneFoundError",
+            "required": false,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateCustomerProfile": {
       "category": "interaction",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_customer_profile",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ProfileRequestData",
+          "attr": "profile_request_data",
+          "kind": "map",
+          "required": false,
+          "keys": [
+            "FirstName",
+            "MiddleName",
+            "LastName",
+            "PhoneNumber",
+            "EmailAddress",
+            "AccountNumber",
+            "AdditionalInformation",
+            "PartyType",
+            "BusinessName",
+            "BirthDate",
+            "Gender",
+            "MobilePhoneNumber",
+            "HomePhoneNumber",
+            "BusinessPhoneNumber",
+            "BusinessEmailAddress",
+            "Address1",
+            "Address2",
+            "Address3",
+            "Address4",
+            "City",
+            "County",
+            "Country",
+            "PostalCode",
+            "Province",
+            "State",
+            "ShippingAddress1",
+            "ShippingAddress2",
+            "ShippingAddress3",
+            "ShippingAddress4",
+            "ShippingCity",
+            "ShippingCounty",
+            "ShippingCountry",
+            "ShippingPostalCode",
+            "ShippingProvince",
+            "ShippingState",
+            "MailingAddress1",
+            "MailingAddress2",
+            "MailingAddress3",
+            "MailingAddress4",
+            "MailingCity",
+            "MailingCounty",
+            "MailingCountry",
+            "MailingPostalCode",
+            "MailingProvince",
+            "MailingState",
+            "BillingAddress1",
+            "BillingAddress2",
+            "BillingAddress3",
+            "BillingAddress4",
+            "BillingCity",
+            "BillingCounty",
+            "BillingCountry",
+            "BillingPostalCode",
+            "BillingProvince",
+            "BillingState"
+          ],
+          "keyPatterns": [
+            "^Attributes\\.[^.]+$"
+          ]
+        },
+        {
+          "key": "ProfileResponseData",
+          "attr": "profile_response_data",
+          "kind": "list",
+          "required": false,
+          "of": {
+            "kind": "string"
+          },
+          "keys": [
+            "FirstName",
+            "MiddleName",
+            "LastName",
+            "PhoneNumber",
+            "EmailAddress",
+            "AccountNumber",
+            "AdditionalInformation",
+            "PartyType",
+            "BusinessName",
+            "BirthDate",
+            "Gender",
+            "MobilePhoneNumber",
+            "HomePhoneNumber",
+            "BusinessPhoneNumber",
+            "BusinessEmailAddress",
+            "Address1",
+            "Address2",
+            "Address3",
+            "Address4",
+            "City",
+            "County",
+            "Country",
+            "PostalCode",
+            "Province",
+            "State",
+            "ShippingAddress1",
+            "ShippingAddress2",
+            "ShippingAddress3",
+            "ShippingAddress4",
+            "ShippingCity",
+            "ShippingCounty",
+            "ShippingCountry",
+            "ShippingPostalCode",
+            "ShippingProvince",
+            "ShippingState",
+            "MailingAddress1",
+            "MailingAddress2",
+            "MailingAddress3",
+            "MailingAddress4",
+            "MailingCity",
+            "MailingCounty",
+            "MailingCountry",
+            "MailingPostalCode",
+            "MailingProvince",
+            "MailingState",
+            "BillingAddress1",
+            "BillingAddress2",
+            "BillingAddress3",
+            "BillingAddress4",
+            "BillingCity",
+            "BillingCounty",
+            "BillingCountry",
+            "BillingPostalCode",
+            "BillingProvince",
+            "BillingState"
+          ],
+          "keyPatterns": [
+            "^Attributes\\.[^.]+$"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "RouteContactToAgent": {
       "category": "other",

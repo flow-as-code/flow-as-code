@@ -16,11 +16,13 @@ import type {
 } from "./index.js";
 import {
   ActionType,
+  AssociateContactToCustomerProfile,
   canonicalOrder,
   CheckMetricData,
   collectRefs,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateCustomerProfile,
   CreateTask,
   CreateWisdomSession,
   DequeueContactAndTransferToQueue,
@@ -31,6 +33,9 @@ import {
   Flow,
   FlowModule,
   GenericBlock,
+  GetCalculatedAttributesForCustomerProfile,
+  GetCustomerProfile,
+  GetCustomerProfileObject,
   GetMetricData,
   GetParticipantInput,
   INPUT_MENU_ERRORS,
@@ -64,6 +69,7 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
+  UpdateCustomerProfile,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
   UpdatePreviousContactParticipantState,
@@ -1766,5 +1772,384 @@ describe("the task and AI agent actions", () => {
     expect(() => new CreateTask({ ...base, name: cast<never>(1), flow: Refs.flow("f") })).toThrow(
       /name must be a string/,
     );
+  });
+});
+
+describe("the Customer Profiles actions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/customer-profiles/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the customer-profiles fixture", () => {
+    const flow = new Flow({
+      name: "customer-profiles",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new GetCustomerProfile({
+        id: "find-caller",
+        identifier: { name: "_phone", value: "$.CustomerEndpoint.Address" },
+        response: ["FirstName", "LastName", "Attributes.loyaltyTier"],
+        next: "link-contact",
+        onError: "bye",
+        onMultipleFound: "find-by-account",
+        onNoneFound: "create-profile",
+      }),
+      new GetCustomerProfile({
+        id: "find-by-account",
+        search: {
+          criteria: [
+            { name: "_phone", value: "$.CustomerEndpoint.Address" },
+            { name: "_account", value: "$.Attributes.accountNumber" },
+          ],
+          operator: "AND",
+        },
+        response: ["AccountNumber", "FirstName"],
+        next: "link-contact",
+        onError: "bye",
+        onMultipleFound: "bye",
+        onNoneFound: "create-profile",
+      }),
+      new CreateCustomerProfile({
+        id: "create-profile",
+        request: {
+          FirstName: "$.Attributes.firstName",
+          PhoneNumber: "$.CustomerEndpoint.Address",
+          "Attributes.loyaltyTier": "new",
+        },
+        response: ["FirstName", "Attributes.loyaltyTier"],
+        next: "link-contact",
+        onError: "bye",
+      }),
+      new AssociateContactToCustomerProfile({
+        id: "link-contact",
+        profileId: "$.Customer.ProfileId",
+        contactId: "$.ContactId",
+        next: "update-profile",
+        onError: "bye",
+      }),
+      new UpdateCustomerProfile({
+        id: "update-profile",
+        request: {
+          "Attributes.preferredLanguage": "$.Attributes.language",
+          EmailAddress: "$.Attributes.email",
+        },
+        response: ["Attributes.preferredLanguage"],
+        next: "latest-order",
+        onError: "bye",
+      }),
+      new GetCustomerProfileObject({
+        id: "latest-order",
+        profileId: "$.Customer.ProfileId",
+        objectType: "Order",
+        latest: true,
+        response: ["OrderStatus", "OrderTotalPrice", "OrderAttributes.giftWrap"],
+        next: "asset-by-id",
+        onError: "bye",
+        onNoneFound: "asset-by-id",
+      }),
+      new GetCustomerProfileObject({
+        id: "asset-by-id",
+        profileId: "$.Customer.ProfileId",
+        objectType: "Asset",
+        identifier: { name: "_assetId", value: "$.Attributes.assetId" },
+        response: ["AssetPrice", "AssetPurchaseDate"],
+        next: "calculated",
+        onError: "bye",
+        onNoneFound: "calculated",
+      }),
+      new GetCalculatedAttributesForCustomerProfile({
+        id: "calculated",
+        profileId: "$.Customer.ProfileId",
+        response: ["CalculatedAttributes._frequent_caller", "CalculatedAttributes.lifetimeValue"],
+        next: "bye",
+        onError: "bye",
+        onNoneFound: "bye",
+      }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write AssociateContactToCustomerProfile with both ids and an empty response list", () => {
+    expect(
+      new AssociateContactToCustomerProfile({
+        id: "a",
+        profileId: "$.Customer.ProfileId",
+        contactId: "$.ContactId",
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "a",
+      Type: "AssociateContactToCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" },
+        ProfileResponseData: [],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("write CreateCustomerProfile's request as an object and its response as a list, empty when absent", () => {
+    expect(
+      new CreateCustomerProfile({
+        id: "c",
+        request: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        response: ["Attributes.tier"],
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "c",
+      Type: "CreateCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        ProfileResponseData: ["Attributes.tier"],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    expect(
+      new CreateCustomerProfile({ id: "c", next: "n", onError: "e" }).toAction().Parameters,
+    ).toEqual({ ProfileRequestData: {}, ProfileResponseData: [] });
+  });
+
+  it("refuse a profile field or name outside the page's lists, a repeated name, or a value that is not a string", () => {
+    const base = { id: "c", next: "n", onError: "e" };
+    expect(() => new CreateCustomerProfile({ ...base, request: { Nickname: "Sam" } })).toThrow(
+      /request names "Nickname", which is neither a field the page lists nor a name matching/,
+    );
+    expect(
+      () => new CreateCustomerProfile({ ...base, request: { "Attributes.a.b": "x" } }),
+    ).toThrow(/request names "Attributes.a.b"/);
+    expect(() => new CreateCustomerProfile({ ...base, response: ["Firstname"] })).toThrow(
+      /response names "Firstname"/,
+    );
+    expect(
+      () => new CreateCustomerProfile({ ...base, response: ["FirstName", "FirstName"] }),
+    ).toThrow(/response repeats a name/);
+    expect(
+      () => new CreateCustomerProfile({ ...base, request: { FirstName: cast<never>(1) } }),
+    ).toThrow(/request field "FirstName" must be a string or JSONPath/);
+  });
+
+  it("write UpdateCustomerProfile as Create writes its fields, and refuse the same names", () => {
+    const config = {
+      id: "u",
+      request: { "Attributes.tier": "gold" },
+      response: ["Attributes.tier"],
+      next: "n",
+      onError: "e",
+    };
+    const update = new UpdateCustomerProfile(config).toAction();
+    expect(update.Type).toBe("UpdateCustomerProfile");
+    expect(update.Parameters).toEqual(new CreateCustomerProfile(config).toAction().Parameters);
+    expect(update.Transitions).toEqual({
+      NextAction: "n",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+      Conditions: [],
+    });
+    expect(
+      () =>
+        new UpdateCustomerProfile({ ...config, request: { ProfileId: "$.Customer.ProfileId" } }),
+    ).toThrow(/request names "ProfileId"/);
+  });
+
+  it("write GetCustomerProfile in either form with its three branches in the published flows' order", () => {
+    const wired = { next: "n", onError: "e", onMultipleFound: "m", onNoneFound: "z" };
+    expect(
+      new GetCustomerProfile({
+        id: "g",
+        identifier: { name: "_email", value: "$.Attributes.email" },
+        ...wired,
+      }).toAction(),
+    ).toEqual({
+      Identifier: "g",
+      Type: "GetCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { IdentifierName: "_email", IdentifierValue: "$.Attributes.email" },
+        ProfileResponseData: [],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "MultipleFoundError", NextAction: "m" },
+          { ErrorType: "NoneFoundError", NextAction: "z" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new GetCustomerProfile({
+        id: "g",
+        search: { criteria: [{ name: "_phone", value: "+15550100" }], operator: "OR" },
+        ...wired,
+      }).toAction().Parameters.ProfileRequestData,
+    ).toEqual({
+      SearchCriteria: [{ IdentifierName: "_phone", IdentifierValue: "+15550100" }],
+      LogicalOperator: "OR",
+    });
+  });
+
+  it("refuse both search forms or neither, a search outside one to five criteria, or another operator", () => {
+    const base = { id: "g", next: "n", onError: "e", onMultipleFound: "m", onNoneFound: "z" };
+    const one = { name: "_phone", value: "$.CustomerEndpoint.Address" };
+    expect(() => new GetCustomerProfile(cast<never>(base))).toThrow(
+      /takes an identifier or a search, exactly one/,
+    );
+    expect(
+      () =>
+        new GetCustomerProfile(
+          cast<never>({ ...base, identifier: one, search: { criteria: [one], operator: "AND" } }),
+        ),
+    ).toThrow(/takes an identifier or a search, exactly one/);
+    for (const criteria of [[], [one, one, one, one, one, one]]) {
+      expect(
+        () => new GetCustomerProfile({ ...base, search: { criteria, operator: "AND" } }),
+      ).toThrow(/search takes 1 to 5 criteria/);
+    }
+    expect(
+      () =>
+        new GetCustomerProfile({
+          ...base,
+          search: { criteria: [one], operator: cast<never>("and") },
+        }),
+    ).toThrow(/search operator must be one of AND, OR/);
+    expect(() => new GetCustomerProfile({ ...base, identifier: { name: "", value: "x" } })).toThrow(
+      /identifier name must be a non-empty string/,
+    );
+    expect(
+      () => new GetCustomerProfile({ ...base, identifier: one, response: ["Nickname"] }),
+    ).toThrow(/response names "Nickname"/);
+  });
+
+  it('write GetCustomerProfileObject with UseLatest "true" or the identifier pair, and its two branches', () => {
+    const base = {
+      id: "o",
+      profileId: "$.Customer.ProfileId",
+      objectType: "Order",
+      next: "n",
+      onError: "e",
+      onNoneFound: "z",
+    };
+    expect(new GetCustomerProfileObject({ ...base, latest: true }).toAction()).toEqual({
+      Identifier: "o",
+      Type: "GetCustomerProfileObject",
+      Parameters: {
+        ProfileRequestData: {
+          ProfileId: "$.Customer.ProfileId",
+          ObjectType: "Order",
+          UseLatest: "true",
+        },
+        ProfileResponseData: [],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoneFoundError", NextAction: "z" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new GetCustomerProfileObject({
+        ...base,
+        identifier: { name: "_orderId", value: "$.Attributes.orderId" },
+        response: ["OrderStatus", "ObjectAttributes.note"],
+      }).toAction().Parameters,
+    ).toEqual({
+      ProfileRequestData: {
+        ProfileId: "$.Customer.ProfileId",
+        ObjectType: "Order",
+        IdentifierName: "_orderId",
+        IdentifierValue: "$.Attributes.orderId",
+      },
+      ProfileResponseData: ["OrderStatus", "ObjectAttributes.note"],
+    });
+  });
+
+  it("refuse an object lookup with both retrievals or neither, no object type, or a profile's field name", () => {
+    const base = {
+      id: "o",
+      profileId: "$.Customer.ProfileId",
+      objectType: "Order",
+      next: "n",
+      onError: "e",
+      onNoneFound: "z",
+    };
+    const identifier = { name: "_orderId", value: "$.Attributes.orderId" };
+    expect(() => new GetCustomerProfileObject(cast<never>(base))).toThrow(
+      /takes latest or an identifier, exactly one/,
+    );
+    expect(
+      () => new GetCustomerProfileObject(cast<never>({ ...base, latest: true, identifier })),
+    ).toThrow(/takes latest or an identifier, exactly one/);
+    expect(() => new GetCustomerProfileObject(cast<never>({ ...base, latest: false }))).toThrow(
+      /latest must be true/,
+    );
+    expect(() => new GetCustomerProfileObject({ ...base, objectType: "", latest: true })).toThrow(
+      /objectType must be a non-empty string/,
+    );
+    expect(
+      () => new GetCustomerProfileObject({ ...base, latest: true, response: ["FirstName"] }),
+    ).toThrow(/response names "FirstName"/);
+  });
+
+  it("write GetCalculatedAttributesForCustomerProfile with its profile and names, and refuse a profile field", () => {
+    const base = {
+      id: "k",
+      profileId: "$.Customer.ProfileId",
+      next: "n",
+      onError: "e",
+      onNoneFound: "z",
+    };
+    expect(
+      new GetCalculatedAttributesForCustomerProfile({
+        ...base,
+        response: ["CalculatedAttributes._average_hold_time"],
+      }).toAction(),
+    ).toEqual({
+      Identifier: "k",
+      Type: "GetCalculatedAttributesForCustomerProfile",
+      Parameters: {
+        ProfileRequestData: { ProfileId: "$.Customer.ProfileId" },
+        ProfileResponseData: ["CalculatedAttributes._average_hold_time"],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "NoneFoundError", NextAction: "z" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      () => new GetCalculatedAttributesForCustomerProfile({ ...base, response: ["FirstName"] }),
+    ).toThrow(/response names "FirstName"/);
+    expect(() => new GetCalculatedAttributesForCustomerProfile({ ...base, profileId: "" })).toThrow(
+      /profileId must be a non-empty string/,
+    );
+  });
+
+  it("refuse an association without a profile or a contact", () => {
+    const base = { id: "a", profileId: "p", contactId: "c", next: "n", onError: "e" };
+    expect(() => new AssociateContactToCustomerProfile({ ...base, profileId: "" })).toThrow(
+      /profileId must be a non-empty string or JSONPath/,
+    );
+    expect(
+      () => new AssociateContactToCustomerProfile({ ...base, contactId: cast<never>(undefined) }),
+    ).toThrow(/contactId must be a non-empty string or JSONPath/);
   });
 });

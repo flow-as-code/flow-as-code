@@ -66,13 +66,19 @@ export interface CatalogElement {
   /** integer and integerString: the value's bounds; list and map: the entry count's. */
   min?: number;
   max?: number;
-  /** map: the keys the page allows, when it lists them. */
+  /**
+   * map: the keys the page allows, when it lists them. A list of strings
+   * (since tasks/D03): the strings it may hold, when the page lists them,
+   * as a Customer Profiles action's `ProfileResponseData` names the fields
+   * it stores.
+   */
   keys?: readonly string[];
   /**
    * map: patterns a key may match beside `keys`, as anchored regular
    * expression sources (`^Attributes\\.[^.]+$` for the `Attributes.x` the
    * Customer Profiles pages allow). FlowDoc 0.3 vocabulary (tasks/D01); a map
-   * with neither admits any key.
+   * with neither admits any key. A list of strings (since tasks/D03): the
+   * patterns a string it holds may match beside `keys`, read the same way.
    */
   keyPatterns?: readonly string[];
   /**

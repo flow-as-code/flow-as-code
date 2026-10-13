@@ -63,7 +63,9 @@ import {
   INPUT_MENU_ERRORS,
   INPUT_STORED_ERRORS,
   NO_MATCHING_CONDITION,
+  MULTIPLE_FOUND_ERROR,
   NO_MATCHING_ERROR,
+  NONE_FOUND_ERROR,
   REFERENCE_FIELDS,
 } from "./actions.js";
 import type {
@@ -82,11 +84,13 @@ import type {
   StoredInputValidation,
 } from "./blocks.js";
 import {
+  AssociateContactToCustomerProfile,
   CheckHoursOfOperation,
   CheckMetricData,
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateCustomerProfile,
   CreateTask,
   CreateWisdomSession,
   DequeueContactAndTransferToQueue,
@@ -95,6 +99,9 @@ import {
   EndFlowExecution,
   EndFlowModuleExecution,
   GenericBlock,
+  GetCalculatedAttributesForCustomerProfile,
+  GetCustomerProfile,
+  GetCustomerProfileObject,
   GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
@@ -121,6 +128,7 @@ import {
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
   UpdateContactTextToSpeechVoice,
+  UpdateCustomerProfile,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
   UpdatePreviousContactParticipantState,
@@ -544,6 +552,48 @@ function storedValidation(value: unknown): StoredInputValidation | undefined {
  * string parameters exist for the type checker; the comparison catches the
  * JSON number spelling either way.
  */
+/** A list of strings, as ProfileResponseData holds its names. */
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
+
+/**
+ * CreateCustomerProfile and UpdateCustomerProfile: ProfileRequestData an
+ * object of strings and ProfileResponseData a list of names, both present
+ * as the console writes them. The class refuses a name outside the page's
+ * lists, which leaves such a block generic.
+ */
+function invertProfileFields(
+  a: FlowAction,
+  cls: string,
+  make: (config: never) => Block,
+): Inversion | undefined {
+  const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+  if (w === undefined) return undefined;
+  const p = a.Parameters;
+  if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+  if (!isStringMap(p.ProfileRequestData) || !isStringList(p.ProfileResponseData)) return undefined;
+  const entries: [string, V][] = [["id", a.Identifier]];
+  if (Object.keys(p.ProfileRequestData).length > 0) {
+    entries.push(["request", toV(p.ProfileRequestData)]);
+  }
+  if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+  entries.push(["next", w.next], ["onError", w.onError]);
+  return {
+    cls,
+    entries,
+    block: make(
+      cast<never>({
+        id: a.Identifier,
+        request: p.ProfileRequestData,
+        response: p.ProfileResponseData,
+        next: w.next,
+        onError: w.onError,
+      }),
+    ),
+  };
+}
+
 const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefined> = {
   [ActionType.MessageParticipant]: (a, ctx) => {
     // The catch-all is optional: the service accepts the action without it
@@ -2398,6 +2448,194 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
       block: new CreateWisdomSession({
         id: a.Identifier,
         assistant: cast<never>(a.Parameters.WisdomAssistantArn),
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
+  [ActionType.CreateCustomerProfile]: (a) =>
+    invertProfileFields(a, "CreateCustomerProfile", (c) => new CreateCustomerProfile(c)),
+  // One identifier or SearchCriteria with its operator, the three errors in
+  // the published flows' order, and the response names. A block in neither
+  // form (AWS's step-by-step flows search by a named field) stays generic.
+  [ActionType.GetCustomerProfile]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    const order = [NO_MATCHING_ERROR, MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR];
+    if (errors.length !== 3 || errors.some((e, i) => e.ErrorType !== order[i])) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData as Record<string, unknown> | null;
+    if (request === null || typeof request !== "object" || !isStringList(p.ProfileResponseData)) {
+      return undefined;
+    }
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (paramKeysAre(request, ["IdentifierName", "IdentifierValue"])) {
+      const identifier = { name: request.IdentifierName, value: request.IdentifierValue };
+      entries.push(["identifier", toV(identifier)]);
+      config.identifier = identifier;
+    } else if (paramKeysAre(request, ["SearchCriteria", "LogicalOperator"])) {
+      if (!Array.isArray(request.SearchCriteria)) return undefined;
+      const criteria = (request.SearchCriteria as Record<string, unknown>[]).map((c) => ({
+        name: c.IdentifierName,
+        value: c.IdentifierValue,
+      }));
+      const search = { criteria, operator: request.LogicalOperator };
+      entries.push(["search", toV(search)]);
+      config.search = search;
+    } else {
+      return undefined;
+    }
+    if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+    config.response = p.ProfileResponseData;
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onMultipleFound", errors[1]!.NextAction],
+      ["onNoneFound", errors[2]!.NextAction],
+    );
+    return {
+      cls: "GetCustomerProfile",
+      entries,
+      block: new GetCustomerProfile(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onMultipleFound: errors[1]!.NextAction,
+          onNoneFound: errors[2]!.NextAction,
+        }),
+      ),
+    };
+  },
+  // The profile and object type, then UseLatest "true" or the identifier
+  // pair; the catch-all and NoneFoundError in that order.
+  [ActionType.GetCustomerProfileObject]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== NONE_FOUND_ERROR
+    ) {
+      return undefined;
+    }
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData;
+    if (!isStringMap(request) || !isStringList(p.ProfileResponseData)) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["profileId", request.ProfileId ?? ""],
+      ["objectType", request.ObjectType ?? ""],
+    ];
+    const config: Record<string, unknown> = {
+      id: a.Identifier,
+      profileId: request.ProfileId,
+      objectType: request.ObjectType,
+      response: p.ProfileResponseData,
+    };
+    if (request.UseLatest === "true") {
+      entries.push(["latest", true]);
+      config.latest = true;
+    } else {
+      const identifier = { name: request.IdentifierName, value: request.IdentifierValue };
+      entries.push(["identifier", toV(identifier)]);
+      config.identifier = identifier;
+    }
+    if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onNoneFound", errors[1]!.NextAction],
+    );
+    return {
+      cls: "GetCustomerProfileObject",
+      entries,
+      block: new GetCustomerProfileObject(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onNoneFound: errors[1]!.NextAction,
+        }),
+      ),
+    };
+  },
+  // The profile id and the names to store; the catch-all and NoneFoundError
+  // in that order.
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: (a) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== NONE_FOUND_ERROR
+    ) {
+      return undefined;
+    }
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData;
+    if (!isStringMap(request) || !isStringList(p.ProfileResponseData)) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["profileId", request.ProfileId ?? ""],
+    ];
+    if (p.ProfileResponseData.length > 0) entries.push(["response", toV(p.ProfileResponseData)]);
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onNoneFound", errors[1]!.NextAction],
+    );
+    return {
+      cls: "GetCalculatedAttributesForCustomerProfile",
+      entries,
+      block: new GetCalculatedAttributesForCustomerProfile({
+        id: a.Identifier,
+        profileId: request.ProfileId!,
+        response: p.ProfileResponseData,
+        next: t.NextAction,
+        onError: errors[0]!.NextAction,
+        onNoneFound: errors[1]!.NextAction,
+      }),
+    };
+  },
+  [ActionType.UpdateCustomerProfile]: (a) =>
+    invertProfileFields(a, "UpdateCustomerProfile", (c) => new UpdateCustomerProfile(c)),
+
+  // ProfileRequestData's two ids, static or JSONPath, and the empty
+  // response list the console writes; anything else stays generic.
+  [ActionType.AssociateContactToCustomerProfile]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    const request = p.ProfileRequestData;
+    if (!isStringMap(request) || !paramKeysAre(request, ["ProfileId", "ContactId"])) {
+      return undefined;
+    }
+    if (!Array.isArray(p.ProfileResponseData) || p.ProfileResponseData.length !== 0) {
+      return undefined;
+    }
+    return {
+      cls: "AssociateContactToCustomerProfile",
+      entries: [
+        ["id", a.Identifier],
+        ["profileId", request.ProfileId!],
+        ["contactId", request.ContactId!],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new AssociateContactToCustomerProfile({
+        id: a.Identifier,
+        profileId: request.ProfileId!,
+        contactId: request.ContactId!,
         next: w.next,
         onError: w.onError,
       }),

@@ -142,6 +142,12 @@ describe("addBlock", () => {
       "UpdateContactMediaProcessing",
       "CreateTask",
       "CreateWisdomSession",
+      "AssociateContactToCustomerProfile",
+      "CreateCustomerProfile",
+      "UpdateCustomerProfile",
+      "GetCustomerProfile",
+      "GetCustomerProfileObject",
+      "GetCalculatedAttributesForCustomerProfile",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

@@ -1,0 +1,55 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "update-profile",
+      "messageIncludes": "UpdateCustomerProfile does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "customer-profile-check",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "update-profile",
+      "Actions": [
+        {
+          "Identifier": "update-profile",
+          "Type": "UpdateCustomerProfile",
+          "Parameters": {
+            "ProfileRequestData": {
+              "Attributes.preferredLanguage": "$.Attributes.language"
+            },
+            "ProfileResponseData": [
+              "Attributes.preferredLanguage"
+            ]
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "update-profile": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

@@ -50,6 +50,17 @@ import {
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
   PREVIOUS_PARTICIPANT_STATES,
+  CALCULATED_ATTRIBUTE_FIELDS,
+  CALCULATED_ATTRIBUTE_PATTERNS,
+  MULTIPLE_FOUND_ERROR,
+  NONE_FOUND_ERROR,
+  PROFILE_FIELD_PATTERNS,
+  PROFILE_FIELDS,
+  PROFILE_LOGICAL_OPERATORS,
+  PROFILE_OBJECT_FIELD_PATTERNS,
+  PROFILE_OBJECT_FIELDS,
+  PROFILE_SEARCH_CRITERIA_MAX,
+  PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
   SYSTEM_TAG_PREFIX,
   TASK_DELAY_MAX,
@@ -73,6 +84,7 @@ import type {
   MetricOperator,
   MetricType,
   PreviousParticipantState,
+  ProfileLogicalOperator,
   QueueChannel,
   TargetContact,
   TtsEngine,
@@ -2221,6 +2233,410 @@ export class CreateWisdomSession extends Block {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Customer Profiles (tasks/D03): the six actions of the console's Customer
+// profiles block. Each writes ProfileRequestData and ProfileResponseData,
+// the latter as a list of names, the shape every console export carries
+// (actions.md, rule 43), and needs Customer Profiles enabled on the instance.
+// https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+// ---------------------------------------------------------------------------
+
+/** A value a Customer Profiles request field holds: static text or a JSONPath. */
+function requireText(where: string, key: string, value: unknown): void {
+  if (typeof value !== "string" || value === "") {
+    throw new Error(`${where} ${key} must be a non-empty string or JSONPath.`);
+  }
+}
+
+/**
+ * Whether a name is one the page lists or matches one of its patterns
+ * (`Attributes.x` and its kin). The catalog carries the same lists as
+ * `keys` and `keyPatterns`; a name outside them stays in a GenericBlock,
+ * since rule 43's probe of an unknown key has not run.
+ */
+function isListedName(
+  name: string,
+  names: readonly string[],
+  patterns: readonly string[],
+): boolean {
+  return names.includes(name) || patterns.some((p) => new RegExp(p).test(name));
+}
+
+function requireNames(
+  where: string,
+  what: string,
+  given: readonly string[],
+  names: readonly string[],
+  patterns: readonly string[],
+): void {
+  if (!Array.isArray(given)) throw new Error(`${where} ${what} must be a list of names.`);
+  for (const name of given) {
+    if (typeof name !== "string" || !isListedName(name, names, patterns)) {
+      throw new Error(
+        `${where} ${what} names "${String(name)}", which is neither a field the page lists nor a name matching ${patterns.join(" or ")}.`,
+      );
+    }
+  }
+  if (new Set(given).size !== given.length) throw new Error(`${where} ${what} repeats a name.`);
+}
+
+/** ProfileRequestData of a create or update: listed fields and custom attributes. */
+function requireProfileFields(where: string, request: Record<string, string>): void {
+  if (request === null || typeof request !== "object" || Array.isArray(request)) {
+    throw new Error(`${where} request must be an object of field names to values.`);
+  }
+  requireNames(where, "request", Object.keys(request), PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  for (const [key, value] of Object.entries(request)) {
+    if (typeof value !== "string") {
+      throw new Error(`${where} request field "${key}" must be a string or JSONPath.`);
+    }
+  }
+}
+
+/**
+ * The shape `CreateCustomerProfile` and `UpdateCustomerProfile` share.
+ * `request` is ProfileRequestData: each key a field the page lists
+ * (`FirstName`, `PhoneNumber`, `BillingCity`, ...) or a custom attribute
+ * `Attributes.<name>`, each value static or a JSONPath. `response` is
+ * ProfileResponseData, the names stored under `$.Customer` (`$.Customer.FirstName`,
+ * `$.Customer.Attributes.<name>`), from the same list; the console writes
+ * an empty list when none is chosen, and so does the class.
+ */
+export interface CustomerProfileFieldsConfig extends Wired {
+  request?: Record<string, string>;
+  response?: string[];
+}
+
+/**
+ * "Create a customer profile." Every field of `ProfileRequestData` is
+ * optional ("All of these fields are optional."), and "Newly created
+ * profile ID is persisted under the Customer -> ProfileID attribute +
+ * $.Customer.ProfileId". Results "None. Conditions are not supported."; one
+ * error, the catch-all. The page writes both objects as braces around bare
+ * names, which is not JSON; the class writes the published flows' shape
+ * (actions.md, rule 43): an object of strings and a list of names.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export class CreateCustomerProfile extends Block {
+  readonly type = ActionType.CreateCustomerProfile;
+
+  constructor(private readonly config: CustomerProfileFieldsConfig) {
+    super(config.id);
+    const where = `CreateCustomerProfile "${config.id}"`;
+    requireProfileFields(where, config.request ?? {});
+    requireNames(where, "response", config.response ?? [], PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ...(this.config.request ?? {}) },
+      ProfileResponseData: [...(this.config.response ?? [])],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
+ * "Update a customer profile that was previously created or retrieved in
+ * the flow." The same fields as CreateCustomerProfile, each optional, and
+ * no profile id: the action updates the profile a preceding Get or Create
+ * profile left at `$.Customer.ProfileId` (the admin guide's block: "Before
+ * using an Update profile block, use a Get profile block"). Results "None.
+ * Conditions are not supported."; one error, the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export class UpdateCustomerProfile extends Block {
+  readonly type = ActionType.UpdateCustomerProfile;
+
+  constructor(private readonly config: CustomerProfileFieldsConfig) {
+    super(config.id);
+    const where = `UpdateCustomerProfile "${config.id}"`;
+    requireProfileFields(where, config.request ?? {});
+    requireNames(where, "response", config.response ?? [], PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ...(this.config.request ?? {}) },
+      ProfileResponseData: [...(this.config.response ?? [])],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/** One search identifier: a search key's name (`_phone`, `_email`, a custom key) and its value. */
+export interface ProfileIdentifier {
+  name: string;
+  /** Static or a JSONPath. */
+  value: string;
+}
+
+function requireIdentifier(where: string, what: string, id: ProfileIdentifier): void {
+  if (id === null || typeof id !== "object") {
+    throw new Error(`${where} ${what} must be { name, value }.`);
+  }
+  requireText(where, `${what} name`, id.name);
+  requireText(where, `${what} value`, id.value);
+}
+
+/**
+ * GetCustomerProfile searches by one identifier, or by SearchCriteria (one
+ * to five identifiers) joined by a logical operator: "Requires either
+ * IdentiferName and IdentifierValue, or SearchCriteria", and the operator is
+ * "Required when using SearchCriteria". The union makes giving both, or
+ * neither, a compile-time error; the constructor checks it too.
+ */
+export type ProfileSearch =
+  | { identifier: ProfileIdentifier; search?: never }
+  | {
+      search: { criteria: ProfileIdentifier[]; operator: ProfileLogicalOperator };
+      identifier?: never;
+    };
+
+/**
+ * "Retrieve a customer profile based any search identifier, up to five
+ * total." The page's two forms of `ProfileRequestData`, an `IdentifierName`
+ * and its value or `SearchCriteria` with a `LogicalOperator` of `AND` or
+ * `OR`, are D01's group alternatives (`exactlyOne` over the two groups). The
+ * page's prose writes "IdentiferName" and its example `"IdentiferValue"`;
+ * every published flow writes `IdentifierName` and `IdentifierValue`, which
+ * the class writes (actions.md, rule 43, probes `get-identifier` and
+ * `get-identifer-spelling`). `response` names the fields stored under
+ * `$.Customer`, as CreateCustomerProfile's do. Three errors, in the order
+ * every published flow writes them: the catch-all, MultipleFoundError and
+ * NoneFoundError; only the catch-all is required until the sweep says
+ * otherwise. AWS's step-by-step guide flows also search by a named profile
+ * field (`{ "PhoneNumber": ... }`), neither of the page's forms; such a
+ * block stays a GenericBlock until `get-named-key` is put to the service.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export type GetCustomerProfileConfig = Wired &
+  ProfileSearch & {
+    response?: string[];
+    onMultipleFound: Target;
+    onNoneFound: Target;
+  };
+
+export class GetCustomerProfile extends Block {
+  readonly type = ActionType.GetCustomerProfile;
+
+  constructor(private readonly config: GetCustomerProfileConfig) {
+    super(config.id);
+    const where = `GetCustomerProfile "${config.id}"`;
+    if ((config.identifier === undefined) === (config.search === undefined)) {
+      throw new Error(`${where} takes an identifier or a search, exactly one.`);
+    }
+    if (config.identifier !== undefined) requireIdentifier(where, "identifier", config.identifier);
+    if (config.search !== undefined) {
+      const { criteria, operator } = config.search;
+      if (
+        !Array.isArray(criteria) ||
+        criteria.length < PROFILE_SEARCH_CRITERIA_MIN ||
+        criteria.length > PROFILE_SEARCH_CRITERIA_MAX
+      ) {
+        throw new Error(
+          `${where} search takes ${PROFILE_SEARCH_CRITERIA_MIN} to ${PROFILE_SEARCH_CRITERIA_MAX} criteria.`,
+        );
+      }
+      criteria.forEach((c, i) => requireIdentifier(where, `search criterion ${i + 1}`, c));
+      if (!(PROFILE_LOGICAL_OPERATORS as readonly string[]).includes(operator)) {
+        throw new Error(
+          `${where} search operator must be one of ${PROFILE_LOGICAL_OPERATORS.join(", ")}.`,
+        );
+      }
+    }
+    requireNames(where, "response", config.response ?? [], PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const request =
+      c.identifier !== undefined
+        ? { IdentifierName: c.identifier.name, IdentifierValue: c.identifier.value }
+        : {
+            SearchCriteria: c.search!.criteria.map((x) => ({
+              IdentifierName: x.name,
+              IdentifierValue: x.value,
+            })),
+            LogicalOperator: c.search!.operator,
+          };
+    return { ProfileRequestData: request, ProfileResponseData: [...(c.response ?? [])] };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [MULTIPLE_FOUND_ERROR, this.config.onMultipleFound],
+      [NONE_FOUND_ERROR, this.config.onNoneFound],
+    ]);
+  }
+}
+
+/**
+ * "Retrieve a customer profile object of the desired type, based on recency
+ * or any search identifier." "A ProfileId and ObjectType must be present.
+ * Either UseLatest, or IdentifierName and IdentifierValue must be present."
+ * `profileId` is static or a JSONPath (the admin guide's block reads it from
+ * a preceding Get profile); `objectType` names one of the domain's object
+ * types (`Asset`, `Order`, `Case` or the domain's own). The two retrievals
+ * are D01's group alternatives: `latest: true` writes `UseLatest` as the
+ * string "true" (the page's "true / false", unquoted; rule 43 probes the
+ * other spellings), and `identifier` writes the pair. `response` names the
+ * page's Asset, Order and Case fields or `AssetAttributes.<name>`,
+ * `OrderAttributes.<name>`, `CaseAttributes.<name>` and
+ * `ObjectAttributes.<name>`, stored under `$.Customer`. Two errors, the
+ * catch-all and NoneFoundError, catch-all first as GetCustomerProfile's are
+ * written; only the catch-all is required until the sweep.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export type GetCustomerProfileObjectConfig = Wired &
+  ({ latest: true; identifier?: never } | { identifier: ProfileIdentifier; latest?: never }) & {
+    profileId: string;
+    objectType: string;
+    response?: string[];
+    onNoneFound: Target;
+  };
+
+export class GetCustomerProfileObject extends Block {
+  readonly type = ActionType.GetCustomerProfileObject;
+
+  constructor(private readonly config: GetCustomerProfileObjectConfig) {
+    super(config.id);
+    const where = `GetCustomerProfileObject "${config.id}"`;
+    requireText(where, "profileId", config.profileId);
+    requireText(where, "objectType", config.objectType);
+    const latest = config.latest !== undefined;
+    if (latest === (config.identifier !== undefined)) {
+      throw new Error(`${where} takes latest or an identifier, exactly one.`);
+    }
+    if (latest && config.latest !== true) throw new Error(`${where} latest must be true.`);
+    if (config.identifier !== undefined) requireIdentifier(where, "identifier", config.identifier);
+    requireNames(
+      where,
+      "response",
+      config.response ?? [],
+      PROFILE_OBJECT_FIELDS,
+      PROFILE_OBJECT_FIELD_PATTERNS,
+    );
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    const request: Record<string, string> = { ProfileId: c.profileId, ObjectType: c.objectType };
+    if (c.identifier !== undefined) {
+      request.IdentifierName = c.identifier.name;
+      request.IdentifierValue = c.identifier.value;
+    } else {
+      request.UseLatest = "true";
+    }
+    return { ProfileRequestData: request, ProfileResponseData: [...(c.response ?? [])] };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [NONE_FOUND_ERROR, this.config.onNoneFound],
+    ]);
+  }
+}
+
+/**
+ * "Retrieve calculated attributes for a customer profile." "A ProfileId must
+ * be present." in `ProfileRequestData`, static or a JSONPath. `response`
+ * names `CalculatedAttributes._average_hold_time`,
+ * `CalculatedAttributes._frequent_caller` or any `CalculatedAttributes.<name>`
+ * the domain defines, stored under `$.Customer`. Two errors, the catch-all
+ * and NoneFoundError, in the order the one published flow that carries the
+ * type writes them; only the catch-all is required. The Connect
+ * service-linked role needs `ListCalculatedAttributeDefinitions` and
+ * `GetCalculatedAttributeForProfile` at run time (the admin guide).
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export interface GetCalculatedAttributesForCustomerProfileConfig extends Wired {
+  profileId: string;
+  response?: string[];
+  onNoneFound: Target;
+}
+
+export class GetCalculatedAttributesForCustomerProfile extends Block {
+  readonly type = ActionType.GetCalculatedAttributesForCustomerProfile;
+
+  constructor(private readonly config: GetCalculatedAttributesForCustomerProfileConfig) {
+    super(config.id);
+    const where = `GetCalculatedAttributesForCustomerProfile "${config.id}"`;
+    requireText(where, "profileId", config.profileId);
+    requireNames(
+      where,
+      "response",
+      config.response ?? [],
+      CALCULATED_ATTRIBUTE_FIELDS,
+      CALCULATED_ATTRIBUTE_PATTERNS,
+    );
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ProfileId: this.config.profileId },
+      ProfileResponseData: [...(this.config.response ?? [])],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [NONE_FOUND_ERROR, this.config.onNoneFound],
+    ]);
+  }
+}
+
+/**
+ * "Associate a contact to a customer profile." `ProfileRequestData` holds
+ * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
+ * each static or a JSONPath (the admin guide's block reads both from
+ * attributes); `ProfileResponseData` holds nothing ("None."), written as
+ * the empty list the console writes for a block with no response fields.
+ * Results "None. Conditions are not supported."; one error, the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+ */
+export interface AssociateContactToCustomerProfileConfig extends Wired {
+  profileId: string;
+  contactId: string;
+}
+
+export class AssociateContactToCustomerProfile extends Block {
+  readonly type = ActionType.AssociateContactToCustomerProfile;
+
+  constructor(private readonly config: AssociateContactToCustomerProfileConfig) {
+    super(config.id);
+    const where = `AssociateContactToCustomerProfile "${config.id}"`;
+    requireText(where, "profileId", config.profileId);
+    requireText(where, "contactId", config.contactId);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      ProfileRequestData: { ProfileId: this.config.profileId, ContactId: this.config.contactId },
+      ProfileResponseData: [],
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2419,7 +2835,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 41.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 47.
  */
 export interface GenericBlockConfig {
   id: string;

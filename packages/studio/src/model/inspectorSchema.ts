@@ -31,6 +31,13 @@ import {
   QUEUE_PRIORITY_MIN,
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
+  CALCULATED_ATTRIBUTE_FIELDS,
+  CALCULATED_ATTRIBUTE_PATTERNS,
+  PROFILE_FIELD_PATTERNS,
+  PROFILE_FIELDS,
+  PROFILE_LOGICAL_OPERATORS,
+  PROFILE_OBJECT_FIELD_PATTERNS,
+  PROFILE_OBJECT_FIELDS,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
 } from "@flow-as-code/core";
@@ -47,6 +54,8 @@ export type FieldDesc =
       clears?: readonly string[];
       /** An emptied field deletes the parameter instead of storing "". */
       optional?: boolean;
+      /** A nested field shown only while its key is present (one form of a `form` field). */
+      onlyWhenPresent?: boolean;
     }
   /**
    * Numeric field. min, max, and integrality are enforced by setNumberParam in
@@ -68,7 +77,16 @@ export type FieldDesc =
       /** Keys deleted when this one is set, for mutually exclusive parameters. */
       clears?: readonly string[];
     }
-  | { kind: "select"; key: string; label: string; options: readonly string[]; optional?: boolean }
+  | {
+      kind: "select";
+      key: string;
+      /** When set, the field edits this key inside the object parameter `key` holds. */
+      nested?: string;
+      label: string;
+      options: readonly string[];
+      optional?: boolean;
+      onlyWhenPresent?: boolean;
+    }
   | {
       kind: "ref";
       key: string;
@@ -82,9 +100,62 @@ export type FieldDesc =
   | {
       kind: "json";
       key: string;
+      /** When set, the field edits this key inside the object parameter `key` holds. */
+      nested?: string;
       label: string;
       /** Keys deleted when this one is set, for alternative forms. */
       clears?: readonly string[];
+      onlyWhenPresent?: boolean;
+    }
+  /**
+   * Alternative forms of an object parameter, each a group of its keys (the
+   * catalog's `groups` constraint, tasks/D01): choosing a form replaces the
+   * whole object with the `keeps` keys it holds and the chosen form's keys,
+   * filled from what the object holds or from `defaults`, in one mutation
+   * (`switchForm`). So the block never passes through a shape with both
+   * forms, neither, or half of one, and a key outside every form (a
+   * GetCustomerProfile searching by a named field, which codegen leaves
+   * generic) is dropped rather than mixed in. The forms' keys are then
+   * edited by nested fields marked `onlyWhenPresent`.
+   */
+  | {
+      kind: "form";
+      key: string;
+      label: string;
+      /** Keys outside every form that a switch keeps (GetCustomerProfileObject's profile and type). */
+      keeps?: readonly string[];
+      forms: readonly {
+        label: string;
+        keys: readonly string[];
+        defaults: Readonly<Record<string, unknown>>;
+      }[];
+    }
+  /**
+   * An object of strings whose keys the page lists (chosen from `names`, not
+   * typed) or that match one of `patterns` (typed, `Attributes.<name>`),
+   * each value static or a JSONPath: a Customer Profiles create or update's
+   * ProfileRequestData (catalog `keys` and `keyPatterns`).
+   */
+  | {
+      kind: "fieldMap";
+      key: string;
+      label: string;
+      names: readonly string[];
+      patterns: readonly string[];
+      /** How a typed key is spelled, shown beside the field. */
+      patternHint: string;
+    }
+  /**
+   * A list of names: those the page lists are ticked, not typed; any other
+   * is typed one per line and held to `patterns`. ProfileResponseData.
+   */
+  | {
+      kind: "names";
+      key: string;
+      label: string;
+      names: readonly string[];
+      patterns: readonly string[];
+      patternHint: string;
     };
 
 /**
@@ -117,6 +188,67 @@ export function bodyIsOptional(type: string): boolean {
   return (
     type === ActionType.GetParticipantInput || type === ActionType.ConnectParticipantWithLexBot
   );
+}
+
+const PROFILE_NAMES = {
+  names: PROFILE_FIELDS,
+  patterns: PROFILE_FIELD_PATTERNS,
+  patternHint: "Attributes.<name>",
+} as const;
+
+/** The response names of a profile create, update or get. */
+function profileResponseField(): FieldDesc {
+  return {
+    kind: "names",
+    key: "ProfileResponseData",
+    label: "Response fields (stored under $.Customer)",
+    ...PROFILE_NAMES,
+  };
+}
+
+/** The request and response fields of a profile create or update. */
+function profileFieldsFor(): FieldDesc[] {
+  return [
+    { kind: "fieldMap", key: "ProfileRequestData", label: "Request fields", ...PROFILE_NAMES },
+    profileResponseField(),
+  ];
+}
+
+/**
+ * The object a `form` field writes when form `index` is chosen: the `keeps`
+ * keys the object holds, then the chosen form's keys, each from the object
+ * or from the form's defaults. Every other key goes, so the result holds
+ * exactly one form. Undefined for an index that names no form.
+ */
+export function switchForm(
+  holder: Readonly<Record<string, unknown>> | undefined,
+  field: Extract<FieldDesc, { kind: "form" }>,
+  index: number,
+): Record<string, unknown> | undefined {
+  const chosen = field.forms[index];
+  if (chosen === undefined) return undefined;
+  const object: Record<string, unknown> = {};
+  for (const k of field.keeps ?? []) if (holder?.[k] !== undefined) object[k] = holder[k];
+  for (const k of chosen.keys) object[k] = holder?.[k] ?? chosen.defaults[k];
+  return object;
+}
+
+/**
+ * A `names` field's list after the typed names are committed: every stored
+ * name stays where it is unless it is a typed one no longer typed, and typed
+ * names not yet stored are appended in the order typed. Listed names are
+ * never touched here; their checkboxes add and remove them.
+ */
+export function mergeTypedNames(
+  stored: readonly string[],
+  listed: readonly string[],
+  typed: readonly string[],
+): string[] {
+  const wanted = [...new Set(typed)];
+  return [
+    ...stored.filter((n) => listed.includes(n) || wanted.includes(n)),
+    ...wanted.filter((n) => !stored.includes(n)),
+  ];
 }
 
 export function fieldsFor(type: string): FieldDesc[] | undefined {
@@ -420,6 +552,150 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           key: "WisdomAssistantArn",
           label: "AI agents assistant",
           refType: "assistant",
+        },
+      ];
+    case ActionType.GetCustomerProfile: {
+      // One identifier or SearchCriteria with its operator, one form per
+      // block as the page requires: the form switch clears the other, and
+      // each form's keys are edited while it is the one set. A block
+      // searching by a named field (AWS's step-by-step flows), which codegen
+      // leaves generic, shows "(neither form)"; choosing a form replaces the
+      // whole request, so the named field goes and the block becomes typed.
+      const first = { IdentifierName: "_phone", IdentifierValue: "$.CustomerEndpoint.Address" };
+      const nested = { key: "ProfileRequestData", onlyWhenPresent: true } as const;
+      return [
+        {
+          kind: "form",
+          key: "ProfileRequestData",
+          label: "Search by",
+          forms: [
+            {
+              label: "One identifier",
+              keys: ["IdentifierName", "IdentifierValue"],
+              defaults: first,
+            },
+            {
+              label: "Search criteria, up to five",
+              keys: ["SearchCriteria", "LogicalOperator"],
+              defaults: { SearchCriteria: [first], LogicalOperator: "AND" },
+            },
+          ],
+        },
+        {
+          kind: "text",
+          ...nested,
+          nested: "IdentifierName",
+          label: "Identifier name (_phone, _email, ...)",
+        },
+        {
+          kind: "text",
+          ...nested,
+          nested: "IdentifierValue",
+          label: "Identifier value (or JSONPath)",
+        },
+        {
+          kind: "json",
+          ...nested,
+          nested: "SearchCriteria",
+          label: "Search criteria (IdentifierName and IdentifierValue each)",
+        },
+        {
+          kind: "select",
+          ...nested,
+          nested: "LogicalOperator",
+          label: "Logical operator",
+          options: PROFILE_LOGICAL_OPERATORS,
+        },
+        profileResponseField(),
+      ];
+    }
+    case ActionType.GetCustomerProfileObject: {
+      // The profile and object type, then the latest object or a search
+      // identifier, one per block: the form switch clears the other. The
+      // response names are the page's Asset, Order and Case fields, with
+      // the four *Attributes.<name> forms typed.
+      const nested = { key: "ProfileRequestData", onlyWhenPresent: true } as const;
+      return [
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ProfileId",
+          label: "Profile ID (or JSONPath)",
+        },
+        { kind: "text", key: "ProfileRequestData", nested: "ObjectType", label: "Object type" },
+        {
+          kind: "form",
+          key: "ProfileRequestData",
+          label: "Retrieve",
+          keeps: ["ProfileId", "ObjectType"],
+          forms: [
+            { label: "The latest object", keys: ["UseLatest"], defaults: { UseLatest: "true" } },
+            {
+              label: "By a search identifier",
+              keys: ["IdentifierName", "IdentifierValue"],
+              defaults: { IdentifierName: "_orderId", IdentifierValue: "$.Attributes.orderId" },
+            },
+          ],
+        },
+        { kind: "text", ...nested, nested: "IdentifierName", label: "Identifier name" },
+        {
+          kind: "text",
+          ...nested,
+          nested: "IdentifierValue",
+          label: "Identifier value (or JSONPath)",
+        },
+        {
+          kind: "names",
+          key: "ProfileResponseData",
+          label: "Response fields (stored under $.Customer)",
+          names: PROFILE_OBJECT_FIELDS,
+          patterns: PROFILE_OBJECT_FIELD_PATTERNS,
+          patternHint:
+            "AssetAttributes.<name>, OrderAttributes.<name>, CaseAttributes.<name> or ObjectAttributes.<name>",
+        },
+      ];
+    }
+    case ActionType.GetCalculatedAttributesForCustomerProfile:
+      // The profile id, and the calculated attributes to store: the two the
+      // page names ticked, the domain's own typed.
+      return [
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ProfileId",
+          label: "Profile ID (or JSONPath)",
+        },
+        {
+          kind: "names",
+          key: "ProfileResponseData",
+          label: "Calculated attributes (stored under $.Customer)",
+          names: CALCULATED_ATTRIBUTE_FIELDS,
+          patterns: CALCULATED_ATTRIBUTE_PATTERNS,
+          patternHint: "CalculatedAttributes.<name>",
+        },
+      ];
+    case ActionType.CreateCustomerProfile:
+    case ActionType.UpdateCustomerProfile:
+      // The request fields are chosen from the page's list, and a custom
+      // attribute is typed as Attributes.<name>; the response fields are
+      // ticked from the same list, with custom attributes typed beside them.
+      // A name outside both stays in the raw JSON of a generic block.
+      return profileFieldsFor();
+    case ActionType.AssociateContactToCustomerProfile:
+      // Both ids sit in ProfileRequestData, each static or a JSONPath; the
+      // page's response data is "None.", so there is nothing to choose.
+      return [
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ProfileId",
+          label: "Profile ID (or JSONPath)",
+        },
+        {
+          kind: "text",
+          key: "ProfileRequestData",
+          nested: "ContactId",
+          label: "Contact ID (or JSONPath)",
         },
       ];
     case ActionType.UpdateContactAttributes:

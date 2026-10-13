@@ -112,6 +112,30 @@ function rows(params, depth = 0) {
 }
 
 /**
+ * The names a map's keys or a list's strings may take, where the catalog
+ * lists them (`keys`) or spells them as patterns (`keyPatterns`), one line
+ * per parameter, nested fields included: a Customer Profiles action's
+ * request fields and response names (tasks/D03).
+ */
+function nameLines(params, prefix = "") {
+  const out = [];
+  for (const p of params ?? []) {
+    const attr = `${prefix}${p.attr}`;
+    if (p.keys !== undefined || p.keyPatterns !== undefined) {
+      const what = p.kind === "map" ? "keys" : "values";
+      const listed = (p.keys ?? []).map((k) => `\`${k}\``).join(", ");
+      const patterns = (p.keyPatterns ?? []).map((k) => `\`${k}\``).join(" or ");
+      const parts = [listed, patterns === "" ? "" : `a name matching ${patterns}`].filter(
+        (x) => x !== "",
+      );
+      out.push(`- \`${attr}\` ${what}: ${parts.join(", or ")}.`);
+    }
+    out.push(...nameLines(p.fields, `${attr}.`));
+  }
+  return out;
+}
+
+/**
  * One constraint as a sentence, without its final period. The alternatives
  * are `keys`, one key each, or `groups`, each a set of keys that count only
  * when every one is present, spelled `(a and b)` as constraintViolations in
@@ -128,6 +152,24 @@ export function constraintSentence(c) {
     .map((g) => (g.length === 1 ? `\`${g[0]}\`` : `(${g.map((k) => `\`${k}\``).join(" and ")})`))
     .join(", ");
   return `${rule ?? c.rule} ${spelled}`;
+}
+
+/**
+ * Constraints on an object parameter's fields, which the top-level list
+ * does not show: `GetCustomerProfile`'s two search forms inside
+ * `profile_request_data` (tasks/D03), `GetParticipantInput`'s validation
+ * forms inside `input_validation`.
+ */
+function nestedConstraintLines(params, prefix = "") {
+  const out = [];
+  for (const p of params ?? []) {
+    const attr = `${prefix}${p.attr}`;
+    for (const c of p.constraints ?? []) {
+      out.push(`- Fields of \`${attr}\`: ${constraintSentence(c)}.`);
+    }
+    out.push(...nestedConstraintLines(p.fields, `${attr}.`));
+  }
+  return out;
 }
 
 function section(type, a) {
@@ -156,6 +198,7 @@ function section(type, a) {
     );
   }
   for (const c of a.constraints ?? []) lines.push(`- Parameters: ${constraintSentence(c)}.`);
+  lines.push(...nestedConstraintLines(a.parameters));
   for (const s of a.shapes ?? []) {
     const when = whenOf(s.when);
     const parts = [];
@@ -175,6 +218,8 @@ function section(type, a) {
   } else {
     lines.push("", "| HCL attribute | Flow language key | Value | Required |", "|---|---|---|---|");
     lines.push(...rows(a.parameters));
+    const names = nameLines(a.parameters);
+    if (names.length > 0) lines.push("", ...names);
   }
   return lines.join("\n");
 }

@@ -19,6 +19,8 @@ import {
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
   CALLBACK_DELAY_MIN,
+  CALCULATED_ATTRIBUTE_FIELDS,
+  CALCULATED_ATTRIBUTE_PATTERNS,
   CHANNEL_RESTRICTIONS,
   CONDITION_CATCH_ALL,
   EXTRA_ERRORS,
@@ -36,6 +38,12 @@ import {
   LOOP_COUNT_MAX,
   LOOP_COUNT_MIN,
   OPTIONAL_CATCH_ALL,
+  PROFILE_FIELD_PATTERNS,
+  PROFILE_FIELDS,
+  PROFILE_OBJECT_FIELD_PATTERNS,
+  PROFILE_OBJECT_FIELDS,
+  PROFILE_SEARCH_CRITERIA_MAX,
+  PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
   REQUIRED_EXTRAS,
   TAG_LIMIT,
@@ -150,6 +158,13 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
   Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
   CreateTask: { DelaySeconds: { min: TASK_DELAY_MIN, max: TASK_DELAY_MAX } },
+  // "up to five total"; at least one when the form is used.
+  GetCustomerProfile: {
+    "ProfileRequestData.SearchCriteria": {
+      min: PROFILE_SEARCH_CRITERIA_MIN,
+      max: PROFILE_SEARCH_CRITERIA_MAX,
+    },
+  },
   TagContact: { Tags: { max: TAG_LIMIT } },
   // The service refuses an empty key list (live check, tasks/B01).
   UntagContact: { TagKeys: { min: 1 } },
@@ -242,8 +257,16 @@ function elementProblems(where: string, e: CatalogElement, refTypes: readonly st
   if (e.dynamic === true && !DYNAMIC_KINDS.has(e.kind)) {
     out.push(`${where}: dynamic on a ${e.kind}, which has no JSONPath form`);
   }
+  // `keys` and `keyPatterns` name a map's keys or, since tasks/D03, the
+  // strings a list of strings may hold (a Customer Profiles action's
+  // ProfileResponseData), and nothing else.
+  const named = e.kind === "map" || (e.kind === "list" && e.of?.kind === "string");
+  const shape = e.kind === "list" ? `list of ${e.of?.kind ?? "nothing"}` : e.kind;
+  if (e.keys !== undefined && !named) {
+    out.push(`${where}: keys on a ${shape}, not a map or a list of strings`);
+  }
   if (e.keyPatterns !== undefined) {
-    if (e.kind !== "map") out.push(`${where}: keyPatterns on a ${e.kind}, not a map`);
+    if (!named) out.push(`${where}: keyPatterns on a ${shape}, not a map or a list of strings`);
     for (const pattern of e.keyPatterns) {
       if (!pattern.startsWith("^") || !pattern.endsWith("$")) {
         out.push(`${where}: key pattern ${pattern} is not anchored`);
@@ -573,6 +596,47 @@ describe("the event hook names", () => {
   });
 });
 
+describe("the Customer Profiles names", () => {
+  // The page's field lists, hand-copied once into actions.ts and once into
+  // the catalog's `keys` and `keyPatterns` on each parameter that names them.
+  const named = (type: string, key: string) => {
+    const entry = actionCatalog.actions[type] as unknown as {
+      parameters: { key: string; keys?: string[]; keyPatterns?: string[] }[];
+    };
+    const p = entry.parameters.find((x) => x.key === key)!;
+    return { keys: p.keys, keyPatterns: p.keyPatterns };
+  };
+  const PROFILE = { keys: [...PROFILE_FIELDS], keyPatterns: [...PROFILE_FIELD_PATTERNS] };
+
+  it.each([
+    ["CreateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["CreateCustomerProfile", "ProfileResponseData", PROFILE],
+    ["UpdateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["UpdateCustomerProfile", "ProfileResponseData", PROFILE],
+    ["GetCustomerProfile", "ProfileResponseData", PROFILE],
+    [
+      "GetCalculatedAttributesForCustomerProfile",
+      "ProfileResponseData",
+      { keys: [...CALCULATED_ATTRIBUTE_FIELDS], keyPatterns: [...CALCULATED_ATTRIBUTE_PATTERNS] },
+    ],
+    [
+      "GetCustomerProfileObject",
+      "ProfileResponseData",
+      { keys: [...PROFILE_OBJECT_FIELDS], keyPatterns: [...PROFILE_OBJECT_FIELD_PATTERNS] },
+    ],
+  ])("agree for %s.%s", (type, key, expected) => {
+    expect(named(type, key)).toEqual(expected);
+  });
+
+  it("are anchored patterns that admit one custom name and refuse a nested one", () => {
+    for (const pattern of PROFILE_FIELD_PATTERNS) {
+      expect(new RegExp(pattern).test("Attributes.loyaltyTier")).toBe(true);
+      expect(new RegExp(pattern).test("Attributes.a.b")).toBe(false);
+      expect(new RegExp(pattern).test("FirstName")).toBe(false);
+    }
+  });
+});
+
 describe("the action catalog", () => {
   it("agrees with every table in actions.ts", () => {
     expect(catalogProblems(actionCatalog)).toEqual([]);
@@ -669,6 +733,27 @@ describe("the action catalog", () => {
       "ChannelMismatch",
     ]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
+    // The published flows' order, catch-all first; the page marks none
+    // "Must always be defined", so only the catch-all is required until
+    // rule 43's sweep says otherwise.
+    expect(builderErrors("GetCustomerProfile")).toEqual([
+      "NoMatchingError",
+      "MultipleFoundError",
+      "NoneFoundError",
+    ]);
+    expect(requiredErrors("GetCustomerProfile")).toEqual(["NoMatchingError"]);
+    expect(builderErrors("GetCustomerProfileObject")).toEqual([
+      "NoMatchingError",
+      "NoneFoundError",
+    ]);
+    expect(requiredErrors("GetCustomerProfileObject")).toEqual(["NoMatchingError"]);
+    expect(builderErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
+      "NoMatchingError",
+      "NoneFoundError",
+    ]);
+    expect(requiredErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
+      "NoMatchingError",
+    ]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);
     // The page lists none; the service refuses the block without it.
@@ -1084,6 +1169,39 @@ describe("catalogProblems is proven able to fail", () => {
       }),
     ).toEqual([]);
   });
+  it("on names on a list that does not hold strings, and not on a list of strings (tasks/D03)", () => {
+    const participants = (c: ActionCatalog) =>
+      modeledAt(c, "UpdateContactMediaStreamingBehavior").parameters.find(
+        (p) => p.key === "Participants",
+      )!;
+    const tagKeys = (c: ActionCatalog) =>
+      modeledAt(c, "UntagContact").parameters.find((p) => p.key === "TagKeys")!;
+    expect(
+      mutate((c) => {
+        (participants(c) as { keyPatterns?: string[] }).keyPatterns = ["^x$"];
+      }),
+    ).toContainEqual(
+      expect.stringContaining("keyPatterns on a list of object, not a map or a list of strings"),
+    );
+    expect(
+      mutate((c) => {
+        (participants(c) as { keys?: string[] }).keys = ["Customer"];
+      }),
+    ).toContainEqual(
+      expect.stringContaining("keys on a list of object, not a map or a list of strings"),
+    );
+    expect(
+      mutate((c) => {
+        (modeledAt(c, "MessageParticipant").parameters[0] as { keys?: string[] }).keys = ["x"];
+      }),
+    ).toContainEqual(expect.stringContaining("keys on a ref, not a map or a list of strings"));
+    expect(
+      mutate((c) => {
+        (tagKeys(c) as { keys?: string[] }).keys = ["team"];
+        (tagKeys(c) as { keyPatterns?: string[] }).keyPatterns = ["^team\\.[^.]+$"];
+      }),
+    ).toEqual([]);
+  });
   it("on a constraint carrying both forms or neither, a group with an unknown key, one key in two groups, or one group", () => {
     const first = (c: ActionCatalog) => modeledAt(c, "GetMetricData").constraints![0]!;
     expect(
@@ -1193,6 +1311,56 @@ describe("requiredErrorsOf", () => {
       requiredErrorsFor("UpdateContactRecordingAndAnalyticsBehavior", { ChatBehavior: {} }),
     ).toEqual(requiredErrorsOf(catalogErrors, { ChatBehavior: {} }));
     expect(requiredErrorsFor("CreateCase", { LinkContactToCase: "true" })).toEqual([]);
+  });
+});
+
+describe("the Customer Profiles lookups' request constraints", () => {
+  it("hold GetCustomerProfileObject to UseLatest or the identifier pair", () => {
+    const entry = actionCatalog.actions.GetCustomerProfileObject as unknown as {
+      parameters: { key: string; constraints?: CatalogConstraint[] }[];
+    };
+    const constraints = entry.parameters.find((p) => p.key === "ProfileRequestData")!.constraints!;
+    expect(constraints).toEqual([
+      { rule: "exactlyOne", groups: [["UseLatest"], ["IdentifierName", "IdentifierValue"]] },
+    ]);
+    const base = { ProfileId: "p", ObjectType: "Order" };
+    expect(constraintViolations(constraints, { ...base, UseLatest: "true" })).toEqual([]);
+    expect(
+      constraintViolations(constraints, {
+        ...base,
+        IdentifierName: "_orderId",
+        IdentifierValue: "o",
+      }),
+    ).toEqual([]);
+    expect(constraintViolations(constraints, base)).toHaveLength(1);
+    expect(
+      constraintViolations(constraints, { ...base, UseLatest: "true", IdentifierName: "_orderId" }),
+    ).toHaveLength(1);
+  });
+
+  it("is the group alternative the page states, read by constraintViolations", () => {
+    const entry = actionCatalog.actions.GetCustomerProfile as unknown as {
+      parameters: { key: string; constraints?: CatalogConstraint[] }[];
+    };
+    const constraints = entry.parameters.find((p) => p.key === "ProfileRequestData")!.constraints!;
+    expect(constraints).toEqual([
+      {
+        rule: "exactlyOne",
+        groups: [
+          ["IdentifierName", "IdentifierValue"],
+          ["SearchCriteria", "LogicalOperator"],
+        ],
+      },
+    ]);
+    const one = { IdentifierName: "_phone", IdentifierValue: "$.CustomerEndpoint.Address" };
+    expect(constraintViolations(constraints, one)).toEqual([]);
+    expect(
+      constraintViolations(constraints, { SearchCriteria: [one], LogicalOperator: "AND" }),
+    ).toEqual([]);
+    expect(constraintViolations(constraints, { SearchCriteria: [one] })).toHaveLength(2);
+    expect(constraintViolations(constraints, { PhoneNumber: "+15550100" })).toEqual([
+      "exactly one of (IdentifierName and IdentifierValue), (SearchCriteria and LogicalOperator) is required; 0 present.",
+    ]);
   });
 });
 

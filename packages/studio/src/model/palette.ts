@@ -41,6 +41,12 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactMediaProcessing]: "Set",
   [ActionType.CreateTask]: "Integrate",
   [ActionType.CreateWisdomSession]: "Integrate",
+  [ActionType.AssociateContactToCustomerProfile]: "Integrate",
+  [ActionType.CreateCustomerProfile]: "Integrate",
+  [ActionType.UpdateCustomerProfile]: "Integrate",
+  [ActionType.GetCustomerProfile]: "Integrate",
+  [ActionType.GetCustomerProfileObject]: "Integrate",
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: "Integrate",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -116,6 +122,12 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactMediaProcessing]: "message-processor",
   [ActionType.CreateTask]: "create-task",
   [ActionType.CreateWisdomSession]: "connect-assistant",
+  [ActionType.AssociateContactToCustomerProfile]: "associate-profile",
+  [ActionType.CreateCustomerProfile]: "create-profile",
+  [ActionType.UpdateCustomerProfile]: "update-profile",
+  [ActionType.GetCustomerProfile]: "get-profile",
+  [ActionType.GetCustomerProfileObject]: "get-profile-object",
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: "calculated-attributes",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -223,6 +235,52 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // assistant; the page allows either form.
       // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
       return { WisdomAssistantArn: "$.Attributes.assistantArn" };
+    case ActionType.CreateCustomerProfile:
+      // "All of these fields are optional."; the console writes both
+      // containers, empty until a field is chosen.
+      // https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
+      return { ProfileRequestData: {}, ProfileResponseData: [] };
+    case ActionType.GetCustomerProfile:
+      // The caller's phone number, the search the admin guide's example and
+      // most published flows make.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+      return {
+        ProfileRequestData: {
+          IdentifierName: "_phone",
+          IdentifierValue: "$.CustomerEndpoint.Address",
+        },
+        ProfileResponseData: [],
+      };
+    case ActionType.GetCustomerProfileObject:
+      // The profile a preceding Get profile found and the latest object of
+      // a standard type; the page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
+      return {
+        ProfileRequestData: {
+          ProfileId: "$.Customer.ProfileId",
+          ObjectType: "Order",
+          UseLatest: "true",
+        },
+        ProfileResponseData: [],
+      };
+    case ActionType.GetCalculatedAttributesForCustomerProfile:
+      // The profile a preceding Get profile found; no attribute is chosen
+      // until the author ticks one.
+      // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+      return { ProfileRequestData: { ProfileId: "$.Customer.ProfileId" }, ProfileResponseData: [] };
+    case ActionType.UpdateCustomerProfile:
+      // The same optional fields; the profile is the one a preceding Get or
+      // Create profile left at $.Customer.ProfileId.
+      // https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
+      return { ProfileRequestData: {}, ProfileResponseData: [] };
+    case ActionType.AssociateContactToCustomerProfile:
+      // The admin guide's example: the profile found by a preceding Get
+      // profile and the current contact, both read from attributes.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+      return {
+        ProfileRequestData: { ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" },
+        ProfileResponseData: [],
+      };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html

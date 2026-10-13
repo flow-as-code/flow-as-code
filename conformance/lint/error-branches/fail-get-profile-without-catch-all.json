@@ -1,0 +1,65 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "find-caller",
+      "messageIncludes": "GetCustomerProfile does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "customer-profile-check",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "find-caller",
+      "Actions": [
+        {
+          "Identifier": "find-caller",
+          "Type": "GetCustomerProfile",
+          "Parameters": {
+            "ProfileRequestData": {
+              "IdentifierName": "_phone",
+              "IdentifierValue": "$.CustomerEndpoint.Address"
+            },
+            "ProfileResponseData": [
+              "FirstName"
+            ]
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "MultipleFoundError",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "NoneFoundError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "find-caller": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}
