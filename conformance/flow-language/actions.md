@@ -2399,15 +2399,14 @@ is read rather than when the type is modeled.
 46. Outbound (tasks/D04; the Developer Guide pages read 2026-10-04 and
     again 2026-10-12 with the admin guide's Check call progress, Call phone
     number and Send message block pages). The group's types are modeled
-    from their pages. **Probe pending**: the create sweep the evidence rule
-    asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
-    sandbox's AWS credentials had expired, and the claimed DID and probe
-    flow the sweep names come from a sandbox root that had not been
-    applied. Its inputs are kept in `probes/46/`, with `PENDING.md` saying
-    what the run needs. No console export of any block has been taken
-    (owner decision 8). Until the sweep, every required key, error,
-    `next`, spelling and flow-type entry below is the pages' reading, and
-    each bullet names the probes that settle it. The action pages state no
+    from their pages, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with one claimed US DID and a published probe target
+    flow. Its inputs and `results.json` are in `probes/46/`. No console
+    export of any block has been taken (owner decision 8). The bullets
+    below are the pages' reading as modeled; the last bullet is what the
+    service said, and where the two differ the catalog follows the
+    service. The action pages state no
     flow-type restriction in the console's vocabulary, so where the catalog
     restricts a type the restriction is an admin guide page's reading, and
     where a probe refuses a flow type the restriction is the service's, not
@@ -2649,6 +2648,82 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
       https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
       https://docs.aws.amazon.com/connect/latest/adminguide/setup-sms-messaging.html
+    - The sweep (2026-10-13, 17:12 to 17:13 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 75 probes, 37 accepted and 38 refused.
+      The sandbox has neither outbound campaigns nor SMS messaging (owner
+      decision 6), so every acceptance here is a create on an instance
+      without the feature, which is the deployable reading.
+      - `CheckOutboundCallStatus`: `status-required` (all four statuses)
+        accepted, on an instance without campaigns. In every flow type
+        FlowDoc has it was accepted (customer queue, customer and agent
+        hold, customer, agent and outbound whisper, agent and queue
+        transfer, a module), so `flowTypes` stays unrestricted, now as the
+        service's reading. `status-required-set-alone`, the catch-all and
+        no status condition, was refused "Invalid Action property value.
+        Path: Actions[0].Transitions.Conditions": a condition is required,
+        and the catalog now carries `minConditions` 1, which error-branches
+        reports (`fail-check-outbound-call-status-without-conditions`).
+        `status-next-elsewhere` was accepted, so the mirror is the
+        builder's form, not a requirement; `status-no-next` and
+        `status-no-catch-all` were refused. `status-other-operator`,
+        `status-unknown-operand` and `status-lowercase-operand` were
+        refused naming `Transitions.Conditions`, as the page's "only"
+        clauses say, and `status-with-parameter` was refused "Invalid
+        Action property name. Path: Actions[0].Parameters.Timeout".
+        `status-campaign`, in a `CAMPAIGN` flow, was refused
+        "CheckOutboundCallStatus action type is not supported" and
+        "DisconnectParticipant action type is not supported": the
+        `CAMPAIGN` type refuses even the disconnect on an instance without
+        campaigns, which says nothing about this action there.
+      - `CompleteOutboundCall`: `complete-required-set-alone` (no
+        parameters) and `complete-required` (the claimed DID's number)
+        were accepted in an outbound whisper flow, and every other flow
+        type was refused "Action with identifier probe is not supported in
+        contact flow type ..." (contact flow, customer queue, customer and
+        agent hold, customer and agent whisper, agent and queue
+        transfer), the module with "...not supported in a flow module". The
+        admin guide's reading is the service's, without the module the
+        catalog had allowed: `flowTypes` is `OUTBOUND_WHISPER` alone, and
+        `fail-complete-outbound-call-in-module` holds it.
+        `complete-with-catch-all` was refused "Invalid Action error.
+        Error: NoMatchingError", so no error branch is right, and
+        `complete-no-next` was refused. `complete-caller-id-unclaimed`
+        (`+15555550100`) was refused "Action with identifier probe has
+        invalid resource: +15555550100" and `complete-caller-id-arn` the
+        same for the DID's ARN, while `complete-caller-id-jsonpath` was
+        accepted: a static caller ID must be a number claimed on the
+        instance, so it is environment-specific, and a JSONPath is the
+        portable form. No catalog kind says that; the class's comment
+        does. `complete-caller-id-empty` was refused "...CallerId.Number".
+        The time limit was accepted as a string, a number, a JSONPath and
+        `"601"`, so the clause's string-or-integer stands and the bound is
+        the page's. `complete-voice-connector`, an invented connector ARN,
+        was accepted (the create does not check it), and
+        `complete-voice-connector-other-type` refused naming
+        `VoiceConnectorType` and "Action is missing required property.
+        Path: Actions[0].Parameters.ConnectionTimeLimitSeconds": with a
+        voice connector the time limit is required. That form stays
+        generic (owner decision 4).
+      - `StartOutboundChatContact`: `sms-required-set-alone` and
+        `sms-source-jsonpath` accepted, and so were
+        `sms-source-did-set-alone`, `sms-required` and `sms-source-number`,
+        which name the voice DID as the source by ARN and by number: the
+        create checks neither the number's SMS capability nor that the
+        address is an ARN. Accepted in every flow type probed and a
+        module. Each required key removed alone was refused
+        (`sms-no-source-endpoint`, `-no-source-address`, `-no-source-type`,
+        `-no-destination-endpoint`, `-no-destination-address`,
+        `-no-destination-type`, `-no-contact-flow`, `-no-subtype`,
+        `-no-message-content`), as were `sms-no-catch-all` and
+        `sms-no-next`; `sms-no-initial-message` was accepted.
+        `sms-source-type-other`, `sms-related-other` and
+        `sms-message-string` were refused; `sms-subtype-whatsapp` was
+        refused "Action is missing required property. Path:
+        Actions[0].Parameters.InitialTemplatedSystemMessage", the admin
+        guide's WhatsApp form, which stays generic.
+        `sms-destination-not-e164`, `sms-destination-static` and
+        `sms-flow-jsonpath` were accepted: the E.164 rule is the class's.
+        The catalog stands.
 47. Census additions (tasks/D09; the admin guide's block pages read
     2026-10-05 for rule 40 and again on 2026-10-12). The Types D00's census
     added from outside the Developer Guide are modeled where a page or a

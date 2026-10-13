@@ -141,8 +141,7 @@
       "block": "complete_outbound_call",
       "terminal": false,
       "flowTypes": [
-        "OUTBOUND_WHISPER",
-        "MODULE"
+        "OUTBOUND_WHISPER"
       ],
       "channels": [
         "VOICE"
@@ -2816,6 +2815,7 @@
           "VoicemailNoBeep",
           "NotDetected"
         ],
+        "minConditions": 1,
         "errors": [
           {
             "type": "NoMatchingError",

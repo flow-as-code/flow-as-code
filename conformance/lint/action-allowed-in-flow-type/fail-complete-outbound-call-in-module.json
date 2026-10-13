@@ -1,0 +1,53 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "place-call",
+      "messageIncludes": "CompleteOutboundCall is not allowed in a MODULE"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "module",
+    "name": "caller-id-module",
+    "connectType": "MODULE",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "place-call",
+      "Actions": [
+        {
+          "Identifier": "place-call",
+          "Type": "CompleteOutboundCall",
+          "Parameters": {
+            "CallerId": {
+              "Number": "$.Attributes.callerId"
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "EndFlowModuleExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "place-call": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": [],
+    "description": "CompleteOutboundCall in a flow module. The note above IN_MODULE would allow it, but the service refuses it there (\"Action with identifier probe is not supported in a flow module\", actions.md, rule 46, 2026-10-13)."
+  }
+}

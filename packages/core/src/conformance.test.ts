@@ -998,10 +998,12 @@ describe("FlowDoc schema rejections: routing criteria", () => {
 // The outbound round-trip fixture is the subject for the 0.3 clauses of
 // tasks/D04. Each holds JSON types and reference forms only (a reference a
 // token or a JSONPath, never a literal ARN, this repository's invariant;
-// the single-value enums stay in the catalog): nothing about
-// the outbound types is known to be enforced at create until rule 46's
-// probes (pending) run (owner decision 3). CheckOutboundCallStatus has no
-// parameter and no clause.
+// the single-value enums stay in the catalog). Rule 46's probes
+// (us-west-2, 2026-10-13) found the service refusing what these clauses do
+// not hold, the enums and the required keys, and accepting a time limit as
+// either a string or an integer and past 600, so the clauses stay as they
+// are (owner decision 3). CheckOutboundCallStatus has no parameter and no
+// clause; its required condition is error-branches' (minConditions).
 describe("FlowDoc schema rejections: outbound", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/outbound/doc.flowdoc.json");

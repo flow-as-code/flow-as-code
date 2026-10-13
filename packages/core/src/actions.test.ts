@@ -162,7 +162,8 @@ const EXPECTED: Record<string, string[]> = {
     "QUEUE_TRANSFER",
     "MODULE",
   ],
-  CompleteOutboundCall: ["OUTBOUND_WHISPER", "MODULE"],
+  // The service refused it in a module too (actions.md, rule 46).
+  CompleteOutboundCall: ["OUTBOUND_WHISPER"],
   TransferParticipantToThirdParty: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",

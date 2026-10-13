@@ -46,7 +46,7 @@ generic {
 
 Block `complete_outbound_call`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html).
 
-- Legal in: OUTBOUND_WHISPER, MODULE.
+- Legal in: OUTBOUND_WHISPER.
 - Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required.
 - Error branches: none; the service refuses any.
@@ -649,7 +649,7 @@ Block `check_outbound_call_status`. [Action page](https://docs.aws.amazon.com/co
 - Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required; write the `NoMatchingError` branch's target, as the console does.
 - Error branches: `NoMatchingError` (required).
-- Conditions: Equals on values the action defines.
+- Conditions: Equals on values the action defines; at least 1.
 
 No parameters: `check_outbound_call_status {}`.
 

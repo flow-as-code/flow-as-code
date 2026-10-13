@@ -1024,13 +1024,14 @@ export class Wait extends Block {
  * "VoicemailNoBeep", "NotDetected"; only Equals, only those operands), and
  * at least one is required. One error, "NoMatchingError if no condition
  * matches", which is also the path when no status branch matches, so the
- * class mirrors NextAction onto it as it does for Wait; rule 46's
- * `status-no-next` and `status-next-elsewhere` probes put that to the
- * service. No parameters. The page: "This action works with Connect
- * Customer outbound campaigns only"; the admin guide adds customer-first
- * callbacks, voice only, and every flow type. Deployable without campaigns
- * enabled is what rule 46 asks; a live contact needs the campaigns gate
- * (tasks/D04).
+ * class mirrors NextAction onto it as it does for Wait; the service
+ * requires a NextAction but not the mirror, and refuses the block with no
+ * status condition (actions.md, rule 46). No parameters. The page: "This
+ * action works with Connect Customer outbound campaigns only"; the admin
+ * guide adds customer-first callbacks, voice only, and every flow type, and
+ * the service accepted it in every flow type probed, a module among them,
+ * on an instance without campaigns, so it is deployable; a live contact needs the
+ * campaigns gate (tasks/D04).
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
  */
@@ -1092,9 +1093,13 @@ export class CheckOutboundCallStatus extends Block {
  * it is "Only used for Voice Connector use case". The page's
  * `VoiceConnector` form (a Chime voice connector) is not modeled (owner
  * decision 4): a block carrying it stays a GenericBlock. Results and errors
- * "None."; the admin guide's block "has no error branch", so the class
- * wires `next` alone. Outbound whisper flows (the admin guide's block),
- * voice only.
+ * "None."; the admin guide's block "has no error branch", and the service
+ * refuses one, so the class wires `next` alone. Outbound whisper flows
+ * only, voice only: the service refused it in every other flow type and in
+ * a module. A static `callerId` must be a number claimed on the instance:
+ * the service refused an unclaimed one and an ARN as "invalid resource"
+ * (actions.md, rule 46), so a static number is environment-specific and a
+ * JSONPath is the portable form.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
  */

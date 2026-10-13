@@ -711,19 +711,25 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // rule 45's probes put a module and a whisper flow to the service.
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
-  [ActionType.UpdateContactRoutingCriteria]: [...INBOUND, ...CUSTOMER_QUEUE, ...TRANSFER, ...IN_MODULE],
+  [ActionType.UpdateContactRoutingCriteria]: [
+    ...INBOUND,
+    ...CUSTOMER_QUEUE,
+    ...TRANSFER,
+    ...IN_MODULE,
+  ],
   // The action page's Restrictions name no flow type: "This action can be
   // used only when the contact is in the process of making an outbound
   // call, but has not yet called the outbound number." The admin guide's
   // Call phone number block: "Use this block to set the caller ID number
   // for an outbound call in an Outbound Whisper flow", and its flow types
-  // list that one alone. The admin guide's reading is recorded, with a
-  // module by the note above IN_MODULE; rule 46's probes put every other
-  // flow type to the service, and a refusal makes the restriction the
-  // service's.
+  // list that one alone. The service agrees, and goes further than the note
+  // above IN_MODULE: it refused the action in every other flow type and in
+  // a module ("Action with identifier probe is not supported in a flow
+  // module", us-west-2, 2026-10-13; actions.md, rule 46), so the
+  // restriction is the service's and no module is allowed.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
-  [ActionType.CompleteOutboundCall]: ["OUTBOUND_WHISPER", ...IN_MODULE],
+  [ActionType.CompleteOutboundCall]: ["OUTBOUND_WHISPER"],
   // No page documents the action. The Transfer to phone number block, which
   // the console writes as it, lists inbound, customer queue, transfer to
   // agent and transfer to queue flows; a module by the note above
@@ -930,7 +936,9 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // Connect Customer outbound campaigns only"); the admin guide's Check call
   // progress block: "All flow types", with the note that it "functions only
   // for the call types listed" (outbound campaigns and customer-first
-  // callbacks). Rule 46's probes put each flow type to the service.
+  // callbacks). The service accepted it in every flow type probed, a
+  // module among them, on an instance without outbound campaigns (rule 46,
+  // 2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
   ActionType.CheckOutboundCallStatus,
@@ -940,7 +948,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // every flow type with "Yes" (inbound, customer queue, customer hold,
   // customer whisper, outbound whisper, agent hold, agent whisper, transfer
   // to agent, transfer to queue, disconnect) and voice, chat, task and
-  // email each "Yes". Rule 46's probes put each flow type to the service.
+  // email each "Yes". The service accepted it in every flow type probed
+  // (rule 46, 2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
   ActionType.StartOutboundChatContact,
