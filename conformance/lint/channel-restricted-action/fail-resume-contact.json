@@ -1,0 +1,53 @@
+{
+  "expect": [
+    {
+      "rule": "channel-restricted-action",
+      "blockId": "resume-task",
+      "messageIncludes": "ResumeContact is supported only on the TASK channel, and the document does not record which channels this flow serves"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "resume-paused-task",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "resume-task",
+      "Actions": [
+        {
+          "Identifier": "resume-task",
+          "Type": "ResumeContact",
+          "Parameters": {},
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "resume-task": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "description": "Rule 41: processing disabled with ProcessingEnabled alone, the console's disabled form as the admin guide's screenshot shows it.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ProcessingEnabled": "False"
+          }
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

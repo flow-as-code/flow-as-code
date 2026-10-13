@@ -1,0 +1,42 @@
+{
+  "description": "Rule 41: the same without NextAction.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ProcessingEnabled": "True",
+            "LambdaProcessorARN": "arn:aws:lambda:{{REGION}}:{{ACCOUNT}}:function:{{MESSAGE_PROCESSOR_NAME}}",
+            "ChatProcessorSettings": {
+              "DeliverUnprocessedMessages": "True"
+            }
+          }
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -40,6 +40,9 @@ import {
   METRIC_TYPES,
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_THRESHOLD_MAX,
+  MEDIA_DIRECTIONS,
+  MEDIA_STREAMING_STATES,
+  PREVIOUS_PARTICIPANT_STATES,
   QUEUE_CHANNELS,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
@@ -61,7 +64,12 @@ import {
   NO_MATCHING_ERROR,
   REFERENCE_FIELDS,
 } from "./actions.js";
-import type { DtmfDigit } from "./actions.js";
+import type {
+  DtmfDigit,
+  MediaDirection,
+  MediaStreamingState,
+  PreviousParticipantState,
+} from "./actions.js";
 import type {
   Block,
   DtmfBranch,
@@ -91,6 +99,7 @@ import {
   MessageParticipant,
   MessageParticipantIteratively,
   PHONE_NUMBER_FORMATS,
+  ResumeContact,
   ShowView,
   TagContact,
   TransferContactToAgent,
@@ -101,6 +110,8 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactMediaProcessing,
+  UpdateContactMediaStreamingBehavior,
   UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
@@ -108,6 +119,7 @@ import {
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
+  UpdatePreviousContactParticipantState,
   Wait,
 } from "./blocks.js";
 import type {
@@ -2117,6 +2129,169 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         ["next", t.NextAction],
       ],
       block: new UpdateFlowLoggingBehavior({ id: a.Identifier, behavior, next: t.NextAction }),
+    };
+  },
+
+  // No parameters; the catch-all is the one error the page lists.
+  [ActionType.ResumeContact]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, [])) return undefined;
+    return {
+      cls: "ResumeContact",
+      entries: [
+        ["id", a.Identifier],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new ResumeContact({ id: a.Identifier, next: w.next, onError: w.onError }),
+    };
+  },
+
+  // One static state; a value outside the page's three, or a JSONPath, stays
+  // generic.
+  [ActionType.UpdatePreviousContactParticipantState]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, ["PreviousContactParticipantState"])) {
+      return undefined;
+    }
+    const state = a.Parameters.PreviousContactParticipantState;
+    if (!(PREVIOUS_PARTICIPANT_STATES as readonly unknown[]).includes(state)) return undefined;
+    const typed = state as PreviousParticipantState;
+    return {
+      cls: "UpdatePreviousContactParticipantState",
+      entries: [
+        ["id", a.Identifier],
+        ["state", typed],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UpdatePreviousContactParticipantState({
+        id: a.Identifier,
+        state: typed,
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
+  // One Customer participant with its directions, and Audio; any other
+  // participant, stream type, a second participant or a JSONPath stays
+  // generic.
+  [ActionType.UpdateContactMediaStreamingBehavior]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    const p = a.Parameters;
+    if (
+      w === undefined ||
+      !paramKeysAre(p, ["MediaStreamingState", "Participants", "MediaStreamType"])
+    ) {
+      return undefined;
+    }
+    const state = p.MediaStreamingState;
+    if (!(MEDIA_STREAMING_STATES as readonly unknown[]).includes(state)) return undefined;
+    if (p.MediaStreamType !== "Audio") return undefined;
+    const participants = p.Participants;
+    if (!Array.isArray(participants) || participants.length !== 1) return undefined;
+    const participant = participants[0] as Record<string, unknown> | null;
+    if (participant === null || typeof participant !== "object" || Array.isArray(participant)) {
+      return undefined;
+    }
+    if (!paramKeysAre(participant, ["ParticipantType", "MediaDirections"])) return undefined;
+    if (participant.ParticipantType !== "Customer") return undefined;
+    const directions = participant.MediaDirections;
+    if (
+      !Array.isArray(directions) ||
+      !directions.every((d) => (MEDIA_DIRECTIONS as readonly unknown[]).includes(d))
+    ) {
+      return undefined;
+    }
+    const typedState = state as MediaStreamingState;
+    const typedDirections = directions as MediaDirection[];
+    return {
+      cls: "UpdateContactMediaStreamingBehavior",
+      entries: [
+        ["id", a.Identifier],
+        ["state", typedState],
+        ["directions", new ArrV([...typedDirections])],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      // The constructor refuses an empty or repeated list, which the
+      // inversion then reports as inexpressible.
+      block: new UpdateContactMediaStreamingBehavior({
+        id: a.Identifier,
+        state: typedState,
+        directions: typedDirections,
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
+
+  // The chat processor's enabled and disabled forms, with both of the
+  // page's errors in its order. The Lambda is a token only ("Must be set
+  // statically"): a JSONPath or a literal ARN stays generic, and so does
+  // an enabled form without a Lambda, which the class refuses.
+  [ActionType.UpdateContactMediaProcessing]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const errors = t.Errors ?? [];
+    if (
+      errors.length !== 2 ||
+      errors[0]!.ErrorType !== NO_MATCHING_ERROR ||
+      errors[1]!.ErrorType !== CHANNEL_MISMATCH
+    ) {
+      return undefined;
+    }
+    if (!paramKeysAre(a.Parameters, ["ChatProcessor"])) return undefined;
+    const cp = a.Parameters.ChatProcessor as Record<string, unknown> | null;
+    if (cp === null || typeof cp !== "object" || Array.isArray(cp)) return undefined;
+    if (!paramKeysAre(cp, ["ProcessingEnabled"], ["LambdaProcessorARN", "ChatProcessorSettings"])) {
+      return undefined;
+    }
+    const flag = (v: unknown): boolean | undefined =>
+      v === "True" ? true : v === "False" ? false : undefined;
+    const enabled = flag(cp.ProcessingEnabled);
+    if (enabled === undefined) return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["enabled", enabled],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, enabled };
+    if (cp.LambdaProcessorARN !== undefined) {
+      const arn = cp.LambdaProcessorARN;
+      if (typeof arn !== "string" || parseToken(arn)?.type !== "lambda") return undefined;
+      const ref = refSource(cp.LambdaProcessorARN, "lambda", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["lambda", ref]);
+      config.lambda = cp.LambdaProcessorARN;
+    }
+    if (cp.ChatProcessorSettings !== undefined) {
+      const settings = cp.ChatProcessorSettings as Record<string, unknown> | null;
+      if (settings === null || typeof settings !== "object" || Array.isArray(settings)) {
+        return undefined;
+      }
+      if (!paramKeysAre(settings, ["DeliverUnprocessedMessages"])) return undefined;
+      const deliver = flag(settings.DeliverUnprocessedMessages);
+      if (deliver === undefined) return undefined;
+      entries.push(["deliverUnprocessedMessages", deliver]);
+      config.deliverUnprocessedMessages = deliver;
+    }
+    entries.push(
+      ["next", t.NextAction],
+      ["onError", errors[0]!.NextAction],
+      ["onChannelMismatch", errors[1]!.NextAction],
+    );
+    return {
+      cls: "UpdateContactMediaProcessing",
+      entries,
+      block: new UpdateContactMediaProcessing(
+        cast<never>({
+          ...config,
+          next: t.NextAction,
+          onError: errors[0]!.NextAction,
+          onChannelMismatch: errors[1]!.NextAction,
+        }),
+      ),
     };
   },
 

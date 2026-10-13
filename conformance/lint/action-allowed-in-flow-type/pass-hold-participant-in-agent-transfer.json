@@ -1,0 +1,47 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "transfer-hold",
+  "description": "Hold customer or agent in a transfer to agent flow, which the action page allows.",
+  "connectType": "AGENT_TRANSFER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "hold-agent",
+    "Actions": [
+      {
+        "Identifier": "hold-agent",
+        "Type": "UpdatePreviousContactParticipantState",
+        "Parameters": {
+          "PreviousContactParticipantState": "AgentOnHold"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "hold-agent": {
+      "x": 0,
+      "y": 0
+    },
+    "bye": {
+      "x": 200,
+      "y": 0
+    }
+  },
+  "refs": []
+}

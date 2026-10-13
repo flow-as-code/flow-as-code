@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { appointmentLine } from "./__fixtures__/appointment-line.js";
 import type {
   DtmfBranch,
+  FlowDoc,
   GetParticipantInputConfig,
   InvokeLambdaFunctionConfig,
   MessageParticipantConfig,
@@ -44,6 +45,7 @@ import {
   NO_MATCHING_ERROR,
   parseToken,
   Refs,
+  ResumeContact,
   serialize,
   serializeContent,
   ShowView,
@@ -54,12 +56,15 @@ import {
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
+  UpdateContactMediaProcessing,
+  UpdateContactMediaStreamingBehavior,
   UpdateContactRecordingAndAnalyticsBehavior,
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTextToSpeechVoice,
   UpdateFlowAttributes,
   UpdateFlowLoggingBehavior,
+  UpdatePreviousContactParticipantState,
   Wait,
   WITHOUT_CATCH_ALL,
 } from "./index.js";
@@ -1430,5 +1435,193 @@ describe("module Settings", () => {
     const doc = synth(mod());
     delete doc.content.Settings;
     expect(materializeWithMap(doc, {}).Settings).toEqual({});
+  });
+});
+
+// conformance/roundtrip/contact-state, built with the typed builder: each
+// contact-state class writes exactly the fixture's bytes (tasks/D02).
+describe("the contact-state actions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/contact-state/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the contact-state fixture", () => {
+    const flow = new Flow({
+      name: "contact-state",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new UpdatePreviousContactParticipantState({
+        id: "hold-agent",
+        state: "AgentOnHold",
+        next: "hold-customer",
+        onError: "bye",
+      }),
+      new UpdatePreviousContactParticipantState({
+        id: "hold-customer",
+        state: "CustomerOnHold",
+        next: "conference",
+        onError: "bye",
+      }),
+      new UpdatePreviousContactParticipantState({
+        id: "conference",
+        state: "OffHold",
+        next: "start-stream",
+        onError: "bye",
+      }),
+      new UpdateContactMediaStreamingBehavior({
+        id: "start-stream",
+        state: "Enabled",
+        directions: ["From", "To"],
+        next: "stream-from-customer",
+        onError: "bye",
+      }),
+      new UpdateContactMediaStreamingBehavior({
+        id: "stream-from-customer",
+        state: "Enabled",
+        directions: ["From"],
+        next: "stop-stream",
+        onError: "bye",
+      }),
+      new UpdateContactMediaStreamingBehavior({
+        id: "stop-stream",
+        state: "Disabled",
+        directions: ["From", "To"],
+        next: "process-messages",
+        onError: "bye",
+      }),
+      new UpdateContactMediaProcessing({
+        id: "process-messages",
+        enabled: true,
+        lambda: Refs.lambda("message-redactor"),
+        deliverUnprocessedMessages: true,
+        next: "process-strictly",
+        onError: "bye",
+        onChannelMismatch: "process-strictly",
+      }),
+      new UpdateContactMediaProcessing({
+        id: "process-strictly",
+        enabled: true,
+        lambda: Refs.lambda("message-redactor"),
+        deliverUnprocessedMessages: false,
+        next: "stop-processing",
+        onError: "bye",
+        onChannelMismatch: "stop-processing",
+      }),
+      new UpdateContactMediaProcessing({
+        id: "stop-processing",
+        enabled: false,
+        next: "resume-task",
+        onError: "bye",
+        onChannelMismatch: "resume-task",
+      }),
+      new ResumeContact({ id: "resume-task", next: "bye", onError: "bye" }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write ResumeContact with no parameters and the catch-all", () => {
+    expect(new ResumeContact({ id: "r", next: "n", onError: "e" }).toAction()).toEqual({
+      Identifier: "r",
+      Type: "ResumeContact",
+      Parameters: {},
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuse a previous-participant state the page does not list", () => {
+    expect(
+      () =>
+        new UpdatePreviousContactParticipantState({
+          id: "hold",
+          state: cast<never>("OnHold"),
+          next: "n",
+          onError: "e",
+        }),
+    ).toThrow(/must be one of AgentOnHold, CustomerOnHold, OffHold/);
+  });
+
+  it("write media streaming for the customer's audio and refuse an empty or repeated direction", () => {
+    expect(
+      new UpdateContactMediaStreamingBehavior({
+        id: "s",
+        state: "Enabled",
+        directions: ["To"],
+        next: "n",
+        onError: "e",
+      }).toAction().Parameters,
+    ).toEqual({
+      MediaStreamingState: "Enabled",
+      Participants: [{ ParticipantType: "Customer", MediaDirections: ["To"] }],
+      MediaStreamType: "Audio",
+    });
+    const make = (directions: unknown, state: unknown = "Enabled") =>
+      new UpdateContactMediaStreamingBehavior({
+        id: "s",
+        state: cast<never>(state),
+        directions: cast<never>(directions),
+        next: "n",
+        onError: "e",
+      });
+    expect(() => make([])).toThrow(/directions must name From, To or both/);
+    expect(() => make(["From", "From"])).toThrow(/directions must name From, To or both/);
+    expect(() => make(["Both"])).toThrow(/directions must name From, To or both/);
+    expect(() => make(["From"], "Paused")).toThrow(/state must be Enabled or Disabled/);
+  });
+
+  it("write the chat processor in the page's shape, its Lambda a reference, and refuse it enabled without one", () => {
+    expect(
+      new UpdateContactMediaProcessing({
+        id: "p",
+        enabled: true,
+        lambda: Refs.lambda("redactor"),
+        next: "n",
+        onError: "e",
+        onChannelMismatch: "c",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "p",
+      Type: "UpdateContactMediaProcessing",
+      Parameters: {
+        ChatProcessor: {
+          ProcessingEnabled: "True",
+          LambdaProcessorARN: "${cdref:lambda:redactor}",
+        },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+          { ErrorType: "ChannelMismatch", NextAction: "c" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      () =>
+        new UpdateContactMediaProcessing({
+          id: "p",
+          enabled: true,
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "c",
+        }),
+    ).toThrow(/needs a lambda when processing is enabled/);
+    expect(
+      () =>
+        new UpdateContactMediaProcessing({
+          id: "p",
+          enabled: cast<never>("True"),
+          next: "n",
+          onError: "e",
+          onChannelMismatch: "c",
+        }),
+    ).toThrow(/enabled must be a boolean/);
   });
 });

@@ -1,0 +1,43 @@
+{
+  "description": "Rule 41: in an agent whisper flow, which both pages allow.",
+  "type": "AGENT_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamingState": "Enabled",
+          "Participants": [
+            {
+              "ParticipantType": "Customer",
+              "MediaDirections": [
+                "From",
+                "To"
+              ]
+            }
+          ],
+          "MediaStreamType": "Audio"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

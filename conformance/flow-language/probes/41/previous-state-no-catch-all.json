@@ -1,0 +1,28 @@
+{
+  "description": "Rule 41: the same with Errors empty, NoMatchingError removed alone.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdatePreviousContactParticipantState",
+        "Parameters": {
+          "PreviousContactParticipantState": "AgentOnHold"
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

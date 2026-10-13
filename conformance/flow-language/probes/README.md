@@ -17,6 +17,12 @@ the number when the rule lands: `d08-voice-id` is such a set, because its
 rule is D08's to write and the numbers free when it was recorded (39, 40)
 went to C04's stored-input rule and D00's census.
 
+A set written before it can be run (its sandbox prerequisites not yet in
+place) carries `PENDING.md` instead of a results file, saying why and what
+the run needs; `tests/probeCreate.test.ts` holds every set to one or the
+other, and the file is removed by the run that writes the results. `41`,
+the contact-state set (tasks/D02), is the first.
+
 A results file is `results.json`, or `results-<run>.json` with the UTC date
 and the Region in the name (`results-2026-10-05-us-west-2.json`) when a set
 is run more than once; the runner's `--results <file>` names it, and reads

@@ -1534,6 +1534,131 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdatePreviousContactParticipantState"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PreviousContactParticipantState": {
+                    "enum": [
+                      "AgentOnHold",
+                      "CustomerOnHold",
+                      "OffHold"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactMediaStreamingBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "MediaStreamingState": {
+                    "enum": [
+                      "Enabled",
+                      "Disabled"
+                    ]
+                  },
+                  "Participants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "ParticipantType": {
+                          "enum": [
+                            "Customer"
+                          ]
+                        },
+                        "MediaDirections": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "From",
+                              "To"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "MediaStreamType": {
+                    "enum": [
+                      "Audio"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactMediaProcessing"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ChatProcessor": {
+                    "type": "object",
+                    "properties": {
+                      "ProcessingEnabled": {
+                        "enum": [
+                          "True",
+                          "False"
+                        ]
+                      },
+                      "LambdaProcessorARN": {
+                        "$ref": "#/$defs/token"
+                      },
+                      "ChatProcessorSettings": {
+                        "type": "object",
+                        "properties": {
+                          "DeliverUnprocessedMessages": {
+                            "enum": [
+                              "True",
+                              "False"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

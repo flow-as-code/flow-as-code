@@ -1,0 +1,40 @@
+{
+  "description": "Rule 41: ResumeContact in a customer hold flow, one of the flow types the admin guide's \"all flow types\" covers and no other probe does.",
+  "type": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "ResumeContact",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "Text": "Please hold."
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      }
+    ]
+  }
+}

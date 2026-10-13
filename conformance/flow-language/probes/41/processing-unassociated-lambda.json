@@ -1,0 +1,43 @@
+{
+  "description": "Rule 41: a LambdaProcessorARN the instance has not associated as MESSAGE_PROCESSOR, to learn whether the create validates the association.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ProcessingEnabled": "True",
+            "LambdaProcessorARN": "arn:aws:lambda:{{REGION}}:{{ACCOUNT}}:function:{{UNASSOCIATED_LAMBDA_NAME}}",
+            "ChatProcessorSettings": {
+              "DeliverUnprocessedMessages": "True"
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

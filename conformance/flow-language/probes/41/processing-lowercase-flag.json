@@ -1,0 +1,43 @@
+{
+  "description": "Rule 41: ProcessingEnabled spelled \"true\", outside the page's \"True\" or \"False\"; a refusal keeps the enum in the 0.3 schema clause (owner decision 3).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ProcessingEnabled": "true",
+            "LambdaProcessorARN": "arn:aws:lambda:{{REGION}}:{{ACCOUNT}}:function:{{MESSAGE_PROCESSOR_NAME}}",
+            "ChatProcessorSettings": {
+              "DeliverUnprocessedMessages": "True"
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

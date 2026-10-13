@@ -1,0 +1,43 @@
+{
+  "description": "Rule 41: ParticipantType Agent, which the page says is not supported (\"only Customer\"); a refusal keeps the enum in the 0.3 schema clause.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaStreamingBehavior",
+        "Parameters": {
+          "MediaStreamingState": "Enabled",
+          "Participants": [
+            {
+              "ParticipantType": "Agent",
+              "MediaDirections": [
+                "From",
+                "To"
+              ]
+            }
+          ],
+          "MediaStreamType": "Audio"
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

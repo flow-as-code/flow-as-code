@@ -136,6 +136,10 @@ describe("addBlock", () => {
       "ShowView",
       "UpdateContactRecordingAndAnalyticsBehavior",
       "UpdateFlowLoggingBehavior",
+      "ResumeContact",
+      "UpdatePreviousContactParticipantState",
+      "UpdateContactMediaStreamingBehavior",
+      "UpdateContactMediaProcessing",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

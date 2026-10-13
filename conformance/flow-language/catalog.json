@@ -651,12 +651,167 @@
     "UpdateContactMediaProcessing": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_media_processing",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "channels": [
+        "CHAT"
+      ],
+      "parameters": [
+        {
+          "key": "ChatProcessor",
+          "attr": "chat_processor",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "ProcessingEnabled",
+              "attr": "processing_enabled",
+              "kind": "enum",
+              "required": true,
+              "values": [
+                "True",
+                "False"
+              ]
+            },
+            {
+              "key": "LambdaProcessorARN",
+              "attr": "lambda_processor_arn",
+              "kind": "ref",
+              "required": false,
+              "ref": "lambda"
+            },
+            {
+              "key": "ChatProcessorSettings",
+              "attr": "chat_processor_settings",
+              "kind": "object",
+              "required": false,
+              "fields": [
+                {
+                  "key": "DeliverUnprocessedMessages",
+                  "attr": "deliver_unprocessed_messages",
+                  "kind": "enum",
+                  "required": true,
+                  "values": [
+                    "True",
+                    "False"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "ChatProcessor.LambdaProcessorARN",
+          "ref": "lambda"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          },
+          {
+            "type": "ChannelMismatch",
+            "required": false,
+            "builder": true,
+            "when": "the contact's channel is not chat; the page does not say it must be defined, and rule 41's probe decides whether the service requires it"
+          }
+        ]
+      }
     },
     "UpdateContactMediaStreamingBehavior": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_contact_media_streaming_behavior",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_WHISPER",
+        "AGENT_WHISPER",
+        "OUTBOUND_WHISPER",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "MediaStreamingState",
+          "attr": "media_streaming_state",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "Enabled",
+            "Disabled"
+          ]
+        },
+        {
+          "key": "Participants",
+          "attr": "participants",
+          "kind": "list",
+          "required": true,
+          "of": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "ParticipantType",
+                "attr": "participant_type",
+                "kind": "enum",
+                "required": true,
+                "values": [
+                  "Customer"
+                ]
+              },
+              {
+                "key": "MediaDirections",
+                "attr": "media_directions",
+                "kind": "list",
+                "required": true,
+                "of": {
+                  "kind": "enum",
+                  "values": [
+                    "From",
+                    "To"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "MediaStreamType",
+          "attr": "media_stream_type",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "Audio"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateContactRecordingAndAnalyticsBehavior": {
       "category": "contact",
@@ -850,7 +1005,26 @@
     "ResumeContact": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html",
-      "modeled": false
+      "modeled": true,
+      "block": "resume_contact",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "channels": [
+        "TASK"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "UpdateContactRoutingBehavior": {
       "category": "contact",
@@ -1007,7 +1181,43 @@
     "UpdatePreviousContactParticipantState": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_previous_contact_participant_state",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "PreviousContactParticipantState",
+          "attr": "previous_contact_participant_state",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "AgentOnHold",
+            "CustomerOnHold",
+            "OffHold"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "ConnectParticipantWithLexBot": {
       "category": "participant",

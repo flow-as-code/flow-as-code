@@ -2559,3 +2559,223 @@ describe("conformance/export goldens", () => {
     expect(await prettier.format(source, { ...config, parser: "typescript" })).toBe(source);
   });
 });
+
+describe("ResumeContact inverts its one shape", () => {
+  const action = (): FlowAction => ({
+    Identifier: "resume-task",
+    Type: "ResumeContact",
+    Parameters: {},
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "ResumeContact"');
+    expect(out).not.toContain("new ResumeContact(");
+  };
+
+  it("emits the class with its next and catch-all", () => {
+    const out = codegen(docWith([action(), bye]));
+    expect(out).toContain("new ResumeContact({");
+    expect(out).toContain('next: "bye"');
+    expect(out).toContain('onError: "bye"');
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("falls back on a parameter, a missing next or catch-all, a second error, or a condition", () => {
+    const withParam = action();
+    withParam.Parameters.ContactId = "$.ContactId";
+    generic(withParam);
+    const noNext = action();
+    delete noNext.Transitions.NextAction;
+    generic(noNext);
+    const noError = action();
+    noError.Transitions.Errors = [];
+    generic(noError);
+    const twoErrors = action();
+    twoErrors.Transitions.Errors!.push({ ErrorType: "ChannelMismatch", NextAction: "bye" });
+    generic(twoErrors);
+    const withCondition = action();
+    withCondition.Transitions.Conditions = [
+      { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["Resumed"] } },
+    ];
+    generic(withCondition);
+    // The terminal shape the passthrough fixture once gave the type.
+    generic({ ...action(), Transitions: {} });
+  });
+});
+
+describe("UpdatePreviousContactParticipantState inverts each of its three states", () => {
+  const action = (state: unknown): FlowAction => ({
+    Identifier: "hold-agent",
+    Type: "UpdatePreviousContactParticipantState",
+    Parameters: { PreviousContactParticipantState: state },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdatePreviousContactParticipantState"');
+    expect(out).not.toContain("new UpdatePreviousContactParticipantState(");
+  };
+
+  it.each(["AgentOnHold", "CustomerOnHold", "OffHold"])("emits the class for %s", (state) => {
+    const out = codegen(docWith([action(state), bye]));
+    expect(out).toContain("new UpdatePreviousContactParticipantState({");
+    expect(out).toContain(`state: "${state}"`);
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("falls back on another value, a JSONPath, a missing catch-all, or an extra key", () => {
+    generic(action("OnHold"));
+    generic(action("$.Attributes.holdState"));
+    const noError = action("OffHold");
+    noError.Transitions.Errors = [];
+    generic(noError);
+    const extra = action("OffHold");
+    extra.Parameters.TargetContact = "Current";
+    generic(extra);
+  });
+});
+
+describe("UpdateContactMediaStreamingBehavior inverts the start and stop forms", () => {
+  const stream = (state: unknown, directions: unknown): Record<string, unknown> => ({
+    MediaStreamingState: state,
+    Participants: [{ ParticipantType: "Customer", MediaDirections: directions }],
+    MediaStreamType: "Audio",
+  });
+  const action = (parameters: Record<string, unknown>): FlowAction => ({
+    Identifier: "stream",
+    Type: "UpdateContactMediaStreamingBehavior",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactMediaStreamingBehavior"');
+    expect(out).not.toContain("new UpdateContactMediaStreamingBehavior(");
+  };
+
+  it("emits the class for each state and each set of directions", () => {
+    const out = codegen(docWith([action(stream("Enabled", ["From", "To"])), bye]));
+    expect(out).toContain("new UpdateContactMediaStreamingBehavior({");
+    expect(out).toContain('state: "Enabled"');
+    expect(out).toContain('directions: ["From", "To"]');
+    expect(out).not.toContain("GenericBlock");
+    expect(codegen(docWith([action(stream("Disabled", ["To"])), bye]))).toContain(
+      'directions: ["To"]',
+    );
+  });
+
+  it("falls back on the forms the class does not write", () => {
+    generic(action(stream("Paused", ["From"])));
+    generic(action(stream("$.Attributes.streaming", ["From"])));
+    generic(action(stream("Enabled", [])));
+    generic(action(stream("Enabled", ["From", "From"])));
+    generic(action(stream("Enabled", ["Both"])));
+    generic(action({ ...stream("Enabled", ["From"]), MediaStreamType: "Video" }));
+    generic(action({ MediaStreamingState: "Disabled" }));
+    const agent = stream("Enabled", ["From"]);
+    agent.Participants = [{ ParticipantType: "Agent", MediaDirections: ["From"] }];
+    generic(action(agent));
+    const two = stream("Enabled", ["From"]);
+    two.Participants = [
+      { ParticipantType: "Customer", MediaDirections: ["From"] },
+      { ParticipantType: "Customer", MediaDirections: ["To"] },
+    ];
+    generic(action(two));
+    const extraKey = stream("Enabled", ["From"]);
+    (extraKey.Participants as Record<string, unknown>[])[0]!.Track = "1";
+    generic(action(extraKey));
+  });
+});
+
+describe("UpdateContactMediaProcessing inverts the enabled and disabled chat processor", () => {
+  const action = (
+    processor: Record<string, unknown>,
+    errors = ["NoMatchingError", "ChannelMismatch"],
+  ): FlowAction => ({
+    Identifier: "process",
+    Type: "UpdateContactMediaProcessing",
+    Parameters: { ChatProcessor: processor },
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "UpdateContactMediaProcessing"');
+    expect(out).not.toContain("new UpdateContactMediaProcessing(");
+  };
+  const enabled = {
+    ProcessingEnabled: "True",
+    LambdaProcessorARN: "${cdref:lambda:redactor}",
+    ChatProcessorSettings: { DeliverUnprocessedMessages: "False" },
+  };
+
+  it("emits the class with the Lambda as a reference", () => {
+    const out = codegen(docWith([action(enabled), bye]));
+    expect(out).toContain("new UpdateContactMediaProcessing({");
+    expect(out).toContain("enabled: true");
+    expect(out).toContain('lambda: Refs.lambda("redactor")');
+    expect(out).toContain("deliverUnprocessedMessages: false");
+    expect(out).toContain('onChannelMismatch: "bye"');
+    expect(out).not.toContain("GenericBlock");
+    const off = codegen(docWith([action({ ProcessingEnabled: "False" }), bye]));
+    expect(off).toContain("enabled: false");
+    expect(off).not.toContain("lambda:");
+  });
+
+  it("falls back on a JSONPath or literal Lambda, a missing Lambda, a bad flag, or the errors out of shape", () => {
+    generic(action({ ...enabled, LambdaProcessorARN: "$.Attributes.processor" }));
+    generic(
+      action({
+        ...enabled,
+        LambdaProcessorARN: "arn:aws:lambda:us-east-1:111122223333:function:redactor",
+      }),
+    );
+    generic(action({ ...enabled, LambdaProcessorARN: "${cdref:queue:redactor}" }));
+    generic(action({ ProcessingEnabled: "True" }));
+    generic(action({ ...enabled, ProcessingEnabled: "true" }));
+    generic(action({ ...enabled, ChatProcessorSettings: { DeliverUnprocessedMessages: "Yes" } }));
+    generic(action({ ...enabled, Extra: "1" }));
+    generic(action(enabled, ["NoMatchingError"]));
+    generic(action(enabled, ["ChannelMismatch", "NoMatchingError"]));
+  });
+});

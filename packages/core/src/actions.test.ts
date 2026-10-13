@@ -26,13 +26,17 @@ import {
 const RULE = "action-allowed-in-flow-type";
 
 /**
- * Transcribed from the Restrictions section of the two pages that name a
- * channel; the URLs are in actions.ts beside each entry. Spelled out so that
- * deleting or widening an entry fails here.
+ * Transcribed from the pages that name a channel (ResumeContact's from its
+ * admin guide block page); the URLs are in actions.ts beside each entry.
+ * Spelled out so that deleting or widening an entry fails here.
  */
 const EXPECTED_CHANNELS: Record<string, string[]> = {
   Wait: ["CHAT"],
   ShowView: ["CHAT"],
+  ResumeContact: ["TASK"],
+  UpdatePreviousContactParticipantState: ["VOICE"],
+  UpdateContactMediaStreamingBehavior: ["VOICE"],
+  UpdateContactMediaProcessing: ["CHAT"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -140,6 +144,22 @@ const EXPECTED: Record<string, string[]> = {
     "CUSTOMER_QUEUE",
     "MODULE",
   ],
+  UpdatePreviousContactParticipantState: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "MODULE",
+  ],
+  UpdateContactMediaStreamingBehavior: [
+    "CONTACT_FLOW",
+    "CUSTOMER_QUEUE",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_WHISPER",
+    "AGENT_WHISPER",
+    "OUTBOUND_WHISPER",
+    "MODULE",
+  ],
 };
 
 function docWith(type: string, connectType: ConnectType): FlowDoc {
@@ -177,11 +197,13 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "GetMetricData",
       "InvokeLambdaFunction",
       "Loop",
+      "ResumeContact",
       "TagContact",
       "UntagContact",
       "UpdateContactAttributes",
       "UpdateContactData",
       "UpdateContactEventHooks",
+      "UpdateContactMediaProcessing",
       "UpdateContactRecordingAndAnalyticsBehavior",
       "UpdateContactTextToSpeechVoice",
       "UpdateFlowAttributes",

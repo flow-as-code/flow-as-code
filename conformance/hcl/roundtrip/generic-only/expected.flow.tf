@@ -13,7 +13,7 @@ resource "flowascode_contact_flow" "unknown_actions" {
 
   action {
     id   = "create-task"
-    next = "resume-participant"
+    next = "load-content"
     generic {
       type = "CreateTask"
       parameters = jsonencode({
@@ -33,12 +33,12 @@ resource "flowascode_contact_flow" "unknown_actions" {
   }
 
   action {
-    id   = "resume-participant"
+    id   = "load-content"
     next = "transfer-third-party"
     generic {
-      type = "UpdatePreviousContactParticipantState"
+      type = "LoadContactContent"
       parameters = jsonencode({
-        PreviousContactParticipantState = "OffHold"
+        ContentType = "EmailMessage"
       })
     }
     error {
@@ -73,9 +73,14 @@ resource "flowascode_contact_flow" "unknown_actions" {
   }
 
   action {
-    id = "hand-off"
+    id   = "hand-off"
+    next = "load-content"
     generic {
-      type = "ResumeContact"
+      type = "StartVoiceIdStream"
+    }
+    error {
+      type = "NoMatchingError"
+      next = "load-content"
     }
   }
 }

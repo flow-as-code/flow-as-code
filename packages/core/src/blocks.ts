@@ -39,6 +39,8 @@ import {
   LOOP_COUNT_MIN,
   LOOP_DONE,
   LAMBDA_TIMEOUT_MIN,
+  MEDIA_DIRECTIONS,
+  MEDIA_STREAMING_STATES,
   MESSAGES_INTERRUPTED,
   METRIC_OPERATORS,
   METRIC_TYPES,
@@ -47,6 +49,7 @@ import {
   PARTICIPANT_NOT_FOUND,
   PERCENTAGE_FLOOR,
   PERCENTAGE_THRESHOLD_MAX,
+  PREVIOUS_PARTICIPANT_STATES,
   QUEUE_PRIORITY_MIN,
   SYSTEM_TAG_PREFIX,
   VOICE_ID_RESPONSE_TIME_MAX,
@@ -63,8 +66,11 @@ import {
 import type {
   DtmfDigit,
   EventHook,
+  MediaDirection,
+  MediaStreamingState,
   MetricOperator,
   MetricType,
+  PreviousParticipantState,
   QueueChannel,
   TargetContact,
   TtsEngine,
@@ -1895,6 +1901,205 @@ export class UpdateContactRecordingAndAnalyticsBehavior extends Block {
   }
 }
 
+/**
+ * "Resumes a contact from a paused state." No parameters, results "None.",
+ * one error, "NoMatchingError - if no other Error matches", and no
+ * restriction on the action page ("None. This action can be used
+ * everywhere."). The admin guide's Resume contact block resumes a paused
+ * task and routes voice, chat and email down its Error branch, which the
+ * catalog records as the channel restriction; its configured block has an
+ * Error branch beside the path a resumed task takes, written here as the
+ * block's own NextAction. That the service refuses the block without
+ * NextAction or without the catch-all is rule 41's to settle (probe pending).
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+ */
+export interface ResumeContactConfig {
+  id: string;
+  next: Target;
+  onError: Target;
+}
+
+export class ResumeContact extends Block {
+  readonly type = ActionType.ResumeContact;
+
+  constructor(private readonly config: ResumeContactConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
+ * Puts the contact's previous participants on or off hold: "primarily used
+ * to prevent previous participants on the contact from observing the
+ * contact", such as putting the agent on hold while a quick connect
+ * gathers card numbers. One parameter, `PreviousContactParticipantState`:
+ * AgentOnHold, CustomerOnHold or OffHold (the console's Conference all),
+ * "only supported for voice contacts". Results "None."; one error, the
+ * catch-all. Restricted to inbound and transfer flows by the action page;
+ * the admin guide's block adds the outbound whisper flow, which rule 41's
+ * probe settles. The admin guide's configured block has Success and Error
+ * branches, written as NextAction and the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+ */
+export interface UpdatePreviousContactParticipantStateConfig extends Wired {
+  state: PreviousParticipantState;
+}
+
+export class UpdatePreviousContactParticipantState extends Block {
+  readonly type = ActionType.UpdatePreviousContactParticipantState;
+
+  constructor(private readonly config: UpdatePreviousContactParticipantStateConfig) {
+    super(config.id);
+    if (!PREVIOUS_PARTICIPANT_STATES.includes(config.state)) {
+      throw new Error(
+        `UpdatePreviousContactParticipantState "${config.id}" state must be one of ${PREVIOUS_PARTICIPANT_STATES.join(", ")}, got ${String(config.state)}.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { PreviousContactParticipantState: this.config.state };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
+ * "Enables or disables contact media streaming for a set of participants":
+ * the console's Start media streaming and Stop media streaming blocks.
+ * `state` is MediaStreamingState, Enabled or Disabled; `directions` is the
+ * customer's MediaDirections, From (what the customer says) and To (what
+ * the customer hears), the console's two checkboxes. The page's one
+ * participant type and one stream type ("Currently, only "Customer"",
+ * "only "Audio"") are written by the class, not configured. The page shows
+ * the same three keys for disabling ("or disable if disabling the stream"),
+ * so the Stop form carries them too; whether the service takes the Stop
+ * form with MediaStreamingState alone is rule 41's `stream-stop-bare`
+ * probe. Results "None."; one error, the catch-all; voice only; contact,
+ * customer queue, transfer and whisper flows, not hold flows. The live
+ * media streaming feature must be enabled on the instance for audio to be
+ * captured.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/stop-media-streaming.html
+ */
+export interface UpdateContactMediaStreamingBehaviorConfig extends Wired {
+  state: MediaStreamingState;
+  directions: MediaDirection[];
+}
+
+export class UpdateContactMediaStreamingBehavior extends Block {
+  readonly type = ActionType.UpdateContactMediaStreamingBehavior;
+
+  constructor(private readonly config: UpdateContactMediaStreamingBehaviorConfig) {
+    super(config.id);
+    if (!MEDIA_STREAMING_STATES.includes(config.state)) {
+      throw new Error(
+        `UpdateContactMediaStreamingBehavior "${config.id}" state must be Enabled or Disabled, got ${String(config.state)}.`,
+      );
+    }
+    const d = config.directions;
+    if (
+      !Array.isArray(d) ||
+      d.length === 0 ||
+      new Set(d).size !== d.length ||
+      !d.every((x) => MEDIA_DIRECTIONS.includes(x))
+    ) {
+      throw new Error(
+        `UpdateContactMediaStreamingBehavior "${config.id}" directions must name From, To or both, once each.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {
+      MediaStreamingState: this.config.state,
+      Participants: [{ ParticipantType: "Customer", MediaDirections: this.config.directions }],
+      MediaStreamType: "Audio",
+    };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
+ * The Set message processor action of the console's Set recording,
+ * analytics and processing behavior block: "Allows customers to configure
+ * their own Lambda processor, which will be applied to in-flight messages."
+ * One object, `ChatProcessor`: `ProcessingEnabled` ("True" or "False"),
+ * `LambdaProcessorARN` ("The ARN of the Lambda function to process chat
+ * messages. Must be set statically.", here a `lambda` reference and never a
+ * literal ARN or a JSONPath) and `ChatProcessorSettings.DeliverUnprocessedMessages`
+ * ("Determines whether to deliver messages that fail Lambda processing"),
+ * each static. The function must be associated with the instance as a
+ * MESSAGE_PROCESSOR (CreateIntegrationAssociation); whether the create
+ * checks that is rule 41's to learn. The class requires `lambda` when
+ * `enabled` is true, as the console's Function ARN field is part of the
+ * enabled form; the disabled form writes only ProcessingEnabled unless the
+ * others are given. Errors in the page's order, the catch-all ("Must always
+ * be defined") and ChannelMismatch (the contact is not chat, "only chat is
+ * supported"); the admin guide's configured block has Success, Error and
+ * Channel mismatch branches, so the class wires all three. No Restrictions
+ * section; chat only.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+ */
+export interface UpdateContactMediaProcessingConfig extends Wired {
+  enabled: boolean;
+  lambda?: Ref<"lambda">;
+  deliverUnprocessedMessages?: boolean;
+  onChannelMismatch: Target;
+}
+
+export class UpdateContactMediaProcessing extends Block {
+  readonly type = ActionType.UpdateContactMediaProcessing;
+
+  constructor(private readonly config: UpdateContactMediaProcessingConfig) {
+    super(config.id);
+    if (typeof config.enabled !== "boolean") {
+      throw new Error(`UpdateContactMediaProcessing "${config.id}" enabled must be a boolean.`);
+    }
+    if (config.enabled && config.lambda === undefined) {
+      throw new Error(
+        `UpdateContactMediaProcessing "${config.id}" needs a lambda when processing is enabled.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const processor: Record<string, unknown> = {
+      ProcessingEnabled: this.config.enabled ? "True" : "False",
+    };
+    if (this.config.lambda !== undefined) processor.LambdaProcessorARN = this.config.lambda;
+    if (this.config.deliverUnprocessedMessages !== undefined) {
+      processor.ChatProcessorSettings = {
+        DeliverUnprocessedMessages: this.config.deliverUnprocessedMessages ? "True" : "False",
+      };
+    }
+    return { ChatProcessor: processor };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [
+      [NO_MATCHING_ERROR, this.config.onError],
+      [CHANNEL_MISMATCH, this.config.onChannelMismatch],
+    ]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2093,7 +2298,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 35.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 39.
  */
 export interface GenericBlockConfig {
   id: string;

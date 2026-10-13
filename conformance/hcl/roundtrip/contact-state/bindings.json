@@ -1,0 +1,3 @@
+{
+  "lambda:message-redactor": "aws_lambda_function.message_redactor.arn"
+}

@@ -1,0 +1,44 @@
+{
+  "description": "Rule 41: in a flow module; the page has no Restrictions section.",
+  "type": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ProcessingEnabled": "True",
+            "LambdaProcessorARN": "arn:aws:lambda:{{REGION}}:{{ACCOUNT}}:function:{{MESSAGE_PROCESSOR_NAME}}",
+            "ChatProcessorSettings": {
+              "DeliverUnprocessedMessages": "True"
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

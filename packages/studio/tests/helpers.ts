@@ -167,18 +167,20 @@ export function detachableDoc(): FlowDoc {
       Version: "2019-10-30",
       StartAction: "raw-a",
       Actions: [
-        // A type the builder does not model (it modeled the logging block
-        // these carried until 2026-09-11), in the console's shape.
+        // A type the builder does not model, in the shape of the admin
+        // guide's Flow language example. These carried the logging block
+        // until 2026-09-11 and UpdatePreviousContactParticipantState until
+        // 2026-10-12 (tasks/D02), each moved when the builder modeled it.
         {
           Identifier: "raw-a",
-          Type: "UpdatePreviousContactParticipantState",
-          Parameters: { PreviousContactParticipantState: "OffHold" },
+          Type: "LoadContactContent",
+          Parameters: { ContentType: "EmailMessage" },
           Transitions: { NextAction: "target", Errors: [], Conditions: [] },
         },
         {
           Identifier: "raw-b",
-          Type: "UpdatePreviousContactParticipantState",
-          Parameters: { PreviousContactParticipantState: "OnHold" },
+          Type: "LoadContactContent",
+          Parameters: { ContentType: "EmailMessage" },
           Transitions: {
             NextAction: "raw-a",
             Errors: [{ ErrorType: "NoMatchingError", NextAction: "target" }],

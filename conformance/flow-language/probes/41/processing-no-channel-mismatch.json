@@ -1,0 +1,39 @@
+{
+  "description": "Rule 41: the same with ChannelMismatch removed alone; the page does not say it must be defined, and a refusal makes it required, as on the recording action (rule 35).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateContactMediaProcessing",
+        "Parameters": {
+          "ChatProcessor": {
+            "ProcessingEnabled": "True",
+            "LambdaProcessorARN": "arn:aws:lambda:{{REGION}}:{{ACCOUNT}}:function:{{MESSAGE_PROCESSOR_NAME}}",
+            "ChatProcessorSettings": {
+              "DeliverUnprocessedMessages": "True"
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "disconnect"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

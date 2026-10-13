@@ -1,0 +1,58 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "record-calls",
+  "description": "Set recording and analytics behavior, the other action of the console block that holds Set message processor, names no channel restriction, so it is not reported where the processor is.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "record-voice",
+    "Actions": [
+      {
+        "Identifier": "record-voice",
+        "Type": "UpdateContactRecordingAndAnalyticsBehavior",
+        "Parameters": {
+          "VoiceBehavior": {
+            "VoiceRecordingBehavior": {
+              "RecordedParticipants": [
+                "Agent",
+                "Customer"
+              ]
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "ChannelMismatch",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "record-voice": {
+      "x": 0,
+      "y": 0
+    },
+    "bye": {
+      "x": 200,
+      "y": 0
+    }
+  },
+  "refs": []
+}

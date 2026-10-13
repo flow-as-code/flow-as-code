@@ -1,0 +1,26 @@
+{
+  "description": "Rule 41: ResumeContact with Errors empty, the catalog's required NoMatchingError removed alone; a refusal keeps it required.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "ResumeContact",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "disconnect",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "disconnect",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

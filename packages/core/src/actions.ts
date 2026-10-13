@@ -50,6 +50,10 @@ export const ActionType = {
   ShowView: "ShowView",
   UpdateContactRecordingAndAnalyticsBehavior: "UpdateContactRecordingAndAnalyticsBehavior",
   UpdateFlowLoggingBehavior: "UpdateFlowLoggingBehavior",
+  ResumeContact: "ResumeContact",
+  UpdatePreviousContactParticipantState: "UpdatePreviousContactParticipantState",
+  UpdateContactMediaStreamingBehavior: "UpdateContactMediaStreamingBehavior",
+  UpdateContactMediaProcessing: "UpdateContactMediaProcessing",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -84,6 +88,9 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.ConnectParticipantWithLexBot]: { PromptId: "prompt", "LexV2Bot.AliasArn": "lex" },
   // The view's id, nested; its version rides in the token's alias slot.
   [ActionType.ShowView]: { "ViewResource.Id": "view" },
+  // The chat message processor, nested; "Must be set statically", so a
+  // token and never a JSONPath.
+  [ActionType.UpdateContactMediaProcessing]: { "ChatProcessor.LambdaProcessorARN": "lambda" },
 };
 
 /**
@@ -312,6 +319,16 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // the chat form is not modeled.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
+  // The page's order, catch-all first: "NoMatchingError - if no other Error
+  // matches. Must always be defined." and "ChannelMismatch - if the media
+  // channel that initiated the contact is not the same as the one defined
+  // in the action. As of now, only chat is supported in this action." Only
+  // the catch-all is marked required; the admin guide's block shows both
+  // branches, so the builder wires both, and rule 41's probe decides
+  // whether ChannelMismatch joins REQUIRED_EXTRAS, as it did on the
+  // recording action.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+  [ActionType.UpdateContactMediaProcessing]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
 };
 
 /**
@@ -505,6 +522,29 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
     ...CUSTOMER_QUEUE,
     ...IN_MODULE,
   ],
+  // "This action is supported only in inbound contact flows and transfer
+  // flows."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+  // The admin guide's Hold customer or agent block also lists the outbound
+  // whisper flow; the action page governs, as for every other row, until
+  // rule 41's probe in an outbound whisper flow settles it.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+  [ActionType.UpdatePreviousContactParticipantState]: [...INBOUND, ...TRANSFER, ...IN_MODULE],
+  // "This is supported in contact flows, customer queue flows, transfer
+  // flows, and whisper flows. It is not supported in hold flows." The Start
+  // and Stop media streaming blocks list the same seven flow types. Neither
+  // page names a module, which the note above IN_MODULE allows; rule 41's
+  // probe puts a module and a hold flow to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/stop-media-streaming.html
+  [ActionType.UpdateContactMediaStreamingBehavior]: [
+    ...INBOUND,
+    ...CUSTOMER_QUEUE,
+    ...TRANSFER,
+    ...WHISPER,
+    ...IN_MODULE,
+  ],
 };
 
 /**
@@ -515,7 +555,7 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
  * reaches it, not by the document, and FlowDoc does not record it.
  *
  * An action absent from this table has no channel restriction recorded: the
- * modeled pages were read for conformance/flow-language/actions.md, these two
+ * modeled pages were read for conformance/flow-language/actions.md, these
  * are the ones that name a channel, and where another page mentions channels
  * at all it says "all channels" (quoted beside FLOW_TYPE_UNRESTRICTED and in
  * FLOW_TYPE_RESTRICTIONS above).
@@ -528,6 +568,32 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // "This action is only supported on the chat channel."
   // https://docs.aws.amazon.com/connect/latest/devguide/participant-actions-showview.html
   [ActionType.ShowView]: ["CHAT"],
+  // The action page has no channel restriction ("None. This action can be
+  // used everywhere."); the Resume contact block's channel table does: task
+  // "Yes", voice, chat and email "No - Error branch". The block resumes a
+  // paused task, which no other channel can be, so the admin guide's table
+  // is recorded (actions.md, rule 41).
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+  [ActionType.ResumeContact]: ["TASK"],
+  // "One of ["AgentOnHold", "CustomerOnHold", "OffHold"], which are only
+  // supported for voice contacts." The admin guide's Hold customer or agent
+  // block agrees: voice "Yes", chat, task and email "No - Error branch".
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+  [ActionType.UpdatePreviousContactParticipantState]: ["VOICE"],
+  // "This is supported only by the voice channel." The Start and Stop media
+  // streaming blocks agree: voice "Yes", chat, task and email "No - Error
+  // branch".
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+  [ActionType.UpdateContactMediaStreamingBehavior]: ["VOICE"],
+  // The page has no Restrictions section, but its ChannelMismatch error
+  // says "As of now, only chat is supported in this action", and the admin
+  // guide's Set message processor action is "Yes" for chat alone.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+  [ActionType.UpdateContactMediaProcessing]: ["CHAT"],
 };
 
 /**
@@ -588,6 +654,17 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // "This action is available in every type of flow."
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html
   ActionType.UpdateFlowLoggingBehavior,
+  // No Restrictions section on the page; the admin guide's block "is
+  // supported for all flow types except journey flows", which have no
+  // ConnectType.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+  ActionType.UpdateContactMediaProcessing,
+  // "None. This action can be used everywhere."; the admin guide: "You can
+  // use this block on all flow types."
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+  ActionType.ResumeContact,
 ];
 
 /**
@@ -768,6 +845,31 @@ export const EVENT_HOOKS = [
   "ResumeContact",
 ] as const;
 export type EventHook = (typeof EVENT_HOOKS)[number];
+
+/**
+ * UpdatePreviousContactParticipantState.PreviousContactParticipantState, "One
+ * of ["AgentOnHold", "CustomerOnHold", "OffHold"]". The console's Hold
+ * customer or agent block names them Agent on hold ("customer is on the
+ * call"), Customer on hold ("agent is on the call") and Conference all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+ */
+export const PREVIOUS_PARTICIPANT_STATES = ["AgentOnHold", "CustomerOnHold", "OffHold"] as const;
+export type PreviousParticipantState = (typeof PREVIOUS_PARTICIPANT_STATES)[number];
+
+/**
+ * UpdateContactMediaStreamingBehavior: `MediaStreamingState` is "One of
+ * "Enabled" or "Disabled". Must be specified statically."; each participant's
+ * `MediaDirections` is "A list of the directions of media to include in the
+ * stream - "From" and "To". Must be defined statically."; `ParticipantType`
+ * "Currently, only "Customer" is supported" and `MediaStreamType`
+ * "Currently, only "Audio" is supported", each static.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+ */
+export const MEDIA_STREAMING_STATES = ["Enabled", "Disabled"] as const;
+export type MediaStreamingState = (typeof MEDIA_STREAMING_STATES)[number];
+export const MEDIA_DIRECTIONS = ["From", "To"] as const;
+export type MediaDirection = (typeof MEDIA_DIRECTIONS)[number];
 
 /**
  * MessageParticipantIteratively's one run result: "When the timeout elapses,

@@ -92,6 +92,10 @@ The two differ, and the console name is what task A01 originally listed.
 | InvokeModule | `InvokeFlowModule` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-language-actions-invoke-flow-module.html) |
 | (module return) | `EndFlowModuleExecution` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/endflowmoduleexecution.html) |
 | InvokeLambda | `InvokeLambdaFunction` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-invokelambdafunction.html) |
+| Resume contact | `ResumeContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html) |
+| Hold customer or agent | `UpdatePreviousContactParticipantState` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html) |
+| Start media streaming, Stop media streaming | `UpdateContactMediaStreamingBehavior` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html) |
+| Set recording, analytics and processing behavior (Set message processor) | `UpdateContactMediaProcessing` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html) |
 
 ## Reference-bearing parameters
 
@@ -113,6 +117,7 @@ is never interpolated into a longer string.
 | `ConnectParticipantWithLexBot` | `PromptId` | `prompt` |
 | `ConnectParticipantWithLexBot` | `LexV2Bot.AliasArn` | `lex` |
 | `ShowView` | `ViewResource.Id` | `view` (may carry a version) |
+| `UpdateContactMediaProcessing` | `ChatProcessor.LambdaProcessorARN` | `lambda` (static: a token, never a JSONPath) |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -843,6 +848,7 @@ SPEC.md lists the current set.
 
 Two modeled pages restrict by channel instead of, or as well as, by flow type:
 `Wait` (rule 22) and `ShowView` (rule 34), both "only ... the chat channel".
+Since 2026-10-12 the contact-state types carry channels too (rule 41).
 The catalog records that as `channels` and `channel-restricted-action` (added
 2026-10-05) reports it, at severity warning: a document does not record which
 channels its flow serves, since that is the contact's to decide, so the rule
@@ -1181,6 +1187,143 @@ catalog to hang the field on; Phase D's D01 extends the vocabulary to them.
       in the census as not decided, not as the service refusing the Type.
       The inputs for `AuthenticateParticipant` are re-authored once an
       export shows the three keys' shapes.
+41. Contact state (tasks/D02; the Developer Guide pages read 2026-10-04
+    and again 2026-10-12 with the admin guide's block pages). The group's
+    types are modeled from their pages. **Probe pending**: the create
+    sweep the evidence rule asks for (tasks/README.md, Phase D) has not
+    run. On 2026-10-12 the sandbox's AWS credentials had expired, and the
+    instance had neither live media streaming nor a Lambda function
+    associated as `MESSAGE_PROCESSOR`. Its inputs are kept in
+    `probes/41/`, with `PENDING.md` saying what the run needs. Until it
+    runs, every required error, `next` and flow-type entry below is the
+    pages' reading, and each bullet names the probes that settle it.
+    - `ResumeContact` "Resumes a contact from a paused state." "No
+      parameters are expected." Results "None."; errors "NoMatchingError -
+      if no other Error matches."; Restrictions "None. This action can be
+      used everywhere." The catalog records no parameters, the catch-all
+      required and wired by the builder, `next` required, and the type
+      unrestricted. The admin guide's Resume contact block "Resumes a task
+      contact from a paused state", "You can use this block on all flow
+      types", and its channel table reads task "Yes" and voice, chat and
+      email "No - Error branch"; the action page names no channel, so the
+      catalog's `channels: ["TASK"]` is read from the block page, the one
+      entry whose channels come from there, and `channel-restricted-action`
+      warns wherever the type appears. The configured block has an Error
+      branch and the path a resumed task takes, which the class writes as
+      `NextAction`. Planned probes: `resume-required` (expected accepted),
+      `resume-no-catch-all` and `resume-no-next` (each a removal alone),
+      and `resume-module` and `resume-customer-hold` for the page's "used
+      everywhere".
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
+    - `UpdatePreviousContactParticipantState` "is primarily used to prevent
+      previous participants on the contact from observing the contact".
+      One parameter, `"PreviousContactParticipantState": One of
+      ["AgentOnHold", "CustomerOnHold", "OffHold"], which are only
+      supported for voice contacts.` Results "None."; errors
+      "NoMatchingError - if no other Error matches."; Restrictions "This
+      action is supported only in inbound contact flows and transfer
+      flows." The admin guide's Hold customer or agent block lists the
+      inbound, outbound whisper, transfer to agent and transfer to queue
+      flows, routes chat, task and email down its Error branch, names the
+      three values Agent on hold ("customer is on the call"), Customer on
+      hold ("agent is on the call") and Conference all, and its configured
+      block has Success and Error branches. The pages disagree on the
+      outbound whisper flow; the catalog follows the action page, as every
+      other row does, until the probe settles it (D02 asks that the service
+      decide). The catalog records the enum, `channels: ["VOICE"]`, the
+      catch-all required, `next` required, and flow types inbound, the two
+      transfers and a module. Planned probes: `previous-state-required`,
+      `previous-state-no-catch-all`, `previous-state-no-next`, one per
+      flow type the two pages name (`-agent-transfer`, `-queue-transfer`,
+      `-outbound-whisper`), a module, which the catalog allows and neither
+      page names (`-module`), one neither names nor the catalog allows
+      (`-customer-queue`), and a
+      value outside the enum (`-other-value`, `OnHold`), whose result
+      decides whether the 0.3 schema clause may hold the enum (owner
+      decision 3).
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
+    - `UpdateContactMediaStreamingBehavior` "Enables or disables contact
+      media streaming for a set of participants." `MediaStreamingState`
+      "One of "Enabled" or "Disabled". Must be specified statically.";
+      `Participants`, "A list of participants to include in the stream if
+      enabling the stream, or disable if disabling the stream", each with
+      `ParticipantType` ("Currently, only "Customer" is supported. Must be
+      defined statically.") and `MediaDirections` ("A list of the
+      directions of media to include in the stream - "From" and "To".
+      Must be defined statically."); `MediaStreamType` ("Currently, only
+      "Audio" is supported. Must be defined statically."). Results
+      "None."; errors "NoMatchingError - if no other Error matches.";
+      Restrictions "This is supported in contact flows, customer queue
+      flows, transfer flows, and whisper flows. It is not supported in hold
+      flows." and "This is supported only by the voice channel." The Start
+      and Stop media streaming blocks list the same seven flow types,
+      voice only, with Success and Error branches; the Stop block "doesn't
+      have any properties". Neither page names a module, which the catalog
+      allows where a page does not scope an action to modules (the note in
+      `actions.ts` above `IN_MODULE`); D02 names "the media streaming module
+      case" as one the service decides. The catalog records all three keys
+      required on both states (the page shows the same block for each), the
+      enums, `channels: ["VOICE"]`, the catch-all required and `next`
+      required. The class writes one Customer participant and Audio and
+      takes the directions. Planned probes: `stream-required`,
+      `stream-no-catch-all`, `stream-no-next`, `stream-stop` (the page's
+      shape for Disabled), `stream-stop-bare` (`MediaStreamingState` alone,
+      the Stop block's no properties), `stream-module`,
+      `stream-customer-hold` (the page excludes it), `stream-agent-whisper`,
+      `stream-agent-participant` (a value the page excludes),
+      `stream-duplicate-direction` (`From` twice, which the 0.3 schema
+      clause does not refuse unless the service does) and
+      `stream-from-only`. They need live media streaming enabled on the
+      instance (a Kinesis Video Streams prefix, a KMS key and no data
+      retention).
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediastreamingbehavior.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/start-media-streaming.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/stop-media-streaming.html
+    - `UpdateContactMediaProcessing` "Allows customers to configure their
+      own Lambda processor, which will be applied to in-flight messages."
+      One object, `ChatProcessor`, "Configuration for
+      bring-your-own-processor for chat channel": `ProcessingEnabled`
+      ("either "True" or "False". Must be set statically."),
+      `LambdaProcessorARN` ("The ARN of the Lambda function to process
+      chat messages. Must be set statically.") and
+      `ChatProcessorSettings.DeliverUnprocessedMessages` ("either "True"
+      or "False". Must be set statically. Determines whether to deliver
+      messages that fail Lambda processing."). Results "None."; errors
+      "NoMatchingError - if no other Error matches. Must always be
+      defined." and "ChannelMismatch - if the media channel that initiated
+      the contact is not the same as the one defined in the action. As of
+      now, only chat is supported in this action."; no Restrictions
+      section. The admin guide's Set recording, analytics and processing
+      behavior block carries it as the Set message processor action, chat
+      "Yes" and email, task and voice "No", "supported for all flow types
+      except journey flows", with Success, Error and Channel mismatch
+      branches; its Function ARN "should be integrated with custom message
+      processing", through `CreateIntegrationAssociation` with the
+      `MESSAGE_PROCESSOR` integration type, and its disabled form shows
+      the processing switch alone. The catalog records the Lambda as a
+      `lambda` reference at `ChatProcessor.LambdaProcessorARN` (static, so
+      the schema clause admits a token and not a JSONPath, and
+      `no-literal-arn` fails a literal ARN there), `ProcessingEnabled`
+      required and the other two optional, `channels: ["CHAT"]`, the type
+      unrestricted by flow type, `next` required, the catch-all required
+      and `ChannelMismatch` wired by the builder but not required: the page
+      requires only the catch-all, and D02 asks that the two be required
+      if and only if the service refuses each removed alone. The class
+      requires a Lambda when processing is enabled, the console's form.
+      Planned probes: `processing-required`, `processing-no-catch-all`,
+      `processing-no-channel-mismatch`, `processing-no-next`,
+      `processing-unassociated-lambda` (a function the instance has not
+      associated, to learn whether the create checks the association),
+      `processing-disabled`, `processing-enabled-without-lambda`,
+      `processing-lowercase-flag` (a spelling outside the enum),
+      `processing-module` and `processing-customer-hold`. They need a
+      Lambda function associated as `MESSAGE_PROCESSOR` and one that is
+      not.
+      https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
+      https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
+      https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateIntegrationAssociation.html
 
 ## Per-action parameter shapes
 
@@ -1252,6 +1395,13 @@ UpdateContactRecordingAndAnalyticsBehavior {                       // exactly on
   // VoiceBehavior.VoiceAnalyticsBehavior and ChatBehavior: GenericBlock
 }
 UpdateFlowLoggingBehavior { FlowLoggingBehavior: "Enabled" | "Disabled" }   // static; no errors
+ResumeContact            {}                         // no parameters; channels TASK (the admin guide)
+UpdatePreviousContactParticipantState { PreviousContactParticipantState: "AgentOnHold" | "CustomerOnHold" | "OffHold" }   // voice only
+UpdateContactMediaStreamingBehavior { MediaStreamingState: "Enabled" | "Disabled",
+                           Participants: { ParticipantType: "Customer", MediaDirections: ("From" | "To")[] }[],
+                           MediaStreamType: "Audio" }   // each static; voice only
+UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "False", LambdaProcessorARN?: lambda,
+                           ChatProcessorSettings?: { DeliverUnprocessedMessages: "True" | "False" } } }   // static; chat only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1312,7 +1462,13 @@ non-blank value means the participant hears something, and
 `channels` lists the channels an action's page says it supports, in the
 service's Channel vocabulary (`VOICE`, `CHAT`, `TASK`, `EMAIL`), when the
 page names any: `Wait` and `ShowView`, both `["CHAT"]` (added 2026-10-05,
-from the Restrictions sections quoted in rules 22 and 34). Absent means the
+from the Restrictions sections quoted in rules 22 and 34), and
+`ResumeContact`, `["TASK"]`, from its admin guide block page's channel
+table because its action page names none, and
+`UpdatePreviousContactParticipantState` and
+`UpdateContactMediaStreamingBehavior`, each `["VOICE"]`, and
+`UpdateContactMediaProcessing`, `["CHAT"]`, read from its ChannelMismatch
+error since its page has no Restrictions section (rule 41). Absent means the
 page states no channel restriction; it is never an empty list.
 `channel-restricted-action` reads it, and `packages/core/src/actions.ts`
 carries the same table as `CHANNEL_RESTRICTIONS`, cited, which
@@ -1396,20 +1552,29 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-35 of the 61. Everything not in the modeled set above parses to a
+39 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
 is exercised by the conformance suite; the demo flow carried an unmodeled
 action for that purpose until 2026-09-11, when its logging block was
-modeled (rule 36).
+modeled (rule 36). On 2026-10-12, when D02 modeled `ResumeContact` and
+`UpdatePreviousContactParticipantState`, the fixture took
+`LoadContactContent` (the admin guide's Flow language example: `ContentType`
+`EmailMessage` and the catch-all) and `StartVoiceIdStream` (no parameters)
+in their places, beside `CreateTask`, which keeps the flow and queue tokens,
+and `TransferParticipantToThirdParty`. Every action is in the console's
+shape, the last included: no unmodeled type is terminal, so
+`StartVoiceIdStream` takes its `NextAction` and catch-all (the shape the
+D08 probe `start-stream` sent) back to `load-content`, a loop rather than an
+end.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 35      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 39      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 35      |                                                             |
+| Denominator             | 61    | 39      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

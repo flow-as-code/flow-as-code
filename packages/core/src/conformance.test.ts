@@ -293,6 +293,81 @@ describe("FlowDoc schema rejections: contact routing", () => {
   });
 });
 
+// The contact-state round-trip fixture is the subject for the 0.3 clauses of
+// tasks/D02. Each clause holds the page's enums and reference form; rule 41's
+// probes (pending) decide whether the service refuses each of them at
+// create, which owner decision 3 asks of a 0.3 clause.
+describe("FlowDoc schema rejections: contact state", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/contact-state/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a previous-participant state the page does not list",
+      mutate("hold-agent", (a) => {
+        a.Parameters.PreviousContactParticipantState = "OnHold";
+      }),
+    ],
+    [
+      "a media streaming state other than Enabled or Disabled",
+      mutate("start-stream", (a) => {
+        a.Parameters.MediaStreamingState = "Paused";
+      }),
+    ],
+    [
+      "an agent as the streamed participant, which the page does not support",
+      mutate("start-stream", (a) => {
+        (a.Parameters.Participants as Record<string, unknown>[])[0]!.ParticipantType = "Agent";
+      }),
+    ],
+    [
+      "a media direction other than From or To",
+      mutate("start-stream", (a) => {
+        (a.Parameters.Participants as Record<string, unknown>[])[0]!.MediaDirections = ["Both"];
+      }),
+    ],
+    [
+      "a stream type other than Audio",
+      mutate("start-stream", (a) => {
+        a.Parameters.MediaStreamType = "Video";
+      }),
+    ],
+    [
+      "a literal ARN as the chat message processor",
+      mutate("process-messages", (a) => {
+        (a.Parameters.ChatProcessor as Record<string, unknown>).LambdaProcessorARN =
+          "arn:aws:lambda:us-east-1:111122223333:function:redactor";
+      }),
+    ],
+    [
+      "a JSONPath as the chat message processor, which the page says is static",
+      mutate("process-messages", (a) => {
+        (a.Parameters.ChatProcessor as Record<string, unknown>).LambdaProcessorARN =
+          "$.Attributes.processor";
+      }),
+    ],
+    [
+      "processing enabled spelled other than True or False",
+      mutate("process-messages", (a) => {
+        (a.Parameters.ChatProcessor as Record<string, unknown>).ProcessingEnabled = "true";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+});
+
 describe("FlowDoc schema rejections: flow control", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/flow-control/doc.flowdoc.json");
