@@ -1,0 +1,53 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "transfer-desk",
+      "messageIncludes": "TransferParticipantToThirdParty does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "desk-transfer",
+    "description": "A transfer that ends the flow, with no Error branch.",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "transfer-desk",
+      "Actions": [
+        {
+          "Identifier": "transfer-desk",
+          "Type": "TransferParticipantToThirdParty",
+          "Parameters": {
+            "ContinueFlowExecution": "False",
+            "ThirdPartyConnectionTimeLimitSeconds": "30",
+            "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+          },
+          "Transitions": {
+            "NextAction": "done",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "done",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "transfer-desk": {
+        "x": 0,
+        "y": 0
+      },
+      "done": {
+        "x": 260,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

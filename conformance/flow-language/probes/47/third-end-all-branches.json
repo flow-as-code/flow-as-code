@@ -1,0 +1,43 @@
+{
+  "description": "Rule 47: ContinueFlowExecution False with all three branches. A cookbook comment (examples/terraform-provider/cookbook, 2026-09-29) says that form takes only the catch-all, with no recorded message; this settles whether the two extra branches are refused, allowed or required.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "TransferParticipantToThirdParty",
+        "Parameters": {
+          "ContinueFlowExecution": "False",
+          "ThirdPartyConnectionTimeLimitSeconds": "30",
+          "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "CallFailed",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "ConnectionTimeLimitExceeded",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

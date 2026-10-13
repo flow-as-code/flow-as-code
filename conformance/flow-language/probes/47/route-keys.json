@@ -1,0 +1,31 @@
+{
+  "description": "Rule 47: RouteContactToAgent (the Interrupt agent block) in a customer queue flow with Parameters empty, rule 40's probe rerun on the sandbox. Rule 40's run on another instance (us-east-1, 2026-10-05) was refused as \"Invalid Action type\". If this one is refused naming a required parameter, the Type exists and the message names its first key; if it is refused as an invalid type again, the page's spelling or a feature the instance lacks is the question, and an export settles it.",
+  "type": "CUSTOMER_QUEUE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "RouteContactToAgent",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

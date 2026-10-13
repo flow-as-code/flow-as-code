@@ -1595,6 +1595,7 @@
                         },
                         "MediaDirections": {
                           "type": "array",
+                          "uniqueItems": true,
                           "items": {
                             "enum": [
                               "From",
@@ -1634,10 +1635,7 @@
                     "type": "object",
                     "properties": {
                       "ProcessingEnabled": {
-                        "enum": [
-                          "True",
-                          "False"
-                        ]
+                        "type": "string"
                       },
                       "LambdaProcessorARN": {
                         "$ref": "#/$defs/token"
@@ -1674,6 +1672,27 @@
           "then": {
             "properties": {
               "Parameters": {
+                "required": [
+                  "Name"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "ContactFlowId"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "TaskTemplateId"
+                    ]
+                  }
+                ],
+                "not": {
+                  "required": [
+                    "DelaySeconds",
+                    "ScheduledTime"
+                  ]
+                },
                 "properties": {
                   "ContactFlowId": {
                     "$ref": "#/$defs/refField"
@@ -1726,13 +1745,12 @@
                 "properties": {
                   "ProfileRequestData": {
                     "type": "object"
-                  },
-                  "ProfileResponseData": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
                   }
+                },
+                "not": {
+                  "required": [
+                    "ProfileResponseData"
+                  ]
                 }
               }
             }
@@ -1754,12 +1772,135 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "propertyNames": {
+                      "enum": [
+                        "FirstName",
+                        "MiddleName",
+                        "LastName",
+                        "PhoneNumber",
+                        "EmailAddress",
+                        "AccountNumber",
+                        "AdditionalInformation",
+                        "PartyType",
+                        "BusinessName",
+                        "BirthDate",
+                        "Gender",
+                        "MobilePhoneNumber",
+                        "HomePhoneNumber",
+                        "BusinessPhoneNumber",
+                        "BusinessEmailAddress",
+                        "Address1",
+                        "Address2",
+                        "Address3",
+                        "Address4",
+                        "City",
+                        "County",
+                        "Country",
+                        "PostalCode",
+                        "Province",
+                        "State",
+                        "ShippingAddress1",
+                        "ShippingAddress2",
+                        "ShippingAddress3",
+                        "ShippingAddress4",
+                        "ShippingCity",
+                        "ShippingCounty",
+                        "ShippingCountry",
+                        "ShippingPostalCode",
+                        "ShippingProvince",
+                        "ShippingState",
+                        "MailingAddress1",
+                        "MailingAddress2",
+                        "MailingAddress3",
+                        "MailingAddress4",
+                        "MailingCity",
+                        "MailingCounty",
+                        "MailingCountry",
+                        "MailingPostalCode",
+                        "MailingProvince",
+                        "MailingState",
+                        "BillingAddress1",
+                        "BillingAddress2",
+                        "BillingAddress3",
+                        "BillingAddress4",
+                        "BillingCity",
+                        "BillingCounty",
+                        "BillingCountry",
+                        "BillingPostalCode",
+                        "BillingProvince",
+                        "BillingState"
+                      ]
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "FirstName",
+                            "MiddleName",
+                            "LastName",
+                            "PhoneNumber",
+                            "EmailAddress",
+                            "AccountNumber",
+                            "AdditionalInformation",
+                            "PartyType",
+                            "BusinessName",
+                            "BirthDate",
+                            "Gender",
+                            "MobilePhoneNumber",
+                            "HomePhoneNumber",
+                            "BusinessPhoneNumber",
+                            "BusinessEmailAddress",
+                            "Address1",
+                            "Address2",
+                            "Address3",
+                            "Address4",
+                            "City",
+                            "County",
+                            "Country",
+                            "PostalCode",
+                            "Province",
+                            "State",
+                            "ShippingAddress1",
+                            "ShippingAddress2",
+                            "ShippingAddress3",
+                            "ShippingAddress4",
+                            "ShippingCity",
+                            "ShippingCounty",
+                            "ShippingCountry",
+                            "ShippingPostalCode",
+                            "ShippingProvince",
+                            "ShippingState",
+                            "MailingAddress1",
+                            "MailingAddress2",
+                            "MailingAddress3",
+                            "MailingAddress4",
+                            "MailingCity",
+                            "MailingCounty",
+                            "MailingCountry",
+                            "MailingPostalCode",
+                            "MailingProvince",
+                            "MailingState",
+                            "BillingAddress1",
+                            "BillingAddress2",
+                            "BillingAddress3",
+                            "BillingAddress4",
+                            "BillingCity",
+                            "BillingCounty",
+                            "BillingCountry",
+                            "BillingPostalCode",
+                            "BillingProvince",
+                            "BillingState"
+                          ]
+                        },
+                        {
+                          "pattern": "^Attributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1783,12 +1924,135 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "propertyNames": {
+                      "enum": [
+                        "FirstName",
+                        "MiddleName",
+                        "LastName",
+                        "PhoneNumber",
+                        "EmailAddress",
+                        "AccountNumber",
+                        "AdditionalInformation",
+                        "PartyType",
+                        "BusinessName",
+                        "BirthDate",
+                        "Gender",
+                        "MobilePhoneNumber",
+                        "HomePhoneNumber",
+                        "BusinessPhoneNumber",
+                        "BusinessEmailAddress",
+                        "Address1",
+                        "Address2",
+                        "Address3",
+                        "Address4",
+                        "City",
+                        "County",
+                        "Country",
+                        "PostalCode",
+                        "Province",
+                        "State",
+                        "ShippingAddress1",
+                        "ShippingAddress2",
+                        "ShippingAddress3",
+                        "ShippingAddress4",
+                        "ShippingCity",
+                        "ShippingCounty",
+                        "ShippingCountry",
+                        "ShippingPostalCode",
+                        "ShippingProvince",
+                        "ShippingState",
+                        "MailingAddress1",
+                        "MailingAddress2",
+                        "MailingAddress3",
+                        "MailingAddress4",
+                        "MailingCity",
+                        "MailingCounty",
+                        "MailingCountry",
+                        "MailingPostalCode",
+                        "MailingProvince",
+                        "MailingState",
+                        "BillingAddress1",
+                        "BillingAddress2",
+                        "BillingAddress3",
+                        "BillingAddress4",
+                        "BillingCity",
+                        "BillingCounty",
+                        "BillingCountry",
+                        "BillingPostalCode",
+                        "BillingProvince",
+                        "BillingState"
+                      ]
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "FirstName",
+                            "MiddleName",
+                            "LastName",
+                            "PhoneNumber",
+                            "EmailAddress",
+                            "AccountNumber",
+                            "AdditionalInformation",
+                            "PartyType",
+                            "BusinessName",
+                            "BirthDate",
+                            "Gender",
+                            "MobilePhoneNumber",
+                            "HomePhoneNumber",
+                            "BusinessPhoneNumber",
+                            "BusinessEmailAddress",
+                            "Address1",
+                            "Address2",
+                            "Address3",
+                            "Address4",
+                            "City",
+                            "County",
+                            "Country",
+                            "PostalCode",
+                            "Province",
+                            "State",
+                            "ShippingAddress1",
+                            "ShippingAddress2",
+                            "ShippingAddress3",
+                            "ShippingAddress4",
+                            "ShippingCity",
+                            "ShippingCounty",
+                            "ShippingCountry",
+                            "ShippingPostalCode",
+                            "ShippingProvince",
+                            "ShippingState",
+                            "MailingAddress1",
+                            "MailingAddress2",
+                            "MailingAddress3",
+                            "MailingAddress4",
+                            "MailingCity",
+                            "MailingCounty",
+                            "MailingCountry",
+                            "MailingPostalCode",
+                            "MailingProvince",
+                            "MailingState",
+                            "BillingAddress1",
+                            "BillingAddress2",
+                            "BillingAddress3",
+                            "BillingAddress4",
+                            "BillingCity",
+                            "BillingCounty",
+                            "BillingCountry",
+                            "BillingPostalCode",
+                            "BillingProvince",
+                            "BillingState"
+                          ]
+                        },
+                        {
+                          "pattern": "^Attributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1812,12 +2076,88 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "SearchCriteria": {
+                        "type": "array",
+                        "maxItems": 5
+                      },
+                      "LogicalOperator": {
+                        "enum": [
+                          "AND",
+                          "OR"
+                        ]
+                      }
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "FirstName",
+                            "MiddleName",
+                            "LastName",
+                            "PhoneNumber",
+                            "EmailAddress",
+                            "AccountNumber",
+                            "AdditionalInformation",
+                            "PartyType",
+                            "BusinessName",
+                            "BirthDate",
+                            "Gender",
+                            "MobilePhoneNumber",
+                            "HomePhoneNumber",
+                            "BusinessPhoneNumber",
+                            "BusinessEmailAddress",
+                            "Address1",
+                            "Address2",
+                            "Address3",
+                            "Address4",
+                            "City",
+                            "County",
+                            "Country",
+                            "PostalCode",
+                            "Province",
+                            "State",
+                            "ShippingAddress1",
+                            "ShippingAddress2",
+                            "ShippingAddress3",
+                            "ShippingAddress4",
+                            "ShippingCity",
+                            "ShippingCounty",
+                            "ShippingCountry",
+                            "ShippingPostalCode",
+                            "ShippingProvince",
+                            "ShippingState",
+                            "MailingAddress1",
+                            "MailingAddress2",
+                            "MailingAddress3",
+                            "MailingAddress4",
+                            "MailingCity",
+                            "MailingCounty",
+                            "MailingCountry",
+                            "MailingPostalCode",
+                            "MailingProvince",
+                            "MailingState",
+                            "BillingAddress1",
+                            "BillingAddress2",
+                            "BillingAddress3",
+                            "BillingAddress4",
+                            "BillingCity",
+                            "BillingCounty",
+                            "BillingCountry",
+                            "BillingPostalCode",
+                            "BillingProvince",
+                            "BillingState"
+                          ]
+                        },
+                        {
+                          "pattern": "^Attributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1841,7 +2181,12 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "UseLatest": {
+                        "const": "true"
+                      }
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
@@ -1875,10 +2220,24 @@
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "CalculatedAttributes._average_hold_time",
+                            "CalculatedAttributes._frequent_caller"
+                          ]
+                        },
+                        {
+                          "pattern": "^CalculatedAttributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
-                }
+                },
+                "required": [
+                  "ProfileResponseData"
+                ]
               }
             }
           }
@@ -1901,6 +2260,7 @@
                   "CaseTemplateId": {
                     "type": "string",
                     "if": {
+                      "type": "string",
                       "pattern": "^\\$\\{"
                     },
                     "then": {
@@ -1941,6 +2301,7 @@
                   },
                   "CaseResponseFields": {
                     "type": "array",
+                    "maxItems": 10,
                     "items": {
                       "$ref": "#/$defs/caseFieldId"
                     }
@@ -1980,7 +2341,7 @@
           "if": {
             "properties": {
               "Type": {
-                "const": "UpdateRoutingCriteria"
+                "const": "UpdateContactRoutingCriteria"
               }
             },
             "required": [
@@ -1990,6 +2351,9 @@
           "then": {
             "properties": {
               "Parameters": {
+                "required": [
+                  "RoutingCriteria"
+                ],
                 "properties": {
                   "RoutingCriteria": {
                     "anyOf": [
@@ -1998,27 +2362,51 @@
                       },
                       {
                         "type": "object",
+                        "required": [
+                          "Steps"
+                        ],
                         "properties": {
                           "Steps": {
-                            "anyOf": [
-                              {
-                                "$ref": "#/$defs/jsonPath"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "Expression"
+                              ],
+                              "properties": {
+                                "Expression": {
+                                  "$ref": "#/$defs/routingExpression",
+                                  "not": {
+                                    "anyOf": [
+                                      {
+                                        "required": [
+                                          "OrExpression"
+                                        ]
+                                      },
+                                      {
+                                        "required": [
+                                          "NotAttributeCondition"
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "Expiry": {
                                   "type": "object",
+                                  "required": [
+                                    "DurationInSeconds"
+                                  ],
                                   "properties": {
-                                    "Expression": {
-                                      "$ref": "#/$defs/routingExpression"
-                                    },
-                                    "Expiry": {
-                                      "type": "object"
+                                    "DurationInSeconds": {
+                                      "not": {
+                                        "$ref": "#/$defs/jsonPath"
+                                      }
                                     }
                                   }
                                 }
                               }
-                            ]
+                            }
                           }
                         }
                       }
@@ -2102,6 +2490,69 @@
                   },
                   "InitialSystemMessage": {
                     "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "LoadContactContent"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "required": [
+                  "ContentType"
+                ],
+                "properties": {
+                  "ContentType": {
+                    "enum": [
+                      "EmailMessage"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "TransferParticipantToThirdParty"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ThirdPartyPhoneNumber": {
+                    "type": "string"
+                  },
+                  "ThirdPartyConnectionTimeLimitSeconds": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  },
+                  "ContinueFlowExecution": {
+                    "enum": [
+                      "True",
+                      "False"
+                    ]
                   }
                 }
               }
@@ -2210,6 +2661,7 @@
       "description": "A Cases field id where a key or list item names a field: a casefield token standing as the whole string, or a plain id (a system field id such as summary, or a domain's own field id, which the service accepts and nothing refuses). A string opening a token must be a whole casefield token (docs/adr/0008-case-field-ids.md).",
       "type": "string",
       "if": {
+        "type": "string",
         "pattern": "^\\$\\{"
       },
       "then": {
@@ -2217,11 +2669,17 @@
       }
     },
     "routingExpression": {
-      "description": "UpdateRoutingCriteria's Expression (docs/adr/0009): a tagged union whose AndExpression and OrExpression hold expressions of the same kind. Only the JSON types are held; the tags, the levels and the limits are the builder's until rule 45's probes show the service refusing them (owner decision 3).",
+      "description": "UpdateContactRoutingCriteria's Expression (docs/adr/0009): a tagged union whose AndExpression and OrExpression hold expressions of the same kind. Beyond the JSON types it holds a numeric ProficiencyLevel to 1 to 5, which the service enforces (actions.md, rule 45); the step clause refuses an OrExpression or a NotAttributeCondition at the top of a step, which the service refuses statically. The tags, the operator, the eight-in-an-AND limit and the Name and Value lengths, which the service did not refuse, are the builder's (owner decision 3).",
       "type": "object",
       "properties": {
         "AttributeCondition": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "ProficiencyLevel": {
+              "minimum": 1,
+              "maximum": 5
+            }
+          }
         },
         "AndExpression": {
           "type": "array",

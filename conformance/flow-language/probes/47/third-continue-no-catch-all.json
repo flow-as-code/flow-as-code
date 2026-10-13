@@ -1,0 +1,39 @@
+{
+  "description": "Rule 47: ContinueFlowExecution True without the catch-all; the satellite's VERIFY 16.8 recorded it refused on 2026-09-30, re-swept here.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "TransferParticipantToThirdParty",
+        "Parameters": {
+          "ContinueFlowExecution": "True",
+          "ThirdPartyConnectionTimeLimitSeconds": "30",
+          "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "CallFailed",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "ConnectionTimeLimitExceeded",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

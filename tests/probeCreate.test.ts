@@ -218,7 +218,10 @@ function stubClient(options: { leftovers?: string[] } = {}) {
             ContactFlowSummaryList: (options.leftovers ?? []).map((Name) => ({ Name })),
           });
         case "ListContactFlowModulesCommand":
-          return Promise.resolve({ ContactFlowModulesSummaryList: [] });
+          // What the service answered on an instance with no modules
+          // (2026-10-13, us-west-2): an empty list and an empty token,
+          // on every call. The runner must stop on it.
+          return Promise.resolve({ ContactFlowModulesSummaryList: [], NextToken: "" });
         case "CreateContactFlowCommand":
           if (String(command.input.Name).endsWith("-refuse")) {
             return Promise.reject(

@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "routing-criteria",
-  "description": "Routing criteria set on a contact before its transfer to queue: the steps read from a Lambda's response by a JSONPath and, when that fails, three typed steps, an OR of an AND and a requirement, an AND of two requirements, and a requirement whose value is read from an attribute, the last never expiring.",
+  "description": "Routing criteria set on a contact before its transfer to queue: the whole criteria read from a Lambda's response by a JSONPath and, when that fails, three typed steps, an AND of two requirements, another AND of two, and a requirement whose value is read from an attribute, the last never expiring.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -27,11 +27,9 @@
       },
       {
         "Identifier": "from-lambda",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
-          "RoutingCriteria": {
-            "Steps": "$.External.routingSteps"
-          }
+          "RoutingCriteria": "$.External.RoutingCriteria"
         },
         "Transitions": {
           "NextAction": "transfer",
@@ -46,7 +44,7 @@
       },
       {
         "Identifier": "by-proficiency",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
           "RoutingCriteria": {
             "Steps": [
@@ -55,33 +53,21 @@
                   "DurationInSeconds": "30"
                 },
                 "Expression": {
-                  "OrExpression": [
-                    {
-                      "AndExpression": [
-                        {
-                          "AttributeCondition": {
-                            "ComparisonOperator": "NumberGreaterOrEqualTo",
-                            "Name": "Language",
-                            "ProficiencyLevel": 4,
-                            "Value": "English"
-                          }
-                        },
-                        {
-                          "AttributeCondition": {
-                            "ComparisonOperator": "NumberGreaterOrEqualTo",
-                            "Name": "Technology",
-                            "ProficiencyLevel": 2,
-                            "Value": "AWS Kinesis"
-                          }
-                        }
-                      ]
-                    },
+                  "AndExpression": [
                     {
                       "AttributeCondition": {
                         "ComparisonOperator": "NumberGreaterOrEqualTo",
                         "Name": "Language",
-                        "ProficiencyLevel": 5,
-                        "Value": "Spanish"
+                        "ProficiencyLevel": 4,
+                        "Value": "English"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "ComparisonOperator": "NumberGreaterOrEqualTo",
+                        "Name": "Technology",
+                        "ProficiencyLevel": 2,
+                        "Value": "AWS Kinesis"
                       }
                     }
                   ]

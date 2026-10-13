@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-54 modeled types follow. Any other type (7: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+56 modeled types follow. Any other type (5: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `AuthenticateParticipant`, `CheckSegmentMembership`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -46,7 +46,7 @@ generic {
 
 Block `complete_outbound_call`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html).
 
-- Legal in: OUTBOUND_WHISPER, MODULE.
+- Legal in: OUTBOUND_WHISPER.
 - Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required.
 - Error branches: none; the service refuses any.
@@ -66,6 +66,7 @@ Block `create_case`. [Action page](https://docs.aws.amazon.com/connect/latest/de
 - `next`: required.
 - Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `NoMatchingError` (required).
 - Conditions: none.
+- Shape with `LinkContactToCase` "false": must not wire `ContactNotLinked`.
 
 | HCL attribute          | Flow language key   | Value                                 | Required |
 | ---------------------- | ------------------- | ------------------------------------- | -------- |
@@ -141,14 +142,15 @@ Block `get_case`. [Action page](https://docs.aws.amazon.com/connect/latest/devgu
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `MultipleFound`; `NoneFound`; `NoMatchingError` (required).
+- Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `MultipleFound` (required); `NoneFound` (required); `NoMatchingError` (required).
 - Conditions: none.
+- Shape with `LinkContactToCase` "false": must not wire `ContactNotLinked`.
 
 | HCL attribute           | Flow language key    | Value                    | Required |
 | ----------------------- | -------------------- | ------------------------ | -------- |
 | `link_contact_to_case`  | `LinkContactToCase`  | `"true"`, `"false"`      | yes      |
 | `contact_to_link`       | `ContactToLink`      | `"Current"`, `"Related"` | no       |
-| `get_last_updated_case` | `GetLastUpdatedCase` | `"true"`, `"false"`      | yes      |
+| `get_last_updated_case` | `GetLastUpdatedCase` | `"true"`, `"false"`      | no       |
 | `customer_id`           | `CustomerId`         | string or JSONPath       | no       |
 | `case_request_fields`   | `CaseRequestFields`  | map of strings           | no       |
 | `case_response_fields`  | `CaseResponseFields` | list                     | no       |
@@ -246,6 +248,7 @@ Block `update_case`. [Action page](https://docs.aws.amazon.com/connect/latest/de
 - `next`: required.
 - Error branches: `ContactNotLinked` (required when `link_contact_to_case` is `"true"`); `NoMatchingError` (required).
 - Conditions: none.
+- Shape with `LinkContactToCase` "false": must not wire `ContactNotLinked`.
 
 | HCL attribute          | Flow language key   | Value                    | Required |
 | ---------------------- | ------------------- | ------------------------ | -------- |
@@ -331,7 +334,7 @@ Block `update_contact_media_processing`. [Action page](https://docs.aws.amazon.c
 - Legal in: every flow type.
 - Channels: CHAT only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `ChannelMismatch`: the contact's channel is not chat; the page does not say it must be defined, and rule 41's probe decides whether the service requires it.
+- Error branches: `NoMatchingError` (required); `ChannelMismatch` (required): the contact's channel is not chat; the page does not say it must be defined, but the service refuses the action without it (rule 41, 2026-10-13).
 - Conditions: none.
 
 | HCL attribute                   | Flow language key            | Value                           | Required |
@@ -646,7 +649,7 @@ Block `check_outbound_call_status`. [Action page](https://docs.aws.amazon.com/co
 - Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required; write the `NoMatchingError` branch's target, as the console does.
 - Error branches: `NoMatchingError` (required).
-- Conditions: Equals on values the action defines.
+- Conditions: Equals on values the action defines; at least 1.
 
 No parameters: `check_outbound_call_status {}`.
 
@@ -752,9 +755,9 @@ Block `update_flow_logging_behavior`. [Action page](https://docs.aws.amazon.com/
 | ----------------------- | --------------------- | ------------------------- | -------- |
 | `flow_logging_behavior` | `FlowLoggingBehavior` | `"Enabled"`, `"Disabled"` | yes      |
 
-## UpdateRoutingCriteria
+## UpdateContactRoutingCriteria
 
-Block `update_routing_criteria`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html).
+Block `update_contact_routing_criteria`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html).
 
 - Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
 - `next`: required.
@@ -793,12 +796,11 @@ Block `associate_contact_to_customer_profile`. [Action page](https://docs.aws.am
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
-| HCL attribute           | Flow language key     | Value              | Required |
-| ----------------------- | --------------------- | ------------------ | -------- |
-| `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
-| .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
-| .`contact_id`           | `ContactId`           | string or JSONPath | yes      |
-| `profile_response_data` | `ProfileResponseData` | list               | no       |
+| HCL attribute          | Flow language key    | Value              | Required |
+| ---------------------- | -------------------- | ------------------ | -------- |
+| `profile_request_data` | `ProfileRequestData` | object             | yes      |
+| .`profile_id`          | `ProfileId`          | string or JSONPath | yes      |
+| .`contact_id`          | `ContactId`          | string or JSONPath | yes      |
 
 ## CreateCallbackContact
 
@@ -834,7 +836,7 @@ Block `create_customer_profile`. [Action page](https://docs.aws.amazon.com/conne
 | `profile_request_data`  | `ProfileRequestData`  | map of strings | no       |
 | `profile_response_data` | `ProfileResponseData` | list           | no       |
 
-- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`.
 - `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
 
 ## InvokeLambdaFunction
@@ -861,7 +863,7 @@ Block `get_customer_profile`. [Action page](https://docs.aws.amazon.com/connect/
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `MultipleFoundError`; `NoneFoundError`.
+- Error branches: `NoMatchingError` (required); `MultipleFoundError` (required); `NoneFoundError` (required).
 - Conditions: none.
 - Fields of `profile_request_data`: exactly one of (`IdentifierName` and `IdentifierValue`), (`SearchCriteria` and `LogicalOperator`).
 
@@ -884,19 +886,19 @@ Block `get_customer_profile_object`. [Action page](https://docs.aws.amazon.com/c
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `NoneFoundError`.
+- Error branches: `NoMatchingError` (required); `NoneFoundError` (required).
 - Conditions: none.
 - Fields of `profile_request_data`: exactly one of `UseLatest`, (`IdentifierName` and `IdentifierValue`).
 
-| HCL attribute           | Flow language key     | Value               | Required |
-| ----------------------- | --------------------- | ------------------- | -------- |
-| `profile_request_data`  | `ProfileRequestData`  | object              | yes      |
-| .`profile_id`           | `ProfileId`           | string or JSONPath  | yes      |
-| .`object_type`          | `ObjectType`          | string              | yes      |
-| .`identifier_name`      | `IdentifierName`      | string              | no       |
-| .`identifier_value`     | `IdentifierValue`     | string or JSONPath  | no       |
-| .`use_latest`           | `UseLatest`           | `"true"`, `"false"` | no       |
-| `profile_response_data` | `ProfileResponseData` | list                | no       |
+| HCL attribute           | Flow language key     | Value              | Required |
+| ----------------------- | --------------------- | ------------------ | -------- |
+| `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
+| .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
+| .`object_type`          | `ObjectType`          | string             | yes      |
+| .`identifier_name`      | `IdentifierName`      | string             | no       |
+| .`identifier_value`     | `IdentifierValue`     | string or JSONPath | no       |
+| .`use_latest`           | `UseLatest`           | `"true"`           | no       |
+| `profile_response_data` | `ProfileResponseData` | list               | no       |
 
 - `profile_response_data` values: `AssetAssetId`, `AssetProfileId`, `AssetAssetName`, `AssetSerialNumber`, `AssetModelNumber`, `AssetModelName`, `AssetProductSKU`, `AssetPurchaseDate`, `AssetUsageEndDate`, `AssetStatus`, `AssetPrice`, `AssetQuantity`, `AssetDescription`, `AssetAdditionalInformation`, `AssetDataSource`, `OrderOrderId`, `OrderProfileId`, `OrderCustomerEmail`, `OrderCustomerPhone`, `OrderCreatedDate`, `OrderUpdatedDate`, `OrderProcessedDate`, `OrderClosedDate`, `OrderCancelledDate`, `OrderCancelReason`, `OrderName`, `OrderAdditionalInformation`, `OrderGateway`, `OrderStatus`, `OrderStatusCode`, `OrderStatusUrl`, `OrderCreditCardNumber`, `OrderCreditCardCompany`, `OrderFulfillmentStatus`, `OrderTotalPrice`, `OrderTotalTax`, `OrderTotalDiscounts`, `OrderTotalItemsPrice`, `OrderTotalShippingPrice`, `OrderTotalTipReceived`, `OrderCurrency`, `OrderTotalWeight`, `OrderBillingName`, `OrderBillingAddress1`, `OrderBillingAddress2`, `OrderBillingAddress3`, `OrderBillingAddress4`, `OrderBillingCity`, `OrderBillingCounty`, `OrderBillingCountry`, `OrderBillingPostalCode`, `OrderBillingProvince`, `OrderBillingState`, `OrderShippingName`, `OrderShippingAddress1`, `OrderShippingAddress2`, `OrderShippingAddress3`, `OrderShippingAddress4`, `OrderShippingCity`, `OrderShippingCounty`, `OrderShippingCountry`, `OrderShippingPostalCode`, `OrderShippingProvince`, `OrderShippingState`, `CaseCaseId`, `CaseProfileId`, `CaseTitle`, `CaseSummary`, `CaseStatus`, `CaseReason`, `CaseCreatedBy`, `CaseCreatedDate`, `CaseUpdatedDate`, `CaseClosedDate`, `CaseAdditionalInformation`, `CaseDataSource`, or a name matching `^AssetAttributes\.[^.]+$` or `^OrderAttributes\.[^.]+$` or `^CaseAttributes\.[^.]+$` or `^ObjectAttributes\.[^.]+$`.
 
@@ -906,14 +908,14 @@ Block `get_calculated_attributes_for_customer_profile`. [Action page](https://do
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `NoneFoundError`.
+- Error branches: `NoMatchingError` (required); `NoneFoundError` (required).
 - Conditions: none.
 
 | HCL attribute           | Flow language key     | Value              | Required |
 | ----------------------- | --------------------- | ------------------ | -------- |
 | `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
 | .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
-| `profile_response_data` | `ProfileResponseData` | list               | no       |
+| `profile_response_data` | `ProfileResponseData` | list               | yes      |
 
 - `profile_response_data` values: `CalculatedAttributes._average_hold_time`, `CalculatedAttributes._frequent_caller`, or a name matching `^CalculatedAttributes\.[^.]+$`.
 
@@ -931,5 +933,37 @@ Block `update_customer_profile`. [Action page](https://docs.aws.amazon.com/conne
 | `profile_request_data`  | `ProfileRequestData`  | map of strings | no       |
 | `profile_response_data` | `ProfileResponseData` | list           | no       |
 
-- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`.
 - `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+
+## LoadContactContent
+
+Block `load_contact_content`. [Action page](https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html).
+
+- Legal in: every flow type.
+- Channels: EMAIL only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute  | Flow language key | Value            | Required |
+| -------------- | ----------------- | ---------------- | -------- |
+| `content_type` | `ContentType`     | `"EmailMessage"` | yes      |
+
+## TransferParticipantToThirdParty
+
+Block `transfer_participant_to_third_party`. [Kept export](https://github.com/flow-as-code/flow-as-code/blob/main/conformance/flow-language/exports/transfer-participant-to-third-party.json).
+
+- Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `CallFailed`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the service refuses it (actions.md, rule 47, 2026-10-13); `ConnectionTimeLimitExceeded`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the service refuses it (actions.md, rule 47, 2026-10-13); `NoMatchingError` (required).
+- Conditions: none.
+- Shape with `ContinueFlowExecution` "True": needs branches `CallFailed`, `ConnectionTimeLimitExceeded`.
+- Shape with `ContinueFlowExecution` "False": must not wire `CallFailed`, `ConnectionTimeLimitExceeded`.
+
+| HCL attribute                               | Flow language key                      | Value               | Required |
+| ------------------------------------------- | -------------------------------------- | ------------------- | -------- |
+| `third_party_phone_number`                  | `ThirdPartyPhoneNumber`                | string or JSONPath  | yes      |
+| `third_party_connection_time_limit_seconds` | `ThirdPartyConnectionTimeLimitSeconds` | number              | yes      |
+| `continue_flow_execution`                   | `ContinueFlowExecution`                | `"True"`, `"False"` | yes      |

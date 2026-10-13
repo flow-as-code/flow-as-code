@@ -1,0 +1,454 @@
+[
+  {
+    "probe": "routing-contact-type-set-alone",
+    "description": "Rule 45: The required set alone under the Type UpdateContactRoutingCriteria.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:55Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-required-set-alone",
+    "description": "Rule 45: UpdateRoutingCriteria with the catalog's required set alone: one step holding only its Expression, a single AttributeCondition on the instance's predefined attribute, no Expiry, with next and the catch-all.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:10:56Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: UpdateRoutingCriteria, Path: Actions[0].Type",
+      "Invalid Action type. Type: UpdateRoutingCriteria, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "routing-agent-transfer",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a AGENT_TRANSFER flow, which the page allows.",
+    "flowType": "AGENT_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:19Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-and-eight",
+    "description": "Rule 45: An AndExpression of eight requirements, the admin guide's limit, beside routing-and-nine one over it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:21Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-and-nine",
+    "description": "Rule 45: An AndExpression of nine requirements, one above the admin guide's eight.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-contact-type",
+    "description": "Rule 45: The same parameters under the Type UpdateContactRoutingCriteria, the spelling an AWS sample and a third-party library say the service requires in place of the page's UpdateRoutingCriteria.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:24Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-criteria-jsonpath",
+    "description": "Rule 45: The whole of RoutingCriteria as a JSONPath, the form an AWS sample writes.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:25Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-customer-hold",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a customer hold flow, which the page forbids.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:27Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerHold, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "routing-customer-queue",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a CUSTOMER_QUEUE flow, which the page allows.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:27Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-customer-whisper",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a customer whisper flow, which the page forbids.",
+    "flowType": "CUSTOMER_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerWhisper, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "routing-empty-steps",
+    "description": "Rule 45: Steps as an empty list.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-expiry-empty",
+    "description": "Rule 45: A step whose Expiry holds no DurationInSeconds, the catalog's one required key in it, removed alone; the last step, so the admin guide's every-step-but-the-last rule is not in play.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:30Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-expiry-jsonpath",
+    "description": "Rule 45: DurationInSeconds as a JSONPath, which the page says \"Can be set only statically\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:30Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-expiry-number",
+    "description": "Rule 45: DurationInSeconds as the number 30, the spelling of the admin guide's Lambda examples, where every other probe sends the string \"30\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-first-step-no-expiry",
+    "description": "Rule 45: Two steps, the first without an Expiry, which the admin guide forbids (\"Each step of the criteria must have a timed expiration timer\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:32Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-level-0-5",
+    "description": "Rule 45: ProficiencyLevel 0.5, below the five values.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-level-2-5",
+    "description": "Rule 45: ProficiencyLevel 2.5, inside the range but not one of the five values.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-level-5-5",
+    "description": "Rule 45: ProficiencyLevel 5.5, above the five values.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-level-string",
+    "description": "Rule 45: ProficiencyLevel as the string \"4.0\", the spelling a third-party library writes. The page's float spelling 4.0 as a JSON number cannot be sent: the runner serializes parsed JSON, which writes it 4, the integer spelling every other probe here sends.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-module",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a flow module, which neither page names.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-name-65",
+    "description": "Rule 45: A requirement whose Name is 65 characters, one above the page's 64.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:39Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-no-catch-all",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) without the catch-all (the page's one error), removed alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "routing-no-criteria",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) without RoutingCriteria (Parameters empty), which the page marks Required, removed alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:41Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-no-expression",
+    "description": "Rule 45: A step with an Expiry and no Expression, which the page marks Required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-no-next",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) without NextAction, removed alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "routing-no-steps",
+    "description": "Rule 45: RoutingCriteria without Steps, which the page marks Required, removed alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-not-condition",
+    "description": "Rule 45: A NotAttributeCondition, the admin guide's dynamic-only exclusion, written statically.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-operator-range",
+    "description": "Rule 45: A requirement with the admin guide's Range operator and its Range object, outside the page's one valid value.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:44Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-or-four",
+    "description": "Rule 45: An OrExpression of four requirements, one above the admin guide's three.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:45Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-or-inside-and",
+    "description": "Rule 45: An OrExpression inside an AndExpression, which the admin guide forbids (\"OR expressions must be at the top level\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:46Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-or",
+    "description": "Rule 45: An OrExpression at the top holding an AND and a requirement, which the page does not list and the admin guide allows only when set dynamically.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:47Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-preferred-agent-jsonpath",
+    "description": "Rule 45: A preferred-agent requirement whose agent is the admin guide's manual-mode example, $.Customer.CalculatedAttributes._last_agent_id, in place of a literal user id.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:48Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-preferred-agent",
+    "description": "Rule 45: A preferred-agent requirement written statically: AttributeCondition with ComparisonOperator \"Match\" and MatchCriteria.AgentsCriteria.AgentIds holding one user id, the shape of the UpdateContactRoutingData API's preferred-agent examples, which the action page does not document.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-queue-transfer",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a QUEUE_TRANSFER flow, which the page allows.",
+    "flowType": "QUEUE_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:51Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-required",
+    "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) as the class writes it: an AND of two requirements expiring after \"30\" seconds, then one requirement that never expires.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:52Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-steps-jsonpath",
+    "description": "Rule 45: Steps as a JSONPath, the page's dynamic form.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:53Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RoutingCriteria"
+    ]
+  },
+  {
+    "probe": "routing-unknown-attribute",
+    "description": "Rule 45: A requirement on an attribute name the instance has not predefined.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:54Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-unknown-value",
+    "description": "Rule 45: A requirement on the predefined attribute with a value it does not define.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:55Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-value-65",
+    "description": "Rule 45: A requirement whose Value is 65 characters, one above the page's 64.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "routing-value-jsonpath",
+    "description": "Rule 45: A requirement whose Value is a JSONPath, the admin guide's dynamic value.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:11:59Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  }
+]

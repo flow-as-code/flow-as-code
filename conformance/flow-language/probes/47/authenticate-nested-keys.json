@@ -1,0 +1,39 @@
+{
+  "description": "Rule 47: AuthenticateParticipant (the Authenticate Customer block) in an inbound flow with the three keys rule 40's refusal named, each object empty and the time limit the page's 3-minute default as a decimal string, and the TimeLimitExceeded branch it named. A refusal should name the keys inside CognitoConfiguration and CustomerProfilesConfiguration, and what Transitions.Conditions must hold; the shapes still need an export before the type is modeled.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "AuthenticateParticipant",
+        "Parameters": {
+          "CognitoConfiguration": {},
+          "CustomerProfilesConfiguration": {},
+          "TimeLimitMinutes": "3"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "TimeLimitExceeded",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

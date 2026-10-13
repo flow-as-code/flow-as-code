@@ -1,0 +1,54 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "check-progress",
+      "messageIncludes": "needs at least 1 condition"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "call-progress",
+    "description": "CheckOutboundCallStatus with the catch-all and no status condition. The page does not say a condition is required, but the service refuses the action without one (\"Invalid Action property value. Path: Actions[0].Transitions.Conditions\", actions.md, rule 46, 2026-10-13).",
+    "connectType": "OUTBOUND_WHISPER",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "check-progress",
+      "Actions": [
+        {
+          "Identifier": "check-progress",
+          "Type": "CheckOutboundCallStatus",
+          "Parameters": {},
+          "Transitions": {
+            "NextAction": "done",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "done"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "done",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "check-progress": {
+        "x": 0,
+        "y": 0
+      },
+      "done": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

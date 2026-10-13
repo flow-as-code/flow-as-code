@@ -136,9 +136,10 @@ export type FieldDesc =
     }
   /**
    * An object of strings whose keys the page lists (chosen from `names`, not
-   * typed) or that match one of `patterns` (typed, `Attributes.<name>`),
-   * each value static or a JSONPath: a Customer Profiles create or update's
-   * ProfileRequestData (catalog `keys` and `keyPatterns`).
+   * typed) or that match one of `patterns` (typed; no typed key is offered
+   * when `patterns` is empty), each value static or a JSONPath: a Customer
+   * Profiles create or update's ProfileRequestData (catalog `keys` and
+   * `keyPatterns`).
    */
   | {
       kind: "fieldMap";
@@ -170,6 +171,17 @@ export type FieldDesc =
       refType?: RefType;
     }
   /**
+   * A transfer to a phone number's Resume flow after disconnect
+   * (`ContinueFlowExecution`, "True" or "False"). Written by setContinueFlow,
+   * which adds or removes the Call failed and Timeout branches in the same
+   * mutation (actions.md, rule 47).
+   */
+  | {
+      kind: "continueFlow";
+      key: string;
+      label: string;
+    }
+  /**
    * A Cases block's link (tasks/D06): whether `LinkContactToCase` is "true"
    * and, when it is, which contact (`ContactToLink`). Written by
    * setCaseLink, which wires or removes the ContactNotLinked branch in the
@@ -181,11 +193,11 @@ export type FieldDesc =
       label: string;
     }
   /**
-   * UpdateRoutingCriteria's `Steps`, inside the object `key` holds: a list
+   * UpdateContactRoutingCriteria's `Steps`, inside the object `key` holds: a list
    * shown one step at a time, each step's Expression in the JSON editor
-   * `json` fields use and its expiry as seconds (empty: never expires), or a
-   * JSONPath standing for the whole list (docs/adr/0009). The block class
-   * checks the expression; the guard reports what it refuses.
+   * `json` fields use and its expiry as seconds (empty: never expires)
+   * (docs/adr/0009). The block class checks the expression; the guard
+   * reports what it refuses.
    */
   | {
       kind: "steps";
@@ -263,10 +275,22 @@ function profileResponseField(): FieldDesc {
   };
 }
 
-/** The request and response fields of a profile create or update. */
+/**
+ * The request and response fields of a profile create or update. The
+ * request takes the page's fields only: the service refuses its
+ * `Attributes.<name>` key there (actions.md, rule 43), so a custom attribute
+ * is offered among the response names and nowhere else.
+ */
 function profileFieldsFor(): FieldDesc[] {
   return [
-    { kind: "fieldMap", key: "ProfileRequestData", label: "Request fields", ...PROFILE_NAMES },
+    {
+      kind: "fieldMap",
+      key: "ProfileRequestData",
+      label: "Request fields",
+      names: PROFILE_FIELDS,
+      patterns: [],
+      patternHint: "",
+    },
     profileResponseField(),
   ];
 }
@@ -767,10 +791,10 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     }
-    case ActionType.UpdateRoutingCriteria:
+    case ActionType.UpdateContactRoutingCriteria:
       // The steps, one at a time: each expression in the JSON editor
-      // (attributeCondition, and and or in the .flow.ts), each expiry in
-      // seconds; or a JSONPath to a Lambda's list.
+      // (attributeCondition and and in the .flow.ts), each expiry in
+      // seconds; or the whole criteria as a JSONPath to a Lambda's response.
       return [
         {
           kind: "steps",
@@ -840,14 +864,15 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.CreateCustomerProfile:
     case ActionType.UpdateCustomerProfile:
-      // The request fields are chosen from the page's list, and a custom
-      // attribute is typed as Attributes.<name>; the response fields are
-      // ticked from the same list, with custom attributes typed beside them.
-      // A name outside both stays in the raw JSON of a generic block.
+      // The request fields are chosen from the page's list; the response
+      // fields are ticked from the same list, with custom attributes typed
+      // beside them as Attributes.<name>. A name outside both stays in the
+      // raw JSON of a generic block.
       return profileFieldsFor();
     case ActionType.AssociateContactToCustomerProfile:
       // Both ids sit in ProfileRequestData, each static or a JSONPath; the
-      // page's response data is "None.", so there is nothing to choose.
+      // page's response data is "None.", and the service refuses the key
+      // (rule 43), so there is nothing to choose.
       return [
         {
           kind: "text",
@@ -941,6 +966,31 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           label: "Participants (Customer, MediaDirections From and To)",
         },
         { kind: "select", key: "MediaStreamType", label: "Stream type", options: ["Audio"] },
+      ];
+    case ActionType.TransferParticipantToThirdParty:
+      // The number is a JSONPath (codegen leaves a static one generic until
+      // rule 47 records whether the service takes it). Resume flow after
+      // disconnect True carries the Call failed and Timeout branches, which
+      // the service requires in that form; False requires only the catch-all
+      // and keeps either of the other two when wired.
+      return [
+        {
+          kind: "text",
+          key: "ThirdPartyPhoneNumber",
+          label: "Phone number (JSONPath to an E.164 number)",
+        },
+        {
+          kind: "number",
+          key: "ThirdPartyConnectionTimeLimitSeconds",
+          label: "Timeout (seconds)",
+          min: 1,
+          asString: true,
+        },
+        {
+          kind: "continueFlow",
+          key: "ContinueFlowExecution",
+          label: "Resume flow after disconnect",
+        },
       ];
     case ActionType.UpdatePreviousContactParticipantState:
       // AgentOnHold keeps the customer on the call, CustomerOnHold the
@@ -1203,6 +1253,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
     case ActionType.TransferContactToAgent:
     case ActionType.TransferContactToQueue:
     case ActionType.ResumeContact:
+    case ActionType.LoadContactContent:
       return [];
     default:
       // Unmodeled: GenericBlock, read-only raw JSON.

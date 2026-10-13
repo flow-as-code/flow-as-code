@@ -18,6 +18,7 @@
 import {
   AGENT_METRIC_TYPES,
   ActionType,
+  CALL_FAILED,
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
@@ -29,6 +30,7 @@ import {
   CASE_SYSTEM_FIELDS,
   CHANNEL_MISMATCH,
   CONTACT_NOT_LINKED,
+  CONNECTION_TIME_LIMIT_EXCEEDED,
   DTMF_DIGITS,
   EVENT_HOOKS,
   INVALID_CALLBACK_NUMBER,
@@ -61,7 +63,6 @@ import {
   PROFICIENCY_LEVELS,
   ROUTING_AND_MAX,
   ROUTING_COMPARISON_OPERATOR,
-  ROUTING_OR_MAX,
   CALCULATED_ATTRIBUTE_FIELDS,
   CALCULATED_ATTRIBUTE_PATTERNS,
   MULTIPLE_FOUND_ERROR,
@@ -74,6 +75,7 @@ import {
   PROFILE_SEARCH_CRITERIA_MAX,
   PROFILE_SEARCH_CRITERIA_MIN,
   QUEUE_PRIORITY_MIN,
+  STORED_CONTENT_TYPES,
   SYSTEM_TAG_PREFIX,
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
@@ -118,7 +120,6 @@ import type { Condition, ConditionOperator, FlowAction, Transitions } from "./fl
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
 import { parseToken } from "./refs.js";
-import { jsonPath } from "./refs.js";
 
 /** A transition target: another block, or its Identifier. */
 export type Target = string | Block;
@@ -1023,13 +1024,14 @@ export class Wait extends Block {
  * "VoicemailNoBeep", "NotDetected"; only Equals, only those operands), and
  * at least one is required. One error, "NoMatchingError if no condition
  * matches", which is also the path when no status branch matches, so the
- * class mirrors NextAction onto it as it does for Wait; rule 46's
- * `status-no-next` and `status-next-elsewhere` probes put that to the
- * service. No parameters. The page: "This action works with Connect
- * Customer outbound campaigns only"; the admin guide adds customer-first
- * callbacks, voice only, and every flow type. Deployable without campaigns
- * enabled is what rule 46 asks; a live contact needs the campaigns gate
- * (tasks/D04).
+ * class mirrors NextAction onto it as it does for Wait; the service
+ * requires a NextAction but not the mirror, and refuses the block with no
+ * status condition (actions.md, rule 46). No parameters. The page: "This
+ * action works with Connect Customer outbound campaigns only"; the admin
+ * guide adds customer-first callbacks, voice only, and every flow type, and
+ * the service accepted it in every flow type probed, a module among them,
+ * on an instance without campaigns, so it is deployable; a live contact needs the
+ * campaigns gate (tasks/D04).
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
  */
@@ -1091,9 +1093,13 @@ export class CheckOutboundCallStatus extends Block {
  * it is "Only used for Voice Connector use case". The page's
  * `VoiceConnector` form (a Chime voice connector) is not modeled (owner
  * decision 4): a block carrying it stays a GenericBlock. Results and errors
- * "None."; the admin guide's block "has no error branch", so the class
- * wires `next` alone. Outbound whisper flows (the admin guide's block),
- * voice only.
+ * "None."; the admin guide's block "has no error branch", and the service
+ * refuses one, so the class wires `next` alone. Outbound whisper flows
+ * only, voice only: the service refused it in every other flow type and in
+ * a module. A static `callerId` must be a number claimed on the instance:
+ * the service refused an unclaimed one and an ARN as "invalid resource"
+ * (actions.md, rule 46), so a static number is environment-specific and a
+ * JSONPath is the portable form.
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
  */
@@ -1589,12 +1595,13 @@ export class UpdateContactRoutingBehavior extends Block {
 //
 // The expression is a tagged union, recursive on the action page, which the
 // catalog holds as a `json` value. TypeScript expresses the union directly,
-// so the builder offers it typed: `attributeCondition`, `and` and `or` build
-// the Flow language objects the action page shows, and the block class
-// checks the whole tree. The narrowing below (an AND holds conditions only,
-// an OR sits at the top) is the admin guide's, not the action page's: "OR
-// expressions must be at the top level. You can place an AND inside an OR,
-// but not the other way around."
+// so the builder offers it typed: `attributeCondition` and `and` build the
+// Flow language objects the action page shows, and the block class checks
+// the whole tree. An AND holds conditions only. The admin guide's OR is
+// "only ... when setting attributes dynamically", and the service refuses an
+// `OrExpression` at the top of a step at create ("Invalid Action property
+// value", actions.md, rule 45, 2026-10-13), so the builder writes none; a
+// document holding one stays generic.
 // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
 // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
 // ---------------------------------------------------------------------------
@@ -1622,21 +1629,17 @@ export interface AndExpression {
   AndExpression: AttributeConditionExpression[];
 }
 
-/** Alternatives OR-ed together, up to three, each a requirement or an AND of them. */
-export interface OrExpression {
-  OrExpression: (AttributeConditionExpression | AndExpression)[];
-}
-
-/** A routing step's `Expression`, one of the three tags. */
-export type RoutingExpression = AttributeConditionExpression | AndExpression | OrExpression;
+/** A routing step's `Expression`, as the builder writes it: one requirement or an AND of them. */
+export type RoutingExpression = AttributeConditionExpression | AndExpression;
 
 /**
  * A requirement, written as the action page spells it: `ProficiencyLevel`
  * one of the five levels and `ComparisonOperator` its one valid value. The
  * level is written as a JSON number, the integer spelling, since `2.0`
  * cannot survive a JSON parse in any reader (docs/adr/0009); the admin
- * guide's own examples write `"ProficiencyLevel": 4`. Rule 45 (pending) puts
- * the integer and the string spellings to the service.
+ * guide's own examples write `"ProficiencyLevel": 4`. The service accepts
+ * the integer and the string `"4.0"`, and 2.5 too, and refuses 0.5 and 5.5
+ * (actions.md, rule 45); the builder writes the five levels the page lists.
  */
 export function attributeCondition(
   name: string,
@@ -1666,18 +1669,6 @@ export function and(...conditions: AttributeConditionExpression[]): AndExpressio
   requireCount("and", conditions.length, ROUTING_AND_MAX);
   conditions.forEach((c) => requireCondition("and", c));
   return { AndExpression: conditions };
-}
-
-/** Alternatives, any of which an agent may meet: one to three, each a requirement or an AND. */
-export function or(
-  ...alternatives: (AttributeConditionExpression | AndExpression)[]
-): OrExpression {
-  requireCount("or", alternatives.length, ROUTING_OR_MAX);
-  for (const a of alternatives) {
-    if (isTagged(a, "AndExpression")) requireExpression("or", a, false);
-    else requireCondition("or", a);
-  }
-  return { OrExpression: alternatives };
 }
 
 function requireAttributeText(where: string, what: string, text: unknown, dynamic: boolean): void {
@@ -1725,8 +1716,8 @@ function requireCondition(where: string, e: unknown): void {
   attributeCondition(r.Name, r.Value, r.ProficiencyLevel);
 }
 
-/** A whole expression, as the builder writes it; `top` is whether an OR may stand here. */
-function requireExpression(where: string, e: unknown, top: boolean): void {
+/** A whole expression, as the builder writes it: a requirement or an AND of them. */
+function requireExpression(where: string, e: unknown): void {
   if (isTagged(e, "AttributeCondition")) return requireCondition(where, e);
   if (isTagged(e, "AndExpression")) {
     const items = (e as AndExpression).AndExpression as unknown;
@@ -1735,16 +1726,7 @@ function requireExpression(where: string, e: unknown, top: boolean): void {
     for (const item of items) requireCondition(where, item);
     return;
   }
-  if (top && isTagged(e, "OrExpression")) {
-    const items = (e as OrExpression).OrExpression as unknown;
-    if (!Array.isArray(items)) throw new Error(`${where}: OrExpression must be a list.`);
-    requireCount("or", items.length, ROUTING_OR_MAX);
-    for (const item of items) requireExpression(where, item, false);
-    return;
-  }
-  throw new Error(
-    `${where}: an expression is attributeCondition(...), and(...)${top ? " or or(...)" : ""}.`,
-  );
+  throw new Error(`${where}: an expression is attributeCondition(...) or and(...).`);
 }
 
 /**
@@ -1760,36 +1742,37 @@ export interface RoutingStep {
 
 /**
  * "Sets the routing criteria for the contact." `RoutingCriteria.Steps` is a
- * list of steps, "set statically or dynamically", so `steps` is the list or a
- * JSONPath to one (the admin guide's Set dynamically option reads a Lambda's
- * response). Each step's `Expiry.DurationInSeconds` "Can be set only
+ * list of steps, "set statically or dynamically" on the page, but the
+ * service refuses `Steps` as a JSONPath and accepts the whole of
+ * `RoutingCriteria` as one (actions.md, rule 45), so `steps` is a list, and
+ * a document reading the criteria from a Lambda's response stays generic.
+ * Each step's `Expiry.DurationInSeconds` "Can be set only
  * statically", written as a decimal string, the spelling the console gives
  * every other seconds field. One error, the catch-all; no conditions.
- * Inbound, customer queue and transfer flows, every channel.
+ * Inbound, customer queue and transfer flows, every channel. The page
+ * names the Type `UpdateRoutingCriteria`, which the service refuses ("Invalid
+ * Action type"); it takes `UpdateContactRoutingCriteria`, which the class
+ * writes (actions.md, rule 45, 2026-10-13).
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
  */
-export interface UpdateRoutingCriteriaConfig extends Wired {
-  steps: RoutingStep[] | JsonPath;
+export interface UpdateContactRoutingCriteriaConfig extends Wired {
+  steps: RoutingStep[];
 }
 
-export class UpdateRoutingCriteria extends Block {
-  readonly type = ActionType.UpdateRoutingCriteria;
+export class UpdateContactRoutingCriteria extends Block {
+  readonly type = ActionType.UpdateContactRoutingCriteria;
 
-  constructor(private readonly config: UpdateRoutingCriteriaConfig) {
+  constructor(private readonly config: UpdateContactRoutingCriteriaConfig) {
     super(config.id);
-    const where = `UpdateRoutingCriteria "${config.id}"`;
+    const where = `UpdateContactRoutingCriteria "${config.id}"`;
     const steps = config.steps;
-    if (typeof steps === "string") {
-      jsonPath(steps);
-      return;
-    }
     if (!Array.isArray(steps) || steps.length === 0) {
-      throw new Error(`${where} needs at least one step, or a JSONPath to the steps.`);
+      throw new Error(`${where} needs at least one step.`);
     }
     steps.forEach((step, i) => {
       const at = `${where} step ${i + 1}`;
-      requireExpression(at, step.expression, true);
+      requireExpression(at, step.expression);
       const seconds = step.expiresAfterSeconds;
       if (seconds === undefined) {
         if (i < steps.length - 1) {
@@ -1802,20 +1785,16 @@ export class UpdateRoutingCriteria extends Block {
   }
 
   protected parameters(): Record<string, unknown> {
-    const steps = this.config.steps;
     return {
       RoutingCriteria: {
-        Steps:
-          typeof steps === "string"
-            ? steps
-            : steps.map((step) =>
-                step.expiresAfterSeconds === undefined
-                  ? { Expression: step.expression }
-                  : {
-                      Expression: step.expression,
-                      Expiry: { DurationInSeconds: String(step.expiresAfterSeconds) },
-                    },
-              ),
+        Steps: this.config.steps.map((step) =>
+          step.expiresAfterSeconds === undefined
+            ? { Expression: step.expression }
+            : {
+                Expression: step.expression,
+                Expiry: { DurationInSeconds: String(step.expiresAfterSeconds) },
+              },
+        ),
       },
     };
   }
@@ -2316,8 +2295,8 @@ export class UpdateContactRecordingAndAnalyticsBehavior extends Block {
  * task and routes voice, chat and email down its Error branch, which the
  * catalog records as the channel restriction; its configured block has an
  * Error branch beside the path a resumed task takes, written here as the
- * block's own NextAction. That the service refuses the block without
- * NextAction or without the catch-all is rule 41's to settle (probe pending).
+ * block's own NextAction. The service refuses the block without NextAction
+ * or without the catch-all (actions.md, rule 41, 2026-10-13).
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
  */
@@ -2529,7 +2508,8 @@ export class UpdateContactMediaProcessing extends Block {
  * `"Type": "Value"` against StartTaskContact's Reference object), are not
  * recorded from a console export yet, so the class writes no References and
  * a document carrying one, a static ScheduledTime or a numeric DelaySeconds
- * stays a GenericBlock (actions.md, rule 42, probe pending).
+ * stays a GenericBlock. The service accepts each of those at create (actions.md,
+ * rule 42), so the stored spelling waits on an export, not on the service.
  * https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/create-task-block.html
  * https://docs.aws.amazon.com/connect/latest/APIReference/API_StartTaskContact.html
@@ -2598,7 +2578,7 @@ export class CreateTask extends Block {
  * `assistant` reference or a JSONPath. Results "None."; one error, the
  * catch-all. The action page restricts it to voice and allows every flow
  * type; the admin guide's block allows every channel and five flow types,
- * and rule 42's probes put the disagreement to the service. On voice it
+ * and the service accepted it in every flow type rule 42 probed. On voice it
  * needs real-time conversational analytics, set by a recording and
  * analytics block elsewhere in the flow. The admin guide's Config tab also
  * names an Orchestration AI agent, whose key no export has recorded; a
@@ -2705,9 +2685,11 @@ export class StartOutboundChatContact extends Block {
 
 // ---------------------------------------------------------------------------
 // Customer Profiles (tasks/D03): the six actions of the console's Customer
-// profiles block. Each writes ProfileRequestData and ProfileResponseData,
-// the latter as a list of names, the shape every console export carries
-// (actions.md, rule 43), and needs Customer Profiles enabled on the instance.
+// profiles block. Each writes ProfileRequestData, and every one but
+// AssociateContactToCustomerProfile, which the service refuses it on,
+// ProfileResponseData as a list of names, the shape every console export
+// carries (actions.md, rule 43). Each needs Customer Profiles enabled on the
+// instance.
 // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
 // ---------------------------------------------------------------------------
 
@@ -2721,8 +2703,8 @@ function requireText(where: string, key: string, value: unknown): void {
 /**
  * Whether a name is one the page lists or matches one of its patterns
  * (`Attributes.x` and its kin). The catalog carries the same lists as
- * `keys` and `keyPatterns`; a name outside them stays in a GenericBlock,
- * since rule 43's probe of an unknown key has not run.
+ * `keys` and `keyPatterns`; the service refuses a name outside them
+ * (actions.md, rule 43), so such a block stays a GenericBlock.
  */
 function isListedName(
   name: string,
@@ -2743,19 +2725,26 @@ function requireNames(
   for (const name of given) {
     if (typeof name !== "string" || !isListedName(name, names, patterns)) {
       throw new Error(
-        `${where} ${what} names "${String(name)}", which is neither a field the page lists nor a name matching ${patterns.join(" or ")}.`,
+        patterns.length === 0
+          ? `${where} ${what} names "${String(name)}", which is not a field the page lists.`
+          : `${where} ${what} names "${String(name)}", which is neither a field the page lists nor a name matching ${patterns.join(" or ")}.`,
       );
     }
   }
   if (new Set(given).size !== given.length) throw new Error(`${where} ${what} repeats a name.`);
 }
 
-/** ProfileRequestData of a create or update: listed fields and custom attributes. */
+/**
+ * ProfileRequestData of a create or update: listed fields only. The pages
+ * also list `"Attributes.x"` there, but the service refuses that key
+ * ("Invalid Action property name", actions.md, rule 43, 2026-10-13), so a
+ * custom attribute is a response name and never a request key.
+ */
 function requireProfileFields(where: string, request: Record<string, string>): void {
   if (request === null || typeof request !== "object" || Array.isArray(request)) {
     throw new Error(`${where} request must be an object of field names to values.`);
   }
-  requireNames(where, "request", Object.keys(request), PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  requireNames(where, "request", Object.keys(request), PROFILE_FIELDS, []);
   for (const [key, value] of Object.entries(request)) {
     if (typeof value !== "string") {
       throw new Error(`${where} request field "${key}" must be a string or JSONPath.`);
@@ -2766,8 +2755,9 @@ function requireProfileFields(where: string, request: Record<string, string>): v
 /**
  * The shape `CreateCustomerProfile` and `UpdateCustomerProfile` share.
  * `request` is ProfileRequestData: each key a field the page lists
- * (`FirstName`, `PhoneNumber`, `BillingCity`, ...) or a custom attribute
- * `Attributes.<name>`, each value static or a JSONPath. `response` is
+ * (`FirstName`, `PhoneNumber`, `BillingCity`, ...), each value static or a
+ * JSONPath; the service refuses the page's `Attributes.<name>` key there
+ * (actions.md, rule 43). `response` is
  * ProfileResponseData, the names stored under `$.Customer` (`$.Customer.FirstName`,
  * `$.Customer.Attributes.<name>`), from the same list; the console writes
  * an empty list when none is chosen, and so does the class.
@@ -2878,14 +2868,15 @@ export type ProfileSearch =
  * `OR`, are D01's group alternatives (`exactlyOne` over the two groups). The
  * page's prose writes "IdentiferName" and its example `"IdentiferValue"`;
  * every published flow writes `IdentifierName` and `IdentifierValue`, which
- * the class writes (actions.md, rule 43, probes `get-identifier` and
- * `get-identifer-spelling`). `response` names the fields stored under
+ * the class writes; the service refuses the page's spelling (actions.md,
+ * rule 43, probes `get-identifier` and `get-identifer-spelling`). `response` names the fields stored under
  * `$.Customer`, as CreateCustomerProfile's do. Three errors, in the order
  * every published flow writes them: the catch-all, MultipleFoundError and
- * NoneFoundError; only the catch-all is required until the sweep says
- * otherwise. AWS's step-by-step guide flows also search by a named profile
- * field (`{ "PhoneNumber": ... }`), neither of the page's forms; such a
- * block stays a GenericBlock until `get-named-key` is put to the service.
+ * NoneFoundError, all three required by the service (actions.md, rule 43).
+ * AWS's step-by-step guide flows also search by a named profile field
+ * (`{ "PhoneNumber": ... }`), neither of the page's forms; the service
+ * accepts it (`get-named-key`), but the class writes only the page's two,
+ * so such a block stays a GenericBlock.
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
  */
@@ -2959,13 +2950,14 @@ export class GetCustomerProfile extends Block {
  * a preceding Get profile); `objectType` names one of the domain's object
  * types (`Asset`, `Order`, `Case` or the domain's own). The two retrievals
  * are D01's group alternatives: `latest: true` writes `UseLatest` as the
- * string "true" (the page's "true / false", unquoted; rule 43 probes the
- * other spellings), and `identifier` writes the pair. `response` names the
+ * string "true", the one spelling the service accepts (actions.md, rule 43:
+ * it refuses "false", "True" and the JSON boolean), and `identifier` writes
+ * the pair. The service also accepts both together; the class writes one. `response` names the
  * page's Asset, Order and Case fields or `AssetAttributes.<name>`,
  * `OrderAttributes.<name>`, `CaseAttributes.<name>` and
  * `ObjectAttributes.<name>`, stored under `$.Customer`. Two errors, the
  * catch-all and NoneFoundError, catch-all first as GetCustomerProfile's are
- * written; only the catch-all is required until the sweep.
+ * written; the service requires both (rule 43).
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
  */
@@ -3025,9 +3017,11 @@ export class GetCustomerProfileObject extends Block {
  * be present." in `ProfileRequestData`, static or a JSONPath. `response`
  * names `CalculatedAttributes._average_hold_time`,
  * `CalculatedAttributes._frequent_caller` or any `CalculatedAttributes.<name>`
- * the domain defines, stored under `$.Customer`. Two errors, the catch-all
- * and NoneFoundError, in the order the one published flow that carries the
- * type writes them; only the catch-all is required. The Connect
+ * the domain defines, stored under `$.Customer`; the service requires
+ * `ProfileResponseData` here and refuses a name without the prefix (rule
+ * 43). Two errors, the catch-all and NoneFoundError, in the order the one
+ * published flow that carries the type writes them; the service requires
+ * both. The Connect
  * service-linked role needs `ListCalculatedAttributeDefinitions` and
  * `GetCalculatedAttributeForProfile` at run time (the admin guide).
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
@@ -3074,8 +3068,9 @@ export class GetCalculatedAttributesForCustomerProfile extends Block {
  * "Associate a contact to a customer profile." `ProfileRequestData` holds
  * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
  * each static or a JSONPath (the admin guide's block reads both from
- * attributes); `ProfileResponseData` holds nothing ("None."), written as
- * the empty list the console writes for a block with no response fields.
+ * attributes). `ProfileResponseData` is "None." on the page, and the
+ * service refuses the key even as an empty list ("Invalid Action property
+ * name", actions.md, rule 43), so the class writes none.
  * Results "None. Conditions are not supported."; one error, the catch-all.
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
@@ -3098,7 +3093,6 @@ export class AssociateContactToCustomerProfile extends Block {
   protected parameters(): Record<string, unknown> {
     return {
       ProfileRequestData: { ProfileId: this.config.profileId, ContactId: this.config.contactId },
-      ProfileResponseData: [],
     };
   }
 
@@ -3567,6 +3561,155 @@ export class CreateCallbackContact extends Block {
 }
 
 // ---------------------------------------------------------------------------
+// Types the Developer Guide does not list (tasks/D09)
+// ---------------------------------------------------------------------------
+
+/**
+ * The Get stored content block: "retrieve stored data from your S3 bucket
+ * when you need to make branching decisions in your flows". Its one option,
+ * Email message (Plain text), downloads the plain text of the contact's email
+ * message, up to 64 KB, onto `$.Email.EmailMessage.Plaintext`, so a following
+ * Check contact attributes block can branch on it. No Developer Guide page
+ * documents the Type; the admin guide's block page does, with a Flow language
+ * example of one parameter, `"ContentType": enum "EmailMessage"`, and one
+ * error, the catch-all. Email only (voice, chat and task "No"); every flow
+ * type but a campaign's.
+ *
+ * The class takes no configuration but its wiring and always writes the
+ * page's `ContentType`. The service accepted the action with `Parameters`
+ * empty on 2026-10-05 (actions.md, rule 40), so the catalog does not require
+ * the key; codegen reads back only the page's form, and an action without
+ * `ContentType` stays a GenericBlock.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+ */
+export type LoadContactContentConfig = Wired;
+
+export class LoadContactContent extends Block {
+  readonly type = ActionType.LoadContactContent;
+
+  constructor(private readonly config: LoadContactContentConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return { ContentType: STORED_CONTENT_TYPES[0] };
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+/**
+ * The Transfer to phone number block: "Transfers the customer to a phone
+ * number external to your instance." No AWS page documents the Type (its
+ * API Reference page renders only its title); the shape is the kept export
+ * (conformance/flow-language/exports/), whose three keys the class writes:
+ * `ThirdPartyPhoneNumber`, `ThirdPartyConnectionTimeLimitSeconds` (the
+ * console's Set timeout, 30 seconds in the block page's example) and
+ * `ContinueFlowExecution` (the console's Resume flow after disconnect, which
+ * "works only if the external party disconnects, and the customer doesn't
+ * disconnect"). Voice only (chat, task and email "No - Error branch");
+ * inbound, customer queue, transfer to agent and transfer to queue flows.
+ *
+ * The number is a JSONPath: the console's static form (a country code and a
+ * number) has no recorded export, and a destination number is the kind of
+ * value a deployment supplies at run time rather than commits. The service
+ * accepts a static one (actions.md, rule 47, `third-static-number`), so the
+ * class may take one later; codegen leaves a static number generic.
+ *
+ * `timeLimitSeconds` is a positive safe integer.
+ * `continueFlow: true` writes the export's three errors in its order:
+ * `onCallFailed` (Call failed), `onTimeout` (Timeout) and `onError`. The
+ * service refused that form without any one of them on 2026-09-30, so they
+ * are required here. `continueFlow: false` takes the catch-all alone: the
+ * service refuses that form with either of the other two wired, and accepts
+ * it without them (actions.md, rule 47, 2026-10-13). The studio switches the
+ * flag and the two branches in one mutation. The page's Send
+ * DTMF, Caller ID number and Caller ID name have no key in the export and
+ * are not modeled; a document carrying any other key stays generic.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+ * https://docs.aws.amazon.com/connect/latest/APIReference/participant-actions-transferparticipanttothirdparty.html
+ */
+interface TransferParticipantToThirdPartyBase extends Wired {
+  /** A JSONPath to the destination, an E.164 number at run time. */
+  number: JsonPath;
+  /** Seconds the third party may take to answer; a positive safe integer. */
+  timeLimitSeconds: number;
+}
+
+export type TransferParticipantToThirdPartyConfig = TransferParticipantToThirdPartyBase &
+  (
+    | { continueFlow: true; onCallFailed: Target; onTimeout: Target }
+    | { continueFlow: false; onCallFailed?: never; onTimeout?: never }
+  );
+
+export class TransferParticipantToThirdParty extends Block {
+  readonly type = ActionType.TransferParticipantToThirdParty;
+
+  constructor(private readonly config: TransferParticipantToThirdPartyConfig) {
+    super(config.id);
+    // Read once: the branch checks below narrow `config` to never.
+    const id = config.id;
+    if (typeof config.number !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(config.number)) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${config.id}" number must be a JSONPath (jsonPath("$.Attributes...")).`,
+      );
+    }
+    const t = config.timeLimitSeconds;
+    // A safe integer, so that its decimal string is digits and codegen reads
+    // it back (String(1e21) is exponent notation).
+    if (!Number.isSafeInteger(t) || t < 1) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${config.id}" timeLimitSeconds must be a positive safe integer, got ${t}.`,
+      );
+    }
+    if (typeof (config as { continueFlow: unknown }).continueFlow !== "boolean") {
+      throw new Error(
+        `TransferParticipantToThirdParty "${config.id}" continueFlow must be true or false.`,
+      );
+    }
+    // The type says so too; a caller without types (JavaScript, a cast)
+    // gets the same refusal the service gave the form without either branch.
+    if (
+      config.continueFlow &&
+      (config.onCallFailed === undefined || config.onTimeout === undefined)
+    ) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${id}" with continueFlow true needs onCallFailed and onTimeout.`,
+      );
+    }
+    if (
+      !config.continueFlow &&
+      ((config as { onCallFailed?: unknown }).onCallFailed !== undefined ||
+        (config as { onTimeout?: unknown }).onTimeout !== undefined)
+    ) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${id}" with continueFlow false takes no onCallFailed or onTimeout: the service refuses either branch in that form.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    return {
+      ThirdPartyPhoneNumber: c.number,
+      ThirdPartyConnectionTimeLimitSeconds: String(c.timeLimitSeconds),
+      ContinueFlowExecution: c.continueFlow ? "True" : "False",
+    };
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    const errors: [string, Target][] = [];
+    if (c.onCallFailed !== undefined) errors.push([CALL_FAILED, c.onCallFailed]);
+    if (c.onTimeout !== undefined) errors.push([CONNECTION_TIME_LIMIT_EXCEEDED, c.onTimeout]);
+    errors.push([NO_MATCHING_ERROR, c.onError]);
+    return wire(c.next, errors);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Passthrough
 // ---------------------------------------------------------------------------
 
@@ -3574,7 +3717,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 54.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 56.
  */
 export interface GenericBlockConfig {
   id: string;

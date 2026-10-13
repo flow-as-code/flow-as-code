@@ -85,8 +85,8 @@ removed alone refused, no `NextAction` refused; and:
 - [x] flow-as-code, checklist lines 1 to 10, per type (line 5 for three of
       the four: see "Record").
 - [x] `unknown-actions` re-authored; studio generic-block tests moved.
-- [x] Probe inputs under `conformance/flow-language/probes/41/`; the sweep
-      itself has not run (see "Evidence" under "Record").
+- [x] Probe inputs under `conformance/flow-language/probes/41/`, run on
+      2026-10-13 (see "Evidence" under "Record").
 - [ ] Provider: re-vendor at the merge commit, oracles re-recorded (lines 11
       to 14); the provider commit recorded here.
 
@@ -189,25 +189,36 @@ document and its raw JSON case moved to `LoadContactContent`.
 
 ### Evidence
 
-Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
-and the instance had neither live media streaming nor a Lambda associated
-as `MESSAGE_PROCESSOR` (owner actions under "Sandbox prerequisites and
-cost"). No AWS call was made and no result is recorded. The inputs are
-kept in `conformance/flow-language/probes/41/` (35 probes: five for
-`ResumeContact`, nine for the hold block, eleven for media streaming, ten
-for media processing) with `PENDING.md`, which names the two extra
-placeholders (`PROBE_MESSAGE_PROCESSOR_NAME`,
-`PROBE_UNASSOCIATED_LAMBDA_NAME`). `tests/probeCreate.test.ts` now holds
-every set to a results file or a `PENDING.md`, never both and never
-neither, so a pending set cannot be mistaken for a run one. Each probe
-ends in an action its flow type allows (a disconnect, the end of a
-whisper, a loop of prompts in a hold flow, a module's end), so a refusal
-names the probed type and not its neighbour.
+Run on 2026-10-13, 17:06 to 17:07 UTC, on the sandbox (us-west-2), after
+the sandbox-features root (provider repository,
+`acceptance/sandbox-features`) put live media streaming, a Lambda
+associated as `MESSAGE_PROCESSOR`, one associated plainly and one never
+associated on the instance. The 35 inputs in
+`conformance/flow-language/probes/41/` gave 18 accepted and 17 refused;
+`results.json` holds each with its UTC time, and `PENDING.md` is gone.
+Rule 41's last bullet quotes every result that moved the model:
 
-When the sweep runs: the runner writes `results.json`, `PENDING.md` is
-removed, rule 41 records each result with its UTC time and Region, and the
-catalog, `actions.ts`, the schema clauses and the lint fixtures change
-only where a result says so.
+- `UpdateContactMediaProcessing` without `ChannelMismatch` was refused
+  ("Action is missing required error. Error: ChannelMismatch"), so the
+  error is required in the catalog and `REQUIRED_EXTRAS`, and the pass lint
+  fixture without it became a fail fixture.
+- `MediaDirections` with `From` twice was refused, so the 0.3 clause holds
+  the list to unique items.
+- `ProcessingEnabled` `"true"` was accepted, so the 0.3 clause no longer
+  holds the page's enum there (owner decision 3).
+- An enabled processor without a Lambda was refused and the disabled form
+  without one accepted, which the class already enforces.
+- A Lambda the instance never associated was accepted: the create does not
+  check the `MESSAGE_PROCESSOR` association.
+- The flow types stand: the previous-participant state was refused in
+  outbound whisper (the action page over the block page) and customer
+  queue flows, and media streaming in a customer hold flow, and every
+  other flow type and module probed was accepted.
+
+The run first stopped on a runner bug, fixed in the same branch:
+`ListContactFlowModules` on an instance with no modules answers with
+`NextToken: ""`, and the runner's leftover check looped on it until the
+service throttled it.
 
 ### A D01 follow-up found in review
 

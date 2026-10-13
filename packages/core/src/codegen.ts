@@ -26,7 +26,9 @@ import {
   AGENT_METRIC_TYPES,
   ActionType,
   CALLBACK_NUMBER_NOT_DIALABLE,
+  CALL_FAILED,
   CHANNEL_MISMATCH,
+  CONNECTION_TIME_LIMIT_EXCEEDED,
   DTMF_DIGITS,
   EVENT_HOOKS,
   INPUT_TIME_LIMIT_EXCEEDED,
@@ -44,6 +46,7 @@ import {
   MEDIA_STREAMING_STATES,
   PREVIOUS_PARTICIPANT_STATES,
   QUEUE_CHANNELS,
+  STORED_CONTENT_TYPES,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
   TASK_DELAY_MAX,
@@ -88,7 +91,6 @@ import type {
   ProficiencyLevel,
 } from "./actions.js";
 import type {
-  AndExpression,
   AttributeConditionExpression,
   Block,
   CaseLink,
@@ -125,6 +127,8 @@ import {
   GetCase,
   GetCustomerProfile,
   GetCustomerProfileObject,
+  LoadContactContent,
+  TransferParticipantToThirdParty,
   GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
@@ -151,10 +155,9 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
-  UpdateRoutingCriteria,
+  UpdateContactRoutingCriteria,
   and,
   attributeCondition,
-  or,
   UpdateContactTextToSpeechVoice,
   UpdateCustomerProfile,
   UpdateFlowAttributes,
@@ -175,7 +178,6 @@ import { assertFlowDoc } from "./flowdoc.js";
 import { autoLayout } from "./layout.js";
 import { PACKAGE_NAMES } from "./package-names.js";
 import { parseToken } from "./refs.js";
-import type { JsonPath } from "./refs.js";
 import { displayWidth } from "./width.js";
 
 export interface CodegenOptions {
@@ -751,25 +753,19 @@ function routingSource(e: unknown, top: boolean, ctx: Ctx): CallV | undefined {
     ctx.helpers.add("attributeCondition");
     return new CallV("attributeCondition", [c.Name, c.Value, c.ProficiencyLevel]);
   }
-  const tag = top ? ["AndExpression", "OrExpression"] : ["AndExpression"];
-  for (const t of tag) {
-    if (!keysAre(e, [t]) || !Array.isArray(e[t])) continue;
-    const args: V[] = [];
-    for (const item of e[t] as unknown[]) {
-      const inner =
-        t === "AndExpression"
-          ? keysAre(item, ["AttributeCondition"])
-            ? routingSource(item, false, ctx)
-            : undefined
-          : routingSource(item, false, ctx);
-      if (inner === undefined) return undefined;
-      args.push(inner);
-    }
-    const name = t === "AndExpression" ? "and" : "or";
-    ctx.helpers.add(name);
-    return new CallV(name, args);
+  // The builder writes no OR (the service refuses one at the top of a step,
+  // actions.md rule 45), so an OrExpression anywhere stays generic.
+  if (!top || !keysAre(e, ["AndExpression"]) || !Array.isArray(e.AndExpression)) return undefined;
+  const args: V[] = [];
+  for (const item of e.AndExpression as unknown[]) {
+    const inner = keysAre(item, ["AttributeCondition"])
+      ? routingSource(item, false, ctx)
+      : undefined;
+    if (inner === undefined) return undefined;
+    args.push(inner);
   }
-  return undefined;
+  ctx.helpers.add("and");
+  return new CallV("and", args);
 }
 
 /** The expression the helper calls build, for the constructor and the byte check. */
@@ -778,8 +774,7 @@ function routingValue(call: CallV): RoutingExpression {
   if (call.name === "attributeCondition") {
     return attributeCondition(args[0] as string, args[1] as string, args[2] as ProficiencyLevel);
   }
-  if (call.name === "and") return and(...(args as AttributeConditionExpression[]));
-  return or(...(args as (AttributeConditionExpression | AndExpression)[]));
+  return and(...(args as AttributeConditionExpression[]));
 }
 
 const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefined> = {
@@ -894,6 +889,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     if ((seconds !== undefined) !== (interrupt !== undefined)) return undefined;
     if (seconds !== undefined) {
       if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+      // The class takes a safe integer only.
+      if (!Number.isSafeInteger(Number(seconds))) return undefined;
       const n = Number(seconds);
       if (!Number.isSafeInteger(n)) return undefined;
       entries.push(["interruptFrequencySeconds", n], ["onInterrupt", interrupt!.NextAction]);
@@ -2478,6 +2475,86 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
+  // The Get stored content block in the admin guide's Flow language form:
+  // ContentType "EmailMessage", the catch-all and a next. The service took
+  // the action with no ContentType (rule 40), which the class never writes,
+  // so that form stays generic.
+  [ActionType.LoadContactContent]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, ["ContentType"])) return undefined;
+    if (a.Parameters.ContentType !== STORED_CONTENT_TYPES[0]) return undefined;
+    return {
+      cls: "LoadContactContent",
+      entries: [
+        ["id", a.Identifier],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new LoadContactContent({ id: a.Identifier, next: w.next, onError: w.onError }),
+    };
+  },
+
+  // The kept export's three keys: the number a JSONPath, the time limit the
+  // console's positive decimal string, ContinueFlowExecution "True" with the
+  // export's three errors in its order, or "False" with the catch-all alone,
+  // the one set the service accepts in that form (actions.md, rule 47). A
+  // static number, another key (the page's Send DTMF or caller ID, whose
+  // keys no export shows) or another error set stays generic.
+  [ActionType.TransferParticipantToThirdParty]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined || (t.Conditions ?? []).length !== 0) return undefined;
+    const p = a.Parameters;
+    const keys = [
+      "ThirdPartyPhoneNumber",
+      "ThirdPartyConnectionTimeLimitSeconds",
+      "ContinueFlowExecution",
+    ];
+    if (!paramKeysAre(p, keys)) return undefined;
+    const number = p.ThirdPartyPhoneNumber;
+    if (typeof number !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(number)) return undefined;
+    const seconds = p.ThirdPartyConnectionTimeLimitSeconds;
+    if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+    if (p.ContinueFlowExecution !== "True" && p.ContinueFlowExecution !== "False") return undefined;
+    const errors = t.Errors ?? [];
+    const order = [CALL_FAILED, CONNECTION_TIME_LIMIT_EXCEEDED, NO_MATCHING_ERROR];
+    const names = { [CALL_FAILED]: "onCallFailed", [CONNECTION_TIME_LIMIT_EXCEEDED]: "onTimeout" };
+    const wiring: Record<string, string> = {};
+    let at = -1;
+    for (const e of errors) {
+      const i = order.indexOf(e.ErrorType);
+      if (i <= at) return undefined;
+      at = i;
+      wiring[names[e.ErrorType as keyof typeof names] ?? "onError"] = e.NextAction;
+    }
+    if (wiring.onError === undefined) return undefined;
+    if (p.ContinueFlowExecution === "True" && errors.length !== 3) return undefined;
+    if (p.ContinueFlowExecution === "False" && errors.length !== 1) return undefined;
+    ctx.jsonPath = true;
+    const continueFlow = p.ContinueFlowExecution === "True";
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["number", new Raw(`jsonPath(${quoteString(number)})`)],
+      ["timeLimitSeconds", Number(seconds)],
+      ["continueFlow", continueFlow],
+      ["next", t.NextAction],
+      ...Object.entries(wiring),
+    ];
+    return {
+      cls: "TransferParticipantToThirdParty",
+      entries,
+      block: new TransferParticipantToThirdParty(
+        cast<never>({
+          id: a.Identifier,
+          number,
+          timeLimitSeconds: Number(seconds),
+          continueFlow,
+          next: t.NextAction,
+          ...wiring,
+        }),
+      ),
+    };
+  },
+
   // One static state; a value outside the page's three, or a JSONPath, stays
   // generic.
   [ActionType.UpdatePreviousContactParticipantState]: (a) => {
@@ -2949,60 +3026,52 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
   [ActionType.UpdateCustomerProfile]: (a) =>
     invertProfileFields(a, "UpdateCustomerProfile", (c) => new UpdateCustomerProfile(c)),
-  // RoutingCriteria holding only Steps: a JSONPath, or steps whose Expression
-  // the helpers write and whose Expiry is the decimal string the class
-  // writes. The whole RoutingCriteria as a JSONPath (an AWS sample's form,
-  // actions.md rule 45) has no place in the class and stays generic.
-  [ActionType.UpdateRoutingCriteria]: (a, ctx) => {
+  // RoutingCriteria holding only Steps: steps whose Expression the helpers
+  // write and whose Expiry is the decimal string the class writes. The
+  // service refuses Steps as a JSONPath and accepts the whole RoutingCriteria
+  // as one (an AWS sample's form, actions.md rule 45); neither has a place in
+  // the class, so both stay generic.
+  [ActionType.UpdateContactRoutingCriteria]: (a, ctx) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined) return undefined;
     if (!paramKeysAre(a.Parameters, ["RoutingCriteria"])) return undefined;
     const criteria = a.Parameters.RoutingCriteria;
     if (!keysAre(criteria, ["Steps"])) return undefined;
     const source = criteria.Steps;
-    let steps: RoutingStep[] | JsonPath;
-    let stepsV: V;
-    if (typeof source === "string") {
-      if (!/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(source)) return undefined;
-      ctx.jsonPath = true;
-      steps = source as JsonPath;
-      stepsV = new Raw(`jsonPath(${quoteString(source)})`);
-    } else {
-      if (!Array.isArray(source)) return undefined;
-      steps = [];
-      const items: V[] = [];
-      for (const step of source as unknown[]) {
-        const expiry = isPlainObject(step) ? step.Expiry : undefined;
-        if (!keysAre(step, expiry === undefined ? ["Expression"] : ["Expiry", "Expression"])) {
-          return undefined;
-        }
-        const call = routingSource(step.Expression, true, ctx);
-        if (call === undefined) return undefined;
-        const expression = routingValue(call);
-        if (stableJson(expression) !== stableJson(step.Expression)) return undefined;
-        const entries: [string, V][] = [["expression", call]];
-        if (expiry === undefined) {
-          steps.push({ expression });
-        } else {
-          if (!keysAre(expiry, ["DurationInSeconds"])) return undefined;
-          const seconds = expiry.DurationInSeconds;
-          if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
-          steps.push({ expression, expiresAfterSeconds: Number(seconds) });
-          entries.push(["expiresAfterSeconds", Number(seconds)]);
-        }
-        items.push(new ObjV(entries));
+    if (!Array.isArray(source)) return undefined;
+    const steps: RoutingStep[] = [];
+    const items: V[] = [];
+    for (const step of source as unknown[]) {
+      const expiry = isPlainObject(step) ? step.Expiry : undefined;
+      if (!keysAre(step, expiry === undefined ? ["Expression"] : ["Expiry", "Expression"])) {
+        return undefined;
       }
-      stepsV = new ArrV(items);
+      const call = routingSource(step.Expression, true, ctx);
+      if (call === undefined) return undefined;
+      const expression = routingValue(call);
+      if (stableJson(expression) !== stableJson(step.Expression)) return undefined;
+      const entries: [string, V][] = [["expression", call]];
+      if (expiry === undefined) {
+        steps.push({ expression });
+      } else {
+        if (!keysAre(expiry, ["DurationInSeconds"])) return undefined;
+        const seconds = expiry.DurationInSeconds;
+        if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+        steps.push({ expression, expiresAfterSeconds: Number(seconds) });
+        entries.push(["expiresAfterSeconds", Number(seconds)]);
+      }
+      items.push(new ObjV(entries));
     }
+    const stepsV: V = new ArrV(items);
     return {
-      cls: "UpdateRoutingCriteria",
+      cls: "UpdateContactRoutingCriteria",
       entries: [
         ["id", a.Identifier],
         ["steps", stepsV],
         ["next", w.next],
         ["onError", w.onError],
       ],
-      block: new UpdateRoutingCriteria({
+      block: new UpdateContactRoutingCriteria({
         id: a.Identifier,
         steps,
         next: w.next,
@@ -3176,18 +3245,16 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
-  // ProfileRequestData's two ids, static or JSONPath, and the empty
-  // response list the console writes; anything else stays generic.
+  // ProfileRequestData's two ids, static or JSONPath, and nothing else: the
+  // service refuses ProfileResponseData here, even empty (actions.md, rule
+  // 43), so a block carrying it stays generic.
   [ActionType.AssociateContactToCustomerProfile]: (a) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined) return undefined;
     const p = a.Parameters;
-    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    if (!paramKeysAre(p, ["ProfileRequestData"])) return undefined;
     const request = p.ProfileRequestData;
     if (!isStringMap(request) || !paramKeysAre(request, ["ProfileId", "ContactId"])) {
-      return undefined;
-    }
-    if (!Array.isArray(p.ProfileResponseData) || p.ProfileResponseData.length !== 0) {
       return undefined;
     }
     return {

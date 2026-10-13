@@ -3,7 +3,7 @@
     {
       "rule": "action-allowed-in-flow-type",
       "blockId": "routing",
-      "messageIncludes": "UpdateRoutingCriteria is not allowed in a CUSTOMER_WHISPER"
+      "messageIncludes": "UpdateContactRoutingCriteria is not allowed in a CUSTOMER_WHISPER"
     }
   ],
   "doc": {
@@ -17,7 +17,7 @@
       "Actions": [
         {
           "Identifier": "routing",
-          "Type": "UpdateRoutingCriteria",
+          "Type": "UpdateContactRoutingCriteria",
           "Parameters": {
             "RoutingCriteria": {
               "Steps": [

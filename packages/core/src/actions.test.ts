@@ -40,6 +40,8 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   CreateWisdomSession: ["VOICE"],
   CheckOutboundCallStatus: ["VOICE"],
   CompleteOutboundCall: ["VOICE"],
+  LoadContactContent: ["EMAIL"],
+  TransferParticipantToThirdParty: ["VOICE"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -153,14 +155,22 @@ const EXPECTED: Record<string, string[]> = {
     "QUEUE_TRANSFER",
     "MODULE",
   ],
-  UpdateRoutingCriteria: [
+  UpdateContactRoutingCriteria: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",
     "AGENT_TRANSFER",
     "QUEUE_TRANSFER",
     "MODULE",
   ],
-  CompleteOutboundCall: ["OUTBOUND_WHISPER", "MODULE"],
+  // The service refused it in a module too (actions.md, rule 46).
+  CompleteOutboundCall: ["OUTBOUND_WHISPER"],
+  TransferParticipantToThirdParty: [
+    "CONTACT_FLOW",
+    "CUSTOMER_QUEUE",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "MODULE",
+  ],
   UpdateContactMediaStreamingBehavior: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",
@@ -217,6 +227,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "GetCustomerProfileObject",
       "GetMetricData",
       "InvokeLambdaFunction",
+      "LoadContactContent",
       "Loop",
       "ResumeContact",
       "StartOutboundChatContact",

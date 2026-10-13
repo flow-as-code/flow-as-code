@@ -193,8 +193,8 @@ describe("an unmodeled block on the canvas", () => {
     expect(present('[data-testid="node-raw-a"]').textContent).toContain("unmodeled");
     await click(present('[data-testid="raw-button-raw-a"]'));
     const raw = testId("raw-json");
-    expect(raw.textContent).toContain("LoadContactContent");
-    expect(raw.textContent).toContain("EmailMessage");
+    expect(raw.textContent).toContain("AuthenticateParticipant");
+    expect(raw.textContent).toContain('"Identifier": "raw-a"');
   });
 
   it("is what makes a neighbour deletable: the prompt is accurate and the delete happens", async () => {

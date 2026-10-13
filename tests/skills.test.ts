@@ -159,6 +159,19 @@ describe("the action reference", () => {
     expect(read(path)).toBe(await render());
   });
 
+  // The reference is read inside the plugin and on the site, where a
+  // relative link resolves against the reference's own directory; a kept
+  // export's repository path is written as an absolute URL (tasks/D09).
+  it("links every entry's evidence by an absolute URL", () => {
+    const path = join(SKILLS, "author-connect-flows-hcl", "references", "actions.md");
+    const targets = [...read(path).matchAll(/\]\(([^)]+)\)/g)].map((m) => m[1]!);
+    expect(targets.length).toBeGreaterThan(0);
+    expect(targets.filter((t) => !/^https:\/\//.test(t))).toEqual([]);
+    expect(read(path)).toContain(
+      "[Kept export](https://github.com/flow-as-code/flow-as-code/blob/main/conformance/flow-language/exports/",
+    );
+  });
+
   // A constraint carries `keys` or, since D01's vocabulary, `groups`
   // (packages/core/src/catalog.ts, CatalogConstraint). No entry carries
   // groups until D03 models GetCustomerProfile, so this holds the rendering

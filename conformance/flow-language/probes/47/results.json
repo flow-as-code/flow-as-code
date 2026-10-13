@@ -1,0 +1,512 @@
+[
+  {
+    "probe": "authenticate-nested-keys",
+    "description": "Rule 47: AuthenticateParticipant (the Authenticate Customer block) in an inbound flow with the three keys rule 40's refusal named, each object empty and the time limit the page's 3-minute default as a decimal string, and the TimeLimitExceeded branch it named. A refusal should name the keys inside CognitoConfiguration and CustomerProfilesConfiguration, and what Transitions.Conditions must hold; the shapes still need an export before the type is modeled.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:32Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions",
+      "Action is missing required property. Path: Actions[0].Parameters.CognitoConfiguration.UserPoolArn",
+      "Action is missing required property. Path: Actions[0].Parameters.CognitoConfiguration.AppClientId",
+      "Action is missing required property. Path: Actions[0].Parameters.CustomerProfilesConfiguration.ObjectTypeName"
+    ]
+  },
+  {
+    "probe": "dtmf-buffer-enable-capitalised",
+    "description": "Rule 47: EnableDTMFBuffer \"True\", the capitalisation the catalog's StoreInput uses, against the page's \"true\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:33Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "dtmf-buffer-enable",
+    "description": "Rule 47: the Set Touchtone Buffer Behavior block's Enable form exactly as its page writes it: GetParticipantInput with EnableDTMFBuffer \"true\" alone, a NextAction and the catch-all. The catalog requires InputTimeLimitSeconds and, without StoreInput \"True\", StoreInput and two more branches; this settles whether the buffer form is exempt.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:35Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.EnableDTMFBuffer"
+    ]
+  },
+  {
+    "probe": "dtmf-buffer-module",
+    "description": "Rule 47: the Enable form in a flow module, which the page does not name.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:35Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowModuleException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.EnableDTMFBuffer"
+    ]
+  },
+  {
+    "probe": "dtmf-buffer-outbound-whisper",
+    "description": "Rule 47: the Enable form in an outbound whisper flow, which the Set Touchtone Buffer Behavior page lists and the catalog's GetParticipantInput flow types do not.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.EnableDTMFBuffer"
+    ]
+  },
+  {
+    "probe": "dtmf-buffer-stop-store",
+    "description": "Rule 47: Stop and Clear storing the buffer unencrypted: EnableDTMFBuffer \"false\" and StoreInput \"true\" (the page's spelling), no InputEncryption.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.EnableDTMFBuffer",
+      "Invalid Action property name. Path: Actions[0].Parameters.StoreInput"
+    ]
+  },
+  {
+    "probe": "dtmf-buffer-stop",
+    "description": "Rule 47: the Stop and Clear form with nothing stored: EnableDTMFBuffer \"false\" alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:37Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.EnableDTMFBuffer"
+    ]
+  },
+  {
+    "probe": "load-content-type-jsonpath",
+    "description": "Rule 47: LoadContactContent with ContentType a JSONPath, a form the page does not show and the schema clause refuses.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:37Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ContentType"
+    ]
+  },
+  {
+    "probe": "load-content-type-unknown",
+    "description": "Rule 47: LoadContactContent with a ContentType the page does not list (EmailAttachment), which the 0.3 schema clause refuses; settles whether the service holds the page's one value.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ContentType"
+    ]
+  },
+  {
+    "probe": "load-customer-hold",
+    "description": "Rule 47: LoadContactContent in a customer hold flow, one of the ten flow types the admin guide lists and the only hold flow type a probe puts to the service here.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "load-module",
+    "description": "Rule 47: LoadContactContent in a flow module, which the page does not name (the catalog allows it by the note above IN_MODULE in actions.ts).",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "load-no-catch-all",
+    "description": "Rule 47: LoadContactContent without the catch-all, which the admin guide's example carries and the catalog requires; the removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:41Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "load-no-next",
+    "description": "Rule 47: LoadContactContent without NextAction, which the catalog requires; the removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "load-outbound-whisper",
+    "description": "Rule 47: LoadContactContent in an outbound whisper flow, one of the ten flow types the admin guide lists.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "load-required-set-alone",
+    "description": "Rule 47: LoadContactContent with the catalog's required set alone: Parameters empty (the catalog does not require ContentType, which rule 40's run left out and the service accepted), a NextAction and the catch-all; the accepted-set probe, expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ContentType"
+    ]
+  },
+  {
+    "probe": "load-required",
+    "description": "Rule 47: LoadContactContent in the admin guide's Flow language form, the one the class writes: ContentType EmailMessage, a NextAction and the catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:44Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "route-keys",
+    "description": "Rule 47: RouteContactToAgent (the Interrupt agent block) in a customer queue flow with Parameters empty, rule 40's probe rerun on the sandbox. Rule 40's run on another instance (us-east-1, 2026-10-05) was refused as \"Invalid Action type\". If this one is refused naming a required parameter, the Type exists and the message names its first key; if it is refused as an invalid type again, the page's spelling or a feature the instance lacks is the question, and an export settles it.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:45Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: RouteContactToAgent, Path: Actions[0].Type",
+      "Invalid Action type. Type: RouteContactToAgent, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "segment-keys",
+    "description": "Rule 47: CheckSegmentMembership (the Customer profiles block's Check segment membership) in an inbound flow with Parameters empty, on an instance with a Customer Profiles domain (rule 40's run had none and was refused as \"Invalid Action type\"). A refusal naming a required parameter shows the Type exists and names its first key.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:46Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: CheckSegmentMembership, Path: Actions[0].Type",
+      "Invalid Action type. Type: CheckSegmentMembership, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "third-agent-transfer",
+    "description": "Rule 47: TransferParticipantToThirdParty in a transfer to agent flow, which the page allows.",
+    "flowType": "AGENT_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:47Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-continue-lowercase",
+    "description": "Rule 47: ContinueFlowExecution \"true\", the lowercase spelling the Set Touchtone Buffer Behavior page uses for its flag; the export writes \"True\", which the schema clause holds.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:48Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ContinueFlowExecution",
+      "Invalid Action error. Error: ConnectionTimeLimitExceeded, Path: Actions[0]",
+      "Invalid Action error. Error: CallFailed, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-continue-no-call-failed",
+    "description": "Rule 47: ContinueFlowExecution True without CallFailed; the satellite's VERIFY 16.8 recorded it refused on 2026-09-30, re-swept here.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:48Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: CallFailed, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-continue-no-catch-all",
+    "description": "Rule 47: ContinueFlowExecution True without the catch-all; the satellite's VERIFY 16.8 recorded it refused on 2026-09-30, re-swept here.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-continue-no-next",
+    "description": "Rule 47: ContinueFlowExecution True without NextAction, which the catalog requires; the removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "third-continue-no-timeout",
+    "description": "Rule 47: ContinueFlowExecution True without ConnectionTimeLimitExceeded; the satellite's VERIFY 16.8 recorded it refused on 2026-09-30, re-swept here.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: ConnectionTimeLimitExceeded, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-customer-hold",
+    "description": "Rule 47: TransferParticipantToThirdParty in a customer hold flow, which the page does not list; the catalog forbids it.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerHold, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-customer-queue",
+    "description": "Rule 47: TransferParticipantToThirdParty in a customer queue flow, which the Transfer to phone number block page allows.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:51Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-customer-whisper",
+    "description": "Rule 47: TransferParticipantToThirdParty in a customer whisper flow, which the page does not list; the catalog forbids it.",
+    "flowType": "CUSTOMER_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:52Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerWhisper, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-end-all-branches",
+    "description": "Rule 47: ContinueFlowExecution False with all three branches. A cookbook comment (examples/terraform-provider/cookbook, 2026-09-29) says that form takes only the catch-all, with no recorded message; this settles whether the two extra branches are refused, allowed or required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:53Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: ConnectionTimeLimitExceeded, Path: Actions[0]",
+      "Invalid Action error. Error: CallFailed, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-end-no-catch-all",
+    "description": "Rule 47: ContinueFlowExecution False with no error branch at all; the catch-all removed alone from the accepted set.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:53Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "third-end-no-next",
+    "description": "Rule 47: ContinueFlowExecution False without NextAction. The flow ends when the transfer succeeds in this form, so the service may not require one; the catalog requires it until this result.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:54Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "third-module",
+    "description": "Rule 47: TransferParticipantToThirdParty in a flow module, which the page does not name (the catalog allows it by the note above IN_MODULE in actions.ts).",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:54Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-no-continue",
+    "description": "Rule 47: TransferParticipantToThirdParty without ContinueFlowExecution, which the catalog requires from the export; the removal alone, with the catch-all only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:56Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ContinueFlowExecution"
+    ]
+  },
+  {
+    "probe": "third-no-number",
+    "description": "Rule 47: TransferParticipantToThirdParty without ThirdPartyPhoneNumber, which the catalog requires; the removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ThirdPartyPhoneNumber"
+    ]
+  },
+  {
+    "probe": "third-no-time-limit",
+    "description": "Rule 47: TransferParticipantToThirdParty without ThirdPartyConnectionTimeLimitSeconds, which the catalog requires from the export; the removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ThirdPartyConnectionTimeLimitSeconds"
+    ]
+  },
+  {
+    "probe": "third-queue-transfer",
+    "description": "Rule 47: TransferParticipantToThirdParty in a transfer to queue flow, which the page allows.",
+    "flowType": "QUEUE_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-required-set-alone",
+    "description": "Rule 47: TransferParticipantToThirdParty with the catalog's required set alone: the three keys of the console export with ContinueFlowExecution False (the form whose extra branches the catalog does not require), a NextAction and the catch-all alone; the accepted-set probe.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:59Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-required",
+    "description": "Rule 47: TransferParticipantToThirdParty in the console export's shape (conformance/roundtrip/unknown-actions until D09), ContinueFlowExecution True with all three branches; the shape rule 40 and the satellite's VERIFY 16.8 found accepted; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:14:01Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-static-number",
+    "description": "Rule 47: a static destination number, the form the console's Transfer via field writes and tasks/D09 asks the sweep to settle. The number is fictional (555-0100, reserved for fiction); a create dials nothing.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:14:02Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-time-limit-600",
+    "description": "Rule 47: ThirdPartyConnectionTimeLimitSeconds \"600\", ten minutes, to look for an upper bound the page does not state.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:14:04Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-time-limit-jsonpath",
+    "description": "Rule 47: ThirdPartyConnectionTimeLimitSeconds as a JSONPath, a form neither the export nor the page shows.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:14:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-time-limit-number",
+    "description": "Rule 47: ThirdPartyConnectionTimeLimitSeconds as the JSON number 30 rather than the export's decimal string; the schema clause refuses a number.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:14:07Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "third-time-limit-zero",
+    "description": "Rule 47: ThirdPartyConnectionTimeLimitSeconds \"0\"; the page's console shows 30 seconds and states no bound, and the builder refuses 0.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:14:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ThirdPartyConnectionTimeLimitSeconds"
+    ]
+  }
+]

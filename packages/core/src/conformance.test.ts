@@ -303,9 +303,12 @@ describe("FlowDoc schema rejections: contact routing", () => {
 });
 
 // The contact-state round-trip fixture is the subject for the 0.3 clauses of
-// tasks/D02. Each clause holds the page's enums and reference form; rule 41's
-// probes (pending) decide whether the service refuses each of them at
-// create, which owner decision 3 asks of a 0.3 clause.
+// tasks/D02. Each clause holds the page's enums and reference form where
+// rule 41's probes (us-west-2, 2026-10-13) found the service refusing what
+// the clause refuses, and no more (owner decision 3): the service refused a
+// participant state outside the enum, an agent participant and a repeated
+// media direction, and accepted ProcessingEnabled "true", so the clause
+// holds no enum there.
 describe("FlowDoc schema rejections: contact state", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/contact-state/doc.flowdoc.json");
@@ -341,6 +344,15 @@ describe("FlowDoc schema rejections: contact state", () => {
       }),
     ],
     [
+      "a media direction given twice, which the service refuses",
+      mutate("start-stream", (a) => {
+        (a.Parameters.Participants as Record<string, unknown>[])[0]!.MediaDirections = [
+          "From",
+          "From",
+        ];
+      }),
+    ],
+    [
       "a media direction other than From or To",
       mutate("start-stream", (a) => {
         (a.Parameters.Participants as Record<string, unknown>[])[0]!.MediaDirections = ["Both"];
@@ -366,22 +378,25 @@ describe("FlowDoc schema rejections: contact state", () => {
           "$.Attributes.processor";
       }),
     ],
-    [
-      "processing enabled spelled other than True or False",
-      mutate("process-messages", (a) => {
-        (a.Parameters.ChatProcessor as Record<string, unknown>).ProcessingEnabled = "true";
-      }),
-    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
+  });
+
+  it("accepts processing enabled spelled true, which the service accepted", () => {
+    const doc = mutate("process-messages", (a) => {
+      (a.Parameters.ChatProcessor as Record<string, unknown>).ProcessingEnabled = "true";
+    });
+    expect(validate(doc)).toBe(true);
   });
 });
 
 // The tasks-and-assistants round-trip fixture is the subject for the 0.3
-// clauses of tasks/D05. Each clause holds only the reference form: a token
-// or a JSONPath where the page allows one, a token alone where the page says
-// static. Rule 42's probes (pending) put the rest to the service before any
-// enum, bound or constraint is held here (owner decision 3).
+// clauses of tasks/D05. Each clause holds the reference form (a token or a
+// JSONPath where the page allows one, a token alone where the page says
+// static), and CreateTask's holds what rule 42's probes (us-west-2,
+// 2026-10-13) saw the service refuse: no Name, neither a flow nor a
+// template, and DelaySeconds with ScheduledTime. The DelaySeconds bound is
+// not held: the service accepted 518401 (owner decision 3).
 describe("FlowDoc schema rejections: tasks and AI agents", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/tasks-and-assistants/doc.flowdoc.json");
@@ -425,8 +440,30 @@ describe("FlowDoc schema rejections: tasks and AI agents", () => {
         a.Parameters.TaskTemplateId = "$.Attributes.template";
       }),
     ],
+    [
+      "a task without a Name",
+      mutate("follow-up", (a) => {
+        delete a.Parameters.Name;
+      }),
+    ],
+    [
+      "a task with neither a flow nor a template",
+      mutate("follow-up", (a) => {
+        delete a.Parameters.ContactFlowId;
+      }),
+    ],
+    [
+      "a task with both DelaySeconds and ScheduledTime",
+      mutate("follow-up", (a) => {
+        a.Parameters.ScheduledTime = "$.Attributes.when";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
+  });
+
+  it("accepts a DelaySeconds beyond the page's bound, which the service accepted", () => {
+    expect(validate(mutate("follow-up", (a) => (a.Parameters.DelaySeconds = "518401")))).toBe(true);
   });
 
   it("still accepts a JSONPath as the task's flow", () => {
@@ -441,9 +478,16 @@ describe("FlowDoc schema rejections: tasks and AI agents", () => {
 // shape every published sample flow carries (no console export of these
 // blocks was taken; actions.md, rule 43): ProfileRequestData an object and
 // ProfileResponseData a list of names. Each type has its own clause, so
-// each is mutated here; deleting any one clause turns its case red. Key lists, the group alternatives
-// and the enums stay in the catalog and the builder until rule 43's probes
-// (pending) show the service refusing them (owner decision 3).
+// each is mutated here; deleting any one clause turns its case red. Beyond
+// the containers each clause holds what rule 43's probes (us-west-2,
+// 2026-10-13) saw the service refuse, and no more (owner decision 3): any
+// response data on an association, a create or update request key outside
+// the page's fields (a custom attribute among them), a response name
+// outside the lists, a lowercase operator, six search criteria, UseLatest
+// other than "true", and a calculated attribute lookup without its response
+// list or with a name lacking the prefix. The group alternatives stay in
+// the catalog and the builder: the service accepted a named profile field
+// as a search and both of the object lookup's forms together.
 describe("FlowDoc schema rejections: customer profiles", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/customer-profiles/doc.flowdoc.json");
@@ -506,14 +550,84 @@ describe("FlowDoc schema rejections: customer profiles", () => {
         a.Parameters.ProfileResponseData = "CalculatedAttributes._frequent_caller";
       }),
     ],
+    [
+      "an association's response data, even the empty list",
+      mutate("link-contact", (a) => {
+        a.Parameters.ProfileResponseData = [];
+      }),
+    ],
+    [
+      "a custom attribute as a create's request key",
+      mutate("create-profile", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, string>)["Attributes.loyaltyTier"] =
+          "new";
+      }),
+    ],
+    [
+      "an update's request key outside the page's fields",
+      mutate("update-profile", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, string>).Nickname = "Sam";
+      }),
+    ],
+    [
+      "a create's response name outside the page's lists",
+      mutate("create-profile", (a) => {
+        a.Parameters.ProfileResponseData = ["Nickname"];
+      }),
+    ],
+    [
+      "a lowercase search operator",
+      mutate("find-by-account", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, unknown>).LogicalOperator = "and";
+      }),
+    ],
+    [
+      "six search criteria",
+      mutate("find-by-account", (a) => {
+        const r = a.Parameters.ProfileRequestData as Record<string, unknown>;
+        r.SearchCriteria = Array.from({ length: 6 }, (_, i) => ({
+          IdentifierName: "_phone",
+          IdentifierValue: `$.Attributes.p${String(i)}`,
+        }));
+      }),
+    ],
+    [
+      'UseLatest "false"',
+      mutate("latest-order", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, unknown>).UseLatest = "false";
+      }),
+    ],
+    [
+      "a calculated attribute lookup without its response list",
+      mutate("calculated", (a) => {
+        delete a.Parameters.ProfileResponseData;
+      }),
+    ],
+    [
+      "a calculated attribute name without the prefix",
+      mutate("calculated", (a) => {
+        a.Parameters.ProfileResponseData = ["FirstName"];
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
 
-  it("still accepts an association with no response data, which no probe has refused", () => {
-    expect(validate(mutate("link-contact", (a) => delete a.Parameters.ProfileResponseData))).toBe(
-      true,
-    );
+  it("accepts what the service accepted: a named field search and both object lookup forms", () => {
+    expect(
+      validate(
+        mutate("find-caller", (a) => {
+          a.Parameters.ProfileRequestData = { PhoneNumber: "$.CustomerEndpoint.Address" };
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      validate(
+        mutate("asset-by-id", (a) => {
+          (a.Parameters.ProfileRequestData as Record<string, unknown>).UseLatest = "true";
+        }),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -521,11 +635,12 @@ describe("FlowDoc schema rejections: customer profiles", () => {
 // tasks/D06. Each clause holds what docs/adr/0008 states: a string that
 // opens a token in CaseTemplateId is a whole casetemplate token, and one in
 // a CaseRequestFields key a whole casefield token. A literal template or
-// field id, which every published flow writes and the service is expected
-// to accept (rule 44, probe pending),
-// still validates (owner decision 3); codegen leaves it generic. The enums,
-// the link's branch and the system field list stay in the catalog and the
-// builder until rule 44's probes (pending) show the service refusing them.
+// field id, which every published flow writes and the service accepted
+// (rule 44, 2026-10-13: an id naming nothing, and an ARN, alike), still
+// validates (owner decision 3); codegen leaves it generic. Of what rule 44's
+// probes saw refused, the clause holds the bound of ten response fields;
+// the link's branch is conditional-shape's, and the enums stay in the
+// catalog and the builder.
 describe("FlowDoc schema rejections: cases", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/cases/doc.flowdoc.json");
@@ -534,6 +649,35 @@ describe("FlowDoc schema rejections: cases", () => {
     f(d.content.Actions.find((a) => a.Identifier === id) as unknown as Action);
     return d;
   };
+
+  // A non-string id gets the type error alone: each clause's `if` holds a
+  // string to its token pattern, so a number no longer falls into `then` and
+  // a second, token-shaped error (fixed at the stack tip, tasks/D09, for
+  // D06's clauses; the provider's port found it).
+  it("reports a non-string template or field id by its type alone", () => {
+    const at = (doc: FlowDoc, path: string) => {
+      validate(doc);
+      return (validate.errors ?? [])
+        .filter((e) => e.instancePath.startsWith(path))
+        .map((e) => `${e.instancePath} ${e.keyword}`);
+    };
+    expect(
+      at(
+        mutate("open-case", (a) => {
+          a.Parameters.CaseTemplateId = 42;
+        }),
+        "/content/Actions/3/Parameters",
+      ),
+    ).toEqual(["/content/Actions/3/Parameters/CaseTemplateId type"]);
+    expect(
+      at(
+        mutate("find-case", (a) => {
+          a.Parameters.CaseResponseFields = [1];
+        }),
+        "/content/Actions/0/Parameters",
+      ),
+    ).toEqual(["/content/Actions/0/Parameters/CaseResponseFields/0 type"]);
+  });
 
   it("accepts the fixture as committed", () => {
     expect(validate(JSON.parse(raw))).toBe(true);
@@ -606,6 +750,24 @@ describe("FlowDoc schema rejections: cases", () => {
         a.Parameters.CaseResponseFields = "case_id";
       }),
     ],
+    [
+      "eleven response fields, which the service refuses",
+      mutate("find-case", (a) => {
+        a.Parameters.CaseResponseFields = [
+          "assigned_queue",
+          "assigned_user",
+          "case_id",
+          "case_reason",
+          "created_datetime",
+          "customer_id",
+          "reference_number",
+          "status",
+          "summary",
+          "title",
+          "last_updated_datetime",
+        ];
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
@@ -630,14 +792,17 @@ describe("FlowDoc schema rejections: cases", () => {
 });
 
 // The routing-criteria round-trip fixture is the subject for the 0.3 clause
-// of tasks/D07. The clause holds JSON types only: RoutingCriteria an object
-// or a JSONPath (an AWS sample writes the whole of it as one; actions.md,
-// rule 45), Steps a list of objects or a JSONPath, each step's Expiry an
-// object, and its Expression a routingExpression, which $defs makes
-// recursive through AndExpression and OrExpression. The tags, the five
-// levels, the operator and the admin guide's limits stay in the builder
-// until rule 45's probes (pending) show the service refusing them (owner
-// decision 3). Each case below fails if its part of the clause is deleted.
+// of tasks/D07. The clause holds the JSON types (RoutingCriteria an object or
+// a JSONPath, each step's Expiry an object, its Expression a
+// routingExpression, which $defs makes recursive through AndExpression and
+// OrExpression) and what rule 45's probes (us-west-2, 2026-10-13) saw the
+// service refuse: no RoutingCriteria, no Steps, Steps as a JSONPath or
+// empty, a step without its Expression, an OR or a NOT at the top of a
+// step, an Expiry without its duration or with a JSONPath one, and a
+// numeric level outside 1 to 5. The tags, the operator, the AND limit and
+// the lengths, which the service accepted past their bounds, stay in the
+// builder (owner decision 3). Each case below fails if its part of the
+// clause is deleted.
 describe("FlowDoc schema rejections: routing criteria", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/routing-criteria/doc.flowdoc.json");
@@ -669,9 +834,69 @@ describe("FlowDoc schema rejections: routing criteria", () => {
       }),
     ],
     [
-      "steps written as text that is not a JSONPath",
+      "steps written as a JSONPath, which the service refuses",
       mutate("from-lambda", (a) => {
-        a.Parameters.RoutingCriteria = { Steps: "routingSteps" };
+        a.Parameters.RoutingCriteria = { Steps: "$.External.routingSteps" };
+      }),
+    ],
+    [
+      "no routing criteria",
+      mutate(typed, (a) => {
+        delete a.Parameters.RoutingCriteria;
+      }),
+    ],
+    [
+      "routing criteria without steps",
+      mutate(typed, (a) => {
+        a.Parameters.RoutingCriteria = {};
+      }),
+    ],
+    [
+      "an empty step list",
+      mutate(typed, (a) => {
+        a.Parameters.RoutingCriteria = { Steps: [] };
+      }),
+    ],
+    [
+      "a step without its expression",
+      mutate(typed, (_a, steps) => {
+        delete (steps[0] as { Expression?: unknown }).Expression;
+      }),
+    ],
+    [
+      "an OR at the top of a step",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expression = { OrExpression: [steps[0]!.Expression, steps[2]!.Expression] };
+      }),
+    ],
+    [
+      "a NOT at the top of a step",
+      mutate(typed, (_a, steps) => {
+        steps[2]!.Expression = { NotAttributeCondition: { Name: "Language", Value: "English" } };
+      }),
+    ],
+    [
+      "an expiry without its duration",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expiry = {};
+      }),
+    ],
+    [
+      "an expiry read from a JSONPath",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expiry = { DurationInSeconds: "$.Attributes.wait" };
+      }),
+    ],
+    [
+      "a level below 1",
+      mutate(typed, (_a, steps) => {
+        (steps[2]!.Expression.AttributeCondition as Record<string, unknown>).ProficiencyLevel = 0.5;
+      }),
+    ],
+    [
+      "a level above 5",
+      mutate(typed, (_a, steps) => {
+        (steps[2]!.Expression.AttributeCondition as Record<string, unknown>).ProficiencyLevel = 5.5;
       }),
     ],
     [
@@ -705,23 +930,34 @@ describe("FlowDoc schema rejections: routing criteria", () => {
       }),
     ],
     [
-      "an OrExpression that is not a list",
+      "an OrExpression inside an AND that is not a list",
       mutate(typed, (_a, steps) => {
-        steps[0]!.Expression = { OrExpression: "Language" };
+        steps[1]!.Expression = { AndExpression: [{ OrExpression: "Language" }] };
       }),
     ],
     [
-      "a requirement nested in an AND inside an OR that is not an object",
+      "a requirement nested in an OR inside an AND that is not an object",
       mutate(typed, (_a, steps) => {
-        const or = steps[0]!.Expression.OrExpression as { AndExpression: unknown[] }[];
-        or[0]!.AndExpression[1] = "Technology";
+        steps[1]!.Expression = { AndExpression: [{ OrExpression: ["Technology"] }] };
       }),
     ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
 
-  it("still accepts the whole of RoutingCriteria as a JSONPath, which no probe has refused", () => {
+  it("accepts what the service accepted: a numeric expiry, a string level, and the whole of RoutingCriteria as a JSONPath", () => {
+    expect(
+      validate(
+        mutate(typed, (_a, steps) => {
+          steps[0]!.Expiry = { DurationInSeconds: 30 };
+          (steps[2]!.Expression.AttributeCondition as Record<string, unknown>).ProficiencyLevel =
+            "4.0";
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("still accepts the whole of RoutingCriteria as a JSONPath, which the service accepted", () => {
     expect(
       validate(
         mutate("from-lambda", (a) => (a.Parameters.RoutingCriteria = "$.External.RoutingCriteria")),
@@ -729,7 +965,7 @@ describe("FlowDoc schema rejections: routing criteria", () => {
     ).toBe(true);
   });
 
-  it("still accepts a level, a tag, a preferred agent and a nesting the builder refuses, which no probe has refused", () => {
+  it("still accepts a level, a tag, a preferred agent and a nesting the builder refuses, which the service did not refuse", () => {
     expect(
       validate(
         mutate(typed, (_a, steps) => {
@@ -762,10 +998,12 @@ describe("FlowDoc schema rejections: routing criteria", () => {
 // The outbound round-trip fixture is the subject for the 0.3 clauses of
 // tasks/D04. Each holds JSON types and reference forms only (a reference a
 // token or a JSONPath, never a literal ARN, this repository's invariant;
-// the single-value enums stay in the catalog): nothing about
-// the outbound types is known to be enforced at create until rule 46's
-// probes (pending) run (owner decision 3). CheckOutboundCallStatus has no
-// parameter and no clause.
+// the single-value enums stay in the catalog). Rule 46's probes
+// (us-west-2, 2026-10-13) found the service refusing what these clauses do
+// not hold, the enums and the required keys, and accepting a time limit as
+// either a string or an integer and past 600, so the clauses stay as they
+// are (owner decision 3). CheckOutboundCallStatus has no parameter and no
+// clause; its required condition is error-branches' (minConditions).
 describe("FlowDoc schema rejections: outbound", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/outbound/doc.flowdoc.json");
@@ -859,6 +1097,72 @@ describe("FlowDoc schema rejections: outbound", () => {
       });
       expect(validate(doc), String(value)).toBe(true);
     }
+  });
+});
+
+// The census-additions round-trip fixture is the subject for the 0.3 clauses
+// of tasks/D09. LoadContactContent's clause holds the admin guide's one
+// content type, which the service requires; TransferParticipantToThirdParty's
+// holds the number to a string, the time limit to a string or an integer and
+// the flag to True and False, which is what rule 47's probes (us-west-2,
+// 2026-10-13) found the service refusing and accepting (owner decision 3).
+// Each case below fails if its part of the clause is deleted.
+describe("FlowDoc schema rejections: census additions", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/census-additions/doc.flowdoc.json");
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(d.content.Actions.find((a) => a.Identifier === id) as unknown as Action);
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a stored content type the page does not list",
+      mutate("load-email", (a) => {
+        a.Parameters.ContentType = "EmailAttachment";
+      }),
+    ],
+    [
+      "a destination number that is not a string",
+      mutate("transfer-desk", (a) => {
+        a.Parameters.ThirdPartyPhoneNumber = 15555550100;
+      }),
+    ],
+    [
+      "a connection time limit that is neither a string nor an integer",
+      mutate("transfer-desk", (a) => {
+        a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 30.5;
+      }),
+    ],
+    [
+      "a stored content load without its content type, which the service refuses",
+      mutate("load-email", (a) => {
+        delete a.Parameters.ContentType;
+      }),
+    ],
+    [
+      "a resume flag spelled other than True or False",
+      mutate("transfer-on-call", (a) => {
+        a.Parameters.ContinueFlowExecution = "false";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+
+  it("accepts a connection time limit as an integer, which the service accepted", () => {
+    expect(
+      validate(
+        mutate("transfer-desk", (a) => {
+          a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 30;
+        }),
+      ),
+    ).toBe(true);
   });
 });
 

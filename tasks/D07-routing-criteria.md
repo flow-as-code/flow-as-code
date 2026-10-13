@@ -1,4 +1,4 @@
-# D07 `UpdateRoutingCriteria`, and an ADR on the recursive expression
+# D07 `UpdateContactRoutingCriteria`, and an ADR on the recursive expression
 
 Phase D, engine. Gated on D01. No new ref type: predefined attribute names
 are portable strings.
@@ -72,8 +72,8 @@ for this phase"; and:
 
 - [x] ADR 0009 merged first (`63694bb`, #33).
 - [x] flow-as-code, checklist lines 1 to 10, in one commit.
-- [x] Probe inputs under `conformance/flow-language/probes/45/`; the sweep
-      itself has not run (see "Evidence" under "Record").
+- [x] Probe inputs under `conformance/flow-language/probes/45/`, run on
+      2026-10-13 (see "Evidence" under "Record").
 - [ ] Provider: re-vendor, oracles re-recorded, a `json` attribute nested in a
       list of objects handled by `flowmodel.attribute()` (lines 11 to 14);
       the provider commit recorded here.
@@ -109,6 +109,10 @@ read again on 2026-10-12 and say what the table above says; rule 45 in
 types beneath it, the builder now models 51 of the 61 Types.
 
 ### The Type spelling is in doubt
+
+(Settled on 2026-10-13: the service refuses `UpdateRoutingCriteria` and
+takes `UpdateContactRoutingCriteria`, and the type was renamed; see
+"Evidence". The record below is as it stood before the sweep.)
 
 The search for a published flow carrying the type found two that do not
 spell it the page's way. An AWS sample
@@ -224,24 +228,45 @@ the fixture holds one statically because ADR 0009 names `or`, and
 
 ### Evidence
 
-Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
-and the predefined attribute is created by a sandbox root that had not
-been applied. No AWS call was made and no result is recorded. The inputs
-are kept in `conformance/flow-language/probes/45/` (40 probes) with
-`PENDING.md`, which names the three placeholders the run fills (the
-predefined attribute, one of its values, and a user id for the
-preferred-agent probes), the order to run them in, and how to read the
-probes whose result depends on another.
-`routing-required-set-alone` is the accepted-set probe and leaves out the
-one optional container, the step's `Expiry`. Each evidence item above has
-its probes: `routing-or`; `routing-level-0-5`, `routing-level-2-5`,
-`routing-level-5-5`, the integer every other probe sends, and
-`routing-level-string`; `routing-unknown-attribute`;
-`routing-steps-jsonpath` (and `routing-criteria-jsonpath`); and the type in
-a contact flow (`routing-required`), a module (`routing-module`) and a
-customer queue flow (`routing-customer-queue`). The page's float spelling
-`4.0` cannot be sent by the runner, which serializes parsed JSON;
-`PENDING.md` says so.
+Run on 2026-10-13, 17:10 to 17:12 UTC, on the sandbox (us-west-2), after
+the sandbox-features root (provider repository,
+`acceptance/sandbox-features`) put a predefined attribute of three values
+on the instance; the preferred-agent probes named one of its users. The 40
+inputs in `conformance/flow-language/probes/45/` gave 23 accepted and 17
+refused; `results.json` holds both runs `PENDING.md` asked for, and
+`PENDING.md` is gone. Rule 45's last bullet quotes every result.
+
+- The Type. `routing-required-set-alone` under the page's
+  `UpdateRoutingCriteria` was refused "Invalid Action type", and
+  `routing-contact-type-set-alone`, the same content under
+  `UpdateContactRoutingCriteria`, accepted. The other 38 inputs were
+  switched to the accepted name and run. The catalog key, `ActionType`,
+  the class (`UpdateContactRoutingCriteria`), the HCL block
+  (`update_contact_routing_criteria`), the schema clause, the fixtures,
+  the HCL golden, the studio and the skill reference were renamed in one
+  commit. The census keeps 61 Types and 56 on the Developer Guide's pages:
+  the page documents this Type under a name the service refuses, which
+  actions.md's table now says.
+- What the builder wrote and the service refuses: an `OrExpression` at the
+  top of a step (`routing-or`, `routing-or-four`) and `Steps` as a
+  JSONPath (`routing-steps-jsonpath`). `or(...)` is removed, `Steps` is no
+  longer `dynamic` in the catalog, the class takes a list only, the
+  studio's steps editor no longer offers a JSONPath for the steps, and
+  codegen leaves either form generic. The group fixture's Lambda form is
+  now the whole of `RoutingCriteria` as a JSONPath, which the service
+  accepted, as a generic block, and its first step an AND in place of the
+  OR. ADR 0009 carries an amendment saying so.
+- What the 0.3 clause now holds, each refused: no criteria, no or empty
+  steps, a step without its `Expression`, a NOT at the top of a step, an
+  empty or JSONPath expiry, and the levels 0.5 and 5.5.
+- What the service accepted beyond the builder: the level 2.5 and the
+  string `"4.0"`, nine requirements in an AND, a 65-character name and
+  value, an attribute and value the instance lacks, a numeric expiry, a
+  first step with no expiry, the `Range` operator, an OR inside an AND and
+  both preferred-agent forms. Each stays the builder's stricter check or
+  a generic form.
+- The flow types stand: refused in customer hold and customer whisper
+  flows, accepted in the other five probed.
 
 ### Review (2026-10-12)
 
@@ -282,13 +307,12 @@ The confirmed findings on #49 (at `b17fd55`), each repaired:
 
 ### Not done here
 
-- A console export of the block (owner decision 8), which would settle the
-  Type, the level's spelling, the expiry's spelling and whether the
-  console ever writes a static OR.
-- The sweep, above.
+- A console export of the block (owner decision 8), which would show the
+  level's and the expiry's stored spelling. The Type and the static OR are
+  settled by the sweep.
 - The review round tasks/README.md asks of each group.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists: `flowmodel.attribute()` has to build a `json` field
-  inside a list of objects as a string attribute, and the provider's
-  handling of `dynamic` on a list, which D01 prepared, meets its first
-  catalog entry.
+  inside a list of objects as a string attribute, and its block is
+  `update_contact_routing_criteria`. No catalog entry carries `dynamic` on
+  a list any more, so D01's provider handling of it has no entry to meet.

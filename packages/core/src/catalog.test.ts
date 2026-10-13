@@ -180,6 +180,10 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   GetCase: { CaseResponseFields: { max: CASE_RESPONSE_FIELDS_MAX } },
   // The service refuses an empty key list (live check, tasks/B01).
   UntagContact: { TagKeys: { min: 1 } },
+  // The service refuses "0" (actions.md, rule 47); no upper bound is known.
+  TransferParticipantToThirdParty: { ThirdPartyConnectionTimeLimitSeconds: { min: 1 } },
+  // The service refuses an empty step list (actions.md, rule 45).
+  UpdateContactRoutingCriteria: { "RoutingCriteria.Steps": { min: 1 } },
   // A nested field, keyed by its dotted path.
   ConnectParticipantWithLexBot: {
     "LexTimeoutSeconds.Text": { min: LEX_TIMEOUT_MIN, max: LEX_TIMEOUT_MAX },
@@ -619,11 +623,14 @@ describe("the Customer Profiles names", () => {
     return { keys: p.keys, keyPatterns: p.keyPatterns };
   };
   const PROFILE = { keys: [...PROFILE_FIELDS], keyPatterns: [...PROFILE_FIELD_PATTERNS] };
+  // The service refuses the page's "Attributes.x" as a request key (rule 43),
+  // so the request side lists the fields alone.
+  const PROFILE_REQUEST = { keys: [...PROFILE_FIELDS], keyPatterns: undefined };
 
   it.each([
-    ["CreateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["CreateCustomerProfile", "ProfileRequestData", PROFILE_REQUEST],
     ["CreateCustomerProfile", "ProfileResponseData", PROFILE],
-    ["UpdateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["UpdateCustomerProfile", "ProfileRequestData", PROFILE_REQUEST],
     ["UpdateCustomerProfile", "ProfileResponseData", PROFILE],
     ["GetCustomerProfile", "ProfileResponseData", PROFILE],
     [
@@ -696,9 +703,12 @@ describe("the action catalog", () => {
       "CheckSegmentMembership",
       "TransferParticipantToThirdParty",
     ]);
+    // tasks/D09 models the two the service took on 2026-10-05 (actions.md,
+    // rule 40) and leaves the three it refused or named keys of unmodeled.
+    const modeledOther = ["LoadContactContent", "TransferParticipantToThirdParty"];
     for (const type of actionCatalog.categories.other.types) {
       const entry = actionCatalog.actions[type]!;
-      expect(entry.modeled).toBe(false);
+      expect(entry.modeled, type).toBe(modeledOther.includes(type));
       expect(entry.source).toBe(
         type === "TransferParticipantToThirdParty" ? "console-export" : "adminguide",
       );
@@ -768,25 +778,32 @@ describe("the action catalog", () => {
     ]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
     // The published flows' order, catch-all first; the page marks none
-    // "Must always be defined", so only the catch-all is required until
-    // rule 43's sweep says otherwise.
+    // "Must always be defined", but the service requires every one (rule 43).
     expect(builderErrors("GetCustomerProfile")).toEqual([
       "NoMatchingError",
       "MultipleFoundError",
       "NoneFoundError",
     ]);
-    expect(requiredErrors("GetCustomerProfile")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("GetCustomerProfile")).toEqual([
+      "NoMatchingError",
+      "MultipleFoundError",
+      "NoneFoundError",
+    ]);
     expect(builderErrors("GetCustomerProfileObject")).toEqual([
       "NoMatchingError",
       "NoneFoundError",
     ]);
-    expect(requiredErrors("GetCustomerProfileObject")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("GetCustomerProfileObject")).toEqual([
+      "NoMatchingError",
+      "NoneFoundError",
+    ]);
     expect(builderErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
       "NoMatchingError",
       "NoneFoundError",
     ]);
     expect(requiredErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
       "NoMatchingError",
+      "NoneFoundError",
     ]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);

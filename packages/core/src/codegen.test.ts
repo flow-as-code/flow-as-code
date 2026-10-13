@@ -2980,14 +2980,13 @@ describe("the Customer Profiles actions invert their request and response data",
         errors,
       );
 
-    it("emits listed fields and custom attributes, quoting the dotted key", () => {
+    it("emits listed fields, and a custom attribute among the response names", () => {
       const out = typed(
-        create({ FirstName: "$.Attributes.firstName", "Attributes.loyaltyTier": "new" }, [
+        create({ FirstName: "$.Attributes.firstName", PhoneNumber: "$.CustomerEndpoint.Address" }, [
           "FirstName",
           "Attributes.loyaltyTier",
         ]),
       );
-      expect(out).toContain('"Attributes.loyaltyTier": "new"');
       expect(out).toContain('FirstName: "$.Attributes.firstName"');
       expect(out).toContain('response: ["FirstName", "Attributes.loyaltyTier"]');
     });
@@ -3000,6 +2999,8 @@ describe("the Customer Profiles actions invert their request and response data",
 
     it("falls back on a name outside the page's lists, a missing container, the page's braces, or the errors out of shape", () => {
       generic(create({ Nickname: "Sam" }));
+      // The service refuses a custom attribute as a request key (rule 43).
+      generic(create({ "Attributes.loyaltyTier": "new" }));
       generic(create({ "Attributes.a.b": "x" }));
       generic(create({ FirstName: 1 }));
       generic(create({}, ["Firstname"]));
@@ -3147,24 +3148,26 @@ describe("the Customer Profiles actions invert their request and response data",
 
     it("emits its fields as Create does", () => {
       const out = typed(
-        update({ "Attributes.preferredLanguage": "$.Attributes.language" }, [
-          "Attributes.preferredLanguage",
-        ]),
+        update({ EmailAddress: "$.Attributes.email" }, ["Attributes.preferredLanguage"]),
       );
-      expect(out).toContain('"Attributes.preferredLanguage": "$.Attributes.language"');
+      expect(out).toContain('EmailAddress: "$.Attributes.email"');
+      expect(out).toContain('response: ["Attributes.preferredLanguage"]');
     });
 
-    it("falls back on a profile id key, which the page does not list, or the page's braces", () => {
+    it("falls back on a profile id key, a custom attribute key, or the page's braces", () => {
       generic(update({ ProfileId: "$.Customer.ProfileId", FirstName: "x" }));
+      generic(update({ "Attributes.preferredLanguage": "$.Attributes.language" }));
       generic(update({}, {}));
     });
   });
 
   describe("AssociateContactToCustomerProfile", () => {
-    const associate = (request: unknown, response: unknown = [], errors?: string[]) =>
+    const associate = (request: unknown, response?: unknown, errors?: string[]) =>
       action(
         "AssociateContactToCustomerProfile",
-        { ProfileRequestData: request, ProfileResponseData: response },
+        response === undefined
+          ? { ProfileRequestData: request }
+          : { ProfileRequestData: request, ProfileResponseData: response },
         errors,
       );
 
@@ -3175,18 +3178,15 @@ describe("the Customer Profiles actions invert their request and response data",
       typed(associate({ ProfileId: "profile-1", ContactId: "$.ContactId" }));
     });
 
-    it("falls back on a missing id, an extra key, response fields, or the errors out of shape", () => {
+    it("falls back on a missing id, an extra key, any response data, or the errors out of shape", () => {
       generic(associate({ ProfileId: "$.Customer.ProfileId" }));
       generic(associate({ ProfileId: "p", ContactId: "c", ObjectType: "x" }));
       generic(associate({ ProfileId: "p", ContactId: 1 }));
+      // The service refuses ProfileResponseData here, even empty (rule 43).
+      generic(associate({ ProfileId: "p", ContactId: "c" }, []));
       generic(associate({ ProfileId: "p", ContactId: "c" }, ["FirstName"]));
       generic(associate({ ProfileId: "p", ContactId: "c" }, {}));
-      generic(
-        action("AssociateContactToCustomerProfile", {
-          ProfileRequestData: { ProfileId: "p", ContactId: "c" },
-        }),
-      );
-      generic(associate({ ProfileId: "p", ContactId: "c" }, [], []));
+      generic(associate({ ProfileId: "p", ContactId: "c" }, undefined, []));
     });
   });
 });
@@ -3354,7 +3354,7 @@ describe("the Cases actions invert their link, template and field ids", () => {
   });
 });
 
-describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
+describe("UpdateContactRoutingCriteria inverts to the expression helpers", () => {
   const condition = (Name: string, Value: string, ProficiencyLevel: unknown = 4) => ({
     AttributeCondition: {
       ComparisonOperator: "NumberGreaterOrEqualTo",
@@ -3369,7 +3369,7 @@ describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
     extra: Record<string, unknown> = {},
   ): FlowAction => ({
     Identifier: "routing",
-    Type: "UpdateRoutingCriteria",
+    Type: "UpdateContactRoutingCriteria",
     Parameters: { RoutingCriteria: criteria, ...extra },
     Transitions: {
       NextAction: "bye",
@@ -3386,49 +3386,39 @@ describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
   };
   const typed = (a: FlowAction) => {
     const out = codegen(docWith([a, bye]));
-    expect(out).toContain("new UpdateRoutingCriteria({");
+    expect(out).toContain("new UpdateContactRoutingCriteria({");
     expect(out).not.toContain("GenericBlock");
     return out;
   };
   const generic = (a: FlowAction) => {
     const out = codegen(docWith([a, bye]));
-    expect(out).toContain('type: "UpdateRoutingCriteria"');
-    expect(out).not.toContain("new UpdateRoutingCriteria(");
+    expect(out).toContain('type: "UpdateContactRoutingCriteria"');
+    expect(out).not.toContain("new UpdateContactRoutingCriteria(");
   };
 
-  it("emits an OR of an AND and a requirement, an expiry, and imports the helpers it calls", () => {
+  it("emits an AND of requirements, an expiry, and imports the helpers it calls", () => {
     const out = typed(
       steps(
         {
           Expiry: { DurationInSeconds: "30" },
           Expression: {
-            OrExpression: [
-              {
-                AndExpression: [condition("Language", "English"), condition("Skill", "Billing", 2)],
-              },
-              condition("Language", "Spanish", 5),
-            ],
+            AndExpression: [condition("Language", "English"), condition("Skill", "Billing", 2)],
           },
         },
         { Expression: condition("Language", "English", 1) },
       ),
     );
-    expect(out).toContain('attributeCondition("Language", "Spanish", 5)');
-    expect(out).toContain("expression: or(");
+    expect(out).toContain('attributeCondition("Skill", "Billing", 2)');
+    expect(out).toContain("expression: and(");
     expect(out).toContain("expiresAfterSeconds: 30,");
     expect(out).toContain('{ expression: attributeCondition("Language", "English", 1) }');
-    expect(out).toMatch(/import \{[^}]*\band,[^}]*\battributeCondition,[^}]*\bor,/s);
+    expect(out).toMatch(/import \{[^}]*\band,[^}]*\battributeCondition,/s);
   });
 
   it("imports only the helpers a document calls", () => {
     const out = typed(steps({ Expression: condition("Language", "English") }));
     expect(out).toContain("attributeCondition,");
-    expect(out).not.toMatch(/\band,|\bor,/);
-  });
-
-  it("emits a JSONPath for the steps", () => {
-    const out = typed(routing({ Steps: "$.External.routingSteps" }));
-    expect(out).toContain('steps: jsonPath("$.External.routingSteps")');
+    expect(out).not.toMatch(/\band,/);
   });
 
   it("names the factory around a flow named after a helper", () => {
@@ -3440,16 +3430,24 @@ describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
   });
 
   it("leaves generic what the helpers would not write", () => {
-    // The whole of RoutingCriteria as a JSONPath, an AWS sample's form.
+    // The whole of RoutingCriteria as a JSONPath, an AWS sample's form, and
+    // Steps as one, which the service refuses (actions.md, rule 45).
     generic(routing("$.External.RoutingCriteria"));
+    generic(routing({ Steps: "$.External.routingSteps" }));
     // A level the page does not list, or spelled as a string.
     generic(steps({ Expression: condition("Language", "English", 2.5) }));
     generic(steps({ Expression: condition("Language", "English", "4.0") }));
     // An expiry spelled as a number, or a step before the last without one.
     generic(steps({ Expiry: { DurationInSeconds: 30 }, Expression: condition("A", "B") }));
     generic(steps({ Expression: condition("A", "B") }, { Expression: condition("C", "D") }));
-    // A tag the helpers do not write, an AND around an OR, an OR below the top.
+    // A tag the helpers do not write: an OR, which the service refuses at
+    // the top of a step, an AND around an OR, an OR below the top.
     generic(steps({ Expression: { NotAttributeCondition: { Name: "A", Value: "B" } } }));
+    generic(
+      steps({
+        Expression: { OrExpression: [condition("A", "B"), condition("C", "D")] },
+      }),
+    );
     generic(steps({ Expression: { AndExpression: [{ OrExpression: [condition("A", "B")] }] } }));
     generic(
       steps({
@@ -3719,5 +3717,150 @@ describe("the outbound actions invert to their classes", () => {
       textual.Transitions.Conditions![0]!.Condition.Operator = "TextContains";
       generic(textual);
     });
+  });
+});
+
+describe("LoadContactContent inverts the admin guide's form", () => {
+  const action = (): FlowAction => ({
+    Identifier: "load-email",
+    Type: "LoadContactContent",
+    Parameters: { ContentType: "EmailMessage" },
+    Transitions: {
+      NextAction: "bye",
+      Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "LoadContactContent"');
+    expect(out).not.toContain("new LoadContactContent(");
+  };
+
+  it("emits the class with its next and catch-all", () => {
+    const out = codegen(docWith([action(), bye]));
+    expect(out).toContain("new LoadContactContent({");
+    expect(out).toContain('next: "bye"');
+    expect(out).toContain('onError: "bye"');
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("falls back on no content type, another content type, an extra key, or other wiring", () => {
+    // The service took the action with Parameters empty (rule 40); the class
+    // never writes that form.
+    generic({ ...action(), Parameters: {} });
+    generic({ ...action(), Parameters: { ContentType: "EmailAttachment" } });
+    generic({ ...action(), Parameters: { ContentType: "EmailMessage", Format: "Plaintext" } });
+    const noNext = action();
+    delete noNext.Transitions.NextAction;
+    generic(noNext);
+    const noError = action();
+    noError.Transitions.Errors = [];
+    generic(noError);
+    const twoErrors = action();
+    twoErrors.Transitions.Errors!.push({ ErrorType: "ContentTooLarge", NextAction: "bye" });
+    generic(twoErrors);
+  });
+});
+
+describe("TransferParticipantToThirdParty inverts the kept export's form", () => {
+  const action = (cont = "True"): FlowAction => ({
+    Identifier: "transfer-desk",
+    Type: "TransferParticipantToThirdParty",
+    Parameters: {
+      ContinueFlowExecution: cont,
+      ThirdPartyConnectionTimeLimitSeconds: "30",
+      ThirdPartyPhoneNumber: "$.Attributes.deskPhone",
+    },
+    Transitions: {
+      NextAction: "bye",
+      Errors:
+        cont === "True"
+          ? [
+              { ErrorType: "CallFailed", NextAction: "bye" },
+              { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "bye" },
+              { ErrorType: "NoMatchingError", NextAction: "bye" },
+            ]
+          : [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const typed = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain("new TransferParticipantToThirdParty({");
+    expect(out).not.toContain("GenericBlock");
+    return out;
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "TransferParticipantToThirdParty"');
+    expect(out).not.toContain("new TransferParticipantToThirdParty(");
+  };
+
+  it("emits the class for each form, the number a jsonPath and the limit a number", () => {
+    const out = typed(action());
+    expect(out).toContain('number: jsonPath("$.Attributes.deskPhone")');
+    expect(out).toContain("timeLimitSeconds: 30");
+    expect(out).toContain("continueFlow: true");
+    expect(out).toContain('onCallFailed: "bye"');
+    expect(out).toContain('onTimeout: "bye"');
+    expect(typed(action("False"))).toContain("continueFlow: false");
+    // The ending form takes the catch-all alone: the service refuses it with
+    // either of the other two (actions.md, rule 47).
+    const endWithTimeout = action("False");
+    endWithTimeout.Transitions.Errors = [
+      { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "bye" },
+      { ErrorType: "NoMatchingError", NextAction: "bye" },
+    ];
+    generic(endWithTimeout);
+  });
+
+  it("falls back on a static number, another spelling, another key, or other wiring", () => {
+    const set = (k: string, v: unknown) => {
+      const a = action();
+      a.Parameters[k] = v;
+      return a;
+    };
+    generic(set("ThirdPartyPhoneNumber", "+15555550100"));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", 30));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", "0"));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", "99999999999999999999"));
+    generic(set("ThirdPartyConnectionTimeLimitSeconds", "$.Attributes.ring"));
+    generic(set("ContinueFlowExecution", "true"));
+    generic(set("CallerId", "$.Attributes.callerId"));
+    const noLimit = action();
+    delete noLimit.Parameters.ThirdPartyConnectionTimeLimitSeconds;
+    generic(noLimit);
+    const noNext = action();
+    delete noNext.Transitions.NextAction;
+    generic(noNext);
+    // The continuing form needs all three; the service refused it without
+    // any one of them (VERIFY 16.8, 2026-09-30).
+    const twoErrors = action();
+    twoErrors.Transitions.Errors = twoErrors.Transitions.Errors!.slice(1);
+    generic(twoErrors);
+    const reordered = action();
+    reordered.Transitions.Errors = [...reordered.Transitions.Errors!].reverse();
+    generic(reordered);
+    const noCatchAll = action("False");
+    noCatchAll.Transitions.Errors = [];
+    generic(noCatchAll);
+    const withCondition = action();
+    withCondition.Transitions.Conditions = [
+      { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["Busy"] } },
+    ];
+    generic(withCondition);
   });
 });

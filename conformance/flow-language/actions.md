@@ -107,10 +107,12 @@ The two differ, and the console name is what task A01 originally listed.
 | Cases (Create case) | `CreateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createcase.html) |
 | Cases (Get case) | `GetCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/getcase.html) |
 | Cases (Update case) | `UpdateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html) |
-| Set routing criteria | `UpdateRoutingCriteria` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
+| Set routing criteria | `UpdateContactRoutingCriteria` (the page writes `UpdateRoutingCriteria`, which the service refuses; rule 45) | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
 | Check call progress | `CheckOutboundCallStatus` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html) |
 | Call phone number | `CompleteOutboundCall` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html) |
 | Send message (SMS) | `StartOutboundChatContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html) |
+| Get stored content | `LoadContactContent` | other | [doc](https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html) (admin guide; no Developer Guide page) |
+| Transfer to phone number | `TransferParticipantToThirdParty` | other | [export](exports/transfer-participant-to-third-party.json), [block](https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html) (no page documents the Type) |
 
 ## Reference-bearing parameters
 
@@ -1218,14 +1220,14 @@ is read rather than when the type is modeled.
       export shows the three keys' shapes.
 41. Contact state (tasks/D02; the Developer Guide pages read 2026-10-04
     and again 2026-10-12 with the admin guide's block pages). The group's
-    types are modeled from their pages. **Probe pending**: the create
-    sweep the evidence rule asks for (tasks/README.md, Phase D) has not
-    run. On 2026-10-12 the sandbox's AWS credentials had expired, and the
-    instance had neither live media streaming nor a Lambda function
-    associated as `MESSAGE_PROCESSOR`. Its inputs are kept in
-    `probes/41/`, with `PENDING.md` saying what the run needs. Until it
-    runs, every required error, `next` and flow-type entry below is the
-    pages' reading, and each bullet names the probes that settle it.
+    types are modeled from their pages, and the create sweep the evidence
+    rule asks for (tasks/README.md, Phase D) ran on 2026-10-13 on the
+    sandbox (us-west-2), with live media streaming enabled, one Lambda
+    associated as `MESSAGE_PROCESSOR`, one associated plainly and one never
+    associated. Its inputs and `results.json` are in `probes/41/`. The
+    bullets below are the pages' reading as modeled; the last bullet is
+    what the service said, and where the two differ the catalog follows
+    the service.
     - `ResumeContact` "Resumes a contact from a paused state." "No
       parameters are expected." Results "None."; errors "NoMatchingError -
       if no other Error matches."; Restrictions "None. This action can be
@@ -1337,9 +1339,10 @@ is read rather than when the type is modeled.
       `no-literal-arn` fails a literal ARN there), `ProcessingEnabled`
       required and the other two optional, `channels: ["CHAT"]`, the type
       unrestricted by flow type, `next` required, the catch-all required
-      and `ChannelMismatch` wired by the builder but not required: the page
-      requires only the catch-all, and D02 asks that the two be required
-      if and only if the service refuses each removed alone. The class
+      and `ChannelMismatch` wired by the builder and, since the sweep,
+      required: the page requires only the catch-all, D02 asks that the
+      two be required if and only if the service refuses each removed
+      alone, and the service refused each. The class
       requires a Lambda when processing is enabled, the console's form.
       Planned probes: `processing-required`, `processing-no-catch-all`,
       `processing-no-channel-mismatch`, `processing-no-next`,
@@ -1353,19 +1356,73 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
       https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateIntegrationAssociation.html
+    - The sweep (2026-10-13, 17:06 to 17:07 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 35 probes, 18 accepted and 17 refused,
+      every refusal an `InvalidContactFlowException`.
+      - `ResumeContact`: `resume-required`, `resume-module` and
+        `resume-customer-hold` accepted; `resume-no-catch-all` refused
+        "Action is missing required error. Error: NoMatchingError" and
+        `resume-no-next` "Action is missing required property. Path:
+        Actions[0].Transitions.NextAction". The catalog stands.
+      - `UpdatePreviousContactParticipantState`: `previous-state-required`,
+        `-agent-transfer`, `-queue-transfer` and `-module` accepted;
+        `-outbound-whisper` and `-customer-queue` refused "Action with
+        identifier probe is not supported in contact flow type
+        outboundWhisper" (and `customerQueue`), so the action page, not the
+        block page, is right about outbound whisper, and the catalog's flow
+        types stand. `-other-value` (`OnHold`) refused "Invalid Action
+        property value. Path:
+        Actions[0].Parameters.PreviousContactParticipantState", so the
+        schema clause keeps the enum. The catch-all and `next` were each
+        refused removed alone.
+      - `UpdateContactMediaStreamingBehavior`: `stream-required`,
+        `stream-stop`, `stream-from-only`, `stream-module` and
+        `stream-agent-whisper` accepted; `stream-customer-hold` refused as
+        not supported in `customerHold`, as the page says.
+        `stream-stop-bare` refused "Action is missing required property.
+        Path: Actions[0].Parameters.MediaStreamType" and the same for
+        `Participants`, so all three keys are required on both states, as
+        the catalog has it. `stream-agent-participant` refused "Invalid
+        Action property value. Path:
+        Actions[0].Parameters.Participants[0].ParticipantType", and
+        `stream-duplicate-direction` (`From` twice) "Invalid Action
+        property value. Path:
+        Actions[0].Parameters.Participants[0].MediaDirections": the schema
+        clause now holds `MediaDirections` to unique items, which the
+        class already did.
+      - `UpdateContactMediaProcessing`: `processing-required`,
+        `-disabled`, `-module` and `-customer-hold` accepted, and so was
+        `processing-unassociated-lambda`, which names a function the
+        instance has never associated: the create does not check the
+        association. `processing-no-channel-mismatch` refused "Action is
+        missing required error. Error: ChannelMismatch", so
+        `ChannelMismatch` is now required in the catalog and in
+        `REQUIRED_EXTRAS`, and the lint fixture that passed without it is
+        now `fail-message-processor-without-channel-mismatch`.
+        `processing-enabled-without-lambda` refused "Action is missing
+        required property. Path:
+        Actions[0].Parameters.ChatProcessor.LambdaProcessorARN" while
+        `processing-disabled` (the switch alone) was accepted: the Lambda
+        is required when processing is enabled, which the class already
+        enforces and the catalog's vocabulary cannot say of a nested key.
+        `processing-lowercase-flag` (`"true"`) was accepted, so the schema
+        clause no longer holds `ProcessingEnabled` to the page's enum
+        (owner decision 3); codegen still reads only `"True"` and
+        `"False"` and keeps any other spelling generic.
 
 42. Tasks and AI agents (tasks/D05; the Developer Guide pages read
     2026-10-04 and again 2026-10-12 with the admin guide's block pages and
     the StartTaskContact API reference). The group's types are modeled from
-    their pages. **Probe pending**: the create sweep the evidence rule asks
-    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
-    AWS credentials had expired, and the instance had no task template.
-    Its inputs are kept in `probes/42/`, with `PENDING.md` saying what the
-    run needs. No console export of either block has been taken (owner
-    decision 8), so nothing under `exports/` records their stored shape
-    yet. Until the sweep and an export, every required key, error,
-    `next`, spelling and flow-type entry below is the pages' reading, and
-    each bullet names the probes that settle it.
+    their pages, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a task template (no flow configured), an assistant
+    linked as `WISDOM_ASSISTANT` and a second assistant never linked. Its
+    inputs and `results.json` are in `probes/42/`. No console export of
+    either block has been taken (owner decision 8), so nothing under
+    `exports/` records their stored shape yet. The bullets below are the
+    pages' reading as modeled; the last bullet is what the service said,
+    and where the two differ the catalog and the schema follow the
+    service.
     - `CreateTask` "Creates a new task to run an assigned flow." Parameters
       in the page's order: `ContactFlowId` ("A flow ID or flow ARN. Must be
       fully static or a single valid JSONPath identifier"), `Attributes`
@@ -1414,9 +1471,9 @@ is read rather than when the type is modeled.
       nothing else; the bound and the `atMostOne` stay in the catalog until
       the service is seen to refuse them (owner decision 3). The class
       takes a flow, a template or both; the both form follows the admin
-      guide against StartTaskContact's one-of clause, is unsettled until
-      `task-template-and-flow` runs, and the group fixture's `scheduled`
-      task holds it pending that probe. The class writes `DelaySeconds` as a decimal
+      guide against StartTaskContact's one-of clause, and the service
+      accepted it (`task-template-and-flow`), so the group fixture's
+      `scheduled` task keeps it. The class writes `DelaySeconds` as a decimal
       string and `ScheduledTime` as a JSONPath only, and writes no
       `References`; codegen leaves a document with `References`, a static
       `ScheduledTime` or a numeric `DelaySeconds` generic. Whether
@@ -1481,15 +1538,70 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
       https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
       https://docs.aws.amazon.com/connect/latest/adminguide/ai-agent-initial-setup.html
+    - The sweep (2026-10-13, 17:07 to 17:08 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 35 probes, 25 accepted and 10 refused,
+      every refusal an `InvalidContactFlowException`.
+      - `CreateTask`: `task-required`, `task-module` and
+        `task-customer-hold` accepted, so the type is unrestricted, as
+        the catalog has it; `task-no-catch-all` and `task-no-next` were
+        each refused removed alone. `task-no-name` refused "Missing
+        required property. Property: 0.ContactName" (beside "Invalid
+        Action property value. Path: 0.null"), so `Name` is required.
+        `task-no-flow`, with neither a flow nor a template, refused
+        "Missing required property. Property: 0.ContactFlowId", while
+        `task-template-only` and `task-template-and-flow` were accepted,
+        the first with a template that configures no flow: the create
+        needs one of the two, takes both, and does not check that a
+        template carries a flow. `task-delay-and-schedule` refused "Only
+        one of these properties may be defined. Properties:
+        [DelaySeconds, ScheduledTime], Path: Actions[0]". The 0.3 schema
+        clause now holds those three: `Name` required, at least one of
+        `ContactFlowId` and `TaskTemplateId`, and not both timing keys.
+        `task-delay-out-of-range` (`"518401"`) was accepted, so the
+        page's bound stays in the catalog and out of the clause, and
+        `task-delay-number` and `task-delay-string` were both accepted.
+        Every `ScheduledTime` form was accepted (Epoch seconds as a
+        number and as a string, an ISO 8601 string, a JSONPath): the
+        create does not check the format. `task-template-bare-id` and
+        `task-template-missing` (a well-formed id naming no template)
+        were accepted beside the ARN form: the create checks neither the
+        form nor the template's existence. `task-template-jsonpath`
+        refused "Invalid Action property value. Path:
+        Actions[0].Parameters.TaskTemplateId", so the static reading
+        stands. `task-flow-bare-id` refused "Action with identifier probe
+        has invalid resource: {{TASK_FLOW_ID}}" while the ARN and
+        `task-flow-jsonpath` were accepted: despite the page's "A flow ID
+        or flow ARN", the static flow is an ARN, which is what a `flow`
+        reference resolves to. `task-references-object` (a map of `Type`
+        and `Value` objects, StartTaskContact's shape) was accepted and
+        `task-references-flat` (a map of strings) refused "Invalid Action
+        type. Type: CreateTask, Path: Actions[0].Type"; `References`
+        stays a `json` value in the catalog and generic in codegen until
+        an export records the stored shape.
+      - `CreateWisdomSession`: every probe that kept the required set was
+        accepted, in a contact flow, a module, and the customer queue,
+        customer hold, agent hold, customer whisper and agent whisper
+        flows: the action page's "all contact flow types" is the
+        service's, and the catalog's unrestricted entry stands.
+        `wisdom-unlinked-assistant`, naming an assistant the instance has
+        not linked, and `wisdom-jsonpath` were accepted: the create does
+        not check the link. `wisdom-no-catch-all` and `wisdom-no-next`
+        were each refused removed alone. `wisdom-required` ran with an
+        assistant linked, so an instance with none linked was not
+        probed; `wisdom-unlinked-assistant` shows only that the create
+        does not check which assistant the instance links. The channel
+        still cannot be probed at create.
 
 43. Customer Profiles (tasks/D03; the Developer Guide pages read 2026-10-04
     and again 2026-10-12 with the admin guide's Customer profiles block
     page). The group's types are modeled from their pages and from flows AWS
-    publishes. **Probe pending**: the create sweep the evidence rule asks
-    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
-    AWS credentials had expired, and the Customer Profiles domain the sweep
-    needs is created by a sandbox root that had not been applied. Its inputs
-    are kept in `probes/43/`, with `PENDING.md` saying what the run needs.
+    publishes, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a Customer Profiles domain linked to the instance and
+    the standard `CTR` object type. Its inputs and `results.json` are in
+    `probes/43/`. The bullets below are the reading the types were modeled
+    from; the last bullet is what the service said, and where the two
+    differ the catalog, the builder and the schema follow the service.
     No console export of the block has been taken (owner decision 8), so
     nothing under `exports/` records its stored shape. In its place the
     shape is read from contact flows AWS publishes in its sample
@@ -1498,9 +1610,7 @@ is read rather than when the type is modeled.
     `ProfileResponseData` as a list of names, empty when no response field
     is chosen, where the pages write `{ "FirstName", ... }`, which is not
     JSON. The catalog follows the published flows where they and the pages
-    differ, and records the pages' form here. Until the sweep and an export,
-    every required key, error, `next`, spelling and flow-type entry below is
-    that reading, and each bullet names the probes that settle it.
+    differ, and records the pages' form here.
     The action pages have no Restrictions section, and the admin guide's
     block lists "All flow types" and voice, chat, task and email each
     "Yes", so every type here is unrestricted and carries no `channels`.
@@ -1533,10 +1643,9 @@ is read rather than when the type is modeled.
       preceding Get profile and the contact id from attributes, and has
       Success and Error branches. No published flow carries the type. The
       catalog records `ProfileRequestData` as a required object of the two
-      ids, each a `stringOrJsonPath` and required, and `ProfileResponseData`
-      as an optional list of strings with no names; the class writes the
-      empty list the console writes for the other five types with no
-      response field, and codegen leaves any other response data generic.
+      ids, each a `stringOrJsonPath` and required, and, since the sweep, no
+      `ProfileResponseData`: the service refuses it, even empty, so the
+      class writes none and codegen leaves a block carrying it generic.
       The catch-all is required and wired by the builder, `next` required.
       Planned probes: `assoc-required-set-alone` (the catalog's required
       set alone, without the optional response list; expected accepted),
@@ -1635,9 +1744,8 @@ is read rather than when the type is modeled.
       refusing either (owner decision 3); the class refuses both and
       neither, and codegen leaves the named-field form generic. The three
       errors are in the published flows' order, all wired by the builder;
-      only the catch-all is required, since the page marks neither of the
-      others "Must always be defined" (as `ChannelMismatch` on rule 41's
-      message processor), although every published flow wires both.
+      the page marks neither lookup error "Must always be defined", but the
+      service requires both, so all three are required.
       Planned probes: `get-required-set-alone` (the catalog's required
       set alone: one identifier, no response list, and the catch-all
       without either lookup branch; it is the probe that settles whether
@@ -1677,13 +1785,11 @@ is read rather than when the type is modeled.
       `exactlyOne` over the groups `[UseLatest]` and the pair; and
       `ProfileResponseData` as a list of strings whose `keys` are the 76
       fields and whose `keyPatterns` are the four `*Attributes` forms. The
-      class writes `UseLatest` as `"true"` only; a block with `"false"`, the
-      JSON boolean or another spelling stays generic until
-      `object-latest-boolean`, `object-latest-capitalized` and
-      `object-latest-false` are put to the service. The schema clause holds
-      the containers only. The two errors are wired by the builder,
-      catch-all first as `GetCustomerProfile`'s are written; only the
-      catch-all is required. Planned probes:
+      class writes `UseLatest` as `"true"` only, and since the sweep the
+      enum is `"true"` alone: the service refuses `"false"`, `"True"` and
+      the JSON boolean. The two errors are wired by the builder, catch-all
+      first as `GetCustomerProfile`'s are written; the service requires
+      both. Planned probes:
       `object-required-set-alone` (the catalog's required set alone: no
       response list and the catch-all without `NoneFoundError`),
       `object-latest` (the class's form; expected accepted), `object-no-catch-all`, `object-no-none-found` and
@@ -1719,8 +1825,8 @@ is read rather than when the type is modeled.
       `keyPatterns` is `^CalculatedAttributes\.[^.]+$`, which admits the
       other predefined names and a domain's own; the names are the
       domain's strings, not references (tasks/D03: no new ref type). The
-      two errors are wired by the builder in that repository's order; only
-      the catch-all is required. Planned probes:
+      two errors are wired by the builder in that repository's order; the
+      service requires both, and requires `ProfileResponseData` too. Planned probes:
       `calc-required-set-alone` (the catalog's required set alone: no
       response list and the catch-all without `NoneFoundError`),
       `calc-required` (the class's form; expected accepted), `calc-no-catch-all`, `calc-no-none-found` and
@@ -1729,21 +1835,98 @@ is read rather than when the type is modeled.
       not define), `calc-other-name` (a name without the prefix),
       `calc-no-profile-id`, and `calc-module`.
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+    - The sweep (2026-10-13, 17:08 to 17:09 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 75 of 77 probes, 27 accepted and 48
+      refused, every refusal an `InvalidContactFlowException`.
+      `assoc-static-profile` and `calc-custom-name` did not run: the
+      domain holds no profile and no calculated attribute definition, and
+      neither is a resource the sandbox root creates. The domain was
+      linked before the run, so no probe saw an instance without one.
+      - `AssociateContactToCustomerProfile`: `assoc-required-set-alone`
+        and `assoc-no-response-data` (the ids alone) were accepted; every
+        probe carrying `ProfileResponseData` was refused "Invalid Action
+        property name. Path: Actions[0].Parameters.ProfileResponseData",
+        the empty list (`assoc-required`, `-module`, `-customer-hold`)
+        and the braces (`assoc-response-object`, "Invalid Action type")
+        alike. The module and hold probes were refused for that key alone,
+        no flow-type problem among their messages. `assoc-no-contact-id`,
+        `-no-catch-all` and `-no-next` were refused for what they removed.
+      - `CreateCustomerProfile` and `UpdateCustomerProfile`: the required
+        set alone (no `Parameters`), an empty request, no request and no
+        response list were each accepted, so both containers are optional;
+        so was each in a module, and the create in a customer hold flow.
+        An unlisted key (`Nickname`) was refused "Invalid Action property
+        name. Path: Actions[0].Parameters.ProfileRequestData.Nickname",
+        and so was every custom attribute key the page's `"Attributes.x"`
+        reads as (`Attributes.loyaltyTier`,
+        `Attributes.preferredLanguage`, `Attributes.a.b`), so the request
+        takes the 55 fields alone and `keyPatterns` leaves it; the nested
+        `{"Attributes": {...}}` form was not probed. An unlisted response
+        name was refused ("...ProfileResponseData.Nickname"), and the
+        braces ("Invalid Action type"); `Attributes.<name>` response
+        names drew no complaint in the messages that refused their
+        requests. `update-profile-id-key` was refused ("...ProfileId"),
+        as the page's silence implies. Each catch-all removal was refused
+        "Missing branch. Path: 0.Error", and each `next` removal too.
+      - `GetCustomerProfile`: `get-identifier`, `get-search-and`,
+        `get-search-or`, `get-module` and `get-customer-hold` accepted,
+        and so was `get-named-key`, a search by `PhoneNumber` alone, the
+        step-by-step flows' form. `get-required-set-alone` refused "Action
+        is missing required error. Error: MultipleFoundError" and the
+        same for `NoneFoundError`, as did each lookup branch removed
+        alone, so both are required. `get-identifer-spelling` refused
+        "Invalid Action property name. Path:
+        Actions[0].Parameters.ProfileRequestData.IdentiferValue";
+        `get-both-forms` refused naming `IdentifierName` and
+        `IdentifierValue`; `get-neither-form` and
+        `get-identifier-name-only` refused naming the missing half;
+        `get-search-without-operator` and
+        `get-search-one-without-operator` refused "...LogicalOperator",
+        so the operator is required even with one criterion;
+        `get-operator-lowercase` and `get-six-criteria` refused "Invalid
+        Action property value". The catalog's group alternative stays the
+        page's reading, out of the schema clause, since the named form is
+        accepted.
+      - `GetCustomerProfileObject`: `object-latest`, `-identifier`,
+        `-module`, `-response-names` and `-unknown-type` (an object type
+        the domain lacks) accepted, and so was `object-both-forms`, both
+        retrievals together; `object-neither-form` refused "...missing
+        required property. Path:
+        Actions[0].Parameters.ProfileRequestData". `UseLatest` `"false"`
+        and `"True"` refused "Missing required property. Property:
+        0.UseLatest", and the JSON boolean "Invalid Action type".
+        `object-required-set-alone` refused "Action is missing required
+        error. Error: NoneFoundError", so the branch is required;
+        `-no-object-type` and `-no-profile-id` refused for what they
+        removed.
+      - `GetCalculatedAttributesForCustomerProfile`: `calc-required`,
+        `calc-module` and `calc-unknown-name` (a name the domain does not
+        define) accepted. `calc-required-set-alone` refused for the
+        missing `NoneFoundError` and "Action is missing required property.
+        Path: Actions[0].Parameters.ProfileResponseData", so both are
+        required. `calc-other-name` (`FirstName`) refused "Invalid Action
+        property value. Path: 0.FirstName", so the prefix is enforced.
+      - What moved: the three lookups' errors are required in the catalog
+        and `REQUIRED_EXTRAS`; the association has no
+        `ProfileResponseData`; the create and update request has no
+        `keyPatterns`; `UseLatest` is `"true"` alone; the calculated
+        lookup's response list is required; and the 0.3 clauses hold each
+        refusal above that a clause can state.
 
 44. Cases (tasks/D06; the Developer Guide pages read 2026-10-04 and again
     2026-10-12 with the admin guide's Cases block and case fields pages).
     The group's types are modeled from their pages and from flows AWS
-    publishes. **Probe pending**: the create sweep the evidence rule asks
-    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
-    AWS credentials had expired, and the Cases domain the sweep needs, with
-    its template and two fields, is created by a sandbox root that had not
-    been applied. Its inputs are kept in `probes/44/`, with `PENDING.md`
-    saying what the run needs. No console export of the block has been
-    taken in this repository (owner decision 8). In its place the stored
-    shape is read from flows AWS publishes, listed below at the commits read
-    on 2026-10-12, one of them a console export of every block. Until the
-    sweep, every required key, error, `next`, spelling and flow-type entry
-    below is that reading, and each bullet names the probes that settle it.
+    publishes, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a Cases domain associated to the instance
+    (`CASES_DOMAIN`), a template, a text field and a single-select field.
+    Its inputs and `results.json` are in `probes/44/`. No console export
+    of the block has been taken in this repository (owner decision 8). In
+    its place the stored shape is read from flows AWS publishes, listed
+    below at the commits read on 2026-10-12, one of them a console export
+    of every block. The bullets below are that reading as modeled; the
+    last bullet is what the service said, and where the two differ the
+    catalog follows the service.
     Each action page says "None. This can be used in any type of flow and
     any channel.", and the admin guide's block lists "All flows" and voice,
     chat, task and email each "Yes", so every type here is unrestricted and
@@ -1771,8 +1954,9 @@ is read rather than when the type is modeled.
     (`CASE_SYSTEM_FIELDS` in `packages/core/src/actions.ts`). A literal
     domain field id or template id, which the flows above write and the
     service is expected to accept, still validates and round-trips, and
-    codegen leaves such a block generic; no lint reports it unless this
-    sweep shows the service validating ids at create (docs/adr/0008).
+    codegen leaves such a block generic; no lint reports it, and the sweep
+    found the service validating neither ids nor their form at create
+    (docs/adr/0008).
     https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
     https://docs.aws.amazon.com/connect/latest/adminguide/case-fields.html
     The published flows:
@@ -1862,19 +2046,20 @@ is read rather than when the type is modeled.
       and wires `ContactNotLinked` (when linking), `MultipleFound`,
       `NoneFound` and the catch-all, in that order. The catalog records
       `LinkContactToCase` and `ContactToLink` as `CreateCase`'s,
-      `GetLastUpdatedCase` as a required `enum` of `"true"` and `"false"`,
+      `GetLastUpdatedCase` as an optional `enum` of `"true"` and `"false"`
+      (required until the sweep accepted a block without it),
       `CustomerId` as an optional `stringOrJsonPath`, `CaseRequestFields`
       as `CreateCase`'s, and `CaseResponseFields` as an optional `list` of
       strings with `max` 10 whose `keys` are the system field ids and whose
       items are a `casefield` reference path (`CaseResponseFields[]`). The
       four errors are wired by the builder in the flows' order;
-      `ContactNotLinked` is required when linking, the catch-all always,
-      and neither lookup, which the page does not mark "Must always be
-      defined" (rule 43's reading of the Customer Profiles lookups), although
-      every flow wires both (`pass-get-case-catch-all-only`,
+      `ContactNotLinked` is required when linking, and the catch-all and
+      both lookups always: the page does not mark the lookups "Must always
+      be defined", but the service requires them, as every flow wires them
+      (`fail-get-case-catch-all-only`,
       `fail-get-case-linking-without-contact-not-linked`). The bound of 10
-      is in the catalog and the class, not the schema, until
-      `get-eleven-response-fields` shows the service refusing an eleventh.
+      is in the catalog, the class and, since the service refused an
+      eleventh, the schema clause.
       Planned probes: `get-required-set-alone` (the catalog's required set
       alone, with no search, no response fields and neither lookup branch;
       expected accepted, which also settles each optional parameter and
@@ -1926,20 +2111,80 @@ is read rather than when the type is modeled.
       `update-contact-to-link`, and `update-module` and
       `update-customer-hold`.
       https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+    - The sweep (2026-10-13, 17:09 to 17:10 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 57 probes, 33 accepted and 24 refused,
+      every refusal an `InvalidContactFlowException`. The domain was
+      associated before the run, so no probe saw an instance without one.
+      - Ids are not checked at create. `create-missing-template` and
+        `create-missing-field` (well-formed ids naming nothing),
+        `update-missing-field` and `get-missing-response-field` were
+        accepted, and so were `create-template-arn` and `create-field-arn`
+        (each id given as its `arn:aws:cases:` ARN) and
+        `create-template-jsonpath`. docs/adr/0008's reading stands: no
+        lint reports a literal id, and codegen leaves one generic.
+      - The link. `LinkContactToCase` is required on all three
+        (`create-no-link-flag`, `get-no-link-flag`, `update-no-link-flag`
+        refused "Action is missing required property. Path:
+        Actions[0].Parameters.LinkContactToCase") and a JSON boolean is
+        refused (`create-link-boolean`, "Invalid Action type").
+        `ContactNotLinked` is required when linking (each
+        `*-linking-no-contact-not-linked` refused "Action is missing
+        required error. Error: ContactNotLinked") and refused when not
+        (each `*-not-linking-contact-not-linked` refused "Invalid Action
+        error. Error: ContactNotLinked, Path: Actions[0]"). The second
+        half is new: each type's catalog entry now carries a shape that
+        forbids the branch where `LinkContactToCase` is `"false"`, which
+        conditional-shape reports (three fail fixtures, and a pass for a
+        JSONPath link). `ContactToLink` was accepted with both values and
+        on a block that does not link, which the class still refuses.
+      - `CreateCase`: `create-required`, `create-linking`, `create-fields`
+        (the domain's two fields by id beside system fields),
+        `create-read-only-field` (`case_id` and `created_datetime` set by
+        the flow), `create-module` and `create-customer-hold` accepted;
+        `create-no-template` refused "...CaseTemplateId", and the
+        catch-all and `next` were each refused removed alone.
+      - `GetCase`: `get-all-branches`, `get-linking`,
+        `get-response-fields`, `get-customer-id`, `get-contact-to-link`,
+        `get-reference-id-field`, `get-repeated-response-field`,
+        `get-module` and `get-customer-hold` accepted.
+        `get-required-set-alone` and `get-required`, which wire the
+        catch-all alone, refused "Action is missing required error.
+        Error: MultipleFound" and the same for `NoneFound`, as did each
+        lookup removed alone: both are required, in the catalog and
+        `REQUIRED_EXTRAS`, and `pass-get-case-catch-all-only` became a fail
+        fixture. The set-alone probe has no search criterion and drew no
+        complaint about one, so "at least one search criteria" is a
+        run-time rule. `get-no-last-updated-flag` was accepted, so
+        `GetLastUpdatedCase` is optional. `get-eleven-response-fields`
+        refused "Invalid Action property value. Path: Actions[0].More than
+        10 fields in Parameters.CaseResponseFields", so the schema clause
+        holds the bound. `get-error-suffix` refused "Invalid Action error.
+        Error: MultipleFoundError" and `NoneFoundError`, so the Cases
+        spellings stand.
+      - `UpdateCase`: `update-required-set-alone` (no request fields),
+        `update-required`, `update-linking`, `update-domain-fields`,
+        `update-contact-to-link`, `update-module` and
+        `update-customer-hold` accepted; `update-no-case-id` refused
+        "...CaseId", and the catch-all and `next` were each refused
+        removed alone. "At least one Request field" is a run-time rule.
 
 45. Routing criteria (tasks/D07; the Developer Guide page read 2026-10-04
     and again 2026-10-12 with the admin guide's Set routing criteria block
     page). The type is modeled from its page, with the expression a `json`
-    value (docs/adr/0009). **Probe pending**: the create sweep the evidence
-    rule asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
-    sandbox's AWS credentials had expired, and the predefined attribute the
-    sweep names is created by a sandbox root that had not been applied. Its
-    inputs are kept in `probes/45/`, with `PENDING.md` saying what the run
-    needs. No console export of the block has been taken (owner decision
-    8). Until the sweep and an export, the Type spelling and every required
-    key, error, `next`, spelling, limit and flow-type entry below is the
-    pages' reading, and each bullet names the probes that settle it.
-    - `UpdateRoutingCriteria` "Sets the routing criteria for the contact."
+    value (docs/adr/0009), and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a predefined attribute of three values on the
+    instance. Its inputs and `results.json` are in `probes/45/`. The
+    service refuses the page's Type, `UpdateRoutingCriteria`, and takes
+    `UpdateContactRoutingCriteria`, so the type is that in the catalog, the
+    builder and every fixture; the page's spelling is kept below where the
+    page is quoted. No console export of the block has been taken (owner
+    decision 8). The bullets below are the pages' reading as modeled; the
+    last bullet is what the service said, and where the two differ the
+    model follows the service.
+    - `UpdateRoutingCriteria` (the page's Type; the service's is
+      `UpdateContactRoutingCriteria`) "Sets the routing criteria for the
+      contact."
       The page's parameter object: `RoutingCriteria` "Required.
       RoutingCriteria is a JSON object."; `Steps` "Required. List of
       routing steps. ... May be set statically or dynamically"; each step's
@@ -1988,8 +2233,8 @@ is read rather than when the type is modeled.
       generic, and the schema clause admits it, until the sweep records
       whether a flow may carry it statically. The 10-agent limit is
       recorded, not enforced.
-    - The Type spelling is in doubt, and it is the first thing the sweep
-      settles. An AWS sample
+    - The Type spelling was in doubt, and the sweep settled it for
+      `UpdateContactRoutingCriteria` (the last bullet). An AWS sample
       (https://github.com/aws-samples/sample-apj-sup-sa/blob/1f164c387f4ebc504920e368e664882b6916ea02/connect/multi-tenant-agentic-contact-center/connect-routing/lib/flows.ts,
       read 2026-10-12) writes `Type: "UpdateContactRoutingCriteria"` with
       the comment "Flow-language type is UpdateContactRoutingCriteria (the
@@ -2014,8 +2259,9 @@ is read rather than when the type is modeled.
       does not take, so the 61-Type denominator and its Developer Guide
       row change with it. Rule 40 is not changed before that evidence.
     - The catalog records `RoutingCriteria` as a required `object` whose
-      `Steps` is a required `list` of objects with `dynamic` (a JSONPath
-      for the whole list, the first `dynamic` on a list); each step's
+      `Steps` is a required `list` of objects, one or more (it carried
+      `dynamic`, a JSONPath for the whole list, until the service refused
+      that); each step's
       `Expression` a required `json` value and its `Expiry` an optional
       object of `DurationInSeconds`, an `integerString` (the decimal string
       the console writes for every other seconds field recorded so far,
@@ -2095,19 +2341,72 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/APIReference/API_UpdateContactRoutingData.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_AttributeCondition.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_AgentsCriteria.html
+    - The sweep (2026-10-13, 17:10 to 17:12 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 40 probes, 23 accepted and 17 refused,
+      every refusal an `InvalidContactFlowException`, in two runs recorded
+      in one `results.json`, as `PENDING.md` asked.
+      - The Type. `routing-required-set-alone`, under the page's
+        `UpdateRoutingCriteria`, was refused "Invalid Action type. Type:
+        UpdateRoutingCriteria, Path: Actions[0].Type", and
+        `routing-contact-type-set-alone`, the same content under
+        `UpdateContactRoutingCriteria`, was accepted. The other 38 inputs
+        were then switched to `UpdateContactRoutingCriteria` and run; the
+        catalog key, `ActionType`, the class, the HCL block
+        (`update_contact_routing_criteria`), the schema clause and every
+        fixture were renamed. The census (rule 40, "Unmodeled actions")
+        still counts 61 Types and 56 on the Developer Guide's pages: the
+        page documents this Type under a name the service refuses, which
+        the table at the top of this file now says.
+      - Refused statically, so the builder no longer writes them: an
+        `OrExpression` at the top of a step (`routing-or`, `routing-or-four`,
+        "Invalid Action property value. Path:
+        Actions[0].Parameters.RoutingCriteria") and `Steps` as a JSONPath
+        (`routing-steps-jsonpath`, the same message). The `or(...)` helper
+        is gone, `Steps` lost `dynamic` and the class's JSONPath form, and
+        codegen leaves either generic. The whole of `RoutingCriteria` as a
+        JSONPath (`routing-criteria-jsonpath`) was accepted, and is the
+        group fixture's Lambda form, generic. An OR inside an AND
+        (`routing-or-inside-and`) was accepted, against the admin guide's
+        "OR at the top level"; the builder writes no OR, and codegen leaves
+        it generic. A static `NotAttributeCondition` was refused, as the
+        admin guide says.
+      - Refused, now held by the 0.3 clause: no `RoutingCriteria`
+        (`routing-no-criteria`, "Action is missing required property"),
+        no `Steps` (`routing-no-steps`), an empty step list
+        (`routing-empty-steps`), a step without its `Expression`
+        (`routing-no-expression`), an empty `Expiry`
+        (`routing-expiry-empty`), a JSONPath expiry
+        (`routing-expiry-jsonpath`), and the levels 0.5 and 5.5
+        (`routing-level-0-5`, `routing-level-5-5`), each "Invalid Action
+        property value. Path: Actions[0].Parameters.RoutingCriteria".
+      - Accepted, so the builder's stricter checks stay its own: the level
+        2.5 and the string `"4.0"` (`routing-level-2-5`,
+        `routing-level-string`), nine requirements in an AND
+        (`routing-and-nine`), a 65-character name and value
+        (`routing-name-65`, `routing-value-65`, read beside
+        `routing-unknown-attribute` and `routing-unknown-value`, which
+        were accepted too: the create checks neither the attribute nor
+        its value against the instance, nor their length), a JSONPath
+        value, a numeric expiry (`routing-expiry-number`), a first step
+        without an expiry (`routing-first-step-no-expiry`), the `Range`
+        operator, and both preferred-agent forms.
+      - Flow types: accepted in a contact flow, a module, and the customer
+        queue, agent transfer and queue transfer flows; refused "not
+        supported in contact flow type customerHold" and `customerWhisper`.
+        The catalog's flow types stand. The catch-all and `next` were each
+        refused removed alone.
 
 46. Outbound (tasks/D04; the Developer Guide pages read 2026-10-04 and
     again 2026-10-12 with the admin guide's Check call progress, Call phone
     number and Send message block pages). The group's types are modeled
-    from their pages. **Probe pending**: the create sweep the evidence rule
-    asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
-    sandbox's AWS credentials had expired, and the claimed DID and probe
-    flow the sweep names come from a sandbox root that had not been
-    applied. Its inputs are kept in `probes/46/`, with `PENDING.md` saying
-    what the run needs. No console export of any block has been taken
-    (owner decision 8). Until the sweep, every required key, error,
-    `next`, spelling and flow-type entry below is the pages' reading, and
-    each bullet names the probes that settle it. The action pages state no
+    from their pages, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with one claimed US DID and a published probe target
+    flow. Its inputs and `results.json` are in `probes/46/`. No console
+    export of any block has been taken (owner decision 8). The bullets
+    below are the pages' reading as modeled; the last bullet is what the
+    service said, and where the two differ the catalog follows the
+    service. The action pages state no
     flow-type restriction in the console's vocabulary, so where the catalog
     restricts a type the restriction is an admin guide page's reading, and
     where a probe refuses a flow type the restriction is the service's, not
@@ -2349,6 +2648,361 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
       https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
       https://docs.aws.amazon.com/connect/latest/adminguide/setup-sms-messaging.html
+    - The sweep (2026-10-13, 17:12 to 17:13 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 75 probes, 37 accepted and 38 refused.
+      The sandbox has neither outbound campaigns nor SMS messaging (owner
+      decision 6), so every acceptance here is a create on an instance
+      without the feature, which is the deployable reading.
+      - `CheckOutboundCallStatus`: `status-required` (all four statuses)
+        accepted, on an instance without campaigns. In every flow type
+        FlowDoc has it was accepted (customer queue, customer and agent
+        hold, customer, agent and outbound whisper, agent and queue
+        transfer, a module), so `flowTypes` stays unrestricted, now as the
+        service's reading. `status-required-set-alone`, the catch-all and
+        no status condition, was refused "Invalid Action property value.
+        Path: Actions[0].Transitions.Conditions": a condition is required,
+        and the catalog now carries `minConditions` 1, which error-branches
+        reports (`fail-check-outbound-call-status-without-conditions`).
+        `status-next-elsewhere` was accepted, so the mirror is the
+        builder's form, not a requirement; `status-no-next` and
+        `status-no-catch-all` were refused. `status-other-operator`,
+        `status-unknown-operand` and `status-lowercase-operand` were
+        refused naming `Transitions.Conditions`, as the page's "only"
+        clauses say, and `status-with-parameter` was refused "Invalid
+        Action property name. Path: Actions[0].Parameters.Timeout".
+        `status-campaign`, in a `CAMPAIGN` flow, was refused
+        "CheckOutboundCallStatus action type is not supported" and
+        "DisconnectParticipant action type is not supported": the
+        `CAMPAIGN` type refuses even the disconnect on an instance without
+        campaigns, which says nothing about this action there.
+      - `CompleteOutboundCall`: `complete-required-set-alone` (no
+        parameters) and `complete-required` (the claimed DID's number)
+        were accepted in an outbound whisper flow, and every other flow
+        type was refused "Action with identifier probe is not supported in
+        contact flow type ..." (contact flow, customer queue, customer and
+        agent hold, customer and agent whisper, agent and queue
+        transfer), the module with "...not supported in a flow module". The
+        admin guide's reading is the service's, without the module the
+        catalog had allowed: `flowTypes` is `OUTBOUND_WHISPER` alone, and
+        `fail-complete-outbound-call-in-module` holds it.
+        `complete-with-catch-all` was refused "Invalid Action error.
+        Error: NoMatchingError", so no error branch is right, and
+        `complete-no-next` was refused. `complete-caller-id-unclaimed`
+        (`+15555550100`) was refused "Action with identifier probe has
+        invalid resource: +15555550100" and `complete-caller-id-arn` the
+        same for the DID's ARN, while `complete-caller-id-jsonpath` was
+        accepted: a static caller ID must be a number claimed on the
+        instance, so it is environment-specific, and a JSONPath is the
+        portable form. No catalog kind says that; the class's comment
+        does. `complete-caller-id-empty` was refused "...CallerId.Number".
+        The time limit was accepted as a string, a number, a JSONPath and
+        `"601"`, so the clause's string-or-integer stands and the bound is
+        the page's. `complete-voice-connector`, an invented connector ARN,
+        was accepted (the create does not check it), and
+        `complete-voice-connector-other-type` refused naming
+        `VoiceConnectorType` and "Action is missing required property.
+        Path: Actions[0].Parameters.ConnectionTimeLimitSeconds": with a
+        voice connector the time limit is required. That form stays
+        generic (owner decision 4).
+      - `StartOutboundChatContact`: `sms-required-set-alone` and
+        `sms-source-jsonpath` accepted, and so were
+        `sms-source-did-set-alone`, `sms-required` and `sms-source-number`,
+        which name the voice DID as the source by ARN and by number: the
+        create checks neither the number's SMS capability nor that the
+        address is an ARN. Accepted in every flow type probed and a
+        module. Each required key removed alone was refused
+        (`sms-no-source-endpoint`, `-no-source-address`, `-no-source-type`,
+        `-no-destination-endpoint`, `-no-destination-address`,
+        `-no-destination-type`, `-no-contact-flow`, `-no-subtype`,
+        `-no-message-content`), as were `sms-no-catch-all` and
+        `sms-no-next`; `sms-no-initial-message` was accepted.
+        `sms-source-type-other`, `sms-related-other` and
+        `sms-message-string` were refused; `sms-subtype-whatsapp` was
+        refused "Action is missing required property. Path:
+        Actions[0].Parameters.InitialTemplatedSystemMessage", the admin
+        guide's WhatsApp form, which stays generic.
+        `sms-destination-not-e164`, `sms-destination-static` and
+        `sms-flow-jsonpath` were accepted: the E.164 rule is the class's.
+        The catalog stands.
+47. Census additions (tasks/D09; the admin guide's block pages read
+    2026-10-05 for rule 40 and again on 2026-10-12). The Types D00's census
+    added from outside the Developer Guide are modeled where a page or a
+    kept console export shows their shape and the service has not refused
+    them by name; the rest are recorded here as not modeled, with what
+    would settle each. The create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), whose instance has a Customer Profiles domain linked but
+    no segment definition, no Cognito user pool, no email address and no
+    input encryption key. Its inputs and `results.json` are in
+    `probes/47/`. The bullets below are the page's or the export's reading
+    as modeled; the last bullet is what the service said, and where the
+    two differ the catalog follows the service.
+    - `LoadContactContent`, modeled from the Get stored content block page
+      (its catalog `doc`, `source` `adminguide`). The page: "You can
+      configure the **Get stored content** block by using the Connect
+      Customer admin website or by using the `LoadContactContent` in the
+      Connect Customer Flow language"; its one option, Email message (Plain
+      text), "will download the plain text version of the email message
+      present in your S3 bucket and store it on the
+      `$.Email.EmailMessage.Plaintext` flow attribute", up to 64 KB. Its
+      Flow language example carries `"ContentType": enum "EmailMessage"`,
+      a `NextAction` and one error, `NoMatchingError`. Channels voice, chat
+      and task "No", email "Yes"; flow types inbound, customer queue,
+      customer hold, customer whisper, outbound whisper, agent hold, agent
+      whisper, transfer to agent, transfer to queue and disconnect. The
+      catalog records `ContentType` as an `enum` of the one value, optional
+      until the sweep (rule 40's create was accepted with `Parameters`
+      empty on 2026-10-05 in us-east-1; the sandbox refused that on
+      2026-10-13, last bullet) and required since, channels
+      `EMAIL`, `flowTypes` `unrestricted` (the ten listed are every FlowDoc
+      connect type, a disconnect flow being a `CONTACT_FLOW`, and only a
+      campaign flow, which FlowDoc does not model, is left out; a module by
+      the note above `IN_MODULE`), `next` required and the catch-all
+      required and wired by the builder. The class writes the page's form;
+      codegen reads back only that form, and an action without
+      `ContentType` stays generic. The 0.3 schema clause holds
+      `ContentType` to the page's one value.
+      Planned probes: `load-required-set-alone` (the catalog's required set
+      alone, `Parameters` empty; the accepted-set probe) and
+      `load-required` (the class's form); `load-no-catch-all` and
+      `load-no-next` (each a removal alone); `load-content-type-unknown`
+      and `load-content-type-jsonpath` (the schema clause's one value); and
+      `load-customer-hold`, `load-outbound-whisper` and `load-module` (flow
+      types no other probe covers, the last one the page does not name).
+      The type has no optional container.
+      https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+    - `TransferParticipantToThirdParty`, modeled from the kept export
+      (its catalog `doc`,
+      `conformance/flow-language/exports/transfer-participant-to-third-party.json`,
+      `source` `console-export`; the export's README says what it is: the
+      action `roundtrip/unknown-actions` carried from 2026-09-11 in the
+      shape of the console's sample flows, not a file the console wrote as
+      it stands). No AWS page documents the Type: its API Reference page,
+      https://docs.aws.amazon.com/connect/latest/APIReference/participant-actions-transferparticipanttothirdparty.html,
+      renders only its title (rule 40). The export carries
+      `ThirdPartyPhoneNumber` (a JSONPath), `ThirdPartyConnectionTimeLimitSeconds`
+      (`"30"`) and `ContinueFlowExecution` (`"True"`), a `NextAction`, and
+      `CallFailed`, `ConnectionTimeLimitExceeded` and `NoMatchingError` in
+      that order. The Transfer to phone number block page, which the
+      console writes as this Type, gives the restrictions: channels voice
+      "Yes", chat, task and email "No - Error branch"; flow types inbound,
+      customer queue, transfer to agent and transfer to queue; branches
+      Success, Call Failed, Timeout and Error; Resume flow after disconnect
+      "works only if the external party disconnects, and the customer
+      doesn't disconnect"; Send DTMF, Caller ID number and Caller ID name,
+      none with a key the export shows. The service evidence is the
+      showcase repository's VERIFY 16.8
+      (https://github.com/flow-as-code/hollow-hour-example-typescript/blob/84db5c0c849d456a90cf5a94bf76ba6681ef5d8b/VERIFY.md,
+      read 2026-10-12): on 2026-09-30 (us-west-2) the export's shape with
+      a JSONPath number was accepted in a contact flow, and each of the
+      three errors removed alone was refused, "Action is missing required
+      error. Error: <branch>, Path: Actions[0]"; and rule 40's create of the
+      same shape was accepted on 2026-10-05. A comment in this repository's
+      Terraform cookbook, removed by D09 when the recipe moved to another
+      type, said that with `ContinueFlowExecution` `"False"` the action
+      takes "only the catch-all (sandbox, 2026-09-29)"; no message was
+      recorded with it, so it is a reading, not evidence
+      (https://github.com/flow-as-code/flow-as-code/blob/8a7c3d71e0f92882b04229dbcd4fd83614be6790/examples/terraform-provider/cookbook/unmodeled-action.tf,
+      lines 4 to 6). `third-required-set-alone` (`"False"` with the
+      catch-all alone) and `third-end-all-branches` (`"False"` with all
+      three) settle it.
+      The catalog records the three keys as required (the export's), the
+      number a `stringOrJsonPath`, the time limit an `integerString` with
+      no bound (no page states one), `ContinueFlowExecution` an `enum` of
+      `"True"` and `"False"` (the export's capitalisation), channels
+      `VOICE`, flow types `CONTACT_FLOW`, `CUSTOMER_QUEUE`,
+      `AGENT_TRANSFER`, `QUEUE_TRANSFER` and `MODULE` (a module by the note
+      above `IN_MODULE`), `next` required, the catch-all required, and a
+      shape: with `ContinueFlowExecution` `"True"`, `CallFailed` and
+      `ConnectionTimeLimitExceeded` are required, which the
+      `conditional-shape` lint rule enforces. With `"False"` both are
+      refused, since the sweep (last bullet), by a second shape. The builder takes
+      the number as a JSONPath only (a destination is supplied at run time,
+      and whether the service takes a static one is the sweep's), writes
+      the time limit as a decimal string and refuses one that is not a
+      positive integer, writes all three branches with `continueFlow:
+      true`, and with `continueFlow: false` the catch-all and whichever of
+      the other two the author wires. Codegen reads back only those forms;
+      a static number, a numeric or JSONPath time limit, another
+      `ContinueFlowExecution` spelling, another key (Send DTMF or caller
+      ID) or another error order stays generic. The 0.3 schema clause holds
+      the number and the time limit to strings and the flag to its two
+      values.
+      Planned probes: `third-required-set-alone` (the catalog's required
+      set alone: the three keys, `"False"`, the catch-all alone; the
+      accepted-set probe) and `third-required` (the export's form);
+      `third-continue-no-call-failed`, `third-continue-no-timeout` and
+      `third-continue-no-catch-all` (the shape's branches and the
+      catch-all, each removed alone from the `"True"` form) and
+      `third-end-no-catch-all` (from the `"False"` form);
+      `third-end-all-branches` (the cookbook's reading of the `"False"`
+      form); `third-continue-no-next` and `third-end-no-next` (each form
+      without `NextAction`); `third-no-continue`, `third-no-time-limit`
+      and `third-no-number` (each required key removed alone);
+      `third-static-number` (a static destination, which tasks/D09 asks
+      the sweep to record); `third-continue-lowercase` and
+      `third-time-limit-number` (the clause's spellings);
+      `third-time-limit-zero`, `third-time-limit-600` and
+      `third-time-limit-jsonpath` (a bound and a dynamic form); and
+      `third-customer-queue`, `third-agent-transfer`, `third-queue-transfer`
+      and `third-module` (allowed) against `third-customer-whisper` and
+      `third-customer-hold` (forbidden). The type has no optional
+      container.
+      https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+    - Not modeled, with what would settle each (owner decision 8 for the
+      exports; none was obtainable by 2026-10-12, and the sandbox's 20
+      default and sample flows carry none of these, rule 40):
+      - `RouteContactToAgent` (Interrupt agent): blocked on evidence. The
+        page (read again 2026-10-12) names the Type, the customer queue
+        flow alone ("If this block is used inside a Flow module that is
+        invoked from a flow type other than Customer queue flow, the block
+        takes the **Error** branch"), every channel, the Success and Error
+        branches and an agent "from the instance-level user list" or "as a
+        contact attribute" (User ARN, User ID or Username), with no
+        parameter key and no prerequisite feature. The service refused the
+        Type by name on 2026-10-05 ("Invalid Action type", rule 40) on an
+        instance in us-east-1. A type the service refused as unknown is not
+        modeled on page evidence alone. `route-keys` puts the same probe to
+        the sandbox in us-west-2: a refusal naming a parameter shows the
+        Type exists there and names its key; another "Invalid Action type"
+        leaves the spelling or a Region rollout as the question, which a
+        console export of the block settles. The agent would need a `user`
+        ref type, which FlowDoc 0.3 does not carry, so even with an export
+        the type waits for a format bump planned in tasks/D09 or stays
+        generic with the reason recorded.
+      - `CheckSegmentMembership` (Customer profiles, Check segment
+        membership): blocked on evidence. Refused as "Invalid Action type"
+        on 2026-10-05 on an instance with no Customer Profiles domain (rule
+        40). The page names a segment ("SegmentDefinitionName in the
+        ListSegmentDefinitions operation") and a required profile id, each
+        set manually or dynamically, and the branches In segment, Not in
+        segment and Error, with no key. `segment-keys` repeats the probe on
+        an instance with a domain. A static segment would need a `segment`
+        ref type, which 0.3 does not carry.
+        https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+      - `AuthenticateParticipant` (Authenticate Customer): blocked on an
+        export. The service named three required keys
+        (`CognitoConfiguration`, `CustomerProfilesConfiguration`,
+        `TimeLimitMinutes`), a required `TimeLimitExceeded` branch and a
+        `Conditions` shape the empty list did not meet (rule 40), but no
+        page or export shows what the two objects hold or what the
+        conditions are, so a model would be invented.
+        `authenticate-nested-keys` sends the three keys with empty objects
+        so the refusal names the nested keys; the shapes still need an
+        export.
+      - The console-only blocks (Agentic CX, External Tool, Data Table,
+        Create persistent contact association, Get profile
+        recommendations): no Type is known, and none is invented. Each
+        waits for the owner's export (owner decision 8) and is listed in
+        the table under "Unmodeled actions"; tasks/D10 names them in the
+        release notes.
+    - The Set Touchtone Buffer Behavior form of `GetParticipantInput`
+      (`EnableDTMFBuffer`, tasks/D09's last type bullet) is not typed yet.
+      The page (read again 2026-10-12) writes the Enable form as
+      `"EnableDTMFBuffer": "true"` alone, with no `InputTimeLimitSeconds`
+      and no `StoreInput`, both of which the catalog requires of every
+      `GetParticipantInput` (the second by a shape the service set on
+      2026-09-29). Typing it means a catalog shape conditioned on a key
+      being present, a form the vocabulary does not have, and its port to
+      the provider's lint, so it waits for the sweep to say which
+      requirements the buffer form is exempt from. The page's
+      `InputEncryption` (`EncryptionKeyId`, `Key`) matches what the catalog
+      records; nothing was re-added. Planned probes: `dtmf-buffer-enable`
+      (the page's form; the control), `dtmf-buffer-enable-capitalised`
+      (`"True"` against the page's `"true"`), `dtmf-buffer-stop`,
+      `dtmf-buffer-stop-store` and `dtmf-buffer-stop-store-encrypted` (the
+      Stop and Clear forms, the last the page's example), and
+      `dtmf-buffer-outbound-whisper` and `dtmf-buffer-module` (a flow type
+      the page lists and the catalog's `GetParticipantInput` does not, and
+      a module). A document carrying the form round-trips as a generic
+      block meanwhile, and `conditional-shape` reports the page's own
+      Enable example three times (it "needs StoreInput", and without
+      `StoreInput` `"True"` its `InputTimeLimitExceeded` and
+      `NoMatchingCondition` branches; checked 2026-10-12), so such a
+      document disables that rule until the sweep says whether the service
+      agrees.
+      https://docs.aws.amazon.com/connect/latest/adminguide/set-touchtone-buffer-behavior.html
+    - The sweep (2026-10-13, 17:13 to 17:14 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 42 of 43 probes, 15 accepted and 27
+      refused, every refusal an `InvalidContactFlowException`.
+      `dtmf-buffer-stop-store-encrypted` did not run: it needs a security
+      key uploaded to the instance and an X.509 certificate signed with
+      it (https://docs.aws.amazon.com/connect/latest/adminguide/encrypt-data.html),
+      which the sandbox does not have, and a KMS key cannot stand in.
+      - `LoadContactContent`: `load-required` accepted, on an instance with
+        no email address, so the page's "enable email before using this
+        option" is a run-time matter. `load-required-set-alone`
+        (`Parameters` empty) was refused "Invalid Action property value.
+        Path: Actions[0].Parameters.ContentType": `ContentType` is
+        required, and rule 40's reading of its own empty create, accepted
+        on 2026-10-05 on the us-east-1 development instance, is corrected
+        here; the catalog and the schema clause require it.
+        `load-content-type-unknown` and `load-content-type-jsonpath` were
+        refused the same way, so the clause's one value stands.
+        `load-customer-hold`, `load-outbound-whisper` and `load-module`
+        were accepted; `load-no-catch-all` and `load-no-next` refused.
+      - `TransferParticipantToThirdParty`: `third-required-set-alone`
+        (`"False"`, the catch-all alone) and `third-required` (the
+        export's `"True"` form) accepted. `third-end-all-branches`
+        (`"False"` with all three) was refused "Invalid Action error.
+        Error: ConnectionTimeLimitExceeded" and the same for `CallFailed`:
+        the ending form refuses both, so the cookbook's comment was right.
+        A second shape forbids them there, conditional-shape reports them
+        (`fail-third-party-end-with-resume-branches`), the class refuses
+        them with `continueFlow: false`, codegen leaves such a block
+        generic, and the studio switches the flag and the two branches in
+        one mutation (`setContinueFlow`). `third-continue-no-call-failed`,
+        `-no-timeout` and `-no-catch-all` were refused, as VERIFY 16.8
+        recorded on 2026-09-30, and `third-end-no-catch-all`, both
+        `-no-next` probes, `third-no-continue`, `third-no-number` and
+        `third-no-time-limit` were refused for what they removed.
+        `third-static-number` (`+15555550100`) was accepted: the builder
+        may take a static destination, which it does not yet.
+        `third-continue-lowercase` (`"true"`) was refused naming the flag
+        and both resume branches, so the enum's capitalisation is the
+        service's. `third-time-limit-number` (`30`) was accepted, so the
+        schema clause now admits an integer as well as a string;
+        `third-time-limit-jsonpath` was accepted, so the catalog marks
+        the time limit `dynamic`; `third-time-limit-zero` was refused and
+        `third-time-limit-600` accepted, so the catalog's lower bound is 1
+        and no upper bound is known. Accepted in customer queue, agent
+        transfer and queue transfer flows and a module; refused "not
+        supported in contact flow type customerHold" and
+        `customerWhisper`. The flow types stand.
+      - `route-keys` was refused "Invalid Action type. Type:
+        RouteContactToAgent" on the sandbox in us-west-2, as on 2026-10-05
+        in us-east-1: the Type is unknown in both Regions, so the spelling,
+        not a Region rollout, is the question, which a console export
+        settles. It stays unmodeled.
+      - `segment-keys` was refused "Invalid Action type. Type:
+        CheckSegmentMembership" on an instance with a Customer Profiles
+        domain but no segment definition (the sandbox root's "Not created
+        yet" list): the missing segment may be the cause, so this records
+        that feature's absence and changes nothing.
+      - `authenticate-nested-keys` was refused naming the nested keys:
+        "Action is missing required property. Path:
+        Actions[0].Parameters.CognitoConfiguration.UserPoolArn", the same
+        for `CognitoConfiguration.AppClientId` and
+        `CustomerProfilesConfiguration.ObjectTypeName`, and "Invalid Action
+        property value. Path: Actions[0].Transitions.Conditions". The
+        sandbox has no Cognito user pool, and the shapes of the values
+        still need an export; the type stays generic.
+      - The Set Touchtone Buffer Behavior form: `dtmf-buffer-enable`, the
+        page's `"EnableDTMFBuffer": "true"`, was refused "Invalid Action
+        property value. Path: Actions[0].Parameters.EnableDTMFBuffer", and
+        `dtmf-buffer-enable-capitalised`, `"True"` alone with no
+        `InputTimeLimitSeconds` and no `StoreInput`, was accepted. The
+        service spells the flag as every other Connect flag is spelled,
+        and the buffer form is exempt from the menu form's requirements,
+        so `conditional-shape`'s three reports on it are false positives
+        on content the service accepts. Every other buffer probe used the
+        page's lowercase spelling and was refused for it alone, so the
+        Stop and Clear forms, the module and the outbound whisper flow are
+        still unknown; `dtmf-buffer-stop-store` was also refused "Invalid
+        Action property name. Path: Actions[0].Parameters.StoreInput",
+        which suggests `StoreInput` is not taken beside the buffer flag at
+        all. The form stays untyped; typing it, and exempting it from the
+        shapes, waits for a rerun with `"True"` and `"False"`.
 
 ## Per-action parameter shapes
 
@@ -2424,53 +3078,57 @@ ResumeContact            {}                         // no parameters; channels T
 UpdatePreviousContactParticipantState { PreviousContactParticipantState: "AgentOnHold" | "CustomerOnHold" | "OffHold" }   // voice only
 UpdateContactMediaStreamingBehavior { MediaStreamingState: "Enabled" | "Disabled",
                            Participants: { ParticipantType: "Customer", MediaDirections: ("From" | "To")[] }[],
-                           MediaStreamType: "Audio" }   // each static; voice only
-UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "False", LambdaProcessorARN?: lambda,
-                           ChatProcessorSettings?: { DeliverUnprocessedMessages: "True" | "False" } } }   // static; chat only
+                           MediaStreamType: "Audio" }   // each static; voice only; directions unique
+UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "False", LambdaProcessorARN?: lambda,   // the Lambda required when enabled
+                           ChatProcessorSettings?: { DeliverUnprocessedMessages: "True" | "False" } } }   // static; chat only; ChannelMismatch required
 CreateTask               { ContactFlowId?: flow, Attributes?: { [key]: string }, Name: string,
                            Description?: string, References?: json, DelaySeconds?: "1".."518400",
-                           ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both
+                           ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both; a flow, a template or both
 CreateWisdomSession      { WisdomAssistantArn: assistant }   // static or JSONPath; voice only (the action page)
-AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId },   // each static or a JSONPath
-                           ProfileResponseData: [] }   // the page's "None."; written as the console's empty list
-CreateCustomerProfile    { ProfileRequestData: { [field | Attributes.<name>]: string },   // static or a JSONPath
-                           ProfileResponseData: (field | Attributes.<name>)[] }   // field: the page's 55 names
+AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId } }   // each static or a JSONPath; no ProfileResponseData, which the service refuses
+CreateCustomerProfile    { ProfileRequestData?: { [field]: string },   // static or a JSONPath; the service refuses Attributes.<name> here
+                           ProfileResponseData?: (field | Attributes.<name>)[] }   // field: the page's 55 names
 UpdateCustomerProfile    { ProfileRequestData, ProfileResponseData }   // as CreateCustomerProfile; no profile id
 GetCustomerProfile       { ProfileRequestData: { IdentifierName, IdentifierValue }   // the page's example: IdentiferValue
                                              | { SearchCriteria: { IdentifierName, IdentifierValue }[],   // 1 to 5
-                                                 LogicalOperator: "AND" | "OR" },
-                           ProfileResponseData: (field | Attributes.<name>)[] }
+                                                 LogicalOperator: "AND" | "OR" },   // the service also takes { [field]: value }
+                           ProfileResponseData?: (field | Attributes.<name>)[] }   // all three errors required
 GetCustomerProfileObject { ProfileRequestData: { ProfileId, ObjectType,   // each static; ProfileId may be a JSONPath
-                                                 UseLatest: "true" | IdentifierName, IdentifierValue },
-                           ProfileResponseData: (Asset*, Order*, Case* field | *Attributes.<name>)[] }   // 76 names, 4 patterns
+                                                 UseLatest: "true" | IdentifierName, IdentifierValue },   // the service takes both
+                           ProfileResponseData?: (Asset*, Order*, Case* field | *Attributes.<name>)[] }   // 76 names, 4 patterns; NoneFoundError required
 GetCalculatedAttributesForCustomerProfile { ProfileRequestData: { ProfileId },   // static or a JSONPath
                            ProfileResponseData: ("CalculatedAttributes._average_hold_time"
                                                  | "CalculatedAttributes._frequent_caller"
-                                                 | CalculatedAttributes.<name>)[] }
+                                                 | CalculatedAttributes.<name>)[] }   // required; NoneFoundError required
 CreateCase               { LinkContactToCase: "true" | "false", ContactToLink?: "Current" | "Related",   // the export's key, linking only
                            CaseTemplateId: casetemplate,
                            CaseRequestFields?: { [system field id | casefield]: string } }   // static or a JSONPath
-GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase: "true" | "false",
+GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase?: "true" | "false",   // both lookups required
                            CustomerId?,   // static or a JSONPath
                            CaseRequestFields?: { [system field id | casefield]: string },   // the search
                            CaseResponseFields?: (system field id | casefield)[] }   // at most 10, stored under $.Case
 UpdateCase               { LinkContactToCase, ContactToLink?, CaseId,   // static or a JSONPath ($.Case.case_id)
                            CaseRequestFields?: { [system field id | casefield]: string } }
-UpdateRoutingCriteria    { RoutingCriteria: { Steps: { Expression: RoutingExpression,   // json; required
-                                                       Expiry?: { DurationInSeconds } }[]   // decimal string, static
-                                                     | JSONPath } }
+UpdateContactRoutingCriteria { RoutingCriteria: { Steps: { Expression: RoutingExpression,   // json; required; the page's Type is UpdateRoutingCriteria
+                                                       Expiry?: { DurationInSeconds } }[] }   // 1 or more; decimal string, static
+                                                 | JSONPath }   // the whole criteria; generic. Steps as a JSONPath is refused
 RoutingExpression        { AttributeCondition: { Name, Value,   // 1 to 64 each; Value may be a JSONPath
                                                  ProficiencyLevel: 1 | 2 | 3 | 4 | 5,
                                                  ComparisonOperator: "NumberGreaterOrEqualTo" } }
-                         | { AndExpression: AttributeCondition[] }   // 1 to 8
-                         | { OrExpression: (AttributeCondition | AndExpression)[] }   // 1 to 3, top only
-CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected"
-CompleteOutboundCall     { CallerId?: { Number },   // E.164 or a JSONPath
+                         | { AndExpression: AttributeCondition[] }   // 1 to 8; an OR at the top of a step is refused
+CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected", one or more
+CompleteOutboundCall     { CallerId?: { Number },   // a number claimed on the instance, or a JSONPath; outbound whisper only
                            ConnectionTimeLimitSeconds?: "1".."600" }   // or a JSONPath; VoiceConnector stays generic
 StartOutboundChatContact { SourceEndpoint: { Address: phonenumber, Type: "CONNECT_PHONENUMBER_ARN" },
                            DestinationEndpoint: { Address, Type: "TELEPHONE_NUMBER" },   // E.164 or a JSONPath
                            ContactFlowArn: flow, ContactSubtype: "connect:SMS",
                            InitialSystemMessage?: { Content }, RelatedContact?: "CURRENT" }
+LoadContactContent       { ContentType: "EmailMessage" }   // required (rule 47); email only
+TransferParticipantToThirdParty { ThirdPartyPhoneNumber,   // a JSONPath in the builder; the service also takes a static one
+                           ThirdPartyConnectionTimeLimitSeconds,   // decimal string, 1 or more, or a JSONPath
+                           ContinueFlowExecution: "True" | "False" }   // "True": CallFailed and
+                                                                       // ConnectionTimeLimitExceeded required; "False":
+                                                                       // both refused; voice only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -2578,9 +3236,11 @@ document: the builder holds a name to them and codegen leaves a block whose
 names fall outside them generic, until a probe shows the service enforcing
 the list. `dynamic` sits on a
 scalar kind, or since FlowDoc 0.3 on a `list` whose page lets a JSONPath
-stand for the whole list (`UpdateRoutingCriteria.RoutingCriteria.Steps`,
-docs/adr/0009); never on an `object`, `map` or `json`, whose provider
-attribute has no JSONPath form.
+stand for the whole list; never on an `object`, `map` or `json`, whose
+provider attribute has no JSONPath form. No list carries it now: the one
+that did, `UpdateContactRoutingCriteria.RoutingCriteria.Steps`
+(docs/adr/0009), lost it when rule 45 found the service refusing a
+JSONPath there.
 
 Vocabulary added for Phase D on 2026-10-05 (tasks/D01), before any entry
 uses it, each item held by a `catalog.test.ts` mutation that fails on a
@@ -2643,7 +3303,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-54 of the 61. Everything not in the modeled set above parses to a
+56 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only actions the builder does not model (with tokens inside their
@@ -2703,17 +3363,29 @@ fixture name both forms (`CompleteOutboundCall` with `VoiceConnector`,
 `StartOutboundChatContact` with `InitialTemplatedSystemMessage`) and allow
 no other modeled type.
 https://docs.aws.amazon.com/connect/latest/APIReference/API_StartOutboundChatContact.html
+On 2026-10-12, when D09 modeled `LoadContactContent`, the fixture dropped
+it: `CompleteOutboundCall` goes on to `TransferParticipantToThirdParty`,
+and `StartVoiceIdStream` loops back to that action instead. When D09 then
+modeled `TransferParticipantToThirdParty`, the fixture dropped it too:
+`CompleteOutboundCall` goes on to `StartVoiceIdStream`, which loops back
+to `CompleteOutboundCall`. The flow token stays in
+`StartOutboundChatContact` and the queue token in `CompleteOutboundCall`,
+in the two generic forms of modeled types, and `StartVoiceIdStream` is the
+one unmodeled type left. The Terraform cookbook's generic recipe moved from
+`TransferParticipantToThirdParty` to `StartVoiceIdStream` the same day.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
 | Developer Guide pages   | 56    | 54      | the four category lists in `catalog.json`                   |
-| Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
-| Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 54      |                                                             |
+| Administrator Guide     | 4     | 1       | `catalog.json` category `other`, `source` `adminguide`      |
+| Console export          | 1     | 1       | `catalog.json` category `other`, `source` `console-export`  |
+| Denominator             | 61    | 56      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the
-2026-10-05 create probes; each entry is `modeled: false` until its D09 task.
+2026-10-05 create probes, rule 47 what D09 modeled and why the rest wait;
+`LoadContactContent` and `TransferParticipantToThirdParty` are modeled,
+the other three are `modeled: false`.
 Of the five, the service accepted `LoadContactContent` and
 `TransferParticipantToThirdParty`, refused `AuthenticateParticipant` naming
 its required keys and branch, and refused `CheckSegmentMembership` and
@@ -2749,4 +3421,5 @@ console-only forms (rule 37's refused `Events` shape); and the Set
 Touchtone Buffer Behavior form of `GetParticipantInput`, which the admin
 guide writes with `EnableDTMFBuffer` (with `StoreInput` and
 `InputEncryption` for Stop and Clear), a parameter the catalog does not
-record. D09 types that form after C04 (rule 40 quotes the page).
+record. D09 left that form untyped pending rule 47's buffer probes (rule
+40 quotes the page; rule 47 says why).

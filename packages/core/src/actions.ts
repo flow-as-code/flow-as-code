@@ -65,10 +65,12 @@ export const ActionType = {
   CreateCase: "CreateCase",
   GetCase: "GetCase",
   UpdateCase: "UpdateCase",
-  UpdateRoutingCriteria: "UpdateRoutingCriteria",
+  UpdateContactRoutingCriteria: "UpdateContactRoutingCriteria",
   CheckOutboundCallStatus: "CheckOutboundCallStatus",
   CompleteOutboundCall: "CompleteOutboundCall",
   StartOutboundChatContact: "StartOutboundChatContact",
+  LoadContactContent: "LoadContactContent",
+  TransferParticipantToThirdParty: "TransferParticipantToThirdParty",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -266,6 +268,14 @@ export const TIME_LIMIT_EXCEEDED = "TimeLimitExceeded";
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingandanalyticsbehavior.html
  */
 export const CHANNEL_MISMATCH = "ChannelMismatch";
+
+/**
+ * TransferParticipantToThirdParty's two errors besides the catch-all, the
+ * console's Call failed and Timeout branches, spelled as the kept export
+ * writes them (conformance/flow-language/exports/).
+ */
+export const CALL_FAILED = "CallFailed";
+export const CONNECTION_TIME_LIMIT_EXCEEDED = "ConnectionTimeLimitExceeded";
 export const IN_FLIGHT_REDACTION_CONFIGURATION_FAILED = "InFlightRedactionConfigurationFailed";
 
 /**
@@ -407,25 +417,24 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // matches. Must always be defined." and "ChannelMismatch - if the media
   // channel that initiated the contact is not the same as the one defined
   // in the action. As of now, only chat is supported in this action." Only
-  // the catch-all is marked required; the admin guide's block shows both
-  // branches, so the builder wires both, and rule 41's probe decides
-  // whether ChannelMismatch joins REQUIRED_EXTRAS, as it did on the
-  // recording action.
+  // the catch-all is marked required on the page, but the service refuses
+  // the action without ChannelMismatch too (rule 41, 2026-10-13), so it is
+  // in REQUIRED_EXTRAS, as it is on the recording action.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
   [ActionType.UpdateContactMediaProcessing]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
   // The order every published flow writes (actions.md, rule 43), the
-  // catch-all first; the page lists the two lookups' errors first. Only the
-  // catch-all is marked required: the page marks none "Must always be
-  // defined", and rule 43's probes decide whether either joins
-  // REQUIRED_EXTRAS. The published flows wire all three.
+  // catch-all first; the page lists the two lookups' errors first. The page
+  // marks none "Must always be defined", but the service requires all three
+  // (rule 43), so both lookups are in REQUIRED_EXTRAS. The published flows
+  // wire all three.
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
   [ActionType.GetCustomerProfile]: [NO_MATCHING_ERROR, MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
   // Catch-all first, as GetCustomerProfile's are written; no published flow
-  // carries the type. Only the catch-all is required, as there.
+  // carries the type. The service requires both (rule 43).
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
   [ActionType.GetCustomerProfileObject]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
   // Catch-all first, the order of the one published flow that carries the
-  // type (actions.md, rule 43); only the catch-all is required.
+  // type (actions.md, rule 43); the service requires both.
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
   [ActionType.GetCalculatedAttributesForCustomerProfile]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
   // The order of the console's export and of every published flow
@@ -437,9 +446,9 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.CreateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
   // ContactNotLinked, the two lookups and the catch-all last, the order of
   // every published flow (rule 44); the page lists the catch-all first.
-  // Only the catch-all is always required: the page marks neither lookup
-  // "Must always be defined", the reading rule 43 gave the Customer
-  // Profiles lookups, although every published flow wires both.
+  // The page marks neither lookup "Must always be defined", but the service
+  // requires both (rule 44, 2026-10-13), as it does the Customer Profiles
+  // lookups (rule 43); every published flow wires both.
   // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
   [ActionType.GetCase]: [
     CONTACT_NOT_LINKED,
@@ -450,6 +459,17 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // As CreateCase's: the order of every published flow (rule 44).
   // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
   [ActionType.UpdateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
+  // The kept export's order, catch-all last. No page documents the action.
+  // With ContinueFlowExecution "True" the service requires all three (the
+  // catalog's shape); with "False" only the catch-all is required, which a
+  // cookbook comment says is all that form takes and rule 47's probes
+  // settle, and the builder writes the other two only when wired.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+  [ActionType.TransferParticipantToThirdParty]: [
+    CALL_FAILED,
+    CONNECTION_TIME_LIMIT_EXCEEDED,
+    NO_MATCHING_ERROR,
+  ],
 };
 
 /**
@@ -463,6 +483,11 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
   // "ChannelMismatch - if the media channel that initiated the contact is not
   // the same as the one defined in the action. ... Must always be defined."
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: [CHANNEL_MISMATCH],
+  // The page marks only the catch-all "Must always be defined", but
+  // CreateContactFlow refuses the action without ChannelMismatch ("Action is
+  // missing required error. Error: ChannelMismatch", us-west-2, 2026-10-13;
+  // actions.md, rule 41).
+  [ActionType.UpdateContactMediaProcessing]: [CHANNEL_MISMATCH],
   // The page marks neither, but CreateContactFlow refuses the block without
   // either ("Action is missing required error", checked 2026-09-15).
   [ActionType.ShowView]: [NO_MATCHING_CONDITION, TIME_LIMIT_EXCEEDED],
@@ -476,6 +501,19 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
   // CreateContactFlow refuses the block without it whatever the metric
   // (2026-09-29, rule 37).
   [ActionType.CheckMetricData]: [NO_MATCHING_CONDITION],
+  // The Customer Profiles lookups' pages mark neither lookup error "Must
+  // always be defined", but CreateContactFlow refuses each type without
+  // them ("Action is missing required error. Error: MultipleFoundError",
+  // and the same for NoneFoundError, us-west-2, 2026-10-13; actions.md,
+  // rule 43).
+  [ActionType.GetCustomerProfile]: [MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
+  [ActionType.GetCustomerProfileObject]: [NONE_FOUND_ERROR],
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: [NONE_FOUND_ERROR],
+  // GetCase's page does not mark its lookups "Must always be defined"
+  // either, and CreateContactFlow refuses it without them ("Action is
+  // missing required error. Error: MultipleFound", and NoneFound,
+  // us-west-2, 2026-10-13; actions.md, rule 44).
+  [ActionType.GetCase]: [CASE_MULTIPLE_FOUND, CASE_NONE_FOUND],
 };
 
 // The Restrictions section of an action page names flow types in the console's
@@ -647,8 +685,9 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
   // The admin guide's Hold customer or agent block also lists the outbound
-  // whisper flow; the action page governs, as for every other row, until
-  // rule 41's probe in an outbound whisper flow settles it.
+  // whisper flow; the service refuses it there ("not supported in contact
+  // flow type outboundWhisper", 2026-10-13, rule 41), so the action page is
+  // right.
   // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
   [ActionType.UpdatePreviousContactParticipantState]: [...INBOUND, ...TRANSFER, ...IN_MODULE],
   // "This is supported in contact flows, customer queue flows, transfer
@@ -672,19 +711,37 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // rule 45's probes put a module and a whisper flow to the service.
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
-  [ActionType.UpdateRoutingCriteria]: [...INBOUND, ...CUSTOMER_QUEUE, ...TRANSFER, ...IN_MODULE],
+  [ActionType.UpdateContactRoutingCriteria]: [
+    ...INBOUND,
+    ...CUSTOMER_QUEUE,
+    ...TRANSFER,
+    ...IN_MODULE,
+  ],
   // The action page's Restrictions name no flow type: "This action can be
   // used only when the contact is in the process of making an outbound
   // call, but has not yet called the outbound number." The admin guide's
   // Call phone number block: "Use this block to set the caller ID number
   // for an outbound call in an Outbound Whisper flow", and its flow types
-  // list that one alone. The admin guide's reading is recorded, with a
-  // module by the note above IN_MODULE; rule 46's probes put every other
-  // flow type to the service, and a refusal makes the restriction the
-  // service's.
+  // list that one alone. The service agrees, and goes further than the note
+  // above IN_MODULE: it refused the action in every other flow type and in
+  // a module ("Action with identifier probe is not supported in a flow
+  // module", us-west-2, 2026-10-13; actions.md, rule 46), so the
+  // restriction is the service's and no module is allowed.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
-  [ActionType.CompleteOutboundCall]: ["OUTBOUND_WHISPER", ...IN_MODULE],
+  [ActionType.CompleteOutboundCall]: ["OUTBOUND_WHISPER"],
+  // No page documents the action. The Transfer to phone number block, which
+  // the console writes as it, lists inbound, customer queue, transfer to
+  // agent and transfer to queue flows; a module by the note above
+  // IN_MODULE. The service accepted each of those and refused a customer
+  // whisper and a customer hold flow (rule 47, 2026-10-13).
+  // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+  [ActionType.TransferParticipantToThirdParty]: [
+    ...INBOUND,
+    ...CUSTOMER_QUEUE,
+    ...TRANSFER,
+    ...IN_MODULE,
+  ],
 };
 
 /**
@@ -756,6 +813,15 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
   [ActionType.CompleteOutboundCall]: ["VOICE"],
+  // The Get stored content block's channel table: voice, chat and task
+  // "No", email "Yes". The one content type it loads is an email message
+  // body. The admin guide is the only page (actions.md, rule 47).
+  // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+  [ActionType.LoadContactContent]: ["EMAIL"],
+  // The Transfer to phone number block's channel table: voice "Yes", chat,
+  // task and email "No - Error branch". No page documents the action.
+  // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+  [ActionType.TransferParticipantToThirdParty]: ["VOICE"],
 };
 
 /**
@@ -835,8 +901,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // "This action can be used in all contact flow types." The admin guide's
   // Connect assistant block lists five (inbound, customer queue, outbound
   // whisper, transfer to agent, transfer to queue); the action page
-  // governs, and rule 42's probes put each flow type the two disagree on
-  // to the service.
+  // governs, and the service accepted it in every flow type rule 42's
+  // probes put to it, holds, whispers and a module among them (2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
   ActionType.CreateWisdomSession,
@@ -870,7 +936,9 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // Connect Customer outbound campaigns only"); the admin guide's Check call
   // progress block: "All flow types", with the note that it "functions only
   // for the call types listed" (outbound campaigns and customer-first
-  // callbacks). Rule 46's probes put each flow type to the service.
+  // callbacks). The service accepted it in every flow type probed, a
+  // module among them, on an instance without outbound campaigns (rule 46,
+  // 2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
   ActionType.CheckOutboundCallStatus,
@@ -880,10 +948,21 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // every flow type with "Yes" (inbound, customer queue, customer hold,
   // customer whisper, outbound whisper, agent hold, agent whisper, transfer
   // to agent, transfer to queue, disconnect) and voice, chat, task and
-  // email each "Yes". Rule 46's probes put each flow type to the service.
+  // email each "Yes". The service accepted it in every flow type probed
+  // (rule 46, 2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
   ActionType.StartOutboundChatContact,
+  // No Developer Guide page. The Get stored content block lists inbound,
+  // customer queue, customer hold, customer whisper, outbound whisper, agent
+  // hold, agent whisper, transfer to agent, transfer to queue and disconnect
+  // flows: every FlowDoc connectType (a disconnect flow is a CONTACT_FLOW),
+  // and a module by the note above IN_MODULE. Only a campaign flow, which
+  // FlowDoc does not model, is not named. The service accepted it in a
+  // customer hold flow, an outbound whisper flow and a module (rule 47,
+  // 2026-10-13).
+  // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+  ActionType.LoadContactContent,
 ];
 
 /**
@@ -921,8 +1000,11 @@ export const TASK_DELAY_MAX = 518_400;
  * `ProfileRequestData`, and the names those two and `GetCustomerProfile`
  * store from `ProfileResponseData` under `$.Customer`. Beside them the pages
  * list `"Attributes.x"`, a custom attribute, which PROFILE_FIELD_PATTERNS
- * spells as a key pattern (a name holding no further dot). The catalog's
- * `keys` and `keyPatterns` on those parameters are held to these two.
+ * spells as a key pattern (a name holding no further dot). The service
+ * refuses that key in ProfileRequestData ("Invalid Action property name",
+ * 2026-10-13, actions.md, rule 43), so the pattern applies to the response
+ * names only. The catalog's `keys` and `keyPatterns` on those parameters
+ * are held to these two.
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
@@ -1104,7 +1186,7 @@ export const CALCULATED_ATTRIBUTE_FIELDS = [
 export const CALCULATED_ATTRIBUTE_PATTERNS: readonly string[] = ["^CalculatedAttributes\\.[^.]+$"];
 
 /**
- * UpdateRoutingCriteria's expression (docs/adr/0009). The action page: an
+ * UpdateContactRoutingCriteria's expression (docs/adr/0009). The action page: an
  * AttributeCondition's `Name` and `Value` are each "a string and has length
  * constraints between 1-64"; `ProficiencyLevel` "is a float value. Valid
  * values are: 1.0, 2.0, 3.0, 4.0 and 5.0"; `ComparisonOperator` "Valid
@@ -1127,16 +1209,23 @@ export const ROUTING_COMPARISON_OPERATOR = "NumberGreaterOrEqualTo";
 export const PREDEFINED_ATTRIBUTE_TEXT_MIN = 1;
 export const PREDEFINED_ATTRIBUTE_TEXT_MAX = 64;
 export const ROUTING_AND_MAX = 8;
-export const ROUTING_OR_MAX = 3;
 
 /**
- * GetCustomerProfileObject.UseLatest, "true / false" on the page. The page
- * shows no quotes and no published flow carries the type; the class writes
- * the string "true", the spelling Connect's own flag parameters use in the
- * published flows (`LinkContactToCase`, `GetLastUpdatedCase`), and rule
- * 43's probes put the JSON boolean and "True" to the service.
+ * LoadContactContent.ContentType: the Get stored content block's one option,
+ * "Email message (Plain text)", written `"ContentType": enum "EmailMessage"`
+ * in the page's Flow language example. The block stores the message on
+ * `$.Email.EmailMessage.Plaintext`.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
  */
-export const PROFILE_USE_LATEST = ["true", "false"] as const;
+export const STORED_CONTENT_TYPES = ["EmailMessage"] as const;
+
+/**
+ * GetCustomerProfileObject.UseLatest, "true / false" on the page. The
+ * service accepts the string "true" and refuses "false", "True" and the
+ * JSON boolean (us-west-2, 2026-10-13; actions.md, rule 43): the flag
+ * chooses the latest object, and leaving it out is how a block says not to.
+ */
+export const PROFILE_USE_LATEST = ["true"] as const;
 
 /**
  * The Cases system field ids, in the admin guide's table order: the same on

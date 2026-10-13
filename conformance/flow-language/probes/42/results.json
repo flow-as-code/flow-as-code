@@ -1,0 +1,383 @@
+[
+  {
+    "probe": "task-customer-hold",
+    "description": "Rule 42: CreateTask in a customer hold flow, the page's \"all contact flow types\".",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:28Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-delay-and-schedule",
+    "description": "Rule 42: CreateTask with DelaySeconds and ScheduledTime together, which the page says may not both be specified; the schedule is the JSONPath form the class writes (task-schedule-jsonpath alone is the control), so the second timing key is the only variable.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Only one of these properties may be defined. Properties: [DelaySeconds, ScheduledTime], Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "task-delay-number",
+    "description": "Rule 42: CreateTask with DelaySeconds as a JSON number, the page's \"integer value\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-delay-out-of-range",
+    "description": "Rule 42: CreateTask with DelaySeconds 518401, one past the page's bound.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-delay-string",
+    "description": "Rule 42: CreateTask with DelaySeconds as the decimal string the class writes.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:32Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-flow-bare-id",
+    "description": "Rule 42: CreateTask with ContactFlowId as a bare id, the page's \"A flow ID or flow ARN\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe has invalid resource: {{TASK_FLOW_ID}}, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "task-flow-jsonpath",
+    "description": "Rule 42: CreateTask with ContactFlowId as a single JSONPath, which the page allows.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:35Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-module",
+    "description": "Rule 42: CreateTask in a flow module, the page's \"all contact flow types\".",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-no-catch-all",
+    "description": "Rule 42: CreateTask without NoMatchingError, the one error the page lists.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:37Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "task-no-flow",
+    "description": "Rule 42: CreateTask with a Name and neither a flow nor a template, which no form of the block allows.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Missing required property. Property: 0.ContactFlowId"
+    ]
+  },
+  {
+    "probe": "task-no-name",
+    "description": "Rule 42: CreateTask with a flow and no Name, which the page does not mark optional (the satellite's VERIFY 16.8 records it required from the page).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: 0.null",
+      "Missing required property. Property: 0.ContactName"
+    ]
+  },
+  {
+    "probe": "task-no-next",
+    "description": "Rule 42: CreateTask without NextAction; the catalog's next is required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:39Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "task-references-flat",
+    "description": "Rule 42: CreateTask with References in the page's \"Type\": \"Value\" reading, a type mapped to a string.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:39Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: CreateTask, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "task-references-object",
+    "description": "Rule 42: CreateTask with References as StartTaskContact's Reference objects ({ Type, Value } under a name).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-required",
+    "description": "Rule 42: CreateTask with a flow ARN and a name, the two keys the page does not mark optional, a NextAction and the catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-schedule-epoch-number",
+    "description": "Rule 42: CreateTask with ScheduledTime as Unix epoch seconds in a JSON number, the StartTaskContact type.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-schedule-epoch-string",
+    "description": "Rule 42: CreateTask with ScheduledTime as Unix epoch seconds in a string (2033-05-18), the admin guide's attribute format, first candidate.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:44Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-schedule-iso",
+    "description": "Rule 42: CreateTask with ScheduledTime as an ISO 8601 timestamp, the second candidate format.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:46Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-schedule-jsonpath",
+    "description": "Rule 42: CreateTask with ScheduledTime as a JSONPath, the admin guide's Set date and time using attribute form and the one the class writes.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:48Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-template-and-flow",
+    "description": "Rule 42: CreateTask with both a flow and a template, which the admin guide allows and StartTaskContact refuses on the API.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-template-bare-id",
+    "description": "Rule 42: CreateTask with TaskTemplateId as a bare id rather than an ARN; with task-template-only, settles which form the field holds.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-template-jsonpath",
+    "description": "Rule 42: CreateTask with TaskTemplateId as a JSONPath, which the page says must be static; the schema clause refuses it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:52Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.TaskTemplateId"
+    ]
+  },
+  {
+    "probe": "task-template-missing",
+    "description": "Rule 42: CreateTask with a template ARN naming a template the instance does not have, to learn whether the create checks it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:52Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "task-template-only",
+    "description": "Rule 42: CreateTask with a template ARN and a Name and no flow, the admin guide's Use template form for a template that carries a flow; the catalog records ContactFlowId optional on that reading.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:54Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-agent-hold",
+    "description": "Rule 42: CreateWisdomSession in a agent hold flow, which the action page allows (\"all contact flow types\") and the admin guide's Connect assistant block does not list.",
+    "flowType": "AGENT_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:55Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-agent-whisper",
+    "description": "Rule 42: CreateWisdomSession in a agent whisper flow, which the action page allows (\"all contact flow types\") and the admin guide's Connect assistant block does not list.",
+    "flowType": "AGENT_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-customer-hold",
+    "description": "Rule 42: CreateWisdomSession in a customer hold flow, which the action page allows (\"all contact flow types\") and the admin guide's Connect assistant block does not list.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:07:58Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-customer-queue",
+    "description": "Rule 42: CreateWisdomSession in a customer queue flow, which both pages allow (the admin guide's list), as the control for the flow types they disagree on.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-customer-whisper",
+    "description": "Rule 42: CreateWisdomSession in a customer whisper flow, which the action page allows (\"all contact flow types\") and the admin guide's Connect assistant block does not list.",
+    "flowType": "CUSTOMER_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:01Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-jsonpath",
+    "description": "Rule 42: CreateWisdomSession with the assistant as a single JSONPath (\"May be specified statically or dynamically\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:03Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-module",
+    "description": "Rule 42: CreateWisdomSession in a flow module flow, which the action page allows (\"all contact flow types\") and the admin guide's Connect assistant block does not list.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-no-catch-all",
+    "description": "Rule 42: CreateWisdomSession without NoMatchingError, the one error the page lists.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:06Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "wisdom-no-next",
+    "description": "Rule 42: CreateWisdomSession without NextAction; the catalog's next is required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:06Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "wisdom-required",
+    "description": "Rule 42: CreateWisdomSession with the linked assistant's ARN, a NextAction and the catch-all, in an inbound flow (both pages allow it); expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:07Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "wisdom-unlinked-assistant",
+    "description": "Rule 42: CreateWisdomSession naming an assistant in the account that is not linked to the instance through CreateIntegrationAssociation (WISDOM_ASSISTANT), to learn whether the create checks the link; run before the owner links one, wisdom-required answers the same for an instance with none.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  }
+]

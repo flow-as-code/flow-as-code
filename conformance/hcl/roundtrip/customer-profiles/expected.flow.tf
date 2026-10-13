@@ -5,7 +5,7 @@ resource "flowascode_contact_flow" "customer_profiles" {
   instance_id = var.connect_instance_id
   name        = "customer-profiles"
   type        = "CONTACT_FLOW"
-  description = "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, the latest order and an asset by its identifier read, and a predefined and a custom calculated attribute read."
+  description = "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, an email address updated and a custom attribute read back, the latest order and an asset by its identifier read, and a predefined and a custom calculated attribute read."
 
   action {
     id   = "find-caller"
@@ -69,9 +69,8 @@ resource "flowascode_contact_flow" "customer_profiles" {
     next = "link-contact"
     create_customer_profile {
       profile_request_data = {
-        "Attributes.loyaltyTier" = "new"
-        FirstName                = "$.Attributes.firstName"
-        PhoneNumber              = "$.CustomerEndpoint.Address"
+        FirstName   = "$.Attributes.firstName"
+        PhoneNumber = "$.CustomerEndpoint.Address"
       }
       profile_response_data = ["FirstName", "Attributes.loyaltyTier"]
     }
@@ -89,7 +88,6 @@ resource "flowascode_contact_flow" "customer_profiles" {
         contact_id = "$.ContactId"
         profile_id = "$.Customer.ProfileId"
       }
-      profile_response_data = []
     }
     error {
       type = "NoMatchingError"
@@ -102,8 +100,7 @@ resource "flowascode_contact_flow" "customer_profiles" {
     next = "latest-order"
     update_customer_profile {
       profile_request_data = {
-        "Attributes.preferredLanguage" = "$.Attributes.language"
-        EmailAddress                   = "$.Attributes.email"
+        EmailAddress = "$.Attributes.email"
       }
       profile_response_data = ["Attributes.preferredLanguage"]
     }
