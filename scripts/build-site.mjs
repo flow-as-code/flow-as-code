@@ -378,7 +378,7 @@ const PAGES = [
     source: "docs/adr/0009-routing-criteria-expression.md",
     slug: "docs/adr-routing-criteria-expression",
     group: "Decisions",
-    title: "ADR-0009: UpdateRoutingCriteria's expression is a json value inside typed steps",
+    title: "ADR-0009: UpdateContactRoutingCriteria's expression is a json value inside typed steps",
     description:
       "Why the recursive routing expression, which no Terraform schema can hold, is a json value inside typed steps rather than all of RoutingCriteria as json, a depth-limited shape or a new number kind.",
   },

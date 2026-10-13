@@ -65,7 +65,7 @@ export const ActionType = {
   CreateCase: "CreateCase",
   GetCase: "GetCase",
   UpdateCase: "UpdateCase",
-  UpdateRoutingCriteria: "UpdateRoutingCriteria",
+  UpdateContactRoutingCriteria: "UpdateContactRoutingCriteria",
   CheckOutboundCallStatus: "CheckOutboundCallStatus",
   CompleteOutboundCall: "CompleteOutboundCall",
   StartOutboundChatContact: "StartOutboundChatContact",
@@ -711,7 +711,7 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // rule 45's probes put a module and a whisper flow to the service.
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
-  [ActionType.UpdateRoutingCriteria]: [...INBOUND, ...CUSTOMER_QUEUE, ...TRANSFER, ...IN_MODULE],
+  [ActionType.UpdateContactRoutingCriteria]: [...INBOUND, ...CUSTOMER_QUEUE, ...TRANSFER, ...IN_MODULE],
   // The action page's Restrictions name no flow type: "This action can be
   // used only when the contact is in the process of making an outbound
   // call, but has not yet called the outbound number." The admin guide's
@@ -1176,7 +1176,7 @@ export const CALCULATED_ATTRIBUTE_FIELDS = [
 export const CALCULATED_ATTRIBUTE_PATTERNS: readonly string[] = ["^CalculatedAttributes\\.[^.]+$"];
 
 /**
- * UpdateRoutingCriteria's expression (docs/adr/0009). The action page: an
+ * UpdateContactRoutingCriteria's expression (docs/adr/0009). The action page: an
  * AttributeCondition's `Name` and `Value` are each "a string and has length
  * constraints between 1-64"; `ProficiencyLevel` "is a float value. Valid
  * values are: 1.0, 2.0, 3.0, 4.0 and 5.0"; `ComparisonOperator` "Valid
@@ -1199,7 +1199,6 @@ export const ROUTING_COMPARISON_OPERATOR = "NumberGreaterOrEqualTo";
 export const PREDEFINED_ATTRIBUTE_TEXT_MIN = 1;
 export const PREDEFINED_ATTRIBUTE_TEXT_MAX = 64;
 export const ROUTING_AND_MAX = 8;
-export const ROUTING_OR_MAX = 3;
 
 /**
  * LoadContactContent.ContentType: the Get stored content block's one option,

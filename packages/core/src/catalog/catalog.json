@@ -64,9 +64,9 @@
         "Loop",
         "StartVoiceIdStream",
         "TransferToFlow",
+        "UpdateContactRoutingCriteria",
         "UpdateFlowAttributes",
         "UpdateFlowLoggingBehavior",
-        "UpdateRoutingCriteria",
         "Wait"
       ]
     },
@@ -3115,11 +3115,11 @@
         "errors": []
       }
     },
-    "UpdateRoutingCriteria": {
+    "UpdateContactRoutingCriteria": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html",
       "modeled": true,
-      "block": "update_routing_criteria",
+      "block": "update_contact_routing_criteria",
       "terminal": false,
       "flowTypes": [
         "CONTACT_FLOW",
@@ -3140,7 +3140,7 @@
               "attr": "steps",
               "kind": "list",
               "required": true,
-              "dynamic": true,
+              "min": 1,
               "of": {
                 "kind": "object",
                 "fields": [

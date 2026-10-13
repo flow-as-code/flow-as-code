@@ -792,14 +792,17 @@ describe("FlowDoc schema rejections: cases", () => {
 });
 
 // The routing-criteria round-trip fixture is the subject for the 0.3 clause
-// of tasks/D07. The clause holds JSON types only: RoutingCriteria an object
-// or a JSONPath (an AWS sample writes the whole of it as one; actions.md,
-// rule 45), Steps a list of objects or a JSONPath, each step's Expiry an
-// object, and its Expression a routingExpression, which $defs makes
-// recursive through AndExpression and OrExpression. The tags, the five
-// levels, the operator and the admin guide's limits stay in the builder
-// until rule 45's probes (pending) show the service refusing them (owner
-// decision 3). Each case below fails if its part of the clause is deleted.
+// of tasks/D07. The clause holds the JSON types (RoutingCriteria an object or
+// a JSONPath, each step's Expiry an object, its Expression a
+// routingExpression, which $defs makes recursive through AndExpression and
+// OrExpression) and what rule 45's probes (us-west-2, 2026-10-13) saw the
+// service refuse: no RoutingCriteria, no Steps, Steps as a JSONPath or
+// empty, a step without its Expression, an OR or a NOT at the top of a
+// step, an Expiry without its duration or with a JSONPath one, and a
+// numeric level outside 1 to 5. The tags, the operator, the AND limit and
+// the lengths, which the service accepted past their bounds, stay in the
+// builder (owner decision 3). Each case below fails if its part of the
+// clause is deleted.
 describe("FlowDoc schema rejections: routing criteria", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/routing-criteria/doc.flowdoc.json");
@@ -831,9 +834,69 @@ describe("FlowDoc schema rejections: routing criteria", () => {
       }),
     ],
     [
-      "steps written as text that is not a JSONPath",
+      "steps written as a JSONPath, which the service refuses",
       mutate("from-lambda", (a) => {
-        a.Parameters.RoutingCriteria = { Steps: "routingSteps" };
+        a.Parameters.RoutingCriteria = { Steps: "$.External.routingSteps" };
+      }),
+    ],
+    [
+      "no routing criteria",
+      mutate(typed, (a) => {
+        delete a.Parameters.RoutingCriteria;
+      }),
+    ],
+    [
+      "routing criteria without steps",
+      mutate(typed, (a) => {
+        a.Parameters.RoutingCriteria = {};
+      }),
+    ],
+    [
+      "an empty step list",
+      mutate(typed, (a) => {
+        a.Parameters.RoutingCriteria = { Steps: [] };
+      }),
+    ],
+    [
+      "a step without its expression",
+      mutate(typed, (_a, steps) => {
+        delete (steps[0] as { Expression?: unknown }).Expression;
+      }),
+    ],
+    [
+      "an OR at the top of a step",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expression = { OrExpression: [steps[0]!.Expression, steps[2]!.Expression] };
+      }),
+    ],
+    [
+      "a NOT at the top of a step",
+      mutate(typed, (_a, steps) => {
+        steps[2]!.Expression = { NotAttributeCondition: { Name: "Language", Value: "English" } };
+      }),
+    ],
+    [
+      "an expiry without its duration",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expiry = {};
+      }),
+    ],
+    [
+      "an expiry read from a JSONPath",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expiry = { DurationInSeconds: "$.Attributes.wait" };
+      }),
+    ],
+    [
+      "a level below 1",
+      mutate(typed, (_a, steps) => {
+        (steps[2]!.Expression.AttributeCondition as Record<string, unknown>).ProficiencyLevel = 0.5;
+      }),
+    ],
+    [
+      "a level above 5",
+      mutate(typed, (_a, steps) => {
+        (steps[2]!.Expression.AttributeCondition as Record<string, unknown>).ProficiencyLevel = 5.5;
       }),
     ],
     [
@@ -867,23 +930,34 @@ describe("FlowDoc schema rejections: routing criteria", () => {
       }),
     ],
     [
-      "an OrExpression that is not a list",
+      "an OrExpression inside an AND that is not a list",
       mutate(typed, (_a, steps) => {
-        steps[0]!.Expression = { OrExpression: "Language" };
+        steps[1]!.Expression = { AndExpression: [{ OrExpression: "Language" }] };
       }),
     ],
     [
-      "a requirement nested in an AND inside an OR that is not an object",
+      "a requirement nested in an OR inside an AND that is not an object",
       mutate(typed, (_a, steps) => {
-        const or = steps[0]!.Expression.OrExpression as { AndExpression: unknown[] }[];
-        or[0]!.AndExpression[1] = "Technology";
+        steps[1]!.Expression = { AndExpression: [{ OrExpression: ["Technology"] }] };
       }),
     ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
 
-  it("still accepts the whole of RoutingCriteria as a JSONPath, which no probe has refused", () => {
+  it("accepts what the service accepted: a numeric expiry, a string level, and the whole of RoutingCriteria as a JSONPath", () => {
+    expect(
+      validate(
+        mutate(typed, (_a, steps) => {
+          steps[0]!.Expiry = { DurationInSeconds: 30 };
+          (steps[2]!.Expression.AttributeCondition as Record<string, unknown>).ProficiencyLevel =
+            "4.0";
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("still accepts the whole of RoutingCriteria as a JSONPath, which the service accepted", () => {
     expect(
       validate(
         mutate("from-lambda", (a) => (a.Parameters.RoutingCriteria = "$.External.RoutingCriteria")),
@@ -891,7 +965,7 @@ describe("FlowDoc schema rejections: routing criteria", () => {
     ).toBe(true);
   });
 
-  it("still accepts a level, a tag, a preferred agent and a nesting the builder refuses, which no probe has refused", () => {
+  it("still accepts a level, a tag, a preferred agent and a nesting the builder refuses, which the service did not refuse", () => {
     expect(
       validate(
         mutate(typed, (_a, steps) => {

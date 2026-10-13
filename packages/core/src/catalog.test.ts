@@ -180,6 +180,8 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   GetCase: { CaseResponseFields: { max: CASE_RESPONSE_FIELDS_MAX } },
   // The service refuses an empty key list (live check, tasks/B01).
   UntagContact: { TagKeys: { min: 1 } },
+  // The service refuses an empty step list (actions.md, rule 45).
+  UpdateContactRoutingCriteria: { "RoutingCriteria.Steps": { min: 1 } },
   // A nested field, keyed by its dotted path.
   ConnectParticipantWithLexBot: {
     "LexTimeoutSeconds.Text": { min: LEX_TIMEOUT_MIN, max: LEX_TIMEOUT_MAX },

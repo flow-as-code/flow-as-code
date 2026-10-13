@@ -63,7 +63,6 @@ import {
   PROFICIENCY_LEVELS,
   ROUTING_AND_MAX,
   ROUTING_COMPARISON_OPERATOR,
-  ROUTING_OR_MAX,
   CALCULATED_ATTRIBUTE_FIELDS,
   CALCULATED_ATTRIBUTE_PATTERNS,
   MULTIPLE_FOUND_ERROR,
@@ -121,7 +120,6 @@ import type { Condition, ConditionOperator, FlowAction, Transitions } from "./fl
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
 import { parseToken } from "./refs.js";
-import { jsonPath } from "./refs.js";
 
 /** A transition target: another block, or its Identifier. */
 export type Target = string | Block;
@@ -1592,12 +1590,13 @@ export class UpdateContactRoutingBehavior extends Block {
 //
 // The expression is a tagged union, recursive on the action page, which the
 // catalog holds as a `json` value. TypeScript expresses the union directly,
-// so the builder offers it typed: `attributeCondition`, `and` and `or` build
-// the Flow language objects the action page shows, and the block class
-// checks the whole tree. The narrowing below (an AND holds conditions only,
-// an OR sits at the top) is the admin guide's, not the action page's: "OR
-// expressions must be at the top level. You can place an AND inside an OR,
-// but not the other way around."
+// so the builder offers it typed: `attributeCondition` and `and` build the
+// Flow language objects the action page shows, and the block class checks
+// the whole tree. An AND holds conditions only. The admin guide's OR is
+// "only ... when setting attributes dynamically", and the service refuses an
+// `OrExpression` at the top of a step at create ("Invalid Action property
+// value", actions.md, rule 45, 2026-10-13), so the builder writes none; a
+// document holding one stays generic.
 // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
 // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
 // ---------------------------------------------------------------------------
@@ -1625,21 +1624,17 @@ export interface AndExpression {
   AndExpression: AttributeConditionExpression[];
 }
 
-/** Alternatives OR-ed together, up to three, each a requirement or an AND of them. */
-export interface OrExpression {
-  OrExpression: (AttributeConditionExpression | AndExpression)[];
-}
-
-/** A routing step's `Expression`, one of the three tags. */
-export type RoutingExpression = AttributeConditionExpression | AndExpression | OrExpression;
+/** A routing step's `Expression`, as the builder writes it: one requirement or an AND of them. */
+export type RoutingExpression = AttributeConditionExpression | AndExpression;
 
 /**
  * A requirement, written as the action page spells it: `ProficiencyLevel`
  * one of the five levels and `ComparisonOperator` its one valid value. The
  * level is written as a JSON number, the integer spelling, since `2.0`
  * cannot survive a JSON parse in any reader (docs/adr/0009); the admin
- * guide's own examples write `"ProficiencyLevel": 4`. Rule 45 (pending) puts
- * the integer and the string spellings to the service.
+ * guide's own examples write `"ProficiencyLevel": 4`. The service accepts
+ * the integer and the string `"4.0"`, and 2.5 too, and refuses 0.5 and 5.5
+ * (actions.md, rule 45); the builder writes the five levels the page lists.
  */
 export function attributeCondition(
   name: string,
@@ -1669,18 +1664,6 @@ export function and(...conditions: AttributeConditionExpression[]): AndExpressio
   requireCount("and", conditions.length, ROUTING_AND_MAX);
   conditions.forEach((c) => requireCondition("and", c));
   return { AndExpression: conditions };
-}
-
-/** Alternatives, any of which an agent may meet: one to three, each a requirement or an AND. */
-export function or(
-  ...alternatives: (AttributeConditionExpression | AndExpression)[]
-): OrExpression {
-  requireCount("or", alternatives.length, ROUTING_OR_MAX);
-  for (const a of alternatives) {
-    if (isTagged(a, "AndExpression")) requireExpression("or", a, false);
-    else requireCondition("or", a);
-  }
-  return { OrExpression: alternatives };
 }
 
 function requireAttributeText(where: string, what: string, text: unknown, dynamic: boolean): void {
@@ -1728,8 +1711,8 @@ function requireCondition(where: string, e: unknown): void {
   attributeCondition(r.Name, r.Value, r.ProficiencyLevel);
 }
 
-/** A whole expression, as the builder writes it; `top` is whether an OR may stand here. */
-function requireExpression(where: string, e: unknown, top: boolean): void {
+/** A whole expression, as the builder writes it: a requirement or an AND of them. */
+function requireExpression(where: string, e: unknown): void {
   if (isTagged(e, "AttributeCondition")) return requireCondition(where, e);
   if (isTagged(e, "AndExpression")) {
     const items = (e as AndExpression).AndExpression as unknown;
@@ -1738,16 +1721,7 @@ function requireExpression(where: string, e: unknown, top: boolean): void {
     for (const item of items) requireCondition(where, item);
     return;
   }
-  if (top && isTagged(e, "OrExpression")) {
-    const items = (e as OrExpression).OrExpression as unknown;
-    if (!Array.isArray(items)) throw new Error(`${where}: OrExpression must be a list.`);
-    requireCount("or", items.length, ROUTING_OR_MAX);
-    for (const item of items) requireExpression(where, item, false);
-    return;
-  }
-  throw new Error(
-    `${where}: an expression is attributeCondition(...), and(...)${top ? " or or(...)" : ""}.`,
-  );
+  throw new Error(`${where}: an expression is attributeCondition(...) or and(...).`);
 }
 
 /**
@@ -1763,36 +1737,37 @@ export interface RoutingStep {
 
 /**
  * "Sets the routing criteria for the contact." `RoutingCriteria.Steps` is a
- * list of steps, "set statically or dynamically", so `steps` is the list or a
- * JSONPath to one (the admin guide's Set dynamically option reads a Lambda's
- * response). Each step's `Expiry.DurationInSeconds` "Can be set only
+ * list of steps, "set statically or dynamically" on the page, but the
+ * service refuses `Steps` as a JSONPath and accepts the whole of
+ * `RoutingCriteria` as one (actions.md, rule 45), so `steps` is a list, and
+ * a document reading the criteria from a Lambda's response stays generic.
+ * Each step's `Expiry.DurationInSeconds` "Can be set only
  * statically", written as a decimal string, the spelling the console gives
  * every other seconds field. One error, the catch-all; no conditions.
- * Inbound, customer queue and transfer flows, every channel.
+ * Inbound, customer queue and transfer flows, every channel. The page
+ * names the Type `UpdateRoutingCriteria`, which the service refuses ("Invalid
+ * Action type"); it takes `UpdateContactRoutingCriteria`, which the class
+ * writes (actions.md, rule 45, 2026-10-13).
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
  */
-export interface UpdateRoutingCriteriaConfig extends Wired {
-  steps: RoutingStep[] | JsonPath;
+export interface UpdateContactRoutingCriteriaConfig extends Wired {
+  steps: RoutingStep[];
 }
 
-export class UpdateRoutingCriteria extends Block {
-  readonly type = ActionType.UpdateRoutingCriteria;
+export class UpdateContactRoutingCriteria extends Block {
+  readonly type = ActionType.UpdateContactRoutingCriteria;
 
-  constructor(private readonly config: UpdateRoutingCriteriaConfig) {
+  constructor(private readonly config: UpdateContactRoutingCriteriaConfig) {
     super(config.id);
-    const where = `UpdateRoutingCriteria "${config.id}"`;
+    const where = `UpdateContactRoutingCriteria "${config.id}"`;
     const steps = config.steps;
-    if (typeof steps === "string") {
-      jsonPath(steps);
-      return;
-    }
     if (!Array.isArray(steps) || steps.length === 0) {
-      throw new Error(`${where} needs at least one step, or a JSONPath to the steps.`);
+      throw new Error(`${where} needs at least one step.`);
     }
     steps.forEach((step, i) => {
       const at = `${where} step ${i + 1}`;
-      requireExpression(at, step.expression, true);
+      requireExpression(at, step.expression);
       const seconds = step.expiresAfterSeconds;
       if (seconds === undefined) {
         if (i < steps.length - 1) {
@@ -1805,20 +1780,16 @@ export class UpdateRoutingCriteria extends Block {
   }
 
   protected parameters(): Record<string, unknown> {
-    const steps = this.config.steps;
     return {
       RoutingCriteria: {
-        Steps:
-          typeof steps === "string"
-            ? steps
-            : steps.map((step) =>
-                step.expiresAfterSeconds === undefined
-                  ? { Expression: step.expression }
-                  : {
-                      Expression: step.expression,
-                      Expiry: { DurationInSeconds: String(step.expiresAfterSeconds) },
-                    },
-              ),
+        Steps: this.config.steps.map((step) =>
+          step.expiresAfterSeconds === undefined
+            ? { Expression: step.expression }
+            : {
+                Expression: step.expression,
+                Expiry: { DurationInSeconds: String(step.expiresAfterSeconds) },
+              },
+        ),
       },
     };
   }

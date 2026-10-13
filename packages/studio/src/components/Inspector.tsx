@@ -349,8 +349,10 @@ function NamesField({
 }
 
 /**
- * UpdateRoutingCriteria's steps (docs/adr/0009): a JSONPath standing for the
- * list, or the list one step at a time, each expression in the JSON editor
+ * UpdateContactRoutingCriteria's steps (docs/adr/0009): the list one step at
+ * a time, or the whole of RoutingCriteria as a JSONPath; Steps as a JSONPath
+ * is not offered, since the service refuses it (actions.md, rule 45). Each
+ * expression is in the JSON editor
  * and each expiry in seconds, empty for a step that never expires. A seconds
  * value that is not a positive integer is refused here and kept on screen;
  * every other change goes to the block class through the guard, which
@@ -366,7 +368,7 @@ function StepsField({
   field: Extract<FieldDesc, { kind: "steps" }>;
   /** The whole parameter `field.key` holds: a JSONPath here is the third form. */
   whole: unknown;
-  /** `field.nested` inside it: the list, or a JSONPath to the list. */
+  /** `field.nested` inside it: the list. */
   value: unknown;
   onCommit: (next: unknown) => void;
   onCommitWhole: (next: unknown) => void;
@@ -377,7 +379,6 @@ function StepsField({
   // writes (actions.md, rule 45): shown and edited as itself, and replaced
   // only when the author chooses another form.
   const criteria = typeof whole === "string";
-  const dynamic = !criteria && typeof value === "string";
   const steps = !criteria && Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
   return (
     <fieldset className="space-y-2" data-testid={id}>
@@ -388,15 +389,13 @@ function StepsField({
         data-testid={`${id}-mode`}
         aria-label={`${field.label} form`}
         className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
-        value={criteria ? "criteria" : dynamic ? "jsonpath" : "list"}
+        value={criteria ? "criteria" : "list"}
         onChange={(e) => {
-          const mode = e.target.value;
-          if (mode === "criteria") onCommitWhole("$.External.RoutingCriteria");
-          else onCommit(mode === "jsonpath" ? "$.External.routingSteps" : addRoutingStep([]));
+          if (e.target.value === "criteria") onCommitWhole("$.External.RoutingCriteria");
+          else onCommit(addRoutingStep([]));
         }}
       >
         <option value="list">Steps set here</option>
-        <option value="jsonpath">Steps from a JSONPath</option>
         <option value="criteria">All of the routing criteria from a JSONPath</option>
       </select>
       {criteria ? (
@@ -405,13 +404,6 @@ function StepsField({
           testId={`${id}-criteria`}
           value={whole}
           onCommit={(next) => onCommitWhole(next.trim())}
-        />
-      ) : dynamic ? (
-        <TextField
-          label="Steps (JSONPath)"
-          testId={`${id}-jsonpath`}
-          value={value}
-          onCommit={(next) => onCommit(next.trim())}
         />
       ) : (
         steps.map((step, i) => {
@@ -476,7 +468,7 @@ function StepsField({
           );
         })
       )}
-      {!dynamic && !criteria && (
+      {!criteria && (
         <button
           type="button"
           data-testid={`${id}-add`}

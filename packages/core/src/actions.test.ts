@@ -155,7 +155,7 @@ const EXPECTED: Record<string, string[]> = {
     "QUEUE_TRANSFER",
     "MODULE",
   ],
-  UpdateRoutingCriteria: [
+  UpdateContactRoutingCriteria: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",
     "AGENT_TRANSFER",

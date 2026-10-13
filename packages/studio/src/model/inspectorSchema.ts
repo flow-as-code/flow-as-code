@@ -182,11 +182,11 @@ export type FieldDesc =
       label: string;
     }
   /**
-   * UpdateRoutingCriteria's `Steps`, inside the object `key` holds: a list
+   * UpdateContactRoutingCriteria's `Steps`, inside the object `key` holds: a list
    * shown one step at a time, each step's Expression in the JSON editor
-   * `json` fields use and its expiry as seconds (empty: never expires), or a
-   * JSONPath standing for the whole list (docs/adr/0009). The block class
-   * checks the expression; the guard reports what it refuses.
+   * `json` fields use and its expiry as seconds (empty: never expires)
+   * (docs/adr/0009). The block class checks the expression; the guard
+   * reports what it refuses.
    */
   | {
       kind: "steps";
@@ -780,10 +780,10 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     }
-    case ActionType.UpdateRoutingCriteria:
+    case ActionType.UpdateContactRoutingCriteria:
       // The steps, one at a time: each expression in the JSON editor
-      // (attributeCondition, and and or in the .flow.ts), each expiry in
-      // seconds; or a JSONPath to a Lambda's list.
+      // (attributeCondition and and in the .flow.ts), each expiry in
+      // seconds; or the whole criteria as a JSONPath to a Lambda's response.
       return [
         {
           kind: "steps",

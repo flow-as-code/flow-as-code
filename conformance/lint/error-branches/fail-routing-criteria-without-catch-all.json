@@ -3,7 +3,7 @@
     {
       "rule": "error-branches",
       "blockId": "routing",
-      "messageIncludes": "UpdateRoutingCriteria does not wire its \"NoMatchingError\" branch"
+      "messageIncludes": "UpdateContactRoutingCriteria does not wire its \"NoMatchingError\" branch"
     }
   ],
   "doc": {
@@ -17,7 +17,7 @@
       "Actions": [
         {
           "Identifier": "routing",
-          "Type": "UpdateRoutingCriteria",
+          "Type": "UpdateContactRoutingCriteria",
           "Parameters": {
             "RoutingCriteria": {
               "Steps": [

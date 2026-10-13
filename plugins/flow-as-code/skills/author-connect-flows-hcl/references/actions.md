@@ -755,9 +755,9 @@ Block `update_flow_logging_behavior`. [Action page](https://docs.aws.amazon.com/
 | ----------------------- | --------------------- | ------------------------- | -------- |
 | `flow_logging_behavior` | `FlowLoggingBehavior` | `"Enabled"`, `"Disabled"` | yes      |
 
-## UpdateRoutingCriteria
+## UpdateContactRoutingCriteria
 
-Block `update_routing_criteria`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html).
+Block `update_contact_routing_criteria`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html).
 
 - Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
 - `next`: required.

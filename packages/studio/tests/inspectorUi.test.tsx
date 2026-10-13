@@ -605,7 +605,7 @@ describe("routing criteria steps (tasks/D07)", () => {
     expect(testId<HTMLInputElement>("steps-RoutingCriteria-0-expiry").value).toBe("30");
     expect(testId<HTMLInputElement>("steps-RoutingCriteria-2-expiry").value).toBe("");
     expect(testId<HTMLTextAreaElement>("steps-RoutingCriteria-0-expression").value).toContain(
-      '"OrExpression"',
+      '"AndExpression"',
     );
 
     await typeAndBlur(testId<HTMLInputElement>("steps-RoutingCriteria-1-expiry"), "45");
@@ -633,7 +633,7 @@ describe("routing criteria steps (tasks/D07)", () => {
     expect(steps[1]!.Expiry).toEqual({ DurationInSeconds: "61" });
   });
 
-  it("adds a step after one that never expired, removes one, and switches to a JSONPath", async () => {
+  it("adds a step after one that never expired, removes one, and offers no JSONPath for the steps", async () => {
     const store = await openFixture();
     await click(present('[data-testid="node-by-proficiency"]'));
     await click(testId("steps-RoutingCriteria-add"));
@@ -642,12 +642,11 @@ describe("routing criteria steps (tasks/D07)", () => {
     await click(testId("steps-RoutingCriteria-0-remove"));
     expect((await saved(store, "by-proficiency")) as unknown[]).toHaveLength(3);
 
-    await selectOption(testId<HTMLSelectElement>("steps-RoutingCriteria-mode"), "jsonpath");
-    await typeAndBlur(
-      testId<HTMLInputElement>("steps-RoutingCriteria-jsonpath"),
-      "$.External.criteria",
-    );
-    expect(await saved(store, "by-proficiency")).toBe("$.External.criteria");
+    // Steps as a JSONPath is not offered: the service refuses it (actions.md,
+    // rule 45).
+    expect(
+      [...testId<HTMLSelectElement>("steps-RoutingCriteria-mode").options].map((o) => o.value),
+    ).toEqual(["list", "criteria"]);
   });
 
   it("shows an expiry stored as a number, the admin guide's spelling, as its seconds", async () => {
@@ -661,10 +660,8 @@ describe("routing criteria steps (tasks/D07)", () => {
   });
 
   it("shows all of the routing criteria as a JSONPath, and edits it without replacing its form", async () => {
-    const store = await openFixture((doc) => {
-      doc.content.Actions.find((x) => x.Identifier === "from-lambda")!.Parameters.RoutingCriteria =
-        "$.External.RoutingCriteria";
-    });
+    // The fixture's from-lambda holds this form.
+    const store = await openFixture();
     await click(present('[data-testid="node-from-lambda"]'));
     expect(testId<HTMLSelectElement>("steps-RoutingCriteria-mode").value).toBe("criteria");
     expect(testId<HTMLInputElement>("steps-RoutingCriteria-criteria").value).toBe(

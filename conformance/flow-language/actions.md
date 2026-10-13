@@ -107,7 +107,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Cases (Create case) | `CreateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createcase.html) |
 | Cases (Get case) | `GetCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/getcase.html) |
 | Cases (Update case) | `UpdateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html) |
-| Set routing criteria | `UpdateRoutingCriteria` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
+| Set routing criteria | `UpdateContactRoutingCriteria` (the page writes `UpdateRoutingCriteria`, which the service refuses; rule 45) | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html) |
 | Check call progress | `CheckOutboundCallStatus` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html) |
 | Call phone number | `CompleteOutboundCall` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html) |
 | Send message (SMS) | `StartOutboundChatContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html) |
@@ -2171,16 +2171,20 @@ is read rather than when the type is modeled.
 45. Routing criteria (tasks/D07; the Developer Guide page read 2026-10-04
     and again 2026-10-12 with the admin guide's Set routing criteria block
     page). The type is modeled from its page, with the expression a `json`
-    value (docs/adr/0009). **Probe pending**: the create sweep the evidence
-    rule asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
-    sandbox's AWS credentials had expired, and the predefined attribute the
-    sweep names is created by a sandbox root that had not been applied. Its
-    inputs are kept in `probes/45/`, with `PENDING.md` saying what the run
-    needs. No console export of the block has been taken (owner decision
-    8). Until the sweep and an export, the Type spelling and every required
-    key, error, `next`, spelling, limit and flow-type entry below is the
-    pages' reading, and each bullet names the probes that settle it.
-    - `UpdateRoutingCriteria` "Sets the routing criteria for the contact."
+    value (docs/adr/0009), and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a predefined attribute of three values on the
+    instance. Its inputs and `results.json` are in `probes/45/`. The
+    service refuses the page's Type, `UpdateRoutingCriteria`, and takes
+    `UpdateContactRoutingCriteria`, so the type is that in the catalog, the
+    builder and every fixture; the page's spelling is kept below where the
+    page is quoted. No console export of the block has been taken (owner
+    decision 8). The bullets below are the pages' reading as modeled; the
+    last bullet is what the service said, and where the two differ the
+    model follows the service.
+    - `UpdateRoutingCriteria` (the page's Type; the service's is
+      `UpdateContactRoutingCriteria`) "Sets the routing criteria for the
+      contact."
       The page's parameter object: `RoutingCriteria` "Required.
       RoutingCriteria is a JSON object."; `Steps` "Required. List of
       routing steps. ... May be set statically or dynamically"; each step's
@@ -2229,8 +2233,8 @@ is read rather than when the type is modeled.
       generic, and the schema clause admits it, until the sweep records
       whether a flow may carry it statically. The 10-agent limit is
       recorded, not enforced.
-    - The Type spelling is in doubt, and it is the first thing the sweep
-      settles. An AWS sample
+    - The Type spelling was in doubt, and the sweep settled it for
+      `UpdateContactRoutingCriteria` (the last bullet). An AWS sample
       (https://github.com/aws-samples/sample-apj-sup-sa/blob/1f164c387f4ebc504920e368e664882b6916ea02/connect/multi-tenant-agentic-contact-center/connect-routing/lib/flows.ts,
       read 2026-10-12) writes `Type: "UpdateContactRoutingCriteria"` with
       the comment "Flow-language type is UpdateContactRoutingCriteria (the
@@ -2255,8 +2259,9 @@ is read rather than when the type is modeled.
       does not take, so the 61-Type denominator and its Developer Guide
       row change with it. Rule 40 is not changed before that evidence.
     - The catalog records `RoutingCriteria` as a required `object` whose
-      `Steps` is a required `list` of objects with `dynamic` (a JSONPath
-      for the whole list, the first `dynamic` on a list); each step's
+      `Steps` is a required `list` of objects, one or more (it carried
+      `dynamic`, a JSONPath for the whole list, until the service refused
+      that); each step's
       `Expression` a required `json` value and its `Expiry` an optional
       object of `DurationInSeconds`, an `integerString` (the decimal string
       the console writes for every other seconds field recorded so far,
@@ -2336,6 +2341,60 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/APIReference/API_UpdateContactRoutingData.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_AttributeCondition.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_AgentsCriteria.html
+    - The sweep (2026-10-13, 17:10 to 17:12 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 40 probes, 23 accepted and 17 refused,
+      every refusal an `InvalidContactFlowException`, in two runs recorded
+      in one `results.json`, as `PENDING.md` asked.
+      - The Type. `routing-required-set-alone`, under the page's
+        `UpdateRoutingCriteria`, was refused "Invalid Action type. Type:
+        UpdateRoutingCriteria, Path: Actions[0].Type", and
+        `routing-contact-type-set-alone`, the same content under
+        `UpdateContactRoutingCriteria`, was accepted. The other 38 inputs
+        were then switched to `UpdateContactRoutingCriteria` and run; the
+        catalog key, `ActionType`, the class, the HCL block
+        (`update_contact_routing_criteria`), the schema clause and every
+        fixture were renamed. The census (rule 40, "Unmodeled actions")
+        still counts 61 Types and 56 on the Developer Guide's pages: the
+        page documents this Type under a name the service refuses, which
+        the table at the top of this file now says.
+      - Refused statically, so the builder no longer writes them: an
+        `OrExpression` at the top of a step (`routing-or`, `routing-or-four`,
+        "Invalid Action property value. Path:
+        Actions[0].Parameters.RoutingCriteria") and `Steps` as a JSONPath
+        (`routing-steps-jsonpath`, the same message). The `or(...)` helper
+        is gone, `Steps` lost `dynamic` and the class's JSONPath form, and
+        codegen leaves either generic. The whole of `RoutingCriteria` as a
+        JSONPath (`routing-criteria-jsonpath`) was accepted, and is the
+        group fixture's Lambda form, generic. An OR inside an AND
+        (`routing-or-inside-and`) was accepted, against the admin guide's
+        "OR at the top level"; the builder writes no OR, and codegen leaves
+        it generic. A static `NotAttributeCondition` was refused, as the
+        admin guide says.
+      - Refused, now held by the 0.3 clause: no `RoutingCriteria`
+        (`routing-no-criteria`, "Action is missing required property"),
+        no `Steps` (`routing-no-steps`), an empty step list
+        (`routing-empty-steps`), a step without its `Expression`
+        (`routing-no-expression`), an empty `Expiry`
+        (`routing-expiry-empty`), a JSONPath expiry
+        (`routing-expiry-jsonpath`), and the levels 0.5 and 5.5
+        (`routing-level-0-5`, `routing-level-5-5`), each "Invalid Action
+        property value. Path: Actions[0].Parameters.RoutingCriteria".
+      - Accepted, so the builder's stricter checks stay its own: the level
+        2.5 and the string `"4.0"` (`routing-level-2-5`,
+        `routing-level-string`), nine requirements in an AND
+        (`routing-and-nine`), a 65-character name and value
+        (`routing-name-65`, `routing-value-65`, read beside
+        `routing-unknown-attribute` and `routing-unknown-value`, which
+        were accepted too: the create checks neither the attribute nor
+        its value against the instance, nor their length), a JSONPath
+        value, a numeric expiry (`routing-expiry-number`), a first step
+        without an expiry (`routing-first-step-no-expiry`), the `Range`
+        operator, and both preferred-agent forms.
+      - Flow types: accepted in a contact flow, a module, and the customer
+        queue, agent transfer and queue transfer flows; refused "not
+        supported in contact flow type customerHold" and `customerWhisper`.
+        The catalog's flow types stand. The catch-all and `next` were each
+        refused removed alone.
 
 46. Outbound (tasks/D04; the Developer Guide pages read 2026-10-04 and
     again 2026-10-12 with the admin guide's Check call progress, Call phone
@@ -2860,46 +2919,44 @@ ResumeContact            {}                         // no parameters; channels T
 UpdatePreviousContactParticipantState { PreviousContactParticipantState: "AgentOnHold" | "CustomerOnHold" | "OffHold" }   // voice only
 UpdateContactMediaStreamingBehavior { MediaStreamingState: "Enabled" | "Disabled",
                            Participants: { ParticipantType: "Customer", MediaDirections: ("From" | "To")[] }[],
-                           MediaStreamType: "Audio" }   // each static; voice only
-UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "False", LambdaProcessorARN?: lambda,
-                           ChatProcessorSettings?: { DeliverUnprocessedMessages: "True" | "False" } } }   // static; chat only
+                           MediaStreamType: "Audio" }   // each static; voice only; directions unique
+UpdateContactMediaProcessing { ChatProcessor: { ProcessingEnabled: "True" | "False", LambdaProcessorARN?: lambda,   // the Lambda required when enabled
+                           ChatProcessorSettings?: { DeliverUnprocessedMessages: "True" | "False" } } }   // static; chat only; ChannelMismatch required
 CreateTask               { ContactFlowId?: flow, Attributes?: { [key]: string }, Name: string,
                            Description?: string, References?: json, DelaySeconds?: "1".."518400",
-                           ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both
+                           ScheduledTime?: string, TaskTemplateId?: tasktemplate }   // delay or schedule, not both; a flow, a template or both
 CreateWisdomSession      { WisdomAssistantArn: assistant }   // static or JSONPath; voice only (the action page)
-AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId },   // each static or a JSONPath
-                           ProfileResponseData: [] }   // the page's "None."; written as the console's empty list
-CreateCustomerProfile    { ProfileRequestData: { [field | Attributes.<name>]: string },   // static or a JSONPath
-                           ProfileResponseData: (field | Attributes.<name>)[] }   // field: the page's 55 names
+AssociateContactToCustomerProfile { ProfileRequestData: { ProfileId, ContactId } }   // each static or a JSONPath; no ProfileResponseData, which the service refuses
+CreateCustomerProfile    { ProfileRequestData?: { [field]: string },   // static or a JSONPath; the service refuses Attributes.<name> here
+                           ProfileResponseData?: (field | Attributes.<name>)[] }   // field: the page's 55 names
 UpdateCustomerProfile    { ProfileRequestData, ProfileResponseData }   // as CreateCustomerProfile; no profile id
 GetCustomerProfile       { ProfileRequestData: { IdentifierName, IdentifierValue }   // the page's example: IdentiferValue
                                              | { SearchCriteria: { IdentifierName, IdentifierValue }[],   // 1 to 5
-                                                 LogicalOperator: "AND" | "OR" },
-                           ProfileResponseData: (field | Attributes.<name>)[] }
+                                                 LogicalOperator: "AND" | "OR" },   // the service also takes { [field]: value }
+                           ProfileResponseData?: (field | Attributes.<name>)[] }   // all three errors required
 GetCustomerProfileObject { ProfileRequestData: { ProfileId, ObjectType,   // each static; ProfileId may be a JSONPath
-                                                 UseLatest: "true" | IdentifierName, IdentifierValue },
-                           ProfileResponseData: (Asset*, Order*, Case* field | *Attributes.<name>)[] }   // 76 names, 4 patterns
+                                                 UseLatest: "true" | IdentifierName, IdentifierValue },   // the service takes both
+                           ProfileResponseData?: (Asset*, Order*, Case* field | *Attributes.<name>)[] }   // 76 names, 4 patterns; NoneFoundError required
 GetCalculatedAttributesForCustomerProfile { ProfileRequestData: { ProfileId },   // static or a JSONPath
                            ProfileResponseData: ("CalculatedAttributes._average_hold_time"
                                                  | "CalculatedAttributes._frequent_caller"
-                                                 | CalculatedAttributes.<name>)[] }
+                                                 | CalculatedAttributes.<name>)[] }   // required; NoneFoundError required
 CreateCase               { LinkContactToCase: "true" | "false", ContactToLink?: "Current" | "Related",   // the export's key, linking only
                            CaseTemplateId: casetemplate,
                            CaseRequestFields?: { [system field id | casefield]: string } }   // static or a JSONPath
-GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase: "true" | "false",
+GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase?: "true" | "false",   // both lookups required
                            CustomerId?,   // static or a JSONPath
                            CaseRequestFields?: { [system field id | casefield]: string },   // the search
                            CaseResponseFields?: (system field id | casefield)[] }   // at most 10, stored under $.Case
 UpdateCase               { LinkContactToCase, ContactToLink?, CaseId,   // static or a JSONPath ($.Case.case_id)
                            CaseRequestFields?: { [system field id | casefield]: string } }
-UpdateRoutingCriteria    { RoutingCriteria: { Steps: { Expression: RoutingExpression,   // json; required
-                                                       Expiry?: { DurationInSeconds } }[]   // decimal string, static
-                                                     | JSONPath } }
+UpdateContactRoutingCriteria { RoutingCriteria: { Steps: { Expression: RoutingExpression,   // json; required; the page's Type is UpdateRoutingCriteria
+                                                       Expiry?: { DurationInSeconds } }[] }   // 1 or more; decimal string, static
+                                                 | JSONPath }   // the whole criteria; generic. Steps as a JSONPath is refused
 RoutingExpression        { AttributeCondition: { Name, Value,   // 1 to 64 each; Value may be a JSONPath
                                                  ProficiencyLevel: 1 | 2 | 3 | 4 | 5,
                                                  ComparisonOperator: "NumberGreaterOrEqualTo" } }
-                         | { AndExpression: AttributeCondition[] }   // 1 to 8
-                         | { OrExpression: (AttributeCondition | AndExpression)[] }   // 1 to 3, top only
+                         | { AndExpression: AttributeCondition[] }   // 1 to 8; an OR at the top of a step is refused
 CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected"
 CompleteOutboundCall     { CallerId?: { Number },   // E.164 or a JSONPath
                            ConnectionTimeLimitSeconds?: "1".."600" }   // or a JSONPath; VoiceConnector stays generic
@@ -3019,9 +3076,11 @@ document: the builder holds a name to them and codegen leaves a block whose
 names fall outside them generic, until a probe shows the service enforcing
 the list. `dynamic` sits on a
 scalar kind, or since FlowDoc 0.3 on a `list` whose page lets a JSONPath
-stand for the whole list (`UpdateRoutingCriteria.RoutingCriteria.Steps`,
-docs/adr/0009); never on an `object`, `map` or `json`, whose provider
-attribute has no JSONPath form.
+stand for the whole list; never on an `object`, `map` or `json`, whose
+provider attribute has no JSONPath form. No list carries it now: the one
+that did, `UpdateContactRoutingCriteria.RoutingCriteria.Steps`
+(docs/adr/0009), lost it when rule 45 found the service refusing a
+JSONPath there.
 
 Vocabulary added for Phase D on 2026-10-05 (tasks/D01), before any entry
 uses it, each item held by a `catalog.test.ts` mutation that fails on a

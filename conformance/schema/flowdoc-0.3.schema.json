@@ -2341,7 +2341,7 @@
           "if": {
             "properties": {
               "Type": {
-                "const": "UpdateRoutingCriteria"
+                "const": "UpdateContactRoutingCriteria"
               }
             },
             "required": [
@@ -2351,6 +2351,9 @@
           "then": {
             "properties": {
               "Parameters": {
+                "required": [
+                  "RoutingCriteria"
+                ],
                 "properties": {
                   "RoutingCriteria": {
                     "anyOf": [
@@ -2359,27 +2362,51 @@
                       },
                       {
                         "type": "object",
+                        "required": [
+                          "Steps"
+                        ],
                         "properties": {
                           "Steps": {
-                            "anyOf": [
-                              {
-                                "$ref": "#/$defs/jsonPath"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "Expression"
+                              ],
+                              "properties": {
+                                "Expression": {
+                                  "$ref": "#/$defs/routingExpression",
+                                  "not": {
+                                    "anyOf": [
+                                      {
+                                        "required": [
+                                          "OrExpression"
+                                        ]
+                                      },
+                                      {
+                                        "required": [
+                                          "NotAttributeCondition"
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "Expiry": {
                                   "type": "object",
+                                  "required": [
+                                    "DurationInSeconds"
+                                  ],
                                   "properties": {
-                                    "Expression": {
-                                      "$ref": "#/$defs/routingExpression"
-                                    },
-                                    "Expiry": {
-                                      "type": "object"
+                                    "DurationInSeconds": {
+                                      "not": {
+                                        "$ref": "#/$defs/jsonPath"
+                                      }
                                     }
                                   }
                                 }
                               }
-                            ]
+                            }
                           }
                         }
                       }
@@ -2636,11 +2663,17 @@
       }
     },
     "routingExpression": {
-      "description": "UpdateRoutingCriteria's Expression (docs/adr/0009): a tagged union whose AndExpression and OrExpression hold expressions of the same kind. Only the JSON types are held; the tags, the levels and the limits are the builder's until rule 45's probes show the service refusing them (owner decision 3).",
+      "description": "UpdateContactRoutingCriteria's Expression (docs/adr/0009): a tagged union whose AndExpression and OrExpression hold expressions of the same kind. Beyond the JSON types it holds a numeric ProficiencyLevel to 1 to 5, which the service enforces (actions.md, rule 45); the step clause refuses an OrExpression or a NotAttributeCondition at the top of a step, which the service refuses statically. The tags, the operator, the eight-in-an-AND limit and the Name and Value lengths, which the service did not refuse, are the builder's (owner decision 3).",
       "type": "object",
       "properties": {
         "AttributeCondition": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "ProficiencyLevel": {
+              "minimum": 1,
+              "maximum": 5
+            }
+          }
         },
         "AndExpression": {
           "type": "array",

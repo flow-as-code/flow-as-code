@@ -49,7 +49,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "Set",
   [ActionType.UpdateFlowLoggingBehavior]: "Set",
   [ActionType.UpdateContactRoutingBehavior]: "Set",
-  [ActionType.UpdateRoutingCriteria]: "Set",
+  [ActionType.UpdateContactRoutingCriteria]: "Set",
   [ActionType.UpdateContactCallbackNumber]: "Set",
   [ActionType.UpdateFlowAttributes]: "Set",
   [ActionType.GetMetricData]: "Set",
@@ -137,7 +137,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "set-recording-analytics",
   [ActionType.UpdateFlowLoggingBehavior]: "set-logging",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
-  [ActionType.UpdateRoutingCriteria]: "set-routing-criteria",
+  [ActionType.UpdateContactRoutingCriteria]: "set-routing-criteria",
   [ActionType.CheckOutboundCallStatus]: "check-call-progress",
   [ActionType.CompleteOutboundCall]: "call-phone-number",
   [ActionType.StartOutboundChatContact]: "send-sms",
@@ -390,7 +390,7 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
         ContactFlowArn: "$.Attributes.smsFlowArn",
         ContactSubtype: "connect:SMS",
       };
-    case ActionType.UpdateRoutingCriteria:
+    case ActionType.UpdateContactRoutingCriteria:
       // One step of one requirement that never expires, on the admin guide's
       // example attribute at the lowest level; the author names the
       // instance's own predefined attribute.

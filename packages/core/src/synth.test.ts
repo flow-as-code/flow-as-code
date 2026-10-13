@@ -81,10 +81,9 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
-  UpdateRoutingCriteria,
+  UpdateContactRoutingCriteria,
   and,
   attributeCondition,
-  or,
   UpdateContactTextToSpeechVoice,
   UpdateCustomerProfile,
   UpdateFlowAttributes,
@@ -2442,22 +2441,22 @@ describe("the routing criteria action", () => {
         next: "from-lambda",
         onError: "bye",
       }),
-      new UpdateRoutingCriteria({
+      // The whole criteria from a Lambda's response: the service accepts it
+      // (actions.md, rule 45), and the class has no form for it.
+      new GenericBlock({
         id: "from-lambda",
-        steps: jsonPath("$.External.routingSteps"),
+        type: "UpdateContactRoutingCriteria",
+        parameters: { RoutingCriteria: "$.External.RoutingCriteria" },
         next: "transfer",
-        onError: "by-proficiency",
+        errors: [{ errorType: "NoMatchingError", target: "by-proficiency" }],
       }),
-      new UpdateRoutingCriteria({
+      new UpdateContactRoutingCriteria({
         id: "by-proficiency",
         steps: [
           {
-            expression: or(
-              and(
-                attributeCondition("Language", "English", 4),
-                attributeCondition("Technology", "AWS Kinesis", 2),
-              ),
-              attributeCondition("Language", "Spanish", 5),
+            expression: and(
+              attributeCondition("Language", "English", 4),
+              attributeCondition("Technology", "AWS Kinesis", 2),
             ),
             expiresAfterSeconds: 30,
           },
@@ -2486,7 +2485,7 @@ describe("the routing criteria action", () => {
 
   it("writes the expression as the page spells it, and each expiry as a decimal string", () => {
     expect(
-      new UpdateRoutingCriteria({
+      new UpdateContactRoutingCriteria({
         id: "r",
         steps: [
           { expression: attributeCondition("Language", "English", 4), expiresAfterSeconds: 30 },
@@ -2497,7 +2496,7 @@ describe("the routing criteria action", () => {
       }).toAction(),
     ).toEqual({
       Identifier: "r",
-      Type: "UpdateRoutingCriteria",
+      Type: "UpdateContactRoutingCriteria",
       Parameters: {
         RoutingCriteria: {
           Steps: [
@@ -2554,41 +2553,39 @@ describe("the routing criteria action", () => {
     expect(() => attributeCondition("x".repeat(64), "y".repeat(64), 5)).not.toThrow();
   });
 
-  it("holds an AND to one to eight requirements and an OR to one to three, with OR at the top", () => {
+  it("holds an AND to one to eight requirements, and refuses an OR, which the service refuses at the top of a step", () => {
     const c = attributeCondition("Language", "English", 1);
     expect(() => and()).toThrow(/and\(...\) takes 1 to 8 expressions, got 0/);
     expect(() => and(...Array.from({ length: 9 }, () => c))).toThrow(/got 9/);
     expect(() => and(...Array.from({ length: 8 }, () => c))).not.toThrow();
-    expect(() => or()).toThrow(/or\(...\) takes 1 to 3 expressions, got 0/);
-    expect(() => or(c, c, c, c)).toThrow(/got 4/);
-    expect(() => or(and(c, c), c, and(c))).not.toThrow();
     expect(() => and(and(c) as never)).toThrow(/an AND holds requirements only/);
-    expect(() => or(or(c) as never)).toThrow(/an AND holds requirements only/);
-    expect(
-      () =>
-        new UpdateRoutingCriteria({
-          id: "r",
-          steps: [{ expression: { AndExpression: [or(c)] } as never }],
-          next: "n",
-          onError: "e",
-        }),
-    ).toThrow(/an AND holds requirements only/);
+    const make = (expression: unknown) =>
+      new UpdateContactRoutingCriteria({
+        id: "r",
+        steps: [{ expression: expression as never }],
+        next: "n",
+        onError: "e",
+      });
+    expect(() => make({ OrExpression: [c, c] })).toThrow(
+      /an expression is attributeCondition\(...\) or and\(...\)/,
+    );
+    expect(() => make({ AndExpression: [{ OrExpression: [c] }] })).toThrow(
+      /an AND holds requirements only/,
+    );
   });
 
-  it("refuses no steps, a step before the last without an expiry, and a bad expiry or JSONPath", () => {
+  it("refuses no steps, a step before the last without an expiry, a bad expiry, and steps as a JSONPath", () => {
     const expression = attributeCondition("Language", "English", 1);
-    const make = (steps: ConstructorParameters<typeof UpdateRoutingCriteria>[0]["steps"]) =>
-      new UpdateRoutingCriteria({ id: "r", steps, next: "n", onError: "e" });
+    const make = (steps: ConstructorParameters<typeof UpdateContactRoutingCriteria>[0]["steps"]) =>
+      new UpdateContactRoutingCriteria({ id: "r", steps, next: "n", onError: "e" });
     expect(() => make([])).toThrow(/needs at least one step/);
     expect(() => make([{ expression }, { expression }])).toThrow(
       /step 1 needs expiresAfterSeconds: only the last step may never expire/,
     );
     expect(() => make([{ expression, expiresAfterSeconds: 0 }])).toThrow(/positive integer, got 0/);
     expect(() => make([{ expression, expiresAfterSeconds: 1.5 }])).toThrow(/got 1.5/);
-    expect(() => make("External.steps" as never)).toThrow(/Invalid JSONPath/);
-    expect(make(jsonPath("$.External.steps")).toAction().Parameters).toEqual({
-      RoutingCriteria: { Steps: "$.External.steps" },
-    });
+    // The service refuses Steps as a JSONPath (actions.md, rule 45).
+    expect(() => make("$.External.steps" as never)).toThrow(/needs at least one step/);
     expect(() =>
       make([
         {

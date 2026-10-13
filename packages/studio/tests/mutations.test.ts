@@ -155,7 +155,7 @@ describe("addBlock", () => {
       "GetCustomerProfile",
       "GetCustomerProfileObject",
       "GetCalculatedAttributesForCustomerProfile",
-      "UpdateRoutingCriteria",
+      "UpdateContactRoutingCriteria",
       "CheckOutboundCallStatus",
       "CompleteOutboundCall",
       "StartOutboundChatContact",

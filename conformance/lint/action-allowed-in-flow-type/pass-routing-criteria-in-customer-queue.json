@@ -10,7 +10,7 @@
     "Actions": [
       {
         "Identifier": "routing",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
           "RoutingCriteria": {
             "Steps": [

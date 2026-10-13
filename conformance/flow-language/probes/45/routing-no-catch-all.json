@@ -1,5 +1,5 @@
 {
-  "description": "Rule 45: UpdateRoutingCriteria without the catch-all (the page's one error), removed alone.",
+  "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) without the catch-all (the page's one error), removed alone.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -7,7 +7,7 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
           "RoutingCriteria": {
             "Steps": [
