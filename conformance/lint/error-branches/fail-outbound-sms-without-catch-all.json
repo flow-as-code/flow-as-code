@@ -1,0 +1,70 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "text-back",
+      "messageIncludes": "StartOutboundChatContact does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "text-back",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "text-back",
+      "Actions": [
+        {
+          "Identifier": "text-back",
+          "Type": "StartOutboundChatContact",
+          "Parameters": {
+            "ContactFlowArn": "${cdref:flow:sms-follow-up}",
+            "ContactSubtype": "connect:SMS",
+            "DestinationEndpoint": {
+              "Address": "$.CustomerEndpoint.Address",
+              "Type": "TELEPHONE_NUMBER"
+            },
+            "SourceEndpoint": {
+              "Address": "${cdref:phonenumber:main-did}",
+              "Type": "CONNECT_PHONENUMBER_ARN"
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "text-back": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": [
+      {
+        "token": "${cdref:flow:sms-follow-up}",
+        "type": "flow",
+        "name": "sms-follow-up"
+      },
+      {
+        "token": "${cdref:phonenumber:main-did}",
+        "type": "phonenumber",
+        "name": "main-did"
+      }
+    ]
+  }
+}

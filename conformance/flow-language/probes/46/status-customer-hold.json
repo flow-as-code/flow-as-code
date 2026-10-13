@@ -1,0 +1,77 @@
+{
+  "description": "Rule 46: CheckOutboundCallStatus in the class's form in a customer hold flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+  "type": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CheckOutboundCallStatus",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "CallAnswered"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "VoicemailBeep"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "VoicemailNoBeep"
+                ]
+              }
+            },
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "NotDetected"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "Text": "Please hold."
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      }
+    ]
+  }
+}

@@ -38,6 +38,8 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.MessageParticipant]: "Interact",
   [ActionType.GetParticipantInput]: "Interact",
   [ActionType.Wait]: "Interact",
+  [ActionType.CompleteOutboundCall]: "Interact",
+  [ActionType.StartOutboundChatContact]: "Interact",
   [ActionType.MessageParticipantIteratively]: "Interact",
   [ActionType.ConnectParticipantWithLexBot]: "Interact",
   [ActionType.ShowView]: "Interact",
@@ -76,6 +78,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.Loop]: "Branch",
   [ActionType.DistributeByPercentage]: "Branch",
   [ActionType.CheckMetricData]: "Branch",
+  [ActionType.CheckOutboundCallStatus]: "Branch",
   [ActionType.InvokeLambdaFunction]: "Integrate",
   [ActionType.InvokeFlowModule]: "Integrate",
   [ActionType.TransferToFlow]: "Terminate",
@@ -133,6 +136,9 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateFlowLoggingBehavior]: "set-logging",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
   [ActionType.UpdateRoutingCriteria]: "set-routing-criteria",
+  [ActionType.CheckOutboundCallStatus]: "check-call-progress",
+  [ActionType.CompleteOutboundCall]: "call-phone-number",
+  [ActionType.StartOutboundChatContact]: "send-sms",
   [ActionType.UpdateContactCallbackNumber]: "set-callback-number",
   [ActionType.UpdateFlowAttributes]: "set-flow-attributes",
   [ActionType.GetMetricData]: "get-metrics",
@@ -366,6 +372,19 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // stores the customer's callback number."
       // https://docs.aws.amazon.com/connect/latest/adminguide/set-callback-number.html
       return { CallbackNumber: "$.StoredCustomerInput" };
+    case ActionType.StartOutboundChatContact:
+      // The page's required keys with its constants, the number and flow as
+      // JSONPath placeholders the inspector's pickers replace with
+      // references (the admin guide sets each manually or dynamically), and
+      // the SMS sent to the contact's own number.
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+      // https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
+      return {
+        SourceEndpoint: { Address: "$.Attributes.smsNumberArn", Type: "CONNECT_PHONENUMBER_ARN" },
+        DestinationEndpoint: { Address: "$.CustomerEndpoint.Address", Type: "TELEPHONE_NUMBER" },
+        ContactFlowArn: "$.Attributes.smsFlowArn",
+        ContactSubtype: "connect:SMS",
+      };
     case ActionType.UpdateRoutingCriteria:
       // One step of one requirement that never expires, on the admin guide's
       // example attribute at the lowest level; the author names the

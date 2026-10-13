@@ -19,7 +19,10 @@ import {
   AssociateContactToCustomerProfile,
   canonicalOrder,
   CheckMetricData,
+  CheckOutboundCallStatus,
   collectRefs,
+  Compare,
+  CompleteOutboundCall,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
   CreateCase,
@@ -29,6 +32,7 @@ import {
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   DistributeByPercentage,
+  EndFlowExecution,
   EndFlowModuleExecution,
   EXTRA_ERRORS,
   Flow,
@@ -50,6 +54,7 @@ import {
   lint,
   Loop,
   materializeWithMap,
+  MessageParticipant,
   MessageParticipantIteratively,
   NO_MATCHING_ERROR,
   parseToken,
@@ -58,6 +63,7 @@ import {
   serialize,
   serializeContent,
   ShowView,
+  StartOutboundChatContact,
   synth,
   TagContact,
   TransferContactToAgent,
@@ -2591,5 +2597,219 @@ describe("the routing criteria action", () => {
         },
       ]),
     ).toThrow(/operator is NumberGreaterOrEqualTo/);
+  });
+});
+
+describe("the outbound actions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/outbound/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the outbound fixture", () => {
+    const flow = new Flow({
+      name: "outbound",
+      connectType: "OUTBOUND_WHISPER",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new Compare({
+        id: "choose-route",
+        value: jsonPath("$.Attributes.route"),
+        branches: [{ operator: "Equals", operands: ["sip"], target: "place-call-via-sip" }],
+        onNoMatch: "place-call",
+      }),
+      new CompleteOutboundCall({
+        id: "place-call",
+        callerId: "+15555550100",
+        next: "check-progress",
+      }),
+      // The Chime voice connector form is not modeled (owner decision 4).
+      new GenericBlock({
+        id: "place-call-via-sip",
+        type: "CompleteOutboundCall",
+        parameters: {
+          ConnectionTimeLimitSeconds: "30",
+          VoiceConnector: {
+            FromUser: "$.Attributes.fromUser",
+            ToUser: "$.CustomerEndpoint.Address",
+            VoiceConnectorArn: "$.Attributes.voiceConnectorArn",
+            VoiceConnectorType: "ChimeConnector",
+          },
+        },
+        next: "check-progress",
+      }),
+      new CheckOutboundCallStatus({
+        id: "check-progress",
+        onStatus: {
+          CallAnswered: "greet",
+          VoicemailBeep: "text-back",
+          VoicemailNoBeep: "text-back",
+          NotDetected: "text-from-attributes",
+        },
+        onError: "done",
+      }),
+      new MessageParticipant({
+        id: "greet",
+        text: "Connecting you to the customer.",
+        next: "done",
+      }),
+      new StartOutboundChatContact({
+        id: "text-back",
+        source: Refs.phonenumber("main-did"),
+        destination: jsonPath("$.CustomerEndpoint.Address"),
+        flow: Refs.flow("sms-follow-up"),
+        initialMessage: "We tried to call you. Reply here to pick up where we left off.",
+        relatedContact: "CURRENT",
+        next: "leave-message",
+        onError: "leave-message",
+      }),
+      new StartOutboundChatContact({
+        id: "text-from-attributes",
+        source: jsonPath("$.Attributes.smsNumberArn"),
+        destination: "+15555550101",
+        flow: jsonPath("$.Attributes.smsFlowArn"),
+        next: "done",
+        onError: "done",
+      }),
+      new MessageParticipant({
+        id: "leave-message",
+        text: "The call reached voicemail.",
+        next: "done",
+      }),
+      new EndFlowExecution({ id: "done" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write CheckOutboundCallStatus's statuses in the page's order, NextAction on the catch-all", () => {
+    expect(
+      new CheckOutboundCallStatus({
+        id: "c",
+        onStatus: { NotDetected: "n", CallAnswered: "a" },
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "c",
+      Type: "CheckOutboundCallStatus",
+      Parameters: {},
+      Transitions: {
+        NextAction: "e",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [
+          { NextAction: "a", Condition: { Operator: "Equals", Operands: ["CallAnswered"] } },
+          { NextAction: "n", Condition: { Operator: "Equals", Operands: ["NotDetected"] } },
+        ],
+      },
+    });
+  });
+
+  it("write CompleteOutboundCall's caller ID and time limit, NextAction alone", () => {
+    expect(
+      new CompleteOutboundCall({
+        id: "c",
+        callerId: jsonPath("$.Attributes.callerId"),
+        connectionTimeLimitSeconds: 45,
+        next: "n",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "c",
+      Type: "CompleteOutboundCall",
+      Parameters: {
+        CallerId: { Number: "$.Attributes.callerId" },
+        ConnectionTimeLimitSeconds: "45",
+      },
+      Transitions: { NextAction: "n", Errors: [], Conditions: [] },
+    });
+    expect(new CompleteOutboundCall({ id: "c", next: "n" }).toAction().Parameters).toEqual({});
+    expect(
+      new CompleteOutboundCall({
+        id: "c",
+        connectionTimeLimitSeconds: jsonPath("$.Attributes.limit"),
+        next: "n",
+      }).toAction().Parameters,
+    ).toEqual({ ConnectionTimeLimitSeconds: "$.Attributes.limit" });
+  });
+
+  it("refuse a call with an empty caller ID or a time limit outside 1 to 600", () => {
+    expect(() => new CompleteOutboundCall({ id: "c", callerId: "", next: "n" })).toThrow(
+      /callerId must be a non-empty number or JSONPath/,
+    );
+    for (const bad of [0, 601, 1.5]) {
+      expect(
+        () => new CompleteOutboundCall({ id: "c", connectionTimeLimitSeconds: bad, next: "n" }),
+      ).toThrow(/connectionTimeLimitSeconds must be an integer between 1 and 600/);
+    }
+  });
+
+  it("write StartOutboundChatContact's endpoints, flow and constants, the catch-all wired", () => {
+    expect(
+      new StartOutboundChatContact({
+        id: "t",
+        source: Refs.phonenumber("main-did"),
+        destination: "+15555550101",
+        flow: Refs.flow("sms-follow-up"),
+        initialMessage: jsonPath("$.Attributes.smsText"),
+        relatedContact: "CURRENT",
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "t",
+      Type: "StartOutboundChatContact",
+      Parameters: {
+        SourceEndpoint: {
+          Address: "${cdref:phonenumber:main-did}",
+          Type: "CONNECT_PHONENUMBER_ARN",
+        },
+        DestinationEndpoint: { Address: "+15555550101", Type: "TELEPHONE_NUMBER" },
+        ContactFlowArn: "${cdref:flow:sms-follow-up}",
+        ContactSubtype: "connect:SMS",
+        InitialSystemMessage: { Content: "$.Attributes.smsText" },
+        RelatedContact: "CURRENT",
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuse an SMS to a number that is not E.164, an empty message, or another related contact", () => {
+    const base = {
+      id: "t",
+      source: Refs.phonenumber("main-did"),
+      destination: "+15555550101",
+      flow: Refs.flow("sms-follow-up"),
+      next: "n",
+      onError: "e",
+    };
+    for (const destination of ["5555550101", "+05555550101", ""]) {
+      expect(() => new StartOutboundChatContact({ ...base, destination })).toThrow(
+        /destination must be an E.164 number or a JSONPath/,
+      );
+    }
+    expect(() => new StartOutboundChatContact({ ...base, initialMessage: "" })).toThrow(
+      /initialMessage must be non-empty text or a JSONPath/,
+    );
+    expect(
+      () => new StartOutboundChatContact({ ...base, relatedContact: cast<never>("PREVIOUS") }),
+    ).toThrow(/relatedContact may only be "CURRENT"/);
+  });
+
+  it("refuse a status check with no branch or a status the page does not list", () => {
+    expect(() => new CheckOutboundCallStatus({ id: "c", onStatus: {}, onError: "e" })).toThrow(
+      /needs at least one status branch/,
+    );
+    expect(
+      () =>
+        new CheckOutboundCallStatus({
+          id: "c",
+          onStatus: cast<never>({ Busy: "b" }),
+          onError: "e",
+        }),
+    ).toThrow(
+      /branches only on CallAnswered, VoicemailBeep, VoicemailNoBeep, NotDetected, got Busy/,
+    );
   });
 });

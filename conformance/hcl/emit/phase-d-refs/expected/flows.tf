@@ -97,20 +97,17 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "text-back"
     next = "hang-up"
-    generic {
-      type = "StartOutboundChatContact"
-      parameters = jsonencode({
-        ContactFlowArn = "$${cdref:flow:task-line}"
-        ContactSubtype = "connect:SMS"
-        DestinationEndpoint = {
-          Address = "$.CustomerEndpoint.Address"
-          Type    = "TELEPHONE_NUMBER"
-        }
-        SourceEndpoint = {
-          Address = "$${cdref:phonenumber:main-did}"
-          Type    = "CONNECT_PHONENUMBER_ARN"
-        }
-      })
+    start_outbound_chat_contact {
+      contact_flow_arn = "flow:task-line"
+      contact_subtype  = "connect:SMS"
+      destination_endpoint = {
+        address = "$.CustomerEndpoint.Address"
+        type    = "TELEPHONE_NUMBER"
+      }
+      source_endpoint = {
+        address = "phonenumber:main-did"
+        type    = "CONNECT_PHONENUMBER_ARN"
+      }
     }
     error {
       type = "NoMatchingError"

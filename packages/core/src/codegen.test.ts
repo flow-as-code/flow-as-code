@@ -2327,7 +2327,17 @@ describe("ConnectParticipantWithLexBot inverts the V2 form with its intents", ()
   });
 });
 
-describe("the unknown-actions fixture holds only types the builder does not model", () => {
+describe("the unknown-actions fixture holds only actions the builder does not model", () => {
+  // An unmodeled type, or a modeled type in a form its class does not write
+  // (tasks/D04): CompleteOutboundCall carrying VoiceConnector, which owner
+  // decision 4 keeps generic, and StartOutboundChatContact's WhatsApp form,
+  // carrying the API's InitialTemplatedSystemMessage, a key the catalog
+  // does not record, so HCL writes it generic too.
+  const UNMODELED_FORMS: Readonly<Record<string, (p: Record<string, unknown>) => boolean>> = {
+    CompleteOutboundCall: (p) => "VoiceConnector" in p,
+    StartOutboundChatContact: (p) => "InitialTemplatedSystemMessage" in p,
+  };
+
   it("emits a GenericBlock for every action, tokens kept verbatim", () => {
     const doc = JSON.parse(
       readFileSync(
@@ -2335,8 +2345,15 @@ describe("the unknown-actions fixture holds only types the builder does not mode
         "utf8",
       ),
     ) as FlowDoc;
+    // At least one Type the builder does not model stays (owner decision 10).
+    expect(
+      doc.content.Actions.some((a) => !(Object.values(ActionType) as string[]).includes(a.Type)),
+    ).toBe(true);
     for (const a of doc.content.Actions) {
-      expect(Object.values(ActionType) as string[]).not.toContain(a.Type);
+      if ((Object.values(ActionType) as string[]).includes(a.Type)) {
+        expect(UNMODELED_FORMS[a.Type], a.Type).toBeDefined();
+        expect(UNMODELED_FORMS[a.Type]!(a.Parameters), a.Type).toBe(true);
+      }
     }
     const out = codegen(doc);
     expect(out.match(/new GenericBlock\(/g)).toHaveLength(doc.content.Actions.length);
@@ -3479,5 +3496,228 @@ describe("UpdateRoutingCriteria inverts to the expression helpers", () => {
     generic(routing({ Steps: [{ Expression: condition("A", "B") }], Extra: 1 }));
     generic(routing({ Steps: [{ Expression: condition("A", "B") }] }, undefined, { Other: "x" }));
     generic(routing({ Steps: [{ Expression: condition("A", "B") }] }, []));
+  });
+});
+
+describe("the outbound actions invert to their classes", () => {
+  const end: FlowAction = {
+    Identifier: "done",
+    Type: "EndFlowExecution",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, end]));
+    expect(out).toContain(`type: "${a.Type}"`);
+    expect(out).not.toContain(`new ${a.Type}(`);
+  };
+
+  describe("CompleteOutboundCall", () => {
+    const call = (
+      parameters: Record<string, unknown>,
+      opts: { next?: string; errors?: string[] } = {},
+    ): FlowAction => ({
+      Identifier: "call",
+      Type: "CompleteOutboundCall",
+      Parameters: parameters,
+      Transitions: {
+        ...(opts.next === "" ? {} : { NextAction: opts.next ?? "done" }),
+        Errors: (opts.errors ?? []).map((ErrorType) => ({ ErrorType, NextAction: "done" })),
+        Conditions: [],
+      },
+    });
+    const typed = (a: FlowAction) => {
+      const out = codegen(docWith([a, end]));
+      expect(out).toContain("new CompleteOutboundCall({");
+      expect(out).not.toContain("GenericBlock");
+      return out;
+    };
+
+    it("emits the caller ID static or by JSONPath, the time limit as a number or JSONPath, or neither", () => {
+      expect(typed(call({ CallerId: { Number: "+15555550100" } }))).toContain(
+        'callerId: "+15555550100"',
+      );
+      expect(typed(call({ CallerId: { Number: "$.Attributes.callerId" } }))).toContain(
+        'callerId: jsonPath("$.Attributes.callerId")',
+      );
+      expect(typed(call({ ConnectionTimeLimitSeconds: "600" }))).toContain(
+        "connectionTimeLimitSeconds: 600",
+      );
+      expect(typed(call({ ConnectionTimeLimitSeconds: "$.Attributes.limit" }))).toContain(
+        'connectionTimeLimitSeconds: jsonPath("$.Attributes.limit")',
+      );
+      typed(call({}));
+    });
+
+    it("leaves the voice connector form generic (owner decision 4), and anything else out of shape", () => {
+      generic(
+        call({
+          VoiceConnector: {
+            VoiceConnectorType: "ChimeConnector",
+            VoiceConnectorArn: "$.Attributes.voiceConnectorArn",
+            FromUser: "$.Attributes.fromUser",
+            ToUser: "$.CustomerEndpoint.Address",
+          },
+        }),
+      );
+      generic(call({ CallerId: { Number: "+15555550100", Name: "Front desk" } }));
+      generic(call({ CallerId: { Number: "" } }));
+      generic(call({ CallerId: "+15555550100" }));
+      generic(call({ ConnectionTimeLimitSeconds: "0" }));
+      generic(call({ ConnectionTimeLimitSeconds: "601" }));
+      generic(call({ ConnectionTimeLimitSeconds: 30 }));
+      generic(call({}, { errors: ["NoMatchingError"] }));
+      generic(call({}, { next: "" }));
+    });
+
+    it("keeps the group fixture's voice connector call generic beside the typed one", () => {
+      const doc = JSON.parse(
+        readFileSync(
+          new URL("../../../conformance/roundtrip/outbound/doc.flowdoc.json", import.meta.url),
+          "utf8",
+        ),
+      ) as FlowDoc;
+      const out = codegen(doc);
+      expect(out).toContain("new CompleteOutboundCall({");
+      expect(out).toMatch(
+        /new GenericBlock\(\{\s+id: "place-call-via-sip",\s+type: "CompleteOutboundCall"/,
+      );
+    });
+  });
+
+  describe("StartOutboundChatContact", () => {
+    const sms = (
+      parameters: Record<string, unknown>,
+      errors = ["NoMatchingError"],
+    ): FlowAction => ({
+      Identifier: "sms",
+      Type: "StartOutboundChatContact",
+      Parameters: {
+        SourceEndpoint: {
+          Address: "${cdref:phonenumber:main-did}",
+          Type: "CONNECT_PHONENUMBER_ARN",
+        },
+        DestinationEndpoint: { Address: "$.CustomerEndpoint.Address", Type: "TELEPHONE_NUMBER" },
+        ContactFlowArn: "${cdref:flow:sms-follow-up}",
+        ContactSubtype: "connect:SMS",
+        ...parameters,
+      },
+      Transitions: {
+        NextAction: "done",
+        Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "done" })),
+        Conditions: [],
+      },
+    });
+    const typed = (a: FlowAction) => {
+      const out = codegen(docWith([a, end]));
+      expect(out).toContain("new StartOutboundChatContact({");
+      expect(out).not.toContain("GenericBlock");
+      return out;
+    };
+
+    it("emits the number and flow by reference or JSONPath, the destination, message and related contact", () => {
+      const out = typed(
+        sms({ InitialSystemMessage: { Content: "Reply here." }, RelatedContact: "CURRENT" }),
+      );
+      expect(out).toContain('source: Refs.phonenumber("main-did")');
+      expect(out).toContain('destination: jsonPath("$.CustomerEndpoint.Address")');
+      expect(out).toContain('flow: Refs.flow("sms-follow-up")');
+      expect(out).toContain('initialMessage: "Reply here."');
+      expect(out).toContain('relatedContact: "CURRENT"');
+      const dynamic = typed(
+        sms({
+          SourceEndpoint: { Address: "$.Attributes.smsNumberArn", Type: "CONNECT_PHONENUMBER_ARN" },
+          DestinationEndpoint: { Address: "+15555550101", Type: "TELEPHONE_NUMBER" },
+          ContactFlowArn: "$.Attributes.smsFlowArn",
+        }),
+      );
+      expect(dynamic).toContain('source: jsonPath("$.Attributes.smsNumberArn")');
+      expect(dynamic).toContain('destination: "+15555550101"');
+    });
+
+    it("falls back on a literal ARN, another constant, a non-E.164 number, an extra key, or no catch-all", () => {
+      generic(
+        sms({
+          SourceEndpoint: {
+            Address: "arn:aws:connect:us-east-1:111122223333:phone-number/p1",
+            Type: "CONNECT_PHONENUMBER_ARN",
+          },
+        }),
+      );
+      generic(sms({ ContactFlowArn: "${cdref:queue:support}" }));
+      generic(sms({ ContactSubtype: "connect:WhatsApp" }));
+      generic(
+        sms({
+          SourceEndpoint: { Address: "${cdref:phonenumber:main-did}", Type: "EMAIL_ADDRESS" },
+        }),
+      );
+      generic(sms({ DestinationEndpoint: { Address: "5555550101", Type: "TELEPHONE_NUMBER" } }));
+      generic(sms({ DestinationEndpoint: { Address: "+15555550101", Type: "EMAIL_ADDRESS" } }));
+      generic(sms({ InitialSystemMessage: { Content: "" } }));
+      generic(sms({ InitialSystemMessage: { TemplateId: "t" } }));
+      generic(sms({ RelatedContact: "PREVIOUS" }));
+      generic(sms({ TemplateArn: "$.Attributes.template" }));
+      generic(sms({}, []));
+    });
+  });
+
+  describe("CheckOutboundCallStatus", () => {
+    const status = (
+      conditions: [string, string][],
+      opts: { next?: string; errors?: string[]; parameters?: Record<string, unknown> } = {},
+    ): FlowAction => ({
+      Identifier: "check",
+      Type: "CheckOutboundCallStatus",
+      Parameters: opts.parameters ?? {},
+      Transitions: {
+        NextAction: opts.next ?? "done",
+        Errors: (opts.errors ?? ["NoMatchingError"]).map((ErrorType) => ({
+          ErrorType,
+          NextAction: "done",
+        })),
+        Conditions: conditions.map(([operand, NextAction]) => ({
+          NextAction,
+          Condition: { Operator: "Equals", Operands: [operand] },
+        })),
+      },
+    });
+
+    it("emits one path per status, by name", () => {
+      const out = codegen(
+        docWith([
+          status([
+            ["CallAnswered", "done"],
+            ["VoicemailNoBeep", "done"],
+          ]),
+          end,
+        ]),
+      );
+      expect(out).toContain("new CheckOutboundCallStatus({");
+      expect(out).toContain('onStatus: { CallAnswered: "done", VoicemailNoBeep: "done" }');
+      expect(out).not.toContain("GenericBlock");
+    });
+
+    it("falls back on statuses out of order, repeated or unlisted, another operator, or the wiring out of shape", () => {
+      generic(
+        status([
+          ["NotDetected", "done"],
+          ["CallAnswered", "done"],
+        ]),
+      );
+      generic(
+        status([
+          ["CallAnswered", "done"],
+          ["CallAnswered", "done"],
+        ]),
+      );
+      generic(status([["Busy", "done"]]));
+      generic(status([]));
+      generic(status([["CallAnswered", "done"]], { next: "elsewhere" }));
+      generic(status([["CallAnswered", "done"]], { errors: [] }));
+      generic(status([["CallAnswered", "done"]], { parameters: { Timeout: "5" } }));
+      const textual = status([["CallAnswered", "done"]]);
+      textual.Transitions.Conditions![0]!.Condition.Operator = "TextContains";
+      generic(textual);
+    });
   });
 });

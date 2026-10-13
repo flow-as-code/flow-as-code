@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-51 modeled types follow. Any other type (10: `CompleteOutboundCall`, `StartOutboundChatContact`, `CheckOutboundCallStatus`, `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
+54 modeled types follow. Any other type (7: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `LoadContactContent`, `AuthenticateParticipant`, `CheckSegmentMembership`, `TransferParticipantToThirdParty`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -41,6 +41,22 @@ generic {
   parameters = jsonencode({ ... })
 }
 ```
+
+## CompleteOutboundCall
+
+Block `complete_outbound_call`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html).
+
+- Legal in: OUTBOUND_WHISPER, MODULE.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: none; the service refuses any.
+- Conditions: none.
+
+| HCL attribute                   | Flow language key            | Value              | Required |
+| ------------------------------- | ---------------------------- | ------------------ | -------- |
+| `caller_id`                     | `CallerId`                   | object             | no       |
+| .`number`                       | `Number`                     | string or JSONPath | yes      |
+| `connection_time_limit_seconds` | `ConnectionTimeLimitSeconds` | number             | no       |
 
 ## CreateCase
 
@@ -152,6 +168,29 @@ Block `invoke_flow_module`. [Action page](https://docs.aws.amazon.com/connect/la
 | HCL attribute    | Flow language key | Value                           | Required |
 | ---------------- | ----------------- | ------------------------------- | -------- |
 | `flow_module_id` | `FlowModuleId`    | reference key (`module:<name>`) | yes      |
+
+## StartOutboundChatContact
+
+Block `start_outbound_chat_contact`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html).
+
+- Legal in: every flow type.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+| HCL attribute            | Flow language key      | Value                                | Required |
+| ------------------------ | ---------------------- | ------------------------------------ | -------- |
+| `source_endpoint`        | `SourceEndpoint`       | object                               | yes      |
+| .`address`               | `Address`              | reference key (`phonenumber:<name>`) | yes      |
+| .`type`                  | `Type`                 | `"CONNECT_PHONENUMBER_ARN"`          | yes      |
+| `destination_endpoint`   | `DestinationEndpoint`  | object                               | yes      |
+| .`address`               | `Address`              | string or JSONPath                   | yes      |
+| .`type`                  | `Type`                 | `"TELEPHONE_NUMBER"`                 | yes      |
+| `contact_flow_arn`       | `ContactFlowArn`       | reference key (`flow:<name>`)        | yes      |
+| `contact_subtype`        | `ContactSubtype`       | `"connect:SMS"`                      | yes      |
+| `initial_system_message` | `InitialSystemMessage` | object                               | no       |
+| .`content`               | `Content`              | string or JSONPath                   | yes      |
+| `related_contact`        | `RelatedContact`       | `"CURRENT"`                          | no       |
 
 ## TagContact
 
@@ -598,6 +637,18 @@ Block `check_metric_data`. [Action page](https://docs.aws.amazon.com/connect/lat
 | `metric_type` | `MetricType`      | `"NumberOfAgentsAvailable"`, `"NumberOfAgentsStaffed"`, `"NumberOfAgentsOnline"`, `"OldestContactInQueueAgeSeconds"`, `"NumberOfContactsInQueue"` | yes      |
 | `queue_id`    | `QueueId`         | reference key (`queue:<name>`)                                                                                                                    | no       |
 | `agent_id`    | `AgentId`         | reference key (`queue:<name>`)                                                                                                                    | no       |
+
+## CheckOutboundCallStatus
+
+Block `check_outbound_call_status`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html).
+
+- Legal in: every flow type.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required; write the `NoMatchingError` branch's target, as the console does.
+- Error branches: `NoMatchingError` (required).
+- Conditions: Equals on values the action defines.
+
+No parameters: `check_outbound_call_status {}`.
 
 ## Compare
 

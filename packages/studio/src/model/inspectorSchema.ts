@@ -13,6 +13,8 @@ import {
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
   INPUT_TIMEOUT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   INPUT_TIMEOUT_MIN,
   LAMBDA_TIMEOUT_MAX,
   LAMBDA_TIMEOUT_MIN,
@@ -1125,6 +1127,75 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
     case ActionType.DistributeByPercentage:
       // No parameters; the branches are the condition editor, each operand
       // the threshold below which a draw takes that branch.
+      return [];
+    case ActionType.CompleteOutboundCall:
+      // Both optional: with no caller ID the queue's is used (the admin
+      // guide's Call phone number block). The caller ID is CallerId.Number,
+      // an E.164 number or a JSONPath; emptying it removes CallerId. The
+      // page uses the time limit only with a voice connector, whose form is
+      // generic (owner decision 4), but the typed form may carry it.
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+      // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+      return [
+        {
+          kind: "text",
+          key: "CallerId",
+          nested: "Number",
+          label: "Caller ID number (E.164 or JSONPath)",
+          optional: true,
+        },
+        {
+          kind: "number",
+          key: "ConnectionTimeLimitSeconds",
+          label: "Connection time limit (seconds)",
+          min: OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
+          max: OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+          asString: true,
+          optional: true,
+        },
+      ];
+    case ActionType.StartOutboundChatContact:
+      // The SMS form. The endpoint types and the subtype are the page's one
+      // value each and are not edited; the number the SMS is sent from is a
+      // phonenumber reference and the flow the new chat runs a flow
+      // reference, each or a JSONPath. Emptying the message removes
+      // InitialSystemMessage.
+      // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+      return [
+        {
+          kind: "ref",
+          key: "SourceEndpoint",
+          nested: "Address",
+          label: "From (claimed number)",
+          refType: "phonenumber",
+        },
+        {
+          kind: "text",
+          key: "DestinationEndpoint",
+          nested: "Address",
+          label: "To (E.164 or JSONPath)",
+        },
+        { kind: "ref", key: "ContactFlowArn", label: "Flow", refType: "flow" },
+        {
+          kind: "text",
+          key: "InitialSystemMessage",
+          nested: "Content",
+          label: "Initial message",
+          multiline: true,
+          optional: true,
+        },
+        {
+          kind: "select",
+          key: "RelatedContact",
+          label: "Link to current contact",
+          options: ["CURRENT"],
+          optional: true,
+        },
+      ];
+    case ActionType.CheckOutboundCallStatus:
+      // No parameters ("{}"); the four statuses are the condition editor,
+      // one Equals branch each, added by drags in the page's order.
+      // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
       return [];
     case ActionType.DisconnectParticipant:
     case ActionType.EndFlowExecution:

@@ -1,0 +1,42 @@
+{
+  "description": "Rule 46: StartOutboundChatContact with a SourceEndpoint Type other than CONNECT_PHONENUMBER_ARN (EMAIL_ADDRESS), which the page says is the only one supported. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "SourceEndpoint": {
+            "Address": "$.Attributes.smsNumberArn",
+            "Type": "EMAIL_ADDRESS"
+          },
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "ContactFlowArn": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:instance/{{INSTANCE}}/contact-flow/{{FLOW_ID}}",
+          "ContactSubtype": "connect:SMS"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

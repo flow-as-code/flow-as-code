@@ -1,0 +1,29 @@
+{
+  "description": "Rule 46: CompleteOutboundCall in the class's form without a NextAction, removed alone.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "CallerId": {
+            "Number": "{{DID_NUMBER}}"
+          }
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

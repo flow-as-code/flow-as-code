@@ -1,0 +1,28 @@
+{
+  "description": "Rule 46: CompleteOutboundCall with ConnectionTimeLimitSeconds \"30\" and no voice connector; the page uses it \"Only\" for the voice connector, and the decimal string is the catalog's integerString.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "ConnectionTimeLimitSeconds": "30"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

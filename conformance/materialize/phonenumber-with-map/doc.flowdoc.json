@@ -1,0 +1,135 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "missed-call-text",
+  "displayName": "Missed Call Text",
+  "connectType": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "place-call",
+    "Actions": [
+      {
+        "Identifier": "place-call",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "CallerId": {
+            "Number": "+15555550110"
+          }
+        },
+        "Transitions": {
+          "NextAction": "check-progress",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "check-progress",
+        "Type": "CheckOutboundCallStatus",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "CallAnswered"
+                ]
+              }
+            },
+            {
+              "NextAction": "text-back",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "VoicemailBeep"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "text-back",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "ContactFlowArn": "${cdref:flow:sms-follow-up}",
+          "ContactSubtype": "connect:SMS",
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "InitialSystemMessage": {
+            "Content": "We tried to call you. Reply here to continue."
+          },
+          "RelatedContact": "CURRENT",
+          "SourceEndpoint": {
+            "Address": "${cdref:phonenumber:sms-line}",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "check-progress": {
+      "x": 280,
+      "y": 20
+    },
+    "done": {
+      "x": 800,
+      "y": 20
+    },
+    "place-call": {
+      "x": 20,
+      "y": 20
+    },
+    "text-back": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:flow:sms-follow-up}",
+      "type": "flow",
+      "name": "sms-follow-up"
+    },
+    {
+      "token": "${cdref:phonenumber:sms-line}",
+      "type": "phonenumber",
+      "name": "sms-line"
+    }
+  ],
+  "meta": {
+    "generator": "core@0.3",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000051",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Missed Call Text"
+    }
+  }
+}

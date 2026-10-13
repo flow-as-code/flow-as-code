@@ -124,8 +124,10 @@ non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 `layout` covering every action. A provider generates code from `doc.flowdoc.json`,
 executes it, synthesizes the result, and must get the same document back
 (ignoring `meta`). The cases cover the demo flow (`appointment-line`), a
-flow of entirely unmodeled action types with tokens inside parameters
-(`unknown-actions`), a module invoking another module by alias
+flow of actions the builder does not model, with tokens inside parameters
+(`unknown-actions`: unmodeled Types, and since tasks/D04 two forms of
+modeled Types that their classes do not write, `CompleteOutboundCall` with
+`VoiceConnector` and `StartOutboundChatContact`'s WhatsApp form), a module invoking another module by alias
 (`after-call-survey`), a flow where Compare is the only
 user of `jsonPath` (`compare-only`, so the import is emitted for it), the
 same Compare with a `NextAction` that is a condition's target rather than
@@ -200,7 +202,13 @@ linking); and a flow
 setting routing criteria before a transfer to queue (`routing-criteria`:
 the steps read from a JSONPath, then three typed steps, an OR of an AND and
 a requirement, an AND of two requirements, and a requirement whose value is
-read from an attribute, the last never expiring).
+read from an attribute, the last never expiring); and an outbound whisper
+flow of the outbound actions (`outbound`: the call placed with a static
+caller ID, or through a Chime voice connector, a form that stays generic,
+then the call's progress checked on all four statuses, a person answering
+greeted, on voicemail an SMS from a claimed number and flow by reference,
+and with no detection an SMS whose number and flow are read from
+attributes).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

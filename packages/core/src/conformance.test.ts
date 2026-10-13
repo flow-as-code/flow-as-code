@@ -125,8 +125,10 @@ describe("demo flow invariants", () => {
   // GenericBlock passthrough is what makes a small modeled set survivable.
   // The demo carried it (UpdateFlowLoggingBehavior) until the builder gained
   // that type on 2026-09-11; the unknown-actions fixture holds it now, with
-  // only types the builder does not model, so a newly modeled type is caught
-  // there rather than quietly ending the guarantee.
+  // only actions the builder does not model, so a newly modeled type is
+  // caught there rather than quietly ending the guarantee. Since tasks/D04
+  // that is unmodeled Types and two named forms of modeled ones, and at
+  // least one Type must stay unmodeled (owner decision 10).
   it("is modeled end to end, with passthrough exercised by the unknown-actions fixture", () => {
     const modeled = new Set<string>(Object.values(ActionType));
     expect(actions.filter((a) => !modeled.has(a.Type)).map((a) => a.Type)).toEqual([]);
@@ -135,7 +137,14 @@ describe("demo flow invariants", () => {
     };
     const types = unknown.content.Actions.map((a) => a.Type);
     expect(types.length).toBeGreaterThan(0);
-    expect(types.filter((t) => modeled.has(t))).toEqual([]);
+    // A modeled type stands there only in a form its class does not write:
+    // since tasks/D04, CompleteOutboundCall's VoiceConnector form (owner
+    // decision 4) and StartOutboundChatContact's WhatsApp subtype;
+    // codegen.test.ts names both and holds every action generic.
+    expect(types.filter((t) => modeled.has(t))).toEqual(
+      types.filter((t) => t === "CompleteOutboundCall" || t === "StartOutboundChatContact"),
+    );
+    expect(types.filter((t) => !modeled.has(t)).length).toBeGreaterThan(0);
   });
 });
 
@@ -747,6 +756,109 @@ describe("FlowDoc schema rejections: routing criteria", () => {
         }),
       ),
     ).toBe(true);
+  });
+});
+
+// The outbound round-trip fixture is the subject for the 0.3 clauses of
+// tasks/D04. Each holds JSON types and reference forms only (a reference a
+// token or a JSONPath, never a literal ARN, this repository's invariant;
+// the single-value enums stay in the catalog): nothing about
+// the outbound types is known to be enforced at create until rule 46's
+// probes (pending) run (owner decision 3). CheckOutboundCallStatus has no
+// parameter and no clause.
+describe("FlowDoc schema rejections: outbound", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/outbound/doc.flowdoc.json");
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(d.content.Actions.find((a) => a.Identifier === id) as unknown as Action);
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a caller ID that is not an object",
+      mutate("place-call", (a) => {
+        a.Parameters.CallerId = "+15555550100";
+      }),
+    ],
+    [
+      "a caller ID number that is not a string",
+      mutate("place-call", (a) => {
+        a.Parameters.CallerId = { Number: 15555550100 };
+      }),
+    ],
+    [
+      "a connection time limit that is neither a string nor an integer",
+      mutate("place-call-via-sip", (a) => {
+        a.Parameters.ConnectionTimeLimitSeconds = true;
+      }),
+    ],
+    [
+      "a voice connector that is not an object",
+      mutate("place-call-via-sip", (a) => {
+        a.Parameters.VoiceConnector = "$.Attributes.voiceConnector";
+      }),
+    ],
+    [
+      "a literal phone number ARN as the SMS source",
+      mutate("text-back", (a) => {
+        a.Parameters.SourceEndpoint = {
+          Address: "arn:aws:connect:us-east-1:111122223333:phone-number/p1",
+          Type: "CONNECT_PHONENUMBER_ARN",
+        };
+      }),
+    ],
+    [
+      "a literal flow ARN as the SMS flow",
+      mutate("text-back", (a) => {
+        a.Parameters.ContactFlowArn =
+          "arn:aws:connect:us-east-1:111122223333:instance/i1/contact-flow/f1";
+      }),
+    ],
+    [
+      "a source endpoint that is not an object",
+      mutate("text-back", (a) => {
+        a.Parameters.SourceEndpoint = "${cdref:phonenumber:main-did}";
+      }),
+    ],
+    [
+      "a destination endpoint that is not an object",
+      mutate("text-from-attributes", (a) => {
+        a.Parameters.DestinationEndpoint = "+15555550101";
+      }),
+    ],
+    [
+      "a destination address that is not a string",
+      mutate("text-from-attributes", (a) => {
+        a.Parameters.DestinationEndpoint = { Address: 15555550101, Type: "TELEPHONE_NUMBER" };
+      }),
+    ],
+    [
+      "an initial message that is not an object",
+      mutate("text-back", (a) => {
+        a.Parameters.InitialSystemMessage = "Reply here.";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+
+  // The page writes the time limit as "An integer between 1 and 600"; the
+  // catalog's integerString is the console's spelling of every other
+  // seconds field, not an observation. Until complete-time-limit-number
+  // runs, the clause admits both (owner decision 3).
+  it("still accepts a connection time limit as the page's integer or the decimal string", () => {
+    for (const value of [30, "30", "$.Attributes.connectionLimit"]) {
+      const doc = mutate("place-call-via-sip", (a) => {
+        a.Parameters.ConnectionTimeLimitSeconds = value;
+      });
+      expect(validate(doc), String(value)).toBe(true);
+    }
   });
 });
 

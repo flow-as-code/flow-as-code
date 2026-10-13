@@ -83,6 +83,13 @@ import {
   VOICE_ID_THRESHOLD_MIN,
   TAG_LIMIT,
   TIME_LIMIT_EXCEEDED,
+  OUTBOUND_CALL_STATUSES,
+  OUTBOUND_CHAT_DESTINATION_TYPE,
+  OUTBOUND_CHAT_RELATED_CONTACT,
+  OUTBOUND_CHAT_SOURCE_TYPE,
+  OUTBOUND_CHAT_SUBTYPE,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   WAIT_TIMEOUT_MAX,
@@ -97,6 +104,7 @@ import type {
   MediaStreamingState,
   MetricOperator,
   MetricType,
+  OutboundCallStatus,
   PreviousParticipantState,
   ProficiencyLevel,
   ProfileLogicalOperator,
@@ -1005,6 +1013,133 @@ export class Wait extends Block {
       conditions.push({ target: this.config.onEvent![e]!, operator: "Equals", operands: [e] });
     }
     return wire(this.config.onError, errors, conditions);
+  }
+}
+
+/**
+ * Check call progress: branch on what an answering machine detector made of
+ * a placed outbound call. Each status named in `onStatus` gets its Equals
+ * condition, written in the page's order ("CallAnswered", "VoicemailBeep",
+ * "VoicemailNoBeep", "NotDetected"; only Equals, only those operands), and
+ * at least one is required. One error, "NoMatchingError if no condition
+ * matches", which is also the path when no status branch matches, so the
+ * class mirrors NextAction onto it as it does for Wait; rule 46's
+ * `status-no-next` and `status-next-elsewhere` probes put that to the
+ * service. No parameters. The page: "This action works with Connect
+ * Customer outbound campaigns only"; the admin guide adds customer-first
+ * callbacks, voice only, and every flow type. Deployable without campaigns
+ * enabled is what rule 46 asks; a live contact needs the campaigns gate
+ * (tasks/D04).
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
+ */
+export interface CheckOutboundCallStatusConfig {
+  id: string;
+  /** One path per status branched on, written in the page's order. */
+  onStatus: Partial<Record<OutboundCallStatus, Target>>;
+  /** NoMatchingError: no status branch matched, or the check failed. */
+  onError: Target;
+}
+
+export class CheckOutboundCallStatus extends Block {
+  readonly type = ActionType.CheckOutboundCallStatus;
+
+  constructor(private readonly config: CheckOutboundCallStatusConfig) {
+    super(config.id);
+    const unknown = Object.keys(config.onStatus).filter(
+      (k) => !(OUTBOUND_CALL_STATUSES as readonly string[]).includes(k),
+    );
+    if (unknown.length > 0) {
+      throw new Error(
+        `CheckOutboundCallStatus "${config.id}" branches only on ${OUTBOUND_CALL_STATUSES.join(", ")}, got ${unknown.join(", ")}.`,
+      );
+    }
+    if (this.statuses().length === 0) {
+      throw new Error(`CheckOutboundCallStatus "${config.id}" needs at least one status branch.`);
+    }
+  }
+
+  private statuses(): OutboundCallStatus[] {
+    return OUTBOUND_CALL_STATUSES.filter((s) => this.config.onStatus[s] !== undefined);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    return wire(
+      this.config.onError,
+      [[NO_MATCHING_ERROR, this.config.onError]],
+      this.statuses().map((s) => ({
+        target: this.config.onStatus[s]!,
+        operator: "Equals" as const,
+        operands: [s],
+      })),
+    );
+  }
+}
+
+/**
+ * Call phone number: place the outbound call a flow runs ahead of ("When a
+ * flow is run before an outbound call is made as part of an outbound
+ * contact, this action calls the outbound destination. If this action is
+ * not used, the first participant action implicitly completes the outbound
+ * call."). `callerId` is `CallerId.Number`, the caller ID to present, an
+ * E.164 number or a single JSONPath; `connectionTimeLimitSeconds` is 1 to
+ * 600, static or a JSONPath, written as a decimal string, and the page says
+ * it is "Only used for Voice Connector use case". The page's
+ * `VoiceConnector` form (a Chime voice connector) is not modeled (owner
+ * decision 4): a block carrying it stays a GenericBlock. Results and errors
+ * "None."; the admin guide's block "has no error branch", so the class
+ * wires `next` alone. Outbound whisper flows (the admin guide's block),
+ * voice only.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+ */
+export interface CompleteOutboundCallConfig {
+  id: string;
+  /** The caller ID number to present: E.164, or a single JSONPath. */
+  callerId?: string | JsonPath;
+  connectionTimeLimitSeconds?: number | JsonPath;
+  next: Target;
+}
+
+export class CompleteOutboundCall extends Block {
+  readonly type = ActionType.CompleteOutboundCall;
+
+  constructor(private readonly config: CompleteOutboundCallConfig) {
+    super(config.id);
+    const where = `CompleteOutboundCall "${config.id}"`;
+    if (
+      config.callerId !== undefined &&
+      (typeof config.callerId !== "string" || config.callerId === "")
+    ) {
+      throw new Error(`${where} callerId must be a non-empty number or JSONPath.`);
+    }
+    const t = config.connectionTimeLimitSeconds;
+    if (
+      typeof t === "number" &&
+      (!Number.isInteger(t) ||
+        t < OUTBOUND_CONNECTION_TIME_LIMIT_MIN ||
+        t > OUTBOUND_CONNECTION_TIME_LIMIT_MAX)
+    ) {
+      throw new Error(
+        `${where} connectionTimeLimitSeconds must be an integer between ${OUTBOUND_CONNECTION_TIME_LIMIT_MIN} and ${OUTBOUND_CONNECTION_TIME_LIMIT_MAX}, got ${t}.`,
+      );
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {};
+    if (this.config.callerId !== undefined) p.CallerId = { Number: this.config.callerId };
+    const t = this.config.connectionTimeLimitSeconds;
+    if (t !== undefined) p.ConnectionTimeLimitSeconds = typeof t === "number" ? String(t) : t;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, []);
   }
 }
 
@@ -2491,6 +2626,83 @@ export class CreateWisdomSession extends Block {
   }
 }
 
+/** An E.164 number: a plus, then one to fifteen digits, the first not 0. */
+const E164 = /^\+[1-9][0-9]{1,14}$/;
+const JSON_PATH = /^\$\.[A-Za-z0-9_$.[\]'-]+$/;
+
+/**
+ * Send message's SMS form: "Initiate an outbound chat contact to a customer.
+ * Only SMS chats are supported." `source` is the number it is sent from,
+ * `SourceEndpoint.Address` ("ConnectPhoneNumberArn of the SourceEndpoint"),
+ * a `phonenumber` reference or a JSONPath; `destination` the customer's
+ * number, `DestinationEndpoint.Address` ("E164 phone number"), static or a
+ * JSONPath; `flow` the flow the new chat runs, `ContactFlowArn`, a `flow`
+ * reference or a JSONPath. The class writes the page's constants: the
+ * endpoint types `CONNECT_PHONENUMBER_ARN` and `TELEPHONE_NUMBER` and the
+ * subtype `connect:SMS`. `initialMessage` is the optional
+ * `InitialSystemMessage.Content`, and `relatedContact: "CURRENT"` the
+ * optional `RelatedContact` ("Only supported value is CURRENT"), the admin
+ * guide's Link to contact. Results "None. No conditions are supported.";
+ * one error, the catch-all. Every flow type and channel (the admin guide's
+ * block); the contact it creates is an SMS chat, which needs SMS messaging
+ * set up on the instance. The admin guide's WhatsApp, email and template
+ * forms have no recorded key and stay generic.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
+ */
+export interface StartOutboundChatContactConfig extends Wired {
+  source: Ref<"phonenumber"> | JsonPath;
+  /** An E.164 number, or a single JSONPath. */
+  destination: string | JsonPath;
+  flow: Ref<"flow"> | JsonPath;
+  initialMessage?: string | JsonPath;
+  relatedContact?: typeof OUTBOUND_CHAT_RELATED_CONTACT;
+}
+
+export class StartOutboundChatContact extends Block {
+  readonly type = ActionType.StartOutboundChatContact;
+
+  constructor(private readonly config: StartOutboundChatContactConfig) {
+    super(config.id);
+    const where = `StartOutboundChatContact "${config.id}"`;
+    const d = config.destination;
+    if (typeof d !== "string" || !(E164.test(d) || JSON_PATH.test(d))) {
+      throw new Error(`${where} destination must be an E.164 number or a JSONPath.`);
+    }
+    const m = config.initialMessage;
+    if (m !== undefined && (typeof m !== "string" || m === "")) {
+      throw new Error(`${where} initialMessage must be non-empty text or a JSONPath.`);
+    }
+    if (
+      config.relatedContact !== undefined &&
+      config.relatedContact !== OUTBOUND_CHAT_RELATED_CONTACT
+    ) {
+      throw new Error(`${where} relatedContact may only be "${OUTBOUND_CHAT_RELATED_CONTACT}".`);
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const p: Record<string, unknown> = {
+      SourceEndpoint: { Address: this.config.source, Type: OUTBOUND_CHAT_SOURCE_TYPE },
+      DestinationEndpoint: {
+        Address: this.config.destination,
+        Type: OUTBOUND_CHAT_DESTINATION_TYPE,
+      },
+      ContactFlowArn: this.config.flow,
+      ContactSubtype: OUTBOUND_CHAT_SUBTYPE,
+    };
+    if (this.config.initialMessage !== undefined) {
+      p.InitialSystemMessage = { Content: this.config.initialMessage };
+    }
+    if (this.config.relatedContact !== undefined) p.RelatedContact = this.config.relatedContact;
+    return p;
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Customer Profiles (tasks/D03): the six actions of the console's Customer
 // profiles block. Each writes ProfileRequestData and ProfileResponseData,
@@ -3362,7 +3574,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 51.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 54.
  */
 export interface GenericBlockConfig {
   id: string;

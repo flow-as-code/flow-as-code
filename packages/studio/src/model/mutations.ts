@@ -46,6 +46,7 @@ import {
   MAX_ACTIONS_PER_FLOW,
   MESSAGES_INTERRUPTED,
   PARTICIPANT_NOT_FOUND,
+  OUTBOUND_CALL_STATUSES,
   WAIT_COMPLETED,
   WAIT_EVENTS,
   NO_MATCHING_ERROR,
@@ -692,17 +693,22 @@ function withoutWaitEvent(action: FlowAction, event: WaitEvent): FlowAction {
 }
 
 /**
- * A Wait's conditions in its block class's order: WaitCompleted first, then
- * the events in WAIT_EVENTS order, which is also the order withWaitEvent
- * writes into Events; the inverter holds both. Any other type keeps the
- * order it has.
+ * A type's conditions in its block class's order, for the two classes that
+ * write a fixed order. A Wait's: WaitCompleted first, then the events in
+ * WAIT_EVENTS order, which is also the order withWaitEvent writes into
+ * Events; the inverter holds both. A CheckOutboundCallStatus's: the page's
+ * order of the four statuses (OUTBOUND_CALL_STATUSES), so a status removed
+ * and added again, or edited into another, lands where the class writes it
+ * and the block stays typed. Any other type keeps the order it has.
  */
 function inConditionOrder(
   type: string,
   conditions: readonly ConditionTransition[],
 ): ConditionTransition[] {
-  if (type !== ActionType.Wait) return [...conditions];
-  const order: readonly string[] = [WAIT_COMPLETED, ...WAIT_EVENTS];
+  let order: readonly string[];
+  if (type === ActionType.Wait) order = [WAIT_COMPLETED, ...WAIT_EVENTS];
+  else if (type === ActionType.CheckOutboundCallStatus) order = OUTBOUND_CALL_STATUSES;
+  else return [...conditions];
   const rank = (c: ConditionTransition) => {
     const i =
       c.Condition.Operands.length === 1 ? order.indexOf(String(c.Condition.Operands[0])) : -1;
@@ -882,10 +888,13 @@ export const setCondition = guard(
         ...a,
         Transitions: {
           ...a.Transitions,
-          Conditions: (a.Transitions.Conditions ?? []).map((c, i) =>
-            i === index
-              ? { ...c, Condition: { ...condition, Operands: [...condition.Operands] } }
-              : c,
+          Conditions: inConditionOrder(
+            a.Type,
+            (a.Transitions.Conditions ?? []).map((c, i) =>
+              i === index
+                ? { ...c, Condition: { ...condition, Operands: [...condition.Operands] } }
+                : c,
+            ),
           ),
         },
       })),

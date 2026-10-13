@@ -1,0 +1,58 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "check-progress",
+      "messageIncludes": "CheckOutboundCallStatus does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "call-progress",
+    "connectType": "OUTBOUND_WHISPER",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "check-progress",
+      "Actions": [
+        {
+          "Identifier": "check-progress",
+          "Type": "CheckOutboundCallStatus",
+          "Parameters": {},
+          "Transitions": {
+            "NextAction": "done",
+            "Errors": [],
+            "Conditions": [
+              {
+                "NextAction": "done",
+                "Condition": {
+                  "Operator": "Equals",
+                  "Operands": [
+                    "CallAnswered"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Identifier": "done",
+          "Type": "EndFlowExecution",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "check-progress": {
+        "x": 0,
+        "y": 0
+      },
+      "done": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

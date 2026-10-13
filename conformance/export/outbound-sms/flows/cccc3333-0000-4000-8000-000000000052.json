@@ -1,0 +1,12 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "bye",
+  "Actions": [
+    {
+      "Identifier": "bye",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

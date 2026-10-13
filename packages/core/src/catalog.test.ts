@@ -18,6 +18,8 @@ import {
   CASE_SYSTEM_FIELDS,
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
   CALLBACK_DELAY_MIN,
@@ -160,6 +162,12 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
   Loop: { LoopCount: { min: LOOP_COUNT_MIN, max: LOOP_COUNT_MAX } },
   Wait: { TimeLimitSeconds: { min: WAIT_TIMEOUT_MIN, max: WAIT_TIMEOUT_MAX } },
   CreateTask: { DelaySeconds: { min: TASK_DELAY_MIN, max: TASK_DELAY_MAX } },
+  CompleteOutboundCall: {
+    ConnectionTimeLimitSeconds: {
+      min: OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
+      max: OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+    },
+  },
   // "up to five total"; at least one when the form is used.
   GetCustomerProfile: {
     "ProfileRequestData.SearchCriteria": {

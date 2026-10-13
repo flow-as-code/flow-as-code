@@ -1,0 +1,31 @@
+{
+  "description": "Rule 46: CheckOutboundCallStatus with the catalog's required set alone: no parameters, a NextAction and the catch-all, and no status condition (conditions are optional in the catalog); the accepted-set probe. Run on an instance without outbound campaigns, it is also the probe of an instance without campaigns.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CheckOutboundCallStatus",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

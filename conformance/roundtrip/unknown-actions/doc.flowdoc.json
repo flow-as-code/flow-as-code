@@ -12,10 +12,14 @@
         "Type": "StartOutboundChatContact",
         "Parameters": {
           "ContactFlowArn": "${cdref:flow:task-flow}",
-          "ContactSubtype": "connect:SMS",
+          "ContactSubtype": "connect:WhatsApp",
           "DestinationEndpoint": {
             "Address": "$.CustomerEndpoint.Address",
             "Type": "TELEPHONE_NUMBER"
+          },
+          "InitialTemplatedSystemMessage": {
+            "KnowledgeBaseId": "$.Attributes.knowledgeBaseId",
+            "MessageTemplateId": "$.Attributes.messageTemplateId"
           },
           "SourceEndpoint": {
             "Address": "$.Attributes.smsNumberArn",

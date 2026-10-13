@@ -38,6 +38,8 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   UpdateContactMediaStreamingBehavior: ["VOICE"],
   UpdateContactMediaProcessing: ["CHAT"],
   CreateWisdomSession: ["VOICE"],
+  CheckOutboundCallStatus: ["VOICE"],
+  CompleteOutboundCall: ["VOICE"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -158,6 +160,7 @@ const EXPECTED: Record<string, string[]> = {
     "QUEUE_TRANSFER",
     "MODULE",
   ],
+  CompleteOutboundCall: ["OUTBOUND_WHISPER", "MODULE"],
   UpdateContactMediaStreamingBehavior: [
     "CONTACT_FLOW",
     "CUSTOMER_QUEUE",
@@ -202,6 +205,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
   it("records the unrestricted actions rather than leaving a gap", () => {
     expect([...FLOW_TYPE_UNRESTRICTED].sort()).toEqual([
       "AssociateContactToCustomerProfile",
+      "CheckOutboundCallStatus",
       "Compare",
       "CreateCase",
       "CreateCustomerProfile",
@@ -215,6 +219,7 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
       "InvokeLambdaFunction",
       "Loop",
       "ResumeContact",
+      "StartOutboundChatContact",
       "TagContact",
       "UntagContact",
       "UpdateCase",

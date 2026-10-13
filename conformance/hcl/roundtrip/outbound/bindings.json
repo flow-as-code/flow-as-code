@@ -1,0 +1,4 @@
+{
+  "flow:sms-follow-up": "flowascode_contact_flow.sms_follow_up.arn",
+  "phonenumber:main-did": "aws_connect_phone_number.main_did.arn"
+}

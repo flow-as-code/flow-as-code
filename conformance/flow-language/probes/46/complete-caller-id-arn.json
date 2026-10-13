@@ -1,0 +1,30 @@
+{
+  "description": "Rule 46: CompleteOutboundCall with the claimed DID's ARN rather than its number as the static caller ID; decides whether the field is a number or could hold a phonenumber reference.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CompleteOutboundCall",
+        "Parameters": {
+          "CallerId": {
+            "Number": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:phone-number/{{DID_ID}}"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

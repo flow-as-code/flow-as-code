@@ -66,6 +66,9 @@ export const ActionType = {
   GetCase: "GetCase",
   UpdateCase: "UpdateCase",
   UpdateRoutingCriteria: "UpdateRoutingCriteria",
+  CheckOutboundCallStatus: "CheckOutboundCallStatus",
+  CompleteOutboundCall: "CompleteOutboundCall",
+  StartOutboundChatContact: "StartOutboundChatContact",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -122,6 +125,15 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   },
   // The keys of the fields to update, as CreateCase's.
   [ActionType.UpdateCase]: { "CaseRequestFields.*~": "casefield" },
+  // The number the SMS is sent from ("ConnectPhoneNumberArn of the
+  // SourceEndpoint"), nested, and the flow that runs the new chat
+  // ("ContactFlowArn of the flow to be executed for the new outbound
+  // chat"); the admin guide's Send message block sets each manually or
+  // dynamically, so a token or a JSONPath.
+  [ActionType.StartOutboundChatContact]: {
+    "SourceEndpoint.Address": "phonenumber",
+    ContactFlowArn: "flow",
+  },
 };
 
 /**
@@ -282,6 +294,16 @@ export const WITHOUT_CATCH_ALL: readonly string[] = [
   // rule 37).
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactrecordingbehavior.html
   ActionType.UpdateContactRecordingBehavior,
+  // Errors "None."; the admin guide's Call phone number block: "There is no
+  // error branch for the block. If a call is not successfully initiated,
+  // the flow ends and the agent is placed in an AfterContactWork (ACW)."
+  // Every published export of the block carries no error (actions.md, rule
+  // 46). Rule 37 found the service refusing NoMatchingError on
+  // UpdateContactRecordingBehavior, whose page also says "None";
+  // complete-with-catch-all puts the same question to this type.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+  ActionType.CompleteOutboundCall,
 ];
 
 /**
@@ -651,6 +673,18 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
   [ActionType.UpdateRoutingCriteria]: [...INBOUND, ...CUSTOMER_QUEUE, ...TRANSFER, ...IN_MODULE],
+  // The action page's Restrictions name no flow type: "This action can be
+  // used only when the contact is in the process of making an outbound
+  // call, but has not yet called the outbound number." The admin guide's
+  // Call phone number block: "Use this block to set the caller ID number
+  // for an outbound call in an Outbound Whisper flow", and its flow types
+  // list that one alone. The admin guide's reading is recorded, with a
+  // module by the note above IN_MODULE; rule 46's probes put every other
+  // flow type to the service, and a refusal makes the restriction the
+  // service's.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+  [ActionType.CompleteOutboundCall]: ["OUTBOUND_WHISPER", ...IN_MODULE],
 };
 
 /**
@@ -708,6 +742,20 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
   [ActionType.CreateWisdomSession]: ["VOICE"],
+  // The action page names no channel ("This action works with Connect
+  // Customer outbound campaigns only"); the admin guide's Check call progress
+  // block does: voice "Yes", chat, task and email "No - Error branch". It
+  // reads an answering machine's result on a placed call, which no other
+  // channel has, so the admin guide's table is recorded, as for
+  // ResumeContact (actions.md, rule 46).
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
+  [ActionType.CheckOutboundCallStatus]: ["VOICE"],
+  // The action page names no channel; the admin guide's Call phone number
+  // block: voice "Yes", chat, task and email "No". It places a call.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/call-phone-number.html
+  [ActionType.CompleteOutboundCall]: ["VOICE"],
 };
 
 /**
@@ -818,6 +866,24 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.GetCase,
   // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
   ActionType.UpdateCase,
+  // The action page's Restrictions name no flow type ("This action works with
+  // Connect Customer outbound campaigns only"); the admin guide's Check call
+  // progress block: "All flow types", with the note that it "functions only
+  // for the call types listed" (outbound campaigns and customer-first
+  // callbacks). Rule 46's probes put each flow type to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/check-call-progress.html
+  ActionType.CheckOutboundCallStatus,
+  // The action page's Restrictions are about the new contact ("only
+  // supports connect:SMS as the ContactSubtype", and the two endpoint
+  // types), not the flow type; the admin guide's Send message block lists
+  // every flow type with "Yes" (inbound, customer queue, customer hold,
+  // customer whisper, outbound whisper, agent hold, agent whisper, transfer
+  // to agent, transfer to queue, disconnect) and voice, chat, task and
+  // email each "Yes". Rule 46's probes put each flow type to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/send-message.html
+  ActionType.StartOutboundChatContact,
 ];
 
 /**
@@ -1168,6 +1234,45 @@ export const WAIT_TIMEOUT_MAX = 604_800;
 export const WAIT_COMPLETED = "WaitCompleted";
 export const WAIT_EVENTS = ["CustomerReturned", "BotParticipantDisconnected"] as const;
 export type WaitEvent = (typeof WAIT_EVENTS)[number];
+
+/**
+ * CheckOutboundCallStatus's run results, in the page's order: "Conditions
+ * are supported, but only the "Equals" operator is supported.
+ * "CallAnswered", "VoicemailBeep" , "VoicemailNoBeep" and "NotDetected"
+ * are the only supported operands."
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkoutboundcallstatus.html
+ */
+export const OUTBOUND_CALL_STATUSES = [
+  "CallAnswered",
+  "VoicemailBeep",
+  "VoicemailNoBeep",
+  "NotDetected",
+] as const;
+export type OutboundCallStatus = (typeof OUTBOUND_CALL_STATUSES)[number];
+
+/**
+ * CompleteOutboundCall.ConnectionTimeLimitSeconds: "Optional, Only used for
+ * Voice Connector use case. An integer between 1 and 600 (inclusive)
+ * representing the number of seconds to wait for the voice connector to
+ * answer before canceling the call. Can be set statically or dynamically."
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-completeoutboundcall.html
+ */
+export const OUTBOUND_CONNECTION_TIME_LIMIT_MIN = 1;
+export const OUTBOUND_CONNECTION_TIME_LIMIT_MAX = 600;
+
+/**
+ * StartOutboundChatContact's constants, each the one value its page allows:
+ * "This action only supports `connect:SMS` as the **ContactSubtype**
+ * currently", "only supports `CONNECT_PHONENUMBER_ARN` as the Type of
+ * **SourceEndpoint**", "only supports `TELEPHONE_NUMBER` as the Type of
+ * **DestinationEndpoint**", and RelatedContact's "Only supported value is
+ * CURRENT". The catalog records each as a single-value enum.
+ * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html
+ */
+export const OUTBOUND_CHAT_SUBTYPE = "connect:SMS";
+export const OUTBOUND_CHAT_SOURCE_TYPE = "CONNECT_PHONENUMBER_ARN";
+export const OUTBOUND_CHAT_DESTINATION_TYPE = "TELEPHONE_NUMBER";
+export const OUTBOUND_CHAT_RELATED_CONTACT = "CURRENT";
 
 /**
  * DistributeByPercentage draws "a random number between 1 and 100

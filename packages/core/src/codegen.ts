@@ -58,6 +58,13 @@ import {
   VOICE_ID_THRESHOLD_MIN,
   WAIT_COMPLETED,
   WAIT_EVENTS,
+  OUTBOUND_CALL_STATUSES,
+  OUTBOUND_CHAT_DESTINATION_TYPE,
+  OUTBOUND_CHAT_RELATED_CONTACT,
+  OUTBOUND_CHAT_SOURCE_TYPE,
+  OUTBOUND_CHAT_SUBTYPE,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MAX,
+  OUTBOUND_CONNECTION_TIME_LIMIT_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
   INPUT_MENU_ERRORS,
@@ -98,6 +105,9 @@ import {
   AssociateContactToCustomerProfile,
   CheckHoursOfOperation,
   CheckMetricData,
+  CheckOutboundCallStatus,
+  CompleteOutboundCall,
+  StartOutboundChatContact,
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
@@ -1479,6 +1489,95 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
+  // No parameters; one Equals branch per status, each status at most once
+  // and in the page's order, the catch-all, and NextAction mirroring it.
+  [ActionType.CheckOutboundCallStatus]: (a) => {
+    const t = a.Transitions;
+    const errors = t.Errors ?? [];
+    if (errors.length !== 1 || errors[0]!.ErrorType !== NO_MATCHING_ERROR) return undefined;
+    if (t.NextAction !== errors[0]!.NextAction) return undefined;
+    if (!paramKeysAre(a.Parameters, [])) return undefined;
+    const conditions = t.Conditions ?? [];
+    if (conditions.length === 0 || !conditions.every(isCondition)) return undefined;
+    const statuses: string[] = [];
+    for (const c of conditions) {
+      if (c.Condition.Operator !== "Equals" || c.Condition.Operands.length !== 1) return undefined;
+      statuses.push(cast<string>(c.Condition.Operands[0]));
+    }
+    const order = OUTBOUND_CALL_STATUSES.filter((s) => statuses.includes(s));
+    if (stableJson(order) !== stableJson(statuses)) return undefined;
+    const onStatus = new ObjV(
+      conditions.map((c) => [cast<string>(c.Condition.Operands[0]), c.NextAction]),
+    );
+    const config: Record<string, string> = {};
+    for (const c of conditions) config[cast<string>(c.Condition.Operands[0])] = c.NextAction;
+    return {
+      cls: "CheckOutboundCallStatus",
+      entries: [
+        ["id", a.Identifier],
+        ["onStatus", onStatus],
+        ["onError", errors[0]!.NextAction],
+      ],
+      block: new CheckOutboundCallStatus({
+        id: a.Identifier,
+        onStatus: cast<never>(config),
+        onError: errors[0]!.NextAction,
+      }),
+    };
+  },
+
+  // The caller ID and time limit form only: VoiceConnector (owner decision
+  // 4) and any other key stay generic. No error branch; NextAction alone.
+  [ActionType.CompleteOutboundCall]: (a, ctx) => {
+    const t = a.Transitions;
+    if (t.NextAction === undefined) return undefined;
+    if ((t.Errors ?? []).length !== 0 || (t.Conditions ?? []).length !== 0) return undefined;
+    const p = a.Parameters;
+    if (!paramKeysAre(p, [], ["CallerId", "ConnectionTimeLimitSeconds"])) return undefined;
+    const entries: [string, V][] = [["id", a.Identifier]];
+    const config: Record<string, unknown> = { id: a.Identifier };
+    if (p.CallerId !== undefined) {
+      const caller = p.CallerId;
+      if (!isStringMap(caller) || !paramKeysAre(caller, ["Number"])) return undefined;
+      const number = caller.Number!;
+      if (number === "") return undefined;
+      if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(number)) {
+        ctx.jsonPath = true;
+        entries.push(["callerId", new Raw(`jsonPath(${quoteString(number)})`)]);
+      } else {
+        entries.push(["callerId", number]);
+      }
+      config.callerId = number;
+    }
+    if (p.ConnectionTimeLimitSeconds !== undefined) {
+      const raw = p.ConnectionTimeLimitSeconds;
+      if (typeof raw !== "string") return undefined;
+      if (/^[1-9][0-9]*$/.test(raw)) {
+        const seconds = Number(raw);
+        if (
+          seconds < OUTBOUND_CONNECTION_TIME_LIMIT_MIN ||
+          seconds > OUTBOUND_CONNECTION_TIME_LIMIT_MAX
+        ) {
+          return undefined;
+        }
+        entries.push(["connectionTimeLimitSeconds", seconds]);
+        config.connectionTimeLimitSeconds = seconds;
+      } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) {
+        ctx.jsonPath = true;
+        entries.push(["connectionTimeLimitSeconds", new Raw(`jsonPath(${quoteString(raw)})`)]);
+        config.connectionTimeLimitSeconds = raw;
+      } else {
+        return undefined;
+      }
+    }
+    entries.push(["next", t.NextAction]);
+    return {
+      cls: "CompleteOutboundCall",
+      entries,
+      block: new CompleteOutboundCall(cast<never>({ ...config, next: t.NextAction })),
+    };
+  },
+
   [ActionType.DistributeByPercentage]: (a) => {
     const t = a.Transitions;
     if (Object.keys(a.Parameters).length !== 0) return undefined;
@@ -2629,6 +2728,70 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
         next: w.next,
         onError: w.onError,
       }),
+    };
+  },
+
+  // The SMS form: the page's constants as written, the source number and
+  // flow by reference or JSONPath, an E.164 or JSONPath destination, and
+  // the optional initial message and related contact; the admin guide's
+  // WhatsApp, email and template forms, and any other key, stay generic.
+  [ActionType.StartOutboundChatContact]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    const required = ["SourceEndpoint", "DestinationEndpoint", "ContactFlowArn", "ContactSubtype"];
+    if (!paramKeysAre(p, required, ["InitialSystemMessage", "RelatedContact"])) return undefined;
+    if (p.ContactSubtype !== OUTBOUND_CHAT_SUBTYPE) return undefined;
+    const source = p.SourceEndpoint;
+    const destination = p.DestinationEndpoint;
+    if (!isStringMap(source) || !paramKeysAre(source, ["Address", "Type"])) return undefined;
+    if (source.Type !== OUTBOUND_CHAT_SOURCE_TYPE) return undefined;
+    if (!isStringMap(destination) || !paramKeysAre(destination, ["Address", "Type"])) {
+      return undefined;
+    }
+    if (destination.Type !== OUTBOUND_CHAT_DESTINATION_TYPE) return undefined;
+    const sourceRef = refSource(source.Address, "phonenumber", ctx);
+    const flowRef = refSource(p.ContactFlowArn, "flow", ctx);
+    if (sourceRef === undefined || flowRef === undefined) return undefined;
+    const textOrPath = (value: string): V => {
+      if (!/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(value)) return value;
+      ctx.jsonPath = true;
+      return new Raw(`jsonPath(${quoteString(value)})`);
+    };
+    const to = destination.Address!;
+    if (!/^\+[1-9][0-9]{1,14}$/.test(to) && !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(to)) {
+      return undefined;
+    }
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["source", sourceRef],
+      ["destination", textOrPath(to)],
+      ["flow", flowRef],
+    ];
+    const config: Record<string, unknown> = {
+      id: a.Identifier,
+      source: source.Address,
+      destination: to,
+      flow: p.ContactFlowArn,
+    };
+    if (p.InitialSystemMessage !== undefined) {
+      const m = p.InitialSystemMessage;
+      if (!isStringMap(m) || !paramKeysAre(m, ["Content"]) || m.Content === "") return undefined;
+      entries.push(["initialMessage", textOrPath(m.Content!)]);
+      config.initialMessage = m.Content;
+    }
+    if (p.RelatedContact !== undefined) {
+      if (p.RelatedContact !== OUTBOUND_CHAT_RELATED_CONTACT) return undefined;
+      entries.push(["relatedContact", p.RelatedContact]);
+      config.relatedContact = p.RelatedContact;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "StartOutboundChatContact",
+      entries,
+      block: new StartOutboundChatContact(
+        cast<never>({ ...config, next: w.next, onError: w.onError }),
+      ),
     };
   },
 

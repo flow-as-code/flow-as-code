@@ -1,0 +1,41 @@
+{
+  "description": "Rule 46: CheckOutboundCallStatus with an Equals condition on Busy, which the page does not list (\"the only supported operands\").",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CheckOutboundCallStatus",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": [
+            {
+              "NextAction": "done",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Busy"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}
