@@ -10,7 +10,27 @@
 // GenericBlock.
 
 import type { FlowAction } from "@flow-as-code/core";
-import { ActionType, type ModeledActionType, holdsParticipant } from "@flow-as-code/core";
+import {
+  ActionType,
+  type ModeledActionType,
+  holdsParticipant,
+  ROUTING_COMPARISON_OPERATOR,
+} from "@flow-as-code/core";
+
+/**
+ * A new routing step's expression: one requirement, at the lowest level, on
+ * the admin guide's example attribute. The author names the instance's own
+ * predefined attribute in the editor.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+ */
+export const DEFAULT_ROUTING_EXPRESSION = {
+  AttributeCondition: {
+    ComparisonOperator: ROUTING_COMPARISON_OPERATOR,
+    Name: "Language",
+    ProficiencyLevel: 1,
+    Value: "English",
+  },
+} as const;
 
 export type PaletteCategory = "Interact" | "Set" | "Branch" | "Integrate" | "Terminate";
 
@@ -27,6 +47,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "Set",
   [ActionType.UpdateFlowLoggingBehavior]: "Set",
   [ActionType.UpdateContactRoutingBehavior]: "Set",
+  [ActionType.UpdateRoutingCriteria]: "Set",
   [ActionType.UpdateContactCallbackNumber]: "Set",
   [ActionType.UpdateFlowAttributes]: "Set",
   [ActionType.GetMetricData]: "Set",
@@ -111,6 +132,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "set-recording-analytics",
   [ActionType.UpdateFlowLoggingBehavior]: "set-logging",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
+  [ActionType.UpdateRoutingCriteria]: "set-routing-criteria",
   [ActionType.UpdateContactCallbackNumber]: "set-callback-number",
   [ActionType.UpdateFlowAttributes]: "set-flow-attributes",
   [ActionType.GetMetricData]: "get-metrics",
@@ -344,6 +366,12 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // stores the customer's callback number."
       // https://docs.aws.amazon.com/connect/latest/adminguide/set-callback-number.html
       return { CallbackNumber: "$.StoredCustomerInput" };
+    case ActionType.UpdateRoutingCriteria:
+      // One step of one requirement that never expires, on the admin guide's
+      // example attribute at the lowest level; the author names the
+      // instance's own predefined attribute.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+      return { RoutingCriteria: { Steps: [{ Expression: DEFAULT_ROUTING_EXPRESSION }] } };
     case ActionType.UpdateContactRoutingBehavior:
       // "The default priority for new contacts is 5", so a fresh block starts
       // where the contact already is and the author moves it from there.

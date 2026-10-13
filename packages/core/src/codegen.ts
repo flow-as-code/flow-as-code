@@ -78,8 +78,11 @@ import type {
   MediaDirection,
   MediaStreamingState,
   PreviousParticipantState,
+  ProficiencyLevel,
 } from "./actions.js";
 import type {
+  AndExpression,
+  AttributeConditionExpression,
   Block,
   CaseLink,
   DtmfBranch,
@@ -87,6 +90,8 @@ import type {
   MessageBody,
   PhoneNumberFormat,
   PhoneNumberValidation,
+  RoutingExpression,
+  RoutingStep,
   StoredInputValidation,
 } from "./blocks.js";
 import {
@@ -136,6 +141,10 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
+  UpdateRoutingCriteria,
+  and,
+  attributeCondition,
+  or,
   UpdateContactTextToSpeechVoice,
   UpdateCustomerProfile,
   UpdateFlowAttributes,
@@ -156,6 +165,7 @@ import { assertFlowDoc } from "./flowdoc.js";
 import { autoLayout } from "./layout.js";
 import { PACKAGE_NAMES } from "./package-names.js";
 import { parseToken } from "./refs.js";
+import type { JsonPath } from "./refs.js";
 import { displayWidth } from "./width.js";
 
 export interface CodegenOptions {
@@ -250,7 +260,21 @@ class ArrV {
   constructor(readonly items: V[]) {}
 }
 
-type V = string | number | boolean | null | Raw | ObjV | ArrV;
+/**
+ * A call to one of the builder's helpers with positional arguments,
+ * `and(attributeCondition("Language", "English", 4))`. Prettier keeps it on
+ * one line when it fits and otherwise puts each argument on a line of its
+ * own with a trailing comma; no argument is an object or an array, so it
+ * never hugs the last one.
+ */
+class CallV {
+  constructor(
+    readonly name: string,
+    readonly args: V[],
+  ) {}
+}
+
+type V = string | number | boolean | null | Raw | ObjV | ArrV | CallV;
 
 /** Arbitrary JSON (GenericBlock parameters) to the value model, keys sorted. */
 function toV(value: unknown): V {
@@ -324,6 +348,11 @@ const width = displayWidth;
 /** Single-line rendering, or undefined when the value must break. */
 function inlineV(v: V): string | undefined {
   if (v instanceof Raw) return v.code;
+  if (v instanceof CallV) {
+    const args = v.args.map(inlineV);
+    if (args.some((a) => a === undefined)) return undefined;
+    return `${v.name}(${args.join(", ")})`;
+  }
   if (typeof v === "string") return quoteString(v);
   if (typeof v === "number" || typeof v === "boolean" || v === null) return String(v);
   if (v instanceof ArrV) {
@@ -354,6 +383,10 @@ function printV(v: V, col: number, indent: string): string {
   if (v instanceof ArrV && v.items.length > 0) {
     const lines = v.items.map((i) => `${inner}${printV(i, width(inner), inner)},`);
     return `[\n${lines.join("\n")}\n${indent}]`;
+  }
+  if (v instanceof CallV && v.args.length > 0) {
+    const lines = v.args.map((a) => `${inner}${printV(a, width(inner), inner)},`);
+    return `${v.name}(\n${lines.join("\n")}\n${indent})`;
   }
   // Primitives and Raw fragments cannot break; emit even when over width.
   return flat ?? "";
@@ -395,6 +428,8 @@ interface Inversion {
 interface Ctx {
   refs: boolean;
   jsonPath: boolean;
+  /** Builder helpers the source calls (`attributeCondition`, `and`, `or`), to import. */
+  helpers: Set<string>;
 }
 
 function stableJson(value: unknown): string {
@@ -668,6 +703,73 @@ function invertProfileFields(
       }),
     ),
   };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * An object whose keys are exactly these. Order is not compared: a document's
+ * normal form sorts every object's keys (serialize), so the canonical bytes
+ * invertAction compares are the byte-for-byte test.
+ */
+function keysAre(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
+  return (
+    isPlainObject(value) &&
+    Object.keys(value).length === keys.length &&
+    keys.every((k) => Object.hasOwn(value, k))
+  );
+}
+
+/**
+ * A routing expression as the helper calls that write it, or undefined for a
+ * shape they do not write: a tag outside the three, a requirement whose keys
+ * are not the four in the page's order, a level outside the five numbers,
+ * an AND holding anything but requirements, an OR below the top. The helpers
+ * rebuild it and the caller holds the result to the source in canonical
+ * bytes, so a spelling they would not write stays generic.
+ */
+function routingSource(e: unknown, top: boolean, ctx: Ctx): CallV | undefined {
+  if (keysAre(e, ["AttributeCondition"])) {
+    const c = e.AttributeCondition;
+    if (!keysAre(c, ["Name", "Value", "ProficiencyLevel", "ComparisonOperator"])) {
+      return undefined;
+    }
+    if (typeof c.Name !== "string" || typeof c.Value !== "string") return undefined;
+    if (typeof c.ProficiencyLevel !== "number") return undefined;
+    ctx.helpers.add("attributeCondition");
+    return new CallV("attributeCondition", [c.Name, c.Value, c.ProficiencyLevel]);
+  }
+  const tag = top ? ["AndExpression", "OrExpression"] : ["AndExpression"];
+  for (const t of tag) {
+    if (!keysAre(e, [t]) || !Array.isArray(e[t])) continue;
+    const args: V[] = [];
+    for (const item of e[t] as unknown[]) {
+      const inner =
+        t === "AndExpression"
+          ? keysAre(item, ["AttributeCondition"])
+            ? routingSource(item, false, ctx)
+            : undefined
+          : routingSource(item, false, ctx);
+      if (inner === undefined) return undefined;
+      args.push(inner);
+    }
+    const name = t === "AndExpression" ? "and" : "or";
+    ctx.helpers.add(name);
+    return new CallV(name, args);
+  }
+  return undefined;
+}
+
+/** The expression the helper calls build, for the constructor and the byte check. */
+function routingValue(call: CallV): RoutingExpression {
+  const args = call.args.map((a) => (a instanceof CallV ? routingValue(a) : a));
+  if (call.name === "attributeCondition") {
+    return attributeCondition(args[0] as string, args[1] as string, args[2] as ProficiencyLevel);
+  }
+  if (call.name === "and") return and(...(args as AttributeConditionExpression[]));
+  return or(...(args as (AttributeConditionExpression | AndExpression)[]));
 }
 
 const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefined> = {
@@ -2684,6 +2786,67 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
   [ActionType.UpdateCustomerProfile]: (a) =>
     invertProfileFields(a, "UpdateCustomerProfile", (c) => new UpdateCustomerProfile(c)),
+  // RoutingCriteria holding only Steps: a JSONPath, or steps whose Expression
+  // the helpers write and whose Expiry is the decimal string the class
+  // writes. The whole RoutingCriteria as a JSONPath (an AWS sample's form,
+  // actions.md rule 45) has no place in the class and stays generic.
+  [ActionType.UpdateRoutingCriteria]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    if (!paramKeysAre(a.Parameters, ["RoutingCriteria"])) return undefined;
+    const criteria = a.Parameters.RoutingCriteria;
+    if (!keysAre(criteria, ["Steps"])) return undefined;
+    const source = criteria.Steps;
+    let steps: RoutingStep[] | JsonPath;
+    let stepsV: V;
+    if (typeof source === "string") {
+      if (!/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(source)) return undefined;
+      ctx.jsonPath = true;
+      steps = source as JsonPath;
+      stepsV = new Raw(`jsonPath(${quoteString(source)})`);
+    } else {
+      if (!Array.isArray(source)) return undefined;
+      steps = [];
+      const items: V[] = [];
+      for (const step of source as unknown[]) {
+        const expiry = isPlainObject(step) ? step.Expiry : undefined;
+        if (!keysAre(step, expiry === undefined ? ["Expression"] : ["Expiry", "Expression"])) {
+          return undefined;
+        }
+        const call = routingSource(step.Expression, true, ctx);
+        if (call === undefined) return undefined;
+        const expression = routingValue(call);
+        if (stableJson(expression) !== stableJson(step.Expression)) return undefined;
+        const entries: [string, V][] = [["expression", call]];
+        if (expiry === undefined) {
+          steps.push({ expression });
+        } else {
+          if (!keysAre(expiry, ["DurationInSeconds"])) return undefined;
+          const seconds = expiry.DurationInSeconds;
+          if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
+          steps.push({ expression, expiresAfterSeconds: Number(seconds) });
+          entries.push(["expiresAfterSeconds", Number(seconds)]);
+        }
+        items.push(new ObjV(entries));
+      }
+      stepsV = new ArrV(items);
+    }
+    return {
+      cls: "UpdateRoutingCriteria",
+      entries: [
+        ["id", a.Identifier],
+        ["steps", stepsV],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new UpdateRoutingCriteria({
+        id: a.Identifier,
+        steps,
+        next: w.next,
+        onError: w.onError,
+      }),
+    };
+  },
 
   // A casetemplate token, field keys that are system ids or casefield
   // tokens, the link, and the catch-all last. A literal template or field
@@ -3031,11 +3194,12 @@ function invertAction(a: FlowAction, ctx: Ctx): Inversion {
   const inverter = INVERTERS[a.Type];
   if (inverter !== undefined) {
     try {
-      const scratch: Ctx = { refs: false, jsonPath: false };
+      const scratch: Ctx = { refs: false, jsonPath: false, helpers: new Set() };
       const candidate = inverter(a, scratch);
       if (candidate !== undefined && stableJson(candidate.block.toAction()) === stableJson(a)) {
         ctx.refs = ctx.refs || scratch.refs;
         ctx.jsonPath = ctx.jsonPath || scratch.jsonPath;
+        for (const h of scratch.helpers) ctx.helpers.add(h);
         return candidate;
       }
     } catch {
@@ -3242,13 +3406,14 @@ export function codegen(doc: FlowDoc, options: CodegenOptions = {}): string {
     options.banner ??
     (options.previous === undefined ? undefined : extractBanner(options.previous));
 
-  const ctx: Ctx = { refs: false, jsonPath: false };
+  const ctx: Ctx = { refs: false, jsonPath: false, helpers: new Set() };
   const inversions = doc.content.Actions.map((a) => invertAction(a, ctx));
 
   const flowClass = doc.kind === "module" ? "FlowModule" : "Flow";
   const imports = new Set<string>([flowClass, ...inversions.map((i) => i.cls)]);
   if (ctx.refs) imports.add("Refs");
   if (ctx.jsonPath) imports.add("jsonPath");
+  for (const h of ctx.helpers) imports.add(h);
   const names = [...imports].sort();
 
   const importInline = `import { ${names.join(", ")} } from ${quoteString(spec)};`;

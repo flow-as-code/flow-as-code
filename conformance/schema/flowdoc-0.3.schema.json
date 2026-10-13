@@ -1975,6 +1975,59 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateRoutingCriteria"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "RoutingCriteria": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "Steps": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/$defs/jsonPath"
+                              },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "Expression": {
+                                      "$ref": "#/$defs/routingExpression"
+                                    },
+                                    "Expiry": {
+                                      "type": "object"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2082,6 +2135,27 @@
       },
       "then": {
         "pattern": "^\\$\\{cdref:casefield:[a-z0-9]+(-[a-z0-9]+)*\\}$"
+      }
+    },
+    "routingExpression": {
+      "description": "UpdateRoutingCriteria's Expression (docs/adr/0009): a tagged union whose AndExpression and OrExpression hold expressions of the same kind. Only the JSON types are held; the tags, the levels and the limits are the builder's until rule 45's probes show the service refusing them (owner decision 3).",
+      "type": "object",
+      "properties": {
+        "AttributeCondition": {
+          "type": "object"
+        },
+        "AndExpression": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/routingExpression"
+          }
+        },
+        "OrExpression": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/routingExpression"
+          }
+        }
       }
     }
   },

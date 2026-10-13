@@ -1,0 +1,106 @@
+{
+  "description": "Rule 45: An AndExpression of eight requirements, the admin guide's limit, beside routing-and-nine one over it.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateRoutingCriteria",
+        "Parameters": {
+          "RoutingCriteria": {
+            "Steps": [
+              {
+                "Expression": {
+                  "AndExpression": [
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 1,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 2,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 3,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 4,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 5,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 1,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 2,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 3,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

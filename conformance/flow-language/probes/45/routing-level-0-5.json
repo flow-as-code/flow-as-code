@@ -1,0 +1,46 @@
+{
+  "description": "Rule 45: ProficiencyLevel 0.5, below the five values.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateRoutingCriteria",
+        "Parameters": {
+          "RoutingCriteria": {
+            "Steps": [
+              {
+                "Expression": {
+                  "AttributeCondition": {
+                    "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                    "Value": "{{PREDEFINED_VALUE}}",
+                    "ProficiencyLevel": 0.5,
+                    "ComparisonOperator": "NumberGreaterOrEqualTo"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -20,11 +20,14 @@ import {
 } from "../model/capabilities.js";
 import { demotedIds } from "../model/demotion.js";
 import {
+  addRoutingStep,
   bodyIsOptional,
   fieldsFor,
   hasMessageBody,
   MESSAGE_BODY_KINDS,
   mergeTypedNames,
+  removeRoutingStep,
+  setRoutingStep,
   switchForm,
   type FieldDesc,
 } from "../model/inspectorSchema.js";
@@ -52,10 +55,12 @@ function JsonField({
   label,
   value,
   onCommit,
+  testId,
 }: {
   label: string;
   value: unknown;
   onCommit: (parsed: unknown) => void;
+  testId?: string;
 }) {
   const pretty = JSON.stringify(value ?? {}, null, 2);
   const [text, setText] = useState(pretty);
@@ -68,6 +73,7 @@ function JsonField({
         {label}
       </span>
       <textarea
+        data-testid={testId}
         className="h-28 w-full rounded border border-neutral-300 bg-white p-2 font-mono text-xs dark:border-neutral-600 dark:bg-neutral-800"
         value={editing ? text : pretty}
         onFocus={() => {
@@ -341,6 +347,148 @@ function NamesField({
 }
 
 /**
+ * UpdateRoutingCriteria's steps (docs/adr/0009): a JSONPath standing for the
+ * list, or the list one step at a time, each expression in the JSON editor
+ * and each expiry in seconds, empty for a step that never expires. A seconds
+ * value that is not a positive integer is refused here and kept on screen;
+ * every other change goes to the block class through the guard, which
+ * reports what it refuses (a step before the last without an expiry).
+ */
+function StepsField({
+  field,
+  whole,
+  value,
+  onCommit,
+  onCommitWhole,
+}: {
+  field: Extract<FieldDesc, { kind: "steps" }>;
+  /** The whole parameter `field.key` holds: a JSONPath here is the third form. */
+  whole: unknown;
+  /** `field.nested` inside it: the list, or a JSONPath to the list. */
+  value: unknown;
+  onCommit: (next: unknown) => void;
+  onCommitWhole: (next: unknown) => void;
+}) {
+  const [errors, setErrors] = useState<Record<number, string>>({});
+  const id = `steps-${field.key}`;
+  // The whole of RoutingCriteria as a JSONPath, the form an AWS sample
+  // writes (actions.md, rule 45): shown and edited as itself, and replaced
+  // only when the author chooses another form.
+  const criteria = typeof whole === "string";
+  const dynamic = !criteria && typeof value === "string";
+  const steps = !criteria && Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+  return (
+    <fieldset className="space-y-2" data-testid={id}>
+      <legend className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+        {field.label}
+      </legend>
+      <select
+        data-testid={`${id}-mode`}
+        aria-label={`${field.label} form`}
+        className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
+        value={criteria ? "criteria" : dynamic ? "jsonpath" : "list"}
+        onChange={(e) => {
+          const mode = e.target.value;
+          if (mode === "criteria") onCommitWhole("$.External.RoutingCriteria");
+          else onCommit(mode === "jsonpath" ? "$.External.routingSteps" : addRoutingStep([]));
+        }}
+      >
+        <option value="list">Steps set here</option>
+        <option value="jsonpath">Steps from a JSONPath</option>
+        <option value="criteria">All of the routing criteria from a JSONPath</option>
+      </select>
+      {criteria ? (
+        <TextField
+          label="Routing criteria (JSONPath)"
+          testId={`${id}-criteria`}
+          value={whole}
+          onCommit={(next) => onCommitWhole(next.trim())}
+        />
+      ) : dynamic ? (
+        <TextField
+          label="Steps (JSONPath)"
+          testId={`${id}-jsonpath`}
+          value={value}
+          onCommit={(next) => onCommit(next.trim())}
+        />
+      ) : (
+        steps.map((step, i) => {
+          const expiry = step.Expiry as { DurationInSeconds?: unknown } | undefined;
+          // The class writes a decimal string; a document may hold a number
+          // (the admin guide's Lambda examples), which is shown as it is.
+          const stored = expiry?.DurationInSeconds;
+          const seconds =
+            typeof stored === "string" ? stored : typeof stored === "number" ? String(stored) : "";
+          return (
+            <div
+              key={i}
+              data-testid={`${id}-${i}`}
+              className="space-y-1 rounded border border-neutral-200 p-2 dark:border-neutral-700"
+            >
+              <div className="flex items-center justify-between text-xs font-medium">
+                <span>{`Step ${i + 1}`}</span>
+                {steps.length > 1 && (
+                  <button
+                    type="button"
+                    data-testid={`${id}-${i}-remove`}
+                    title={`Remove step ${i + 1}`}
+                    className="rounded border border-neutral-300 px-1 text-xs dark:border-neutral-600"
+                    onClick={() => {
+                      const next = removeRoutingStep(steps, i);
+                      if (next !== undefined) onCommit(next);
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <JsonField
+                label="Expression"
+                testId={`${id}-${i}-expression`}
+                value={step.Expression}
+                onCommit={(parsed) => onCommit(setRoutingStep(steps, i, { expression: parsed }))}
+              />
+              <TextField
+                label="Expires after (seconds; empty never expires)"
+                testId={`${id}-${i}-expiry`}
+                value={seconds}
+                error={errors[i]}
+                onCommit={(next) => {
+                  const text = next.trim();
+                  if (text !== "" && !/^[1-9][0-9]*$/.test(text)) {
+                    setErrors((prev) => ({ ...prev, [i]: "Seconds must be a positive integer." }));
+                    return;
+                  }
+                  setErrors((prev) => {
+                    const rest = { ...prev };
+                    delete rest[i];
+                    return rest;
+                  });
+                  if (text === seconds) return;
+                  onCommit(
+                    setRoutingStep(steps, i, { seconds: text === "" ? null : Number(text) }),
+                  );
+                }}
+              />
+            </div>
+          );
+        })
+      )}
+      {!dynamic && !criteria && (
+        <button
+          type="button"
+          data-testid={`${id}-add`}
+          className="rounded border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-600"
+          onClick={() => onCommit(addRoutingStep(steps))}
+        >
+          Add step
+        </button>
+      )}
+    </fieldset>
+  );
+}
+
+/**
  * A free-text field's draft, reset whenever the document underneath it moves.
  *
  * These fields commit on blur, so between focus and blur the DOM holds text
@@ -590,7 +738,8 @@ export function Inspector() {
       field.kind === "text" ||
       field.kind === "ref" ||
       field.kind === "select" ||
-      field.kind === "json"
+      field.kind === "json" ||
+      field.kind === "steps"
         ? field.nested
         : undefined;
     const holder =
@@ -802,6 +951,17 @@ export function Inspector() {
           </label>
         );
       }
+      case "steps":
+        return (
+          <StepsField
+            key={`${selected}:${fieldKey}`}
+            field={field}
+            whole={stored}
+            value={value}
+            onCommit={(next) => mutate(() => write(next))}
+            onCommitWhole={(next) => mutate(() => setParam(doc, selected, field.key, next))}
+          />
+        );
       case "json":
         return (
           <JsonField

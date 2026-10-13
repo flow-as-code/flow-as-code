@@ -1,0 +1,63 @@
+{
+  "description": "Rule 45: A preferred-agent requirement written statically: AttributeCondition with ComparisonOperator \"Match\" and MatchCriteria.AgentsCriteria.AgentIds holding one user id, the shape of the UpdateContactRoutingData API's preferred-agent examples, which the action page does not document.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateRoutingCriteria",
+        "Parameters": {
+          "RoutingCriteria": {
+            "Steps": [
+              {
+                "Expression": {
+                  "AttributeCondition": {
+                    "ComparisonOperator": "Match",
+                    "MatchCriteria": {
+                      "AgentsCriteria": {
+                        "AgentIds": [
+                          "{{AGENT_ID}}"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "Expiry": {
+                  "DurationInSeconds": "30"
+                }
+              },
+              {
+                "Expression": {
+                  "AttributeCondition": {
+                    "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                    "Value": "{{PREDEFINED_VALUE}}",
+                    "ProficiencyLevel": 1,
+                    "ComparisonOperator": "NumberGreaterOrEqualTo"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

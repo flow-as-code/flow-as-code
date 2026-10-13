@@ -1,0 +1,70 @@
+{
+  "description": "Rule 45: UpdateRoutingCriteria without NextAction, removed alone.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateRoutingCriteria",
+        "Parameters": {
+          "RoutingCriteria": {
+            "Steps": [
+              {
+                "Expression": {
+                  "AndExpression": [
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 4,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 2,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    }
+                  ]
+                },
+                "Expiry": {
+                  "DurationInSeconds": "30"
+                }
+              },
+              {
+                "Expression": {
+                  "AttributeCondition": {
+                    "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                    "Value": "{{PREDEFINED_VALUE}}",
+                    "ProficiencyLevel": 1,
+                    "ComparisonOperator": "NumberGreaterOrEqualTo"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "Transitions": {
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

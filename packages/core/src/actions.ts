@@ -65,6 +65,7 @@ export const ActionType = {
   CreateCase: "CreateCase",
   GetCase: "GetCase",
   UpdateCase: "UpdateCase",
+  UpdateRoutingCriteria: "UpdateRoutingCriteria",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -642,7 +643,14 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
     ...TRANSFER,
     ...WHISPER,
     ...IN_MODULE,
-  ],
+  ], // "This action is supported on all channels and in only in Inbound flow,
+  // Customer Queue flow, Transfer to Agent flow, and Transfer to Queue flow
+  // types." The admin guide's Set routing criteria block lists the same four.
+  // Neither page names a module, which the note above IN_MODULE allows;
+  // rule 45's probes put a module and a whisper flow to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+  [ActionType.UpdateRoutingCriteria]: [...INBOUND, ...CUSTOMER_QUEUE, ...TRANSFER, ...IN_MODULE],
 };
 
 /**
@@ -1028,6 +1036,32 @@ export const CALCULATED_ATTRIBUTE_FIELDS = [
   "CalculatedAttributes._frequent_caller",
 ] as const;
 export const CALCULATED_ATTRIBUTE_PATTERNS: readonly string[] = ["^CalculatedAttributes\\.[^.]+$"];
+
+/**
+ * UpdateRoutingCriteria's expression (docs/adr/0009). The action page: an
+ * AttributeCondition's `Name` and `Value` are each "a string and has length
+ * constraints between 1-64"; `ProficiencyLevel` "is a float value. Valid
+ * values are: 1.0, 2.0, 3.0, 4.0 and 5.0"; `ComparisonOperator` "Valid
+ * values: NumberGreaterOrEqualTo". The admin guide's Set routing criteria
+ * block: "Up to eight attributes using the AND condition", "Up to three OR
+ * conditions in a routing step. Each requirement separated by an OR can have
+ * up to eight attributes", "OR expressions must be at the top level. You can
+ * place an AND inside an OR, but not the other way around", and "Each step of
+ * the criteria must have a timed expiration timer. The last step of the
+ * criteria can have a timed or non-expiring expiration timer." None of these
+ * is in the catalog or the schema: the expression is a `json` value, and
+ * rule 45's probes (pending) have not shown the service refusing any of them
+ * at create (owner decision 3). They are the builder's checks.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
+ */
+export const PROFICIENCY_LEVELS = [1, 2, 3, 4, 5] as const;
+export type ProficiencyLevel = (typeof PROFICIENCY_LEVELS)[number];
+export const ROUTING_COMPARISON_OPERATOR = "NumberGreaterOrEqualTo";
+export const PREDEFINED_ATTRIBUTE_TEXT_MIN = 1;
+export const PREDEFINED_ATTRIBUTE_TEXT_MAX = 64;
+export const ROUTING_AND_MAX = 8;
+export const ROUTING_OR_MAX = 3;
 
 /**
  * GetCustomerProfileObject.UseLatest, "true / false" on the page. The page

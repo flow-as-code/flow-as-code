@@ -620,6 +620,136 @@ describe("FlowDoc schema rejections: cases", () => {
   });
 });
 
+// The routing-criteria round-trip fixture is the subject for the 0.3 clause
+// of tasks/D07. The clause holds JSON types only: RoutingCriteria an object
+// or a JSONPath (an AWS sample writes the whole of it as one; actions.md,
+// rule 45), Steps a list of objects or a JSONPath, each step's Expiry an
+// object, and its Expression a routingExpression, which $defs makes
+// recursive through AndExpression and OrExpression. The tags, the five
+// levels, the operator and the admin guide's limits stay in the builder
+// until rule 45's probes (pending) show the service refusing them (owner
+// decision 3). Each case below fails if its part of the clause is deleted.
+describe("FlowDoc schema rejections: routing criteria", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/routing-criteria/doc.flowdoc.json");
+  type Step = { Expression: Record<string, unknown>; Expiry?: unknown };
+  const mutate = (id: string, f: (a: Action, steps: Step[]) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    const a = d.content.Actions.find((x) => x.Identifier === id) as unknown as Action;
+    const criteria = a.Parameters.RoutingCriteria as { Steps: unknown };
+    f(a, Array.isArray(criteria.Steps) ? (criteria.Steps as Step[]) : []);
+    return d;
+  };
+  const typed = "by-proficiency";
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "routing criteria that are neither an object nor a JSONPath",
+      mutate(typed, (a) => {
+        a.Parameters.RoutingCriteria = 30;
+      }),
+    ],
+    [
+      "steps written as one object rather than a list",
+      mutate(typed, (a, steps) => {
+        a.Parameters.RoutingCriteria = { Steps: steps[0] };
+      }),
+    ],
+    [
+      "steps written as text that is not a JSONPath",
+      mutate("from-lambda", (a) => {
+        a.Parameters.RoutingCriteria = { Steps: "routingSteps" };
+      }),
+    ],
+    [
+      "a step that is not an object",
+      mutate(typed, (_a, steps) => {
+        (steps as unknown[])[2] = "Language";
+      }),
+    ],
+    [
+      "an expression that is not an object",
+      mutate(typed, (_a, steps) => {
+        (steps[2] as { Expression: unknown }).Expression = "Language >= 1";
+      }),
+    ],
+    [
+      "an expiry that is not an object",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expiry = 30;
+      }),
+    ],
+    [
+      "a requirement that is not an object",
+      mutate(typed, (_a, steps) => {
+        steps[2]!.Expression = { AttributeCondition: "Language" };
+      }),
+    ],
+    [
+      "an AndExpression that is not a list",
+      mutate(typed, (_a, steps) => {
+        steps[1]!.Expression = { AndExpression: {} };
+      }),
+    ],
+    [
+      "an OrExpression that is not a list",
+      mutate(typed, (_a, steps) => {
+        steps[0]!.Expression = { OrExpression: "Language" };
+      }),
+    ],
+    [
+      "a requirement nested in an AND inside an OR that is not an object",
+      mutate(typed, (_a, steps) => {
+        const or = steps[0]!.Expression.OrExpression as { AndExpression: unknown[] }[];
+        or[0]!.AndExpression[1] = "Technology";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+
+  it("still accepts the whole of RoutingCriteria as a JSONPath, which no probe has refused", () => {
+    expect(
+      validate(
+        mutate("from-lambda", (a) => (a.Parameters.RoutingCriteria = "$.External.RoutingCriteria")),
+      ),
+    ).toBe(true);
+  });
+
+  it("still accepts a level, a tag, a preferred agent and a nesting the builder refuses, which no probe has refused", () => {
+    expect(
+      validate(
+        mutate(typed, (_a, steps) => {
+          steps[2]!.Expression = {
+            AndExpression: [
+              { OrExpression: [] },
+              { NotAttributeCondition: { Name: "Language", Value: "English" } },
+              {
+                AttributeCondition: {
+                  ComparisonOperator: "Match",
+                  MatchCriteria: { AgentsCriteria: { AgentIds: ["$.Attributes.agent"] } },
+                },
+              },
+              {
+                AttributeCondition: {
+                  ComparisonOperator: "Range",
+                  Name: "Language",
+                  ProficiencyLevel: 2.5,
+                  Value: "English",
+                },
+              },
+            ],
+          };
+        }),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("FlowDoc schema rejections: flow control", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/flow-control/doc.flowdoc.json");

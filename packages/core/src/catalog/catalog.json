@@ -2899,7 +2899,70 @@
     "UpdateRoutingCriteria": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html",
-      "modeled": false
+      "modeled": true,
+      "block": "update_routing_criteria",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "parameters": [
+        {
+          "key": "RoutingCriteria",
+          "attr": "routing_criteria",
+          "kind": "object",
+          "required": true,
+          "fields": [
+            {
+              "key": "Steps",
+              "attr": "steps",
+              "kind": "list",
+              "required": true,
+              "dynamic": true,
+              "of": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "Expression",
+                    "attr": "expression",
+                    "kind": "json",
+                    "required": true
+                  },
+                  {
+                    "key": "Expiry",
+                    "attr": "expiry",
+                    "kind": "object",
+                    "required": false,
+                    "fields": [
+                      {
+                        "key": "DurationInSeconds",
+                        "attr": "duration_in_seconds",
+                        "kind": "integerString",
+                        "required": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "Wait": {
       "category": "flowControl",

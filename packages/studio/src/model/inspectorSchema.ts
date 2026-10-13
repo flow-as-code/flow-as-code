@@ -43,6 +43,7 @@ import {
   WAIT_TIMEOUT_MIN,
 } from "@flow-as-code/core";
 import { MESSAGE_BODY_KEYS } from "./mutations.js";
+import { DEFAULT_ROUTING_EXPRESSION } from "./palette.js";
 
 export type FieldDesc =
   | {
@@ -176,6 +177,19 @@ export type FieldDesc =
       kind: "caseLink";
       key: string;
       label: string;
+    }
+  /**
+   * UpdateRoutingCriteria's `Steps`, inside the object `key` holds: a list
+   * shown one step at a time, each step's Expression in the JSON editor
+   * `json` fields use and its expiry as seconds (empty: never expires), or a
+   * JSONPath standing for the whole list (docs/adr/0009). The block class
+   * checks the expression; the guard reports what it refuses.
+   */
+  | {
+      kind: "steps";
+      key: string;
+      nested: string;
+      label: string;
     };
 
 /**
@@ -272,6 +286,61 @@ export function switchForm(
   for (const k of field.keeps ?? []) if (holder?.[k] !== undefined) object[k] = holder[k];
   for (const k of chosen.keys) object[k] = holder?.[k] ?? chosen.defaults[k];
   return object;
+}
+
+/** The seconds a step that must expire is given when a step is added after it. */
+export const DEFAULT_ROUTING_EXPIRY_SECONDS = 30;
+
+type RoutingStepValue = Record<string, unknown>;
+
+function stepList(steps: unknown): RoutingStepValue[] {
+  return Array.isArray(steps)
+    ? steps.map((s) =>
+        s !== null && typeof s === "object" && !Array.isArray(s)
+          ? { ...(s as RoutingStepValue) }
+          : {},
+      )
+    : [];
+}
+
+/**
+ * The steps after one is appended. Only the last step may never expire (the
+ * admin guide), so a last step without an expiry is given the default
+ * seconds before the new step, which never expires, goes after it.
+ */
+export function addRoutingStep(steps: unknown): RoutingStepValue[] {
+  const list = stepList(steps);
+  const last = list[list.length - 1];
+  if (last !== undefined && last.Expiry === undefined) {
+    last.Expiry = { DurationInSeconds: String(DEFAULT_ROUTING_EXPIRY_SECONDS) };
+  }
+  return [...list, { Expression: DEFAULT_ROUTING_EXPRESSION }];
+}
+
+/** The steps without step `index`; undefined when it is the only one, which the page requires. */
+export function removeRoutingStep(steps: unknown, index: number): RoutingStepValue[] | undefined {
+  const list = stepList(steps);
+  if (list.length <= 1 || index < 0 || index >= list.length) return undefined;
+  return list.filter((_, i) => i !== index);
+}
+
+/**
+ * The steps with step `index` changed: its Expression replaced, or its
+ * expiry set to these seconds (a decimal string, the class's spelling) or,
+ * for `null`, removed.
+ */
+export function setRoutingStep(
+  steps: unknown,
+  index: number,
+  change: { expression: unknown } | { seconds: number | null },
+): RoutingStepValue[] {
+  const list = stepList(steps);
+  const step = list[index];
+  if (step === undefined) return list;
+  if ("expression" in change) step.Expression = change.expression;
+  else if (change.seconds === null) delete step.Expiry;
+  else step.Expiry = { DurationInSeconds: String(change.seconds) };
+  return list;
 }
 
 /**
@@ -696,6 +765,18 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         },
       ];
     }
+    case ActionType.UpdateRoutingCriteria:
+      // The steps, one at a time: each expression in the JSON editor
+      // (attributeCondition, and and or in the .flow.ts), each expiry in
+      // seconds; or a JSONPath to a Lambda's list.
+      return [
+        {
+          kind: "steps",
+          key: "RoutingCriteria",
+          nested: "Steps",
+          label: "Routing steps",
+        },
+      ];
     case ActionType.GetCalculatedAttributesForCustomerProfile:
       // The profile id, and the calculated attributes to store: the two the
       // page names ticked, the domain's own typed.

@@ -1,0 +1,46 @@
+{
+  "description": "Rule 45: ProficiencyLevel as the string \"4.0\", the spelling a third-party library writes. The page's float spelling 4.0 as a JSON number cannot be sent: the runner serializes parsed JSON, which writes it 4, the integer spelling every other probe here sends.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateRoutingCriteria",
+        "Parameters": {
+          "RoutingCriteria": {
+            "Steps": [
+              {
+                "Expression": {
+                  "AttributeCondition": {
+                    "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                    "Value": "{{PREDEFINED_VALUE}}",
+                    "ProficiencyLevel": "4.0",
+                    "ComparisonOperator": "NumberGreaterOrEqualTo"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

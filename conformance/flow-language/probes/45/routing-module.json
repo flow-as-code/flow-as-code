@@ -1,0 +1,72 @@
+{
+  "description": "Rule 45: UpdateRoutingCriteria in a flow module, which neither page names.",
+  "type": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Settings": {},
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateRoutingCriteria",
+        "Parameters": {
+          "RoutingCriteria": {
+            "Steps": [
+              {
+                "Expression": {
+                  "AndExpression": [
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 4,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    },
+                    {
+                      "AttributeCondition": {
+                        "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                        "Value": "{{PREDEFINED_VALUE}}",
+                        "ProficiencyLevel": 2,
+                        "ComparisonOperator": "NumberGreaterOrEqualTo"
+                      }
+                    }
+                  ]
+                },
+                "Expiry": {
+                  "DurationInSeconds": "30"
+                }
+              },
+              {
+                "Expression": {
+                  "AttributeCondition": {
+                    "Name": "{{PREDEFINED_ATTRIBUTE}}",
+                    "Value": "{{PREDEFINED_VALUE}}",
+                    "ProficiencyLevel": 1,
+                    "ComparisonOperator": "NumberGreaterOrEqualTo"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

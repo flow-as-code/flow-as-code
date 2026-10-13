@@ -1,0 +1,88 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "routing",
+      "messageIncludes": "UpdateRoutingCriteria does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "proficiency-routing",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "routing",
+      "Actions": [
+        {
+          "Identifier": "routing",
+          "Type": "UpdateRoutingCriteria",
+          "Parameters": {
+            "RoutingCriteria": {
+              "Steps": [
+                {
+                  "Expiry": {
+                    "DurationInSeconds": "30"
+                  },
+                  "Expression": {
+                    "AndExpression": [
+                      {
+                        "AttributeCondition": {
+                          "ComparisonOperator": "NumberGreaterOrEqualTo",
+                          "Name": "Language",
+                          "ProficiencyLevel": 4,
+                          "Value": "English"
+                        }
+                      },
+                      {
+                        "AttributeCondition": {
+                          "ComparisonOperator": "NumberGreaterOrEqualTo",
+                          "Name": "Technology",
+                          "ProficiencyLevel": 2,
+                          "Value": "AWS Kinesis"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "Expression": {
+                    "AttributeCondition": {
+                      "ComparisonOperator": "NumberGreaterOrEqualTo",
+                      "Name": "Language",
+                      "ProficiencyLevel": 1,
+                      "Value": "English"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "routing": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}
