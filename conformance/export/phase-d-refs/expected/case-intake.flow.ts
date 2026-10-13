@@ -13,7 +13,7 @@ export function caseIntake(): Flow {
       id: "open-case",
       type: "CreateCase",
       parameters: {
-        CaseRequestFields: { "ffff0000-0000-4000-8000-000000000001": "high" },
+        CaseRequestFields: { "${cdref:casefield:priority}": "high" },
         CaseTemplateId: "${cdref:casetemplate:billing-dispute}",
         LinkContactToCase: "false",
       },

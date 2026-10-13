@@ -1,0 +1,38 @@
+{
+  "description": "Rule 44: CreateCase setting system fields the admin guide says Connect fills (case_id, created_datetime): whether the create refuses a key the catalog lists as a system field id.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseTemplateId": "{{CASE_TEMPLATE_ID}}",
+          "CaseRequestFields": {
+            "case_id": "$.Attributes.caseId",
+            "created_datetime": "$.Attributes.opened"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

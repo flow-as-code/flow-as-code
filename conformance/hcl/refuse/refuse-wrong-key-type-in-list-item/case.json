@@ -1,0 +1,3 @@
+{
+  "description": "A reference key of the wrong type standing as a list item where the catalog names every item a casefield reference (CaseResponseFields[]): an item there is a casefield reference key, the full token, or a literal holding neither (rule 20)."
+}

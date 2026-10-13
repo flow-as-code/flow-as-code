@@ -62,6 +62,9 @@ export const ActionType = {
   GetCustomerProfile: "GetCustomerProfile",
   GetCustomerProfileObject: "GetCustomerProfileObject",
   GetCalculatedAttributesForCustomerProfile: "GetCalculatedAttributesForCustomerProfile",
+  CreateCase: "CreateCase",
+  GetCase: "GetCase",
+  UpdateCase: "UpdateCase",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -105,6 +108,19 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   [ActionType.CreateTask]: { ContactFlowId: "flow", TaskTemplateId: "tasktemplate" },
   // The AI agents assistant ("May be specified statically or dynamically").
   [ActionType.CreateWisdomSession]: { WisdomAssistantArn: "assistant" },
+  // The case template, and every key of CaseRequestFields: a Cases field id
+  // is per domain, so a domain's own field is a casefield reference standing
+  // as the whole key (docs/adr/0008-case-field-ids.md). A system field id
+  // (CASE_SYSTEM_FIELDS) is the same on every domain and stays literal.
+  [ActionType.CreateCase]: { CaseTemplateId: "casetemplate", "CaseRequestFields.*~": "casefield" },
+  // The search fields' keys, as CreateCase's, and every item of the list
+  // of fields stored in the case namespace.
+  [ActionType.GetCase]: {
+    "CaseRequestFields.*~": "casefield",
+    "CaseResponseFields[]": "casefield",
+  },
+  // The keys of the fields to update, as CreateCase's.
+  [ActionType.UpdateCase]: { "CaseRequestFields.*~": "casefield" },
 };
 
 /**
@@ -195,6 +211,27 @@ export const PARTICIPANT_NOT_FOUND = "ParticipantNotFound";
  */
 export const MULTIPLE_FOUND_ERROR = "MultipleFoundError";
 export const NONE_FOUND_ERROR = "NoneFoundError";
+
+/**
+ * The Cases actions' linking branch: "ContactNotLinked - If you specify to
+ * link the contact to case, then this error branch will appear. It might be
+ * that the contact was not linked after the case is retrieved (partial
+ * success/partial failure)." The catalog marks it required when and only
+ * when `LinkContactToCase` is `"true"` (its `requiredWhenValue`), and the
+ * builder wires it on exactly those blocks.
+ * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+ */
+export const CONTACT_NOT_LINKED = "ContactNotLinked";
+
+/**
+ * GetCase's lookups: "MultipleFound - Multiple cases are found with the
+ * search criteria." and "NoneFound - No cases are found with the search
+ * criteria.", spelled without the Customer Profiles lookups' `Error`
+ * suffix, as the page and every published flow write them (rule 44).
+ * https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+ */
+export const CASE_MULTIPLE_FOUND = "MultipleFound";
+export const CASE_NONE_FOUND = "NoneFound";
 
 /**
  * ShowView's error when the view is not answered within
@@ -368,6 +405,28 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // type (actions.md, rule 43); only the catch-all is required.
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
   [ActionType.GetCalculatedAttributesForCustomerProfile]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
+  // The order of the console's export and of every published flow
+  // (actions.md, rule 44): ContactNotLinked first, the catch-all last. The
+  // builder wires ContactNotLinked only on a linking block (builderErrorsFor
+  // reads the catalog's requiredWhenValue), and only the catch-all is
+  // always required.
+  // https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+  [ActionType.CreateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
+  // ContactNotLinked, the two lookups and the catch-all last, the order of
+  // every published flow (rule 44); the page lists the catch-all first.
+  // Only the catch-all is always required: the page marks neither lookup
+  // "Must always be defined", the reading rule 43 gave the Customer
+  // Profiles lookups, although every published flow wires both.
+  // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+  [ActionType.GetCase]: [
+    CONTACT_NOT_LINKED,
+    CASE_MULTIPLE_FOUND,
+    CASE_NONE_FOUND,
+    NO_MATCHING_ERROR,
+  ],
+  // As CreateCase's: the order of every published flow (rule 44).
+  // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+  [ActionType.UpdateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
 };
 
 /**
@@ -741,6 +800,16 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   ActionType.GetCustomerProfileObject,
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
   ActionType.GetCalculatedAttributesForCustomerProfile,
+  // The Cases actions' pages: "None. This can be used in any type of flow
+  // and any channel."; the admin guide's Cases block: "All flows", and
+  // voice, chat, task and email each "Yes".
+  // https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+  ActionType.CreateCase,
+  // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+  ActionType.GetCase,
+  // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+  ActionType.UpdateCase,
 ];
 
 /**
@@ -968,6 +1037,66 @@ export const CALCULATED_ATTRIBUTE_PATTERNS: readonly string[] = ["^CalculatedAtt
  * 43's probes put the JSON boolean and "True" to the service.
  */
 export const PROFILE_USE_LATEST = ["true", "false"] as const;
+
+/**
+ * The Cases system field ids, in the admin guide's table order: the same on
+ * every Cases domain, so a flow names them literally ("For system fields,
+ * you can read the syntax and understand which field it refers to. For
+ * example: `$.Case.status`"), as every published flow does (actions.md,
+ * rule 44). A domain's own field has a UUID per domain and is a `casefield`
+ * reference (docs/adr/0008-case-field-ids.md). These are the catalog's
+ * `keys` on each `CaseRequestFields` and `CaseResponseFields`, held to this
+ * list by catalog.test.ts; a key at a `casefield` reference path is one of
+ * them or a token of that type. `reference_id` is listed as "coming later
+ * in 2026".
+ * https://docs.aws.amazon.com/connect/latest/adminguide/case-fields.html#system-case-fields
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html#cases-persist-fields
+ */
+export const CASE_SYSTEM_FIELDS = [
+  "assigned_queue",
+  "assigned_user",
+  "case_id",
+  "case_reason",
+  "created_by",
+  "customer_id",
+  "last_closed_datetime",
+  "created_datetime",
+  "last_updated_datetime",
+  "last_updated_user",
+  "reference_number",
+  "reference_id",
+  "status",
+  "summary",
+  "title",
+] as const;
+export type CaseSystemField = (typeof CASE_SYSTEM_FIELDS)[number];
+
+/**
+ * The Cases actions' flags, `"true" or "false"` on the pages, strings in
+ * the console's export and every published flow (`LinkContactToCase`,
+ * `GetLastUpdatedCase`).
+ * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+ */
+export const CASE_FLAGS = ["true", "false"] as const;
+
+/**
+ * GetCase's CaseResponseFields: "You can specify up to 10 Response fields on
+ * a Cases block. If you specify more than 10 and then publish the flow, the
+ * following error is displayed: Invalid or missing parameter data".
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html#create-case-tips
+ */
+export const CASE_RESPONSE_FIELDS_MAX = 10;
+
+/**
+ * Which contact a linking Cases block links: the admin guide's "Current
+ * contact is the contact on which the current flow is being executed" and
+ * "Related contact". The console's export writes `ContactToLink: "Current"`
+ * beside `LinkContactToCase: "true"` (rule 44); no page names the key, and
+ * older published flows link without it.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+ */
+export const CASE_CONTACTS_TO_LINK = ["Current", "Related"] as const;
+export type CaseContactToLink = (typeof CASE_CONTACTS_TO_LINK)[number];
 
 export const PROFILE_SEARCH_CRITERIA_MIN = 1;
 export const PROFILE_SEARCH_CRITERIA_MAX = 5;

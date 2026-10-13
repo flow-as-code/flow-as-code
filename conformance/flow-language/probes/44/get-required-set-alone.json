@@ -1,0 +1,34 @@
+{
+  "description": "Rule 44: GetCase with the catalog's required set alone: LinkContactToCase \"false\", GetLastUpdatedCase, a NextAction and the catch-all, with no search, no response fields and neither lookup branch; expected accepted, which also settles each optional parameter and branch.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "GetLastUpdatedCase": "true"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

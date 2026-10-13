@@ -22,6 +22,7 @@ import {
   collectRefs,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateCase,
   CreateCustomerProfile,
   CreateTask,
   CreateWisdomSession,
@@ -34,6 +35,7 @@ import {
   FlowModule,
   GenericBlock,
   GetCalculatedAttributesForCustomerProfile,
+  GetCase,
   GetCustomerProfile,
   GetCustomerProfileObject,
   GetMetricData,
@@ -60,6 +62,7 @@ import {
   TagContact,
   TransferContactToAgent,
   UntagContact,
+  UpdateCase,
   UpdateContactCallbackNumber,
   UpdateContactData,
   UpdateContactEventHooks,
@@ -2151,5 +2154,259 @@ describe("the Customer Profiles actions", () => {
     expect(
       () => new AssociateContactToCustomerProfile({ ...base, contactId: cast<never>(undefined) }),
     ).toThrow(/contactId must be a non-empty string or JSONPath/);
+  });
+});
+
+describe("the Cases actions", () => {
+  const expected = JSON.parse(fixture("conformance/roundtrip/cases/doc.flowdoc.json")) as FlowDoc;
+
+  it("build the cases fixture", () => {
+    const flow = new Flow({
+      name: "cases",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new GetCase({
+        id: "find-case",
+        lastUpdated: false,
+        fields: { customer_id: "$.Customer.ProfileARN", status: "open" },
+        response: ["case_id", "status", Refs.casefield("priority")],
+        link: { onContactNotLinked: "update-case" },
+        next: "update-case",
+        onError: "bye",
+        onMultipleFound: "find-latest",
+        onNoneFound: "open-case",
+      }),
+      new GetCase({
+        id: "find-latest",
+        lastUpdated: true,
+        customerId: "$.Customer.ProfileARN",
+        response: ["case_id"],
+        next: "update-case",
+        onError: "bye",
+        onMultipleFound: "bye",
+        onNoneFound: "open-case",
+      }),
+      new UpdateCase({
+        id: "update-case",
+        caseId: "$.Case.case_id",
+        fields: {
+          [Refs.casefield("priority")]: "high",
+          summary: "Called again: $.Attributes.reason",
+        },
+        link: { onContactNotLinked: "bye", contact: "Current" },
+        next: "bye",
+        onError: "bye",
+      }),
+      new CreateCase({
+        id: "open-case",
+        template: Refs.casetemplate("billing-dispute"),
+        fields: {
+          [Refs.casefield("priority")]: "high",
+          customer_id: "$.Customer.ProfileARN",
+          summary: "$.Attributes.summary",
+          title: "Billing dispute",
+        },
+        link: { onContactNotLinked: "log-case", contact: "Current" },
+        next: "log-case",
+        onError: "bye",
+      }),
+      new CreateCase({
+        id: "log-case",
+        template: Refs.casetemplate("call-log"),
+        fields: { [Refs.casefield("channel")]: "$.Channel", status: "open" },
+        next: "bye",
+        onError: "bye",
+      }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write CreateCase with ContactNotLinked first only when linking", () => {
+    const base = {
+      id: "c",
+      template: Refs.casetemplate("billing-dispute"),
+      next: "n",
+      onError: "e",
+    };
+    expect(new CreateCase({ ...base, link: { onContactNotLinked: "l" } }).toAction()).toEqual({
+      Identifier: "c",
+      Type: "CreateCase",
+      Parameters: {
+        LinkContactToCase: "true",
+        CaseTemplateId: "${cdref:casetemplate:billing-dispute}",
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "ContactNotLinked", NextAction: "l" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(new CreateCase({ ...base, fields: { status: "open" } }).toAction()).toEqual({
+      Identifier: "c",
+      Type: "CreateCase",
+      Parameters: {
+        LinkContactToCase: "false",
+        CaseTemplateId: "${cdref:casetemplate:billing-dispute}",
+        CaseRequestFields: { status: "open" },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuse CreateCase with a template or a field id that is not a reference or a system field", () => {
+    const base = {
+      id: "c",
+      template: Refs.casetemplate("billing-dispute"),
+      next: "n",
+      onError: "e",
+    };
+    expect(
+      () =>
+        new CreateCase({ ...base, template: cast<never>("f9b90c5f-5cc6-4d9b-a18d-fc14f601ef88") }),
+    ).toThrow(/template must be a casetemplate reference/);
+    expect(
+      () => new CreateCase({ ...base, template: cast<never>(Refs.tasktemplate("t")) }),
+    ).toThrow(/template must be a casetemplate reference/);
+    expect(
+      () => new CreateCase({ ...base, fields: { "12345678-aaaa-bbbb-cccc-123456789012": "x" } }),
+    ).toThrow(/neither a Cases system field id nor a casefield reference/);
+    expect(() => new CreateCase({ ...base, fields: { [Refs.queue("q")]: "x" } })).toThrow(
+      /neither a Cases system field id nor a casefield reference/,
+    );
+    expect(() => new CreateCase({ ...base, fields: { summary: cast<string>(1) } })).toThrow(
+      /must be a string or JSONPath/,
+    );
+    expect(
+      () =>
+        new CreateCase({
+          ...base,
+          link: { onContactNotLinked: "l", contact: cast<never>("Initial") },
+        }),
+    ).toThrow(/link contact must be one of Current, Related/);
+    expect(() => new CreateCase({ ...base, link: cast<never>({}) })).toThrow(
+      /link needs onContactNotLinked/,
+    );
+  });
+});
+
+describe("GetCase", () => {
+  const base = {
+    id: "g",
+    lastUpdated: true,
+    next: "n",
+    onError: "e",
+    onMultipleFound: "m",
+    onNoneFound: "z",
+  };
+
+  it("writes its lookups and the catch-all after ContactNotLinked, as the published flows do", () => {
+    expect(
+      new GetCase({
+        ...base,
+        customerId: "$.Customer.ProfileARN",
+        response: ["case_id", Refs.casefield("priority")],
+        link: { onContactNotLinked: "l", contact: "Current" },
+      }).toAction(),
+    ).toEqual({
+      Identifier: "g",
+      Type: "GetCase",
+      Parameters: {
+        LinkContactToCase: "true",
+        ContactToLink: "Current",
+        GetLastUpdatedCase: "true",
+        CustomerId: "$.Customer.ProfileARN",
+        CaseResponseFields: ["case_id", "${cdref:casefield:priority}"],
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "ContactNotLinked", NextAction: "l" },
+          { ErrorType: "MultipleFound", NextAction: "m" },
+          { ErrorType: "NoneFound", NextAction: "z" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(new GetCase({ ...base, lastUpdated: false }).toAction().Parameters).toEqual({
+      LinkContactToCase: "false",
+      GetLastUpdatedCase: "false",
+    });
+  });
+
+  it("refuses a response field that is not a reference or a system field, a repeat, or an eleventh", () => {
+    expect(
+      () => new GetCase({ ...base, response: ["12345678-aaaa-bbbb-cccc-123456789012"] }),
+    ).toThrow(/neither a Cases system field id nor a casefield reference/);
+    expect(() => new GetCase({ ...base, response: ["status", "status"] })).toThrow(
+      /repeats a field/,
+    );
+    const eleven = Array.from({ length: 11 }, (_, i) => Refs.casefield(`f${String(i)}`));
+    expect(() => new GetCase({ ...base, response: eleven })).toThrow(/at most 10/);
+    expect(() => new GetCase({ ...base, lastUpdated: cast<boolean>("true") })).toThrow(
+      /lastUpdated must be true or false/,
+    );
+    expect(() => new GetCase({ ...base, onNoneFound: cast<string>(undefined) })).toThrow(
+      /needs onMultipleFound and onNoneFound/,
+    );
+  });
+});
+
+describe("UpdateCase", () => {
+  it("writes the case id and fields, linking or not", () => {
+    expect(
+      new UpdateCase({
+        id: "u",
+        caseId: "$.Case.case_id",
+        fields: { status: "closed" },
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "u",
+      Type: "UpdateCase",
+      Parameters: {
+        LinkContactToCase: "false",
+        CaseId: "$.Case.case_id",
+        CaseRequestFields: { status: "closed" },
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    expect(
+      new UpdateCase({
+        id: "u",
+        caseId: "$.Attributes.caseId",
+        link: { onContactNotLinked: "l" },
+        next: "n",
+        onError: "e",
+      }).toAction().Transitions.Errors,
+    ).toEqual([
+      { ErrorType: "ContactNotLinked", NextAction: "l" },
+      { ErrorType: "NoMatchingError", NextAction: "e" },
+    ]);
+  });
+
+  it("refuses an update without a case id or with a literal domain field id", () => {
+    const base = { id: "u", caseId: "$.Case.case_id", next: "n", onError: "e" };
+    expect(() => new UpdateCase({ ...base, caseId: "" })).toThrow(
+      /caseId must be a non-empty string or JSONPath/,
+    );
+    expect(
+      () => new UpdateCase({ ...base, fields: { "12345678-aaaa-bbbb-cccc-123456789012": "x" } }),
+    ).toThrow(/neither a Cases system field id nor a casefield reference/);
   });
 });

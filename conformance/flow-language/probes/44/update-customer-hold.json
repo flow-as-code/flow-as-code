@@ -1,0 +1,46 @@
+{
+  "description": "Rule 44: UpdateCase in a customer hold flow.",
+  "type": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "status": "open"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "MessageParticipantIteratively",
+        "Parameters": {
+          "Messages": [
+            {
+              "Text": "Please hold."
+            }
+          ]
+        },
+        "Transitions": {
+          "Errors": [],
+          "Conditions": []
+        }
+      }
+    ]
+  }
+}

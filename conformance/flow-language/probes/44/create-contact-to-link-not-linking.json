@@ -1,0 +1,35 @@
+{
+  "description": "Rule 44: CreateCase with ContactToLink but LinkContactToCase \"false\": whether the key is refused without linking.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseTemplateId": "{{CASE_TEMPLATE_ID}}",
+          "ContactToLink": "Current"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

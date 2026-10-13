@@ -736,6 +736,79 @@ describe("exportInstance", () => {
     }
   });
 
+  // tasks/D06: a Cases flow in the published flows' shape holds its template
+  // and its domain fields by bare id (actions.md, rule 44), which no ARN
+  // matches. The inventory names them by id at the catalog's casetemplate
+  // and casefield paths, a system field (ListFields' System namespace) stays
+  // literal, and the console's transitions keep both blocks generic in code.
+  it("exports a Cases flow, its template and two domain fields named by id, to the cases goldens", async () => {
+    const client = new FixtureClient("cases");
+    const result = await exportInstance(client, { codegen: true, generator: "core@0.3" });
+    expect(result.failures).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    const [desk] = result.flows;
+    expect(desk!.doc.name).toBe("case-desk");
+    expect(desk!.doc.refs?.map((r) => r.token)).toEqual([
+      "${cdref:casefield:order-number}",
+      "${cdref:casefield:priority}",
+      "${cdref:casetemplate:billing-dispute}",
+    ]);
+    const open = desk!.doc.content.Actions.find((a) => a.Identifier === "open-case")!;
+    expect(Object.keys(open.Parameters.CaseRequestFields as object)).toEqual([
+      "${cdref:casefield:order-number}",
+      "${cdref:casefield:priority}",
+      "customer_id",
+      "summary",
+    ]);
+    expect(serialize(desk!.doc)).not.toContain("ffff0000-");
+    const golden = "conformance/export/cases/expected/case-desk";
+    expect(serialize(desk!.doc)).toBe(golden_(`${golden}.flowdoc.json`, serialize(desk!.doc)));
+    expect(desk!.code).toBe(golden_(`${golden}.flow.ts`, desk!.code!));
+  });
+
+  it("names a Cases id from a resource map bound to ids, and leaves an unlisted id literal", () => {
+    const content = read(
+      "conformance/export/cases/flows/cccc3333-0000-4000-8000-000000000051.json",
+    );
+    const reverse = reverseMapOfResourceMap({
+      "${cdref:casetemplate:billing-dispute}": "eeee9999-0000-4000-8000-000000000002",
+      "${cdref:casefield:priority}": "ffff0000-0000-4000-8000-000000000002",
+    });
+    const doc = exportFlow(content, reverse, { name: "case-desk", connectType: "CONTACT_FLOW" });
+    const open = doc.content.Actions.find((a) => a.Identifier === "open-case")!;
+    expect(open.Parameters.CaseTemplateId).toBe("${cdref:casetemplate:billing-dispute}");
+    expect(Object.keys(open.Parameters.CaseRequestFields as object)).toEqual([
+      "${cdref:casefield:priority}",
+      "customer_id",
+      "ffff0000-0000-4000-8000-000000000003",
+      "summary",
+    ]);
+    const find = doc.content.Actions.find((a) => a.Identifier === "find-case")!;
+    expect(find.Parameters.CaseResponseFields).toEqual([
+      "case_id",
+      "status",
+      "${cdref:casefield:priority}",
+    ]);
+    // A system field listed by an older inventory, without its namespace, is
+    // still never a reference.
+    const older = buildReverseMap({
+      ...readJson<InstanceInventory>("conformance/export/cases/inventory.json"),
+      casesDomain: {
+        domainArn: "arn:aws:cases:us-east-1:111122223333:domain/d",
+        domainId: "d",
+        templates: [],
+        fields: [
+          {
+            arn: "arn:aws:cases:us-east-1:111122223333:domain/d/field/summary",
+            id: "summary",
+            name: "Summary",
+          },
+        ],
+      },
+    });
+    expect(older.byCasesId).toBeUndefined();
+  });
+
   it("keeps an alias id when the inventory cannot name it", () => {
     // A client without listContactFlowModuleAliases, or an alias whose name is
     // not a slug: the invocation still exports, with the id as the alias.
@@ -1175,7 +1248,17 @@ describe("createConnectInventoryClient", () => {
         { templates: [{ templateArn: `${domain}/template/t2`, templateId: "t2", name: "Return" }] },
       ],
       ListFieldsCommand: [
-        { fields: [{ fieldArn: `${domain}/field/f1`, fieldId: "f1", name: "Priority" }] },
+        {
+          fields: [
+            { fieldArn: `${domain}/field/f1`, fieldId: "f1", name: "Priority" },
+            {
+              fieldArn: `${domain}/field/summary`,
+              fieldId: "summary",
+              name: "Summary",
+              namespace: "System",
+            },
+          ],
+        },
       ],
     });
     const client = createConnectInventoryClient({
@@ -1192,7 +1275,10 @@ describe("createConnectInventoryClient", () => {
         { arn: `${domain}/template/t1`, id: "t1", name: "Billing" },
         { arn: `${domain}/template/t2`, id: "t2", name: "Return" },
       ],
-      fields: [{ arn: `${domain}/field/f1`, id: "f1", name: "Priority" }],
+      fields: [
+        { arn: `${domain}/field/f1`, id: "f1", name: "Priority" },
+        { arn: `${domain}/field/summary`, id: "summary", name: "Summary", namespace: "System" },
+      ],
     });
     expect(connect.sent[0]?.input.IntegrationType).toBe("CASES_DOMAIN");
     expect(connect.sent[0]?.input.MaxResults).toBe(100);

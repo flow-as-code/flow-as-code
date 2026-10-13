@@ -1,0 +1,4 @@
+{
+  "code": "REF_KEY_MALFORMED",
+  "path": "action[open-case].create_case.case_request_fields.queue:front-desk"
+}

@@ -14,6 +14,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ActionType,
+  CASE_RESPONSE_FIELDS_MAX,
+  CASE_SYSTEM_FIELDS,
   CALLBACK_ATTEMPTS_MIN,
   CALLBACK_DELAY_MAX,
   TASK_DELAY_MAX,
@@ -166,6 +168,8 @@ const BOUNDS: Record<string, Record<string, { min?: number; max?: number }>> = {
     },
   },
   TagContact: { Tags: { max: TAG_LIMIT } },
+  // "You can specify up to 10 Response fields on a Cases block."
+  GetCase: { CaseResponseFields: { max: CASE_RESPONSE_FIELDS_MAX } },
   // The service refuses an empty key list (live check, tasks/B01).
   UntagContact: { TagKeys: { min: 1 } },
   // A nested field, keyed by its dotted path.
@@ -637,6 +641,28 @@ describe("the Customer Profiles names", () => {
   });
 });
 
+describe("the Cases system field ids", () => {
+  // The admin guide's table, hand-copied once into actions.ts and once into
+  // the catalog's `keys` on each parameter that names a case field; a key or
+  // item at a casefield reference path is one of them or a token.
+  const named = (type: string, key: string) => {
+    const entry = actionCatalog.actions[type] as unknown as {
+      parameters: { key: string; keys?: string[]; keyPatterns?: string[] }[];
+    };
+    const p = entry.parameters.find((x) => x.key === key)!;
+    return { keys: p.keys, keyPatterns: p.keyPatterns };
+  };
+
+  it.each([
+    ["CreateCase", "CaseRequestFields"],
+    ["GetCase", "CaseRequestFields"],
+    ["GetCase", "CaseResponseFields"],
+    ["UpdateCase", "CaseRequestFields"],
+  ])("agree for %s.%s", (type, key) => {
+    expect(named(type, key)).toEqual({ keys: [...CASE_SYSTEM_FIELDS], keyPatterns: undefined });
+  });
+});
+
 describe("the action catalog", () => {
   it("agrees with every table in actions.ts", () => {
     expect(catalogProblems(actionCatalog)).toEqual([]);
@@ -1080,15 +1106,20 @@ describe("catalogProblems is proven able to fail", () => {
   it("on an unmodeled entry carrying a key outside the whitelist", () => {
     expect(
       mutate((c) => {
-        (c.actions as Record<string, { block?: string }>).CreateCase!.block = "create_case";
+        (c.actions as Record<string, { block?: string }>).StartVoiceIdStream!.block =
+          "start_voice_id_stream";
       }),
     ).toContainEqual(
-      expect.stringContaining("CreateCase: unmodeled entry carries block,category,doc,modeled"),
+      expect.stringContaining(
+        "StartVoiceIdStream: unmodeled entry carries block,category,doc,modeled",
+      ),
     );
     // channels is whitelisted on an unmodeled entry (FlowDoc 0.3 vocabulary).
     expect(
       mutate((c) => {
-        (c.actions as Record<string, { channels?: string[] }>).CreateCase!.channels = ["VOICE"];
+        (c.actions as Record<string, { channels?: string[] }>).StartVoiceIdStream!.channels = [
+          "VOICE",
+        ];
       }),
     ).toEqual([]);
   });
@@ -1273,9 +1304,10 @@ describe("catalogProblems is proven able to fail", () => {
   });
 });
 
-// The readings of the FlowDoc 0.3 vocabulary, on entries the catalog does
-// not hold yet: the first type to carry each lands with its lint fixture
-// (CreateCase for requiredWhenValue, GetCustomerProfile for groups).
+// The readings of the FlowDoc 0.3 vocabulary, shown on a list of their own
+// and then on the catalog: CreateCase carries requiredWhenValue (tasks/D06,
+// with conformance/lint/error-branches' linking fixtures), GetCustomerProfile
+// groups.
 describe("requiredErrorsOf", () => {
   const errors: CatalogError[] = [
     { type: "Always", required: true, builder: true },
@@ -1310,7 +1342,33 @@ describe("requiredErrorsOf", () => {
     expect(
       requiredErrorsFor("UpdateContactRecordingAndAnalyticsBehavior", { ChatBehavior: {} }),
     ).toEqual(requiredErrorsOf(catalogErrors, { ChatBehavior: {} }));
-    expect(requiredErrorsFor("CreateCase", { LinkContactToCase: "true" })).toEqual([]);
+    expect(requiredErrorsFor("CreateCase", { LinkContactToCase: "true" })).toEqual([
+      "ContactNotLinked",
+      "NoMatchingError",
+    ]);
+    expect(requiredErrorsFor("CreateCase", { LinkContactToCase: "false" })).toEqual([
+      "NoMatchingError",
+    ]);
+    expect(requiredErrorsFor("CreateCase", { LinkContactToCase: "$.Attributes.link" })).toEqual([
+      "NoMatchingError",
+    ]);
+  });
+});
+
+// The builder wires a value-dependent branch only where the value holds
+// (tasks/D06): CreateCase's ContactNotLinked on a linking block and on no
+// other, the order of the console's export.
+describe("builderErrorsFor on a value-dependent branch", () => {
+  const caseAction = (LinkContactToCase: string) => ({
+    Type: "CreateCase",
+    Parameters: { LinkContactToCase },
+  });
+
+  it("offers ContactNotLinked first on a linking block and not otherwise", () => {
+    expect(builderErrorsFor(caseAction("true"))).toEqual(["ContactNotLinked", "NoMatchingError"]);
+    expect(builderErrorsFor(caseAction("false"))).toEqual(["NoMatchingError"]);
+    expect(builderErrorsFor(caseAction("$.Attributes.link"))).toEqual(["NoMatchingError"]);
+    expect(builderErrors("CreateCase")).toEqual(["ContactNotLinked", "NoMatchingError"]);
   });
 });
 

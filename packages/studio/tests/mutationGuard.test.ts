@@ -71,6 +71,7 @@ describe("every exported mutation is wrapped", () => {
       "moveNode",
       "removeCondition",
       "rewireEdge",
+      "setCaseLink",
       "setCondition",
       "setMessageBody",
       "setNumberParam",

@@ -32,6 +32,7 @@ import {
   TASK_DELAY_MAX,
   TASK_DELAY_MIN,
   CALCULATED_ATTRIBUTE_FIELDS,
+  CASE_SYSTEM_FIELDS,
   CALCULATED_ATTRIBUTE_PATTERNS,
   PROFILE_FIELD_PATTERNS,
   PROFILE_FIELDS,
@@ -144,6 +145,12 @@ export type FieldDesc =
       patterns: readonly string[];
       /** How a typed key is spelled, shown beside the field. */
       patternHint: string;
+      /**
+       * Keys that are references of this type, added through a reference
+       * picker beside the list (a Cases domain's own field, a `casefield`
+       * token standing as the key, docs/adr/0008-case-field-ids.md).
+       */
+      refType?: RefType;
     }
   /**
    * A list of names: those the page lists are ticked, not typed; any other
@@ -156,6 +163,19 @@ export type FieldDesc =
       names: readonly string[];
       patterns: readonly string[];
       patternHint: string;
+      /** Names that are references of this type, added through a picker, as on fieldMap. */
+      refType?: RefType;
+    }
+  /**
+   * A Cases block's link (tasks/D06): whether `LinkContactToCase` is "true"
+   * and, when it is, which contact (`ContactToLink`). Written by
+   * setCaseLink, which wires or removes the ContactNotLinked branch in the
+   * same mutation.
+   */
+  | {
+      kind: "caseLink";
+      key: string;
+      label: string;
     };
 
 /**
@@ -188,6 +208,27 @@ export function bodyIsOptional(type: string): boolean {
   return (
     type === ActionType.GetParticipantInput || type === ActionType.ConnectParticipantWithLexBot
   );
+}
+
+/**
+ * A Cases field map's keys or a response list's names: a system field id
+ * chosen from the admin guide's list, or a domain's own field as a casefield
+ * reference (docs/adr/0008-case-field-ids.md), picked or typed as the token.
+ */
+export const CASE_FIELD_NAMES = {
+  names: CASE_SYSTEM_FIELDS,
+  patterns: ["^\\$\\{cdref:casefield:[a-z0-9]+(?:-[a-z0-9]+)*\\}$"],
+  patternHint: "${cdref:casefield:<name>}",
+  refType: "casefield",
+} as const;
+
+/** The link, the request fields, and for CreateCase the template. */
+function caseLinkField(): FieldDesc {
+  return { kind: "caseLink", key: "LinkContactToCase", label: "Link contact to case" };
+}
+
+function caseRequestField(label: string): FieldDesc {
+  return { kind: "fieldMap", key: "CaseRequestFields", label, ...CASE_FIELD_NAMES };
 }
 
 const PROFILE_NAMES = {
@@ -673,6 +714,46 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           patterns: CALCULATED_ATTRIBUTE_PATTERNS,
           patternHint: "CalculatedAttributes.<name>",
         },
+      ];
+    case ActionType.CreateCase:
+      // The template is a casetemplate reference; request fields are system
+      // field ids chosen from the list or a domain's own fields picked as
+      // casefield references. Linking adds the ContactNotLinked branch.
+      // https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+      return [
+        caseLinkField(),
+        { kind: "ref", key: "CaseTemplateId", label: "Case template", refType: "casetemplate" },
+        caseRequestField("Request fields"),
+      ];
+    case ActionType.GetCase:
+      // The search fields and the stored response fields name case fields
+      // as CreateCase's do; at most ten response fields (the admin guide).
+      // https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+      return [
+        caseLinkField(),
+        {
+          kind: "select",
+          key: "GetLastUpdatedCase",
+          label: "Get last updated case",
+          options: ["true", "false"],
+        },
+        { kind: "text", key: "CustomerId", label: "Customer ID (or JSONPath)", optional: true },
+        caseRequestField("Search fields"),
+        {
+          kind: "names",
+          key: "CaseResponseFields",
+          label: "Response fields (stored under $.Case, at most 10)",
+          ...CASE_FIELD_NAMES,
+        },
+      ];
+    case ActionType.UpdateCase:
+      // "Case Id is the unique identifier of the case and the only field
+      // you can provide here"; the fields to update as CreateCase's.
+      // https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+      return [
+        caseLinkField(),
+        { kind: "text", key: "CaseId", label: "Case ID (or JSONPath)" },
+        caseRequestField("Fields to update"),
       ];
     case ActionType.CreateCustomerProfile:
     case ActionType.UpdateCustomerProfile:

@@ -1,0 +1,6 @@
+{
+  "casefield:channel": "awscc_connectcases_field.channel.field_id",
+  "casefield:priority": "awscc_connectcases_field.priority.field_id",
+  "casetemplate:billing-dispute": "awscc_connectcases_template.billing_dispute.template_id",
+  "casetemplate:call-log": "awscc_connectcases_template.call_log.template_id"
+}

@@ -187,7 +187,16 @@ match, a profile created with
 listed fields and a custom attribute, storing one of each, the contact
 associated with it by two JSONPath ids, and a custom attribute and an email
 address updated, the latest order and an asset by its identifier read,
-and a predefined and a custom calculated attribute read).
+and a predefined and a custom calculated attribute read); and a flow of
+the Cases actions (`cases`: the caller's open cases searched by system
+fields, linking the contact and storing a domain field by `casefield`
+reference beside two system fields, the last updated case read by customer
+id when several match, the case found updated with a domain field by
+reference and its summary, linking the current contact, and when none is
+found a case opened from a template
+reference with a domain field by reference and three system fields,
+linking the current contact, then a call log case opened without
+linking).
 
 An HCL case is a companion file and the document it stands for.
 `conformance/hcl/README.md` is the contract both the TypeScript writer and

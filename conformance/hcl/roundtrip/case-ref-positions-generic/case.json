@@ -1,0 +1,5 @@
+{
+  "description": "The writer's fallback at a reference key or item position (rule 11): a create_case whose case_request_fields key is the literal \"queue:front-desk\", a get_case whose case_response_fields item is the literal \"casetemplate:billing-dispute\", and an update_case whose key is the literal \"casefield:priority\" each read as a reference key, so each action is written generic and its parameters round-trip as the literals they are; the system field id summary and item case_id beside them, and the create's casetemplate token, are carried in the generic parameters. Awaits the provider release whose refs key pattern knows casetemplate (tasks/D10), so it has no validate directory yet.",
+  "doc": "case-ref-positions-generic.flowdoc.json",
+  "validate": "awaits-provider"
+}

@@ -149,6 +149,19 @@ names no assistant, and leaves an assistant ARN in flow content literal, which
 export reports as it does any ARN it cannot name. It needs
 `wisdom:ListAssistants` beside the Connect read permissions.
 
+`@aws-sdk/client-connectcases` is a third, read the same way: it finds the
+Cases domain the instance's `CASES_DOMAIN` integration association names and
+lists its templates and fields (Cases `ListTemplates` and `ListFields`), so
+a `CreateCase`, `GetCase` or `UpdateCase` exports its template and the
+domain's own fields as `casetemplate` and `casefield` references. A flow
+holds them by bare id, not ARN, and export names an id only where the
+catalog says a template or field stands; a system field such as `summary`
+stays literal, since it is the same on every domain. Without the package,
+or on an instance with no Cases domain, the ids stay literal, which the
+service accepts and codegen keeps as a generic block. It needs
+`connect:ListIntegrationAssociations`, `cases:ListTemplates` and
+`cases:ListFields` beside the Connect read permissions.
+
 Every other command works with no SDK installed and makes no network calls.
 
 ## init

@@ -1,0 +1,37 @@
+{
+  "description": "Rule 44: GetCase not linking, its required set plus a customer_id search (an optional CaseRequestFields), with a NextAction and the catch-all; expected accepted. get-required-set-alone is the required set alone.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "GetLastUpdatedCase": "true",
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

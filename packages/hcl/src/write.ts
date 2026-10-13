@@ -20,7 +20,15 @@ import {
   type FlowAction,
   type FlowDoc,
 } from "@flow-as-code/core";
-import { FLOW_RESOURCE, MODULE_RESOURCE, banner, isRefFieldValue } from "./contract.js";
+import {
+  FLOW_RESOURCE,
+  MODULE_RESOURCE,
+  banner,
+  isRefFieldValue,
+  refPositions,
+  writeRefOrLiteral,
+  type RefPosition,
+} from "./contract.js";
 import { format } from "./format.js";
 import { quote } from "./quote.js";
 import { readCarry, type Carry } from "./carry.js";
@@ -197,13 +205,18 @@ function action(
   const t = a.Transitions;
   if (t.NextAction !== undefined) out.push(`    next = ${quote(t.NextAction)}`);
   const entry = modeledEntry(a.Type);
-  if (entry !== undefined && accepts(a.Parameters, entry.parameters)) {
+  const positions = entry === undefined ? undefined : refPositions(entry);
+  if (entry !== undefined && accepts(a.Parameters, entry.parameters, positions)) {
     const byKey = new Map(entry.parameters.map((p) => [p.key, p]));
     const params = sortedEntries(a.Parameters);
     if (params.length === 0) out.push(`    ${entry.block} {}`);
     else {
       out.push(`    ${entry.block} {`);
-      for (const [k, v] of params) out.push(...value(3, byKey.get(k)!.attr, v, byKey.get(k)!));
+      for (const [k, v] of params) {
+        const p = byKey.get(k)!;
+        const at = positions?.get(k);
+        out.push(...(at === undefined ? value(3, p.attr, v, p) : positioned(3, p.attr, v, p, at)));
+      }
       out.push("    }");
     }
   } else {
@@ -251,13 +264,58 @@ function sortedEntries(o: Record<string, unknown>): [string, unknown][] {
 export function accepts(
   params: Record<string, unknown>,
   elems: readonly CatalogParameter[],
+  positions?: ReadonlyMap<string, RefPosition>,
 ): boolean {
   const byKey = new Map(elems.map((p) => [p.key, p]));
   for (const [k, v] of Object.entries(params)) {
     const e = byKey.get(k);
     if (e === undefined || !acceptsValue(v, e)) return false;
+    const at = positions?.get(k);
+    if (at?.keys !== undefined && isObject(v)) {
+      if (Object.keys(v).some((x) => writeRefOrLiteral(x, at.keys!) === undefined)) return false;
+    }
+    if (at?.items !== undefined && Array.isArray(v)) {
+      if (v.some((x) => typeof x === "string" && writeRefOrLiteral(x, at.items!) === undefined)) {
+        return false;
+      }
+    }
   }
   return elems.every((e) => !e.required || e.key in params);
+}
+
+/**
+ * A map whose keys, or a list of strings whose items, hold references
+ * (rule 11): each token written as its reference key, each literal as
+ * itself, a map's entries in byte order of the keys as written. `accepts`
+ * has already refused anything `writeRefOrLiteral` cannot write.
+ */
+function positioned(
+  depth: number,
+  name: string,
+  v: unknown,
+  e: CatalogElement,
+  at: RefPosition,
+): string[] {
+  const pad = "  ".repeat(depth);
+  if (e.kind === "map" && at.keys !== undefined) {
+    const o = v as Record<string, unknown>;
+    if (Object.keys(o).length === 0) return [`${pad}${name} = {}`];
+    const written = Object.entries(o)
+      .map(([k, x]) => [writeRefOrLiteral(k, at.keys!)!, x] as const)
+      .sort(([a], [b]) => byteOrder(a, b));
+    const out = [`${pad}${name} = {`];
+    for (const [k, x] of written)
+      out.push(...value(depth + 1, key(k), x, e.of ?? { kind: "string" }));
+    out.push(`${pad}}`);
+    return out;
+  }
+  if (e.kind === "list" && at.items !== undefined) {
+    const items = (v as unknown[]).map((x) =>
+      typeof x === "string" ? writeRefOrLiteral(x, at.items!)! : x,
+    );
+    return value(depth, name, items, e);
+  }
+  return value(depth, name, v, e);
 }
 
 function acceptsValue(v: unknown, e: CatalogElement): boolean {

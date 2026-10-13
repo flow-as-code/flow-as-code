@@ -104,6 +104,9 @@ The two differ, and the console name is what task A01 originally listed.
 | Customer profiles (Get profile) | `GetCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html) |
 | Customer profiles (Get profile object) | `GetCustomerProfileObject` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html) |
 | Customer profiles (Get calculated attributes) | `GetCalculatedAttributesForCustomerProfile` | interaction | [doc](https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html) |
+| Cases (Create case) | `CreateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/createcase.html) |
+| Cases (Get case) | `GetCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/getcase.html) |
+| Cases (Update case) | `UpdateCase` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html) |
 
 ## Reference-bearing parameters
 
@@ -129,6 +132,11 @@ is never interpolated into a longer string.
 | `CreateTask` | `ContactFlowId` | `flow` |
 | `CreateTask` | `TaskTemplateId` | `tasktemplate` (static: a token, never a JSONPath) |
 | `CreateWisdomSession` | `WisdomAssistantArn` | `assistant` |
+| `CreateCase` | `CaseTemplateId` | `casetemplate` |
+| `CreateCase` | `CaseRequestFields.*~` (every key) | `casefield` (a system field id stays literal; docs/adr/0008) |
+| `GetCase` | `CaseRequestFields.*~` (every key) | `casefield` (as `CreateCase`'s) |
+| `GetCase` | `CaseResponseFields[]` (every item) | `casefield` (a system field id stays literal) |
+| `UpdateCase` | `CaseRequestFields.*~` (every key) | `casefield` (as `CreateCase`'s) |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
 | `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
@@ -1713,6 +1721,203 @@ is read rather than when the type is modeled.
       `calc-no-profile-id`, and `calc-module`.
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
 
+44. Cases (tasks/D06; the Developer Guide pages read 2026-10-04 and again
+    2026-10-12 with the admin guide's Cases block and case fields pages).
+    The group's types are modeled from their pages and from flows AWS
+    publishes. **Probe pending**: the create sweep the evidence rule asks
+    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
+    AWS credentials had expired, and the Cases domain the sweep needs, with
+    its template and two fields, is created by a sandbox root that had not
+    been applied. Its inputs are kept in `probes/44/`, with `PENDING.md`
+    saying what the run needs. No console export of the block has been
+    taken in this repository (owner decision 8). In its place the stored
+    shape is read from flows AWS publishes, listed below at the commits read
+    on 2026-10-12, one of them a console export of every block. Until the
+    sweep, every required key, error, `next`, spelling and flow-type entry
+    below is that reading, and each bullet names the probes that settle it.
+    Each action page says "None. This can be used in any type of flow and
+    any channel.", and the admin guide's block lists "All flows" and voice,
+    chat, task and email each "Yes", so every type here is unrestricted and
+    carries no `channels`. What the flows show, beyond the pages:
+    `LinkContactToCase` and `GetLastUpdatedCase` are the strings `"true"`
+    and `"false"`; `CaseTemplateId` is a template's id, never its ARN (a
+    UUID in the step-by-step guide flows, and a CloudFormation parameter
+    described as "ID of the case template" in the Japan starter kit); every
+    `CaseRequestFields` key and `CaseResponseFields` item they write is a
+    system field id (`assigned_queue`, `assigned_user`, `case_id`,
+    `case_reason`, `created_datetime`, `customer_id`, `reference_number`,
+    `status`, `summary`, `title`), which the admin guide's case fields page
+    lists as the same on every domain, while a domain's own field is "a
+    UUID (unique ID)"; values are static, JSONPath, or text holding a
+    JSONPath (`"Current intent: $.Attributes.intent"`); `customer_id` is
+    read from `$.Customer.ProfileARN` (the admin guide: "the full customer
+    profile ARN"); and a linking block wires `ContactNotLinked` first, a
+    block that does not link never wires it. The console's export of every
+    block writes `ContactToLink: "Current"` beside `LinkContactToCase:
+    "true"`, the admin guide's choice of "Current contact" or "Related
+    contact", which no page names and the older flows omit. Field ids are
+    per domain, so a domain's own field is a `casefield` reference standing
+    as the whole key or item (docs/adr/0008-case-field-ids.md); a system
+    field id stays literal, and the catalog lists them as `keys`
+    (`CASE_SYSTEM_FIELDS` in `packages/core/src/actions.ts`). A literal
+    domain field id or template id, which the flows above write and the
+    service is expected to accept, still validates and round-trips, and
+    codegen leaves such a block generic; no lint reports it unless this
+    sweep shows the service validating ids at create (docs/adr/0008).
+    https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+    https://docs.aws.amazon.com/connect/latest/adminguide/case-fields.html
+    The published flows:
+    https://github.com/aws-samples/amazon-connect-step-by-step-guides-module-library/tree/1d0cf558d024600e6aa05aea3d7d93ffd425b547
+    (`modules/Cases/SBSGuides_Modules_Cases.json`,
+    `examples/AgentWorkspace/SBSGuides_Example_AgentWorkspace_Handler.json`,
+    `examples/AgentWorkspace/SBSGuides_Example_AgentWorkspace_Guide.json`),
+    https://github.com/aws-samples/sample-ai-enhanced-email-workflow/blob/90ef631c2452394bbb2ad6220bae34c93224ce30/contact-flows/EmailSuggestedResponseConfidenceScore.json,
+    https://github.com/aws-samples/sample-amazon-connect-customer-starter-kit-japan/blob/8fbd4e22cb056a6b5ced2caffce98a30aa40e751/amazon-connect-project/cfn_template/ac-pkg-phase3-contactflow-stack.yaml,
+    and the console export of every block,
+    https://github.com/aws-samples/sample-aicc-builder-for-amazon-connect-ai-agent/blob/e7d1ab65d505cbdfb0d22e1d9f47c68f963a65b1/knowledge-base-docs/contact-flow/_reference-console-export-all-blocks.json.
+    - `CreateCase` "Creates a new case using an existing case template."
+      `"LinkContactToCase": "true" or "false"`, `"CaseTemplateId": A
+      templateId aligned with the existing case templateName`,
+      `"CaseRequestFields": An optional map of case fields to be set. Keys
+      should be fields from Cases domain. Values can be static or
+      dynamic.`; Results "None."; errors "ContactNotLinked - If you specify
+      to link the contact to case, then this error branch will appear."
+      and "NoMatchingError - An error was encountered while trying to find
+      the case." The admin guide's block: "You must provide a case
+      template", the template's required fields must be given, "You must
+      specify the customer to create a case", and the branches are
+      Success, Contact not linked and Error. The flows above hold four
+      blocks of the type, each with a template id and `customer_id`,
+      `status` and `title`, and the console export one with an empty
+      template. The catalog records `LinkContactToCase` as a required
+      `enum` of `"true"` and `"false"`, `ContactToLink` as an optional
+      `enum` of `"Current"` and `"Related"`, `CaseTemplateId` as a required
+      `casetemplate` reference, and `CaseRequestFields` as an optional
+      `map` whose `keys` are the system field ids and whose keys are a
+      `casefield` reference path (`CaseRequestFields.*~`).
+      `ContactNotLinked` is the first `requiredWhenValue` in the catalog:
+      required when `LinkContactToCase` is `"true"` and not otherwise, and
+      wired by the builder on exactly those blocks, before the catch-all,
+      as the flows wire it (`conformance/lint/error-branches/`
+      `fail-create-case-linking-without-contact-not-linked`,
+      `pass-create-case-not-linking`, `pass-create-case-link-from-attribute`).
+      The catch-all is required and `next` required. The class writes
+      `ContactToLink` only when linking, and a block carrying it without
+      linking stays generic. Planned probes: `create-required` (the
+      catalog's required set alone, with no request fields, no
+      `ContactToLink` and no `ContactNotLinked`; expected accepted, which
+      also settles `CaseRequestFields`' `required: false`; run before the
+      Cases domain is associated, it is also the probe of an instance with
+      no Cases domain), `create-linking`
+      (expected accepted), `create-linking-no-contact-not-linked` and
+      `create-not-linking-contact-not-linked` (`ContactNotLinked` removed
+      with linking `"true"`, and wired with `"false"`),
+      `create-no-catch-all` and `create-no-next` (each a removal alone),
+      `create-contact-to-link`, `create-contact-to-link-related` and
+      `create-contact-to-link-not-linking` (the export's key and its second
+      value), `create-fields` (the domain's text and single-select fields
+      by id beside system fields), `create-missing-field` and
+      `create-missing-template` (whether the create validates either id),
+      `create-template-arn` and `create-field-arn` (an ARN in place of the
+      id), `create-template-jsonpath`, `create-no-template`,
+      `create-no-link-flag` (the required `LinkContactToCase` removed
+      alone), `create-link-boolean`, `create-read-only-field` (system fields
+      the admin guide says Connect fills, `case_id` and `created_datetime`,
+      set by the flow: the catalog lists every system id as a key and
+      refuses none), and `create-module` and `create-customer-hold` (all
+      flow types).
+      https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+    - `GetCase` "Searches all existing cases with the provided customer ID.
+      Add request fields to filter by case fields. Specify the case fields
+      to be returned in the response to persist in the context."
+      `LinkContactToCase`, `"GetLastUpdatedCase": "true" or "false", You
+      can specify to get only the last updated case for any search
+      criteria.`, `"CustomerId": "Customer's Id", Search all cases for this
+      customer Id.`, `CaseRequestFields` ("An optional map of cases request
+      fields") and `"CaseResponseFields": [ ] An optional list of field
+      names that should be persisted in the case namespace.`; Results
+      "None."; errors "NoMatchingError", "ContactNotLinked", "MultipleFound
+      - Multiple cases are found with the search criteria." and "NoneFound
+      - No cases are found with the search criteria.", spelled without the
+      `Error` suffix the Customer Profiles lookups carry. The admin guide's
+      block: "You must provide at least one search criteria. Otherwise this
+      block will take the Error branch.", "You can specify up to 10
+      Response fields on a Cases block. If you specify more than 10 and
+      then publish the flow, the following error is displayed: Invalid or
+      missing parameter data", and a second action, Get case id, which
+      takes a "Contact to search" (current, initial, task, previous or
+      related contact) under a key no page or flow records, so a block in
+      that form stays generic. The flows above hold four blocks of the
+      type, none with `CustomerId`: each searches by `CaseRequestFields`
+      (`customer_id`, `case_id`, `title`, `status`), stores system fields,
+      and wires `ContactNotLinked` (when linking), `MultipleFound`,
+      `NoneFound` and the catch-all, in that order. The catalog records
+      `LinkContactToCase` and `ContactToLink` as `CreateCase`'s,
+      `GetLastUpdatedCase` as a required `enum` of `"true"` and `"false"`,
+      `CustomerId` as an optional `stringOrJsonPath`, `CaseRequestFields`
+      as `CreateCase`'s, and `CaseResponseFields` as an optional `list` of
+      strings with `max` 10 whose `keys` are the system field ids and whose
+      items are a `casefield` reference path (`CaseResponseFields[]`). The
+      four errors are wired by the builder in the flows' order;
+      `ContactNotLinked` is required when linking, the catch-all always,
+      and neither lookup, which the page does not mark "Must always be
+      defined" (rule 43's reading of the Customer Profiles lookups), although
+      every flow wires both (`pass-get-case-catch-all-only`,
+      `fail-get-case-linking-without-contact-not-linked`). The bound of 10
+      is in the catalog and the class, not the schema, until
+      `get-eleven-response-fields` shows the service refusing an eleventh.
+      Planned probes: `get-required-set-alone` (the catalog's required set
+      alone, with no search, no response fields and neither lookup branch;
+      expected accepted, which also settles each optional parameter and
+      branch, and the admin guide's "at least one search criteria" as a
+      run-time rule), `get-required` and `get-all-branches` (expected
+      accepted), `get-linking` (expected accepted),
+      `get-linking-no-contact-not-linked` and
+      `get-not-linking-contact-not-linked`, `get-no-catch-all`,
+      `get-no-multiple-found`, `get-no-none-found` and `get-no-next` (each a
+      removal alone), `get-response-fields`, `get-eleven-response-fields`
+      and `get-missing-response-field`, `get-customer-id` (the page's
+      parameter, which no flow writes), `get-no-link-flag` and
+      `get-no-last-updated-flag` (each required enum removed alone),
+      `get-repeated-response-field` (the class refuses a repeat, which no
+      page states), `get-reference-id-field` (the system field the admin
+      guide lists as "coming later in 2026"), `get-contact-to-link`, `get-error-suffix`
+      (the Customer Profiles spellings), and `get-module` and
+      `get-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+    - `UpdateCase` "Updates an existing case by providing the case's id and
+      the fields that should be updated." `LinkContactToCase`, `"CaseId":
+      the unique identifier of the case` and `"CaseRequestFields": An
+      optional map of case fields to be updated`; Results "None."; errors
+      `ContactNotLinked` and the catch-all, as `CreateCase`'s. The admin
+      guide's block: "Add a Get case block before an Update case", "Case Id
+      is the unique identifier of the case and the only field you can
+      provide here. Other fields will not work and produce errors.", "You
+      must provide an update to at least one Request field. Otherwise, this
+      block takes the Error branch.", and the branches Success, Contact not
+      linked and Error. The flows above hold four blocks of the type, each
+      linking, with `CaseId` read from `$.Case.case_id` or an attribute and
+      system fields to update (`status`, `summary`, `assigned_user`,
+      `case_reason`), each wiring `ContactNotLinked` and the catch-all in
+      that order. The catalog records `LinkContactToCase` and
+      `ContactToLink` as `CreateCase`'s, `CaseId` as a required
+      `stringOrJsonPath`, and `CaseRequestFields` as `CreateCase`'s, its
+      keys a `casefield` reference path; the transitions are `CreateCase`'s
+      (`fail-update-case-linking-without-contact-not-linked`). Planned
+      probes: `update-required-set-alone` (the catalog's required set
+      alone, with no request fields; expected accepted, which also settles
+      `CaseRequestFields`' `required: false` and the admin guide's "at
+      least one Request field" as a run-time rule), `update-required` and
+      `update-linking` (expected accepted),
+      `update-linking-no-contact-not-linked` and
+      `update-not-linking-contact-not-linked`, `update-no-catch-all` and
+      `update-no-next` (each a removal alone), `update-no-link-flag` and
+      `update-no-case-id` (each required key removed alone),
+      `update-domain-fields` and `update-missing-field`,
+      `update-contact-to-link`, and `update-module` and
+      `update-customer-hold`.
+      https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -1810,6 +2015,15 @@ GetCalculatedAttributesForCustomerProfile { ProfileRequestData: { ProfileId },  
                            ProfileResponseData: ("CalculatedAttributes._average_hold_time"
                                                  | "CalculatedAttributes._frequent_caller"
                                                  | CalculatedAttributes.<name>)[] }
+CreateCase               { LinkContactToCase: "true" | "false", ContactToLink?: "Current" | "Related",   // the export's key, linking only
+                           CaseTemplateId: casetemplate,
+                           CaseRequestFields?: { [system field id | casefield]: string } }   // static or a JSONPath
+GetCase                  { LinkContactToCase, ContactToLink?, GetLastUpdatedCase: "true" | "false",
+                           CustomerId?,   // static or a JSONPath
+                           CaseRequestFields?: { [system field id | casefield]: string },   // the search
+                           CaseResponseFields?: (system field id | casefield)[] }   // at most 10, stored under $.Case
+UpdateCase               { LinkContactToCase, ContactToLink?, CaseId,   // static or a JSONPath ($.Case.case_id)
+                           CaseRequestFields?: { [system field id | casefield]: string } }
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from
@@ -1933,7 +2147,13 @@ malformed use:
   `required` or `requiredWhenKey`. `requiredErrorsFor` reads it, so
   error-branches and the provider's port report the branch missing on
   exactly those actions; a JSONPath in the parameter requires nothing, since
-  the value is decided at run time.
+  the value is decided at run time. Since 2026-10-12 (tasks/D06)
+  `builderErrorsFor` reads it as well: a branch carrying it is the
+  builder's, and the studio's to offer, only on an action holding the value,
+  so `CreateCase` wires `ContactNotLinked` on a linking block and on no
+  other. It is not a `shapes` entry with `forbids`: conditional-shape would
+  then report the branch on a block that does not link, which no page and
+  no probe says the service refuses (rule 44).
 - A constraint's `groups`, in place of `keys`: alternatives that are each
   several keys (`GetCustomerProfile`'s `IdentifierName` and `IdentifierValue`
   pair against `SearchCriteria`; `GetCustomerProfileObject`'s `UseLatest`
@@ -1950,7 +2170,10 @@ malformed use:
   can be named. No entry uses it yet: D06's `CreateCase` is to name
   `CaseRequestFields.*~` with the `casefield` type (docs/adr/0008). `readPath` returns a hit per key whose
   value is the key string, at the path `A.<key>~`, so export, lint and the
-  studio read keys through the table they read values through.
+  studio read keys through the table they read values through. A map whose
+  keys are a reference path may also carry `keys` (since tasks/D06): a key
+  there is one of them, literal (`CaseRequestFields`' Cases system field
+  ids, which every domain shares), or a token of the path's type.
 
 Attribute names are the mechanical `snake_case` of the Flow language key
 (`packages/core/src/hcl-names.ts`): `PromptId` is `prompt_id`,
@@ -1970,7 +2193,7 @@ the 49 recorded on 2026-08-31, and rechecked 2026-10-05, matching), plus 4
 documented only in the Administrator Guide, plus 1 seen only in a console
 export. Beside it, not in it, 5 console blocks have no documented Type at
 all and enter the count only when an export names one. The builder models
-47 of the 61. Everything not in the modeled set above parses to a
+50 of the 61. Everything not in the modeled set above parses to a
 GenericBlock and round-trips verbatim. That is what makes a small modeled
 set survivable. The `conformance/roundtrip/unknown-actions` fixture holds
 only unmodeled types (with tokens inside their parameters) so passthrough
@@ -1996,14 +2219,19 @@ in `UpdateCase`'s `CaseRequestFields` (D06's table: `LinkContactToCase`
 `"false"`, `CaseId` a JSONPath, and the system field id `summary`, a key the
 Cases system defines on every domain and AWS's published flows write
 literally, so the document needs no `casefield` token); D06 models that
-type and re-authors the fixture again.
+type and re-authors the fixture again. On 2026-10-12, when D06 modeled
+`UpdateCase`, the queue token moved to the `Value` of an attribute
+condition in `UpdateRoutingCriteria`'s first routing step (D07's page
+shape, with the condition's `Name` and `Value`, the two string keys, and
+neither the float `ProficiencyLevel` nor `Expiry`, whose stored forms are
+unrecorded); D07 models that type and re-authors the fixture again.
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 47      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 50      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 0       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 0       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 47      |                                                             |
+| Denominator             | 61    | 50      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the

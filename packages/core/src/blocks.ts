@@ -22,7 +22,13 @@ import {
   CALLBACK_DELAY_MAX,
   CALLBACK_DELAY_MIN,
   CALLBACK_NUMBER_NOT_DIALABLE,
+  CASE_CONTACTS_TO_LINK,
+  CASE_MULTIPLE_FOUND,
+  CASE_NONE_FOUND,
+  CASE_RESPONSE_FIELDS_MAX,
+  CASE_SYSTEM_FIELDS,
   CHANNEL_MISMATCH,
+  CONTACT_NOT_LINKED,
   DTMF_DIGITS,
   EVENT_HOOKS,
   INVALID_CALLBACK_NUMBER,
@@ -77,6 +83,8 @@ import {
   WAIT_TIMEOUT_MIN,
 } from "./actions.js";
 import type {
+  CaseContactToLink,
+  CaseSystemField,
   DtmfDigit,
   EventHook,
   MediaDirection,
@@ -94,6 +102,7 @@ import type {
 import type { Condition, ConditionOperator, FlowAction, Transitions } from "./flowdoc.js";
 import { isValidIdentifier } from "./flowdoc.js";
 import type { JsonPath, Ref } from "./refs.js";
+import { parseToken } from "./refs.js";
 
 /** A transition target: another block, or its Identifier. */
 export type Target = string | Block;
@@ -2637,6 +2646,275 @@ export class AssociateContactToCustomerProfile extends Block {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Cases (tasks/D06): the console's Cases block, one action per Type. Each
+// links the contact to the case when `LinkContactToCase` is "true", and then
+// wires ContactNotLinked before its other branches, as the console's export
+// and every published flow do (actions.md, rule 44). A case field is named
+// by id: a system field by its literal id (CASE_SYSTEM_FIELDS), a domain's
+// own field by a `casefield` reference standing as the whole key or list
+// item, because its UUID differs per domain (docs/adr/0008-case-field-ids.md).
+// https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+// ---------------------------------------------------------------------------
+
+/**
+ * Linking the contact to the case. `onContactNotLinked` is the
+ * ContactNotLinked branch, which "will appear" when linking is on ("the
+ * contact was not linked after the case is retrieved (partial
+ * success/partial failure)"); `contact` is the admin guide's Current or
+ * Related contact, written as `ContactToLink` when given, as the console's
+ * export writes it. Absent, the block writes `LinkContactToCase: "false"`
+ * and no ContactNotLinked branch.
+ * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+ */
+export interface CaseLink {
+  onContactNotLinked: Target;
+  contact?: CaseContactToLink;
+}
+
+/**
+ * A case field key: a `casefield` reference for a domain's own field, or a
+ * system field id. Computed keys carry the token, so a field map reads
+ * `{ [Refs.casefield("priority")]: "high", summary: "$.Attributes.summary" }`.
+ */
+export type CaseFieldKey = Ref<"casefield"> | CaseSystemField;
+
+/** Whether a key or item names a case field: a system id or a casefield token. */
+function isCaseFieldId(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  if ((CASE_SYSTEM_FIELDS as readonly string[]).includes(value)) return true;
+  const entry = parseToken(value);
+  return entry !== undefined && entry.type === "casefield" && entry.alias === undefined;
+}
+
+/** CaseRequestFields: case field keys, each value static text or a JSONPath. */
+function requireCaseFields(where: string, fields: Readonly<Record<string, string>>): void {
+  if (fields === null || typeof fields !== "object" || Array.isArray(fields)) {
+    throw new Error(`${where} fields must be an object of case field ids to values.`);
+  }
+  for (const [key, value] of Object.entries(fields)) {
+    if (!isCaseFieldId(key)) {
+      throw new Error(
+        `${where} field "${key}" is neither a Cases system field id nor a casefield reference.`,
+      );
+    }
+    if (typeof value !== "string") {
+      throw new Error(`${where} field "${key}" must be a string or JSONPath.`);
+    }
+  }
+}
+
+function requireCaseLink(where: string, link: CaseLink | undefined): void {
+  if (link === undefined) return;
+  if (link.onContactNotLinked === undefined) {
+    throw new Error(`${where} link needs onContactNotLinked.`);
+  }
+  if (link.contact !== undefined && !CASE_CONTACTS_TO_LINK.includes(link.contact)) {
+    throw new Error(
+      `${where} link contact must be one of ${CASE_CONTACTS_TO_LINK.join(", ")}, got "${String(link.contact)}".`,
+    );
+  }
+}
+
+/** LinkContactToCase and, when linking names one, ContactToLink. */
+function caseLinkParameters(link: CaseLink | undefined): Record<string, unknown> {
+  if (link === undefined) return { LinkContactToCase: "false" };
+  return {
+    LinkContactToCase: "true",
+    ...(link.contact === undefined ? {} : { ContactToLink: link.contact }),
+  };
+}
+
+/** ContactNotLinked first when linking, as the console writes it. */
+function caseLinkErrors(link: CaseLink | undefined): [string, Target][] {
+  return link === undefined ? [] : [[CONTACT_NOT_LINKED, link.onContactNotLinked]];
+}
+
+/**
+ * "Creates a new case using an existing case template." `template` is the
+ * case template (`CaseTemplateId`, "A templateId aligned with the existing
+ * case templateName"), a `casetemplate` reference because a template id
+ * belongs to one Cases domain. `fields` is `CaseRequestFields`, "An optional
+ * map of case fields to be set. Keys should be fields from Cases domain.
+ * Values can be static or dynamic."; the admin guide adds that a case needs
+ * its template's required fields and the customer (`customer_id`, the
+ * profile ARN, read from `$.Customer.ProfileARN` in every published flow).
+ * Results "None."; errors ContactNotLinked (when linking) and the
+ * catch-all; "This can be used in any type of flow and any channel."
+ * https://docs.aws.amazon.com/connect/latest/devguide/createcase.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+ */
+export interface CreateCaseConfig extends Wired {
+  template: Ref<"casetemplate">;
+  fields?: Readonly<Record<string, string>>;
+  link?: CaseLink;
+}
+
+export class CreateCase extends Block {
+  readonly type = ActionType.CreateCase;
+
+  constructor(private readonly config: CreateCaseConfig) {
+    super(config.id);
+    const where = `CreateCase "${config.id}"`;
+    const template = typeof config.template === "string" ? parseToken(config.template) : undefined;
+    if (
+      template === undefined ||
+      template.type !== "casetemplate" ||
+      template.alias !== undefined
+    ) {
+      throw new Error(`${where} template must be a casetemplate reference.`);
+    }
+    if (config.fields !== undefined) requireCaseFields(where, config.fields);
+    requireCaseLink(where, config.link);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    return {
+      ...caseLinkParameters(c.link),
+      CaseTemplateId: c.template,
+      ...(c.fields === undefined ? {} : { CaseRequestFields: { ...c.fields } }),
+    };
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    return wire(c.next, [...caseLinkErrors(c.link), [NO_MATCHING_ERROR, c.onError]]);
+  }
+}
+
+/**
+ * "Searches all existing cases with the provided customer ID. Add request
+ * fields to filter by case fields. Specify the case fields to be returned
+ * in the response to persist in the context." `lastUpdated` is
+ * `GetLastUpdatedCase` ("You can specify to get only the last updated case
+ * for any search criteria"); `customerId` is `CustomerId` ("Search all
+ * cases for this customer Id."); `fields` is `CaseRequestFields`, the search
+ * fields, keyed as CreateCase's are; `response` is `CaseResponseFields`,
+ * "An optional list of field names that should be persisted in the case
+ * namespace", each a system field id or a casefield reference, at most ten
+ * (the admin guide's configuration tips). Results "None."; errors
+ * ContactNotLinked (when linking), MultipleFound, NoneFound and the
+ * catch-all, in the order every published flow writes them; the admin
+ * guide: "You must provide at least one search criteria. Otherwise this
+ * block will take the Error branch."
+ * https://docs.aws.amazon.com/connect/latest/devguide/getcase.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+ */
+export interface GetCaseConfig extends Wired {
+  lastUpdated: boolean;
+  customerId?: string;
+  fields?: Readonly<Record<string, string>>;
+  response?: readonly string[];
+  link?: CaseLink;
+  onMultipleFound: Target;
+  onNoneFound: Target;
+}
+
+export class GetCase extends Block {
+  readonly type = ActionType.GetCase;
+
+  constructor(private readonly config: GetCaseConfig) {
+    super(config.id);
+    const where = `GetCase "${config.id}"`;
+    if (typeof config.lastUpdated !== "boolean") {
+      throw new Error(`${where} lastUpdated must be true or false.`);
+    }
+    if (config.customerId !== undefined) requireText(where, "customerId", config.customerId);
+    if (config.fields !== undefined) requireCaseFields(where, config.fields);
+    const response = config.response;
+    if (response !== undefined) {
+      if (!Array.isArray(response)) throw new Error(`${where} response must be a list.`);
+      for (const item of response) {
+        if (!isCaseFieldId(item)) {
+          throw new Error(
+            `${where} response names "${String(item)}", which is neither a Cases system field id nor a casefield reference.`,
+          );
+        }
+      }
+      if (new Set(response).size !== response.length) {
+        throw new Error(`${where} response repeats a field.`);
+      }
+      if (response.length > CASE_RESPONSE_FIELDS_MAX) {
+        throw new Error(
+          `${where} response names ${String(response.length)} fields; a Cases block takes at most ${String(CASE_RESPONSE_FIELDS_MAX)}.`,
+        );
+      }
+    }
+    requireCaseLink(where, config.link);
+    if (config.onMultipleFound === undefined || config.onNoneFound === undefined) {
+      throw new Error(`${where} needs onMultipleFound and onNoneFound.`);
+    }
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    return {
+      ...caseLinkParameters(c.link),
+      GetLastUpdatedCase: c.lastUpdated ? "true" : "false",
+      ...(c.customerId === undefined ? {} : { CustomerId: c.customerId }),
+      ...(c.fields === undefined ? {} : { CaseRequestFields: { ...c.fields } }),
+      ...(c.response === undefined ? {} : { CaseResponseFields: [...c.response] }),
+    };
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    return wire(c.next, [
+      ...caseLinkErrors(c.link),
+      [CASE_MULTIPLE_FOUND, c.onMultipleFound],
+      [CASE_NONE_FOUND, c.onNoneFound],
+      [NO_MATCHING_ERROR, c.onError],
+    ]);
+  }
+}
+
+/**
+ * "Updates an existing case by providing the case's id and the fields that
+ * should be updated." `caseId` is `CaseId`, "the unique identifier of the
+ * case", static or a JSONPath (the published flows read `$.Case.case_id`,
+ * which a preceding Get case stores, or an attribute); the admin guide:
+ * "Case Id is the unique identifier of the case and the only field you can
+ * provide here." `fields` is `CaseRequestFields`, "An optional map of case
+ * fields to be updated", keyed as CreateCase's; the admin guide: "You must
+ * provide an update to at least one Request field. Otherwise, this block
+ * takes the Error branch." Results "None."; errors ContactNotLinked (when
+ * linking) and the catch-all.
+ * https://docs.aws.amazon.com/connect/latest/devguide/updatecase.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/cases-block.html
+ */
+export interface UpdateCaseConfig extends Wired {
+  caseId: string;
+  fields?: Readonly<Record<string, string>>;
+  link?: CaseLink;
+}
+
+export class UpdateCase extends Block {
+  readonly type = ActionType.UpdateCase;
+
+  constructor(private readonly config: UpdateCaseConfig) {
+    super(config.id);
+    const where = `UpdateCase "${config.id}"`;
+    requireText(where, "caseId", config.caseId);
+    if (config.fields !== undefined) requireCaseFields(where, config.fields);
+    requireCaseLink(where, config.link);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    const c = this.config;
+    return {
+      ...caseLinkParameters(c.link),
+      CaseId: c.caseId,
+      ...(c.fields === undefined ? {} : { CaseRequestFields: { ...c.fields } }),
+    };
+  }
+
+  protected transitions(): Transitions {
+    const c = this.config;
+    return wire(c.next, [...caseLinkErrors(c.link), [NO_MATCHING_ERROR, c.onError]]);
+  }
+}
+
 export interface InvokeFlowModuleConfig extends Wired {
   module: Ref<"module"> | JsonPath;
 }
@@ -2835,7 +3113,7 @@ export class CreateCallbackContact extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 47.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 50.
  */
 export interface GenericBlockConfig {
   id: string;

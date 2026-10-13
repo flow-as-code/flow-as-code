@@ -1,0 +1,120 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "case-desk",
+  "displayName": "Case Desk",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "find-case",
+    "Actions": [
+      {
+        "Identifier": "find-case",
+        "Type": "GetCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN",
+            "status": "open"
+          },
+          "CaseResponseFields": [
+            "case_id",
+            "status",
+            "${cdref:casefield:priority}"
+          ],
+          "GetLastUpdatedCase": "true",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "MultipleFound",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoneFound",
+              "NextAction": "open-case"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "open-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "${cdref:casefield:order-number}": "$.Attributes.orderNumber",
+            "${cdref:casefield:priority}": "high",
+            "customer_id": "$.Customer.ProfileARN",
+            "summary": "$.Attributes.summary"
+          },
+          "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
+          "ContactToLink": "Current",
+          "LinkContactToCase": "true"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "done"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "done": {
+      "x": 540,
+      "y": 20
+    },
+    "find-case": {
+      "x": 20,
+      "y": 20
+    },
+    "open-case": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:casefield:order-number}",
+      "type": "casefield",
+      "name": "order-number"
+    },
+    {
+      "token": "${cdref:casefield:priority}",
+      "type": "casefield",
+      "name": "priority"
+    },
+    {
+      "token": "${cdref:casetemplate:billing-dispute}",
+      "type": "casetemplate",
+      "name": "billing-dispute"
+    }
+  ],
+  "meta": {
+    "generator": "core@0.3",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000051",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Case Desk"
+    }
+  }
+}

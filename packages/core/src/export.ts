@@ -55,7 +55,8 @@ import type {
 } from "./flowdoc.js";
 import { FLOW_LANGUAGE_VERSION, FLOWDOC_VERSION, SLUG_PATTERN } from "./flowdoc.js";
 import { autoLayout } from "./layout.js";
-import { collectRefs, parseToken, token } from "./refs.js";
+import { CASE_SYSTEM_FIELDS } from "./actions.js";
+import { collectRefs, parseToken, refPathsOf, token } from "./refs.js";
 import { canonicalize } from "./serialize.js";
 
 // --- ARN parsing -------------------------------------------------------------
@@ -364,6 +365,20 @@ export interface PhoneNumberSummary {
 }
 
 /**
+ * One field of a Cases domain, as ListFields returns it. `namespace` is
+ * `System` for the fields every domain shares under the same id (`summary`,
+ * `status`, `customer_id`, CASE_SYSTEM_FIELDS), which a flow names literally,
+ * and `Custom` for the domain's own, whose UUID is per domain and which
+ * export names as a `casefield` reference (docs/adr/0008). Optional, so an
+ * inventory recorded before tasks/D06 still reads; a field without it is
+ * judged by its id.
+ * https://docs.aws.amazon.com/connect/latest/APIReference/API_connect-cases_FieldSummary.html
+ */
+export interface CasesFieldSummary extends ResourceSummary {
+  namespace?: "System" | "Custom";
+}
+
+/**
  * The instance's Cases domain and what it holds. One instance has one domain,
  * named by its CASES_DOMAIN integration association; templates and fields are
  * per domain, which is why a field is a reference (docs/adr/0008).
@@ -372,7 +387,7 @@ export interface CasesDomainInventory {
   domainArn: string;
   domainId: string;
   templates: ResourceSummary[];
-  fields: ResourceSummary[];
+  fields: CasesFieldSummary[];
 }
 
 export interface InstanceInventory {
@@ -549,6 +564,15 @@ export async function collectInventory(
 export interface ReverseMap {
   /** Normalized ARN to the ref entry that replaces it. */
   byArn: ReadonlyMap<string, RefEntry>;
+  /**
+   * A Cases template or domain field by its bare id, keyed `<type>:<id>`
+   * (`casetemplate:<id>`, `casefield:<id>`). `CaseTemplateId` and the case
+   * field keys and items hold ids, never ARNs (actions.md, rule 44), so no
+   * ARN-keyed entry matches them; export reads them at the catalog's
+   * `casetemplate` and `casefield` paths only. Absent on a map built before
+   * tasks/D06.
+   */
+  byCasesId?: ReadonlyMap<string, RefEntry>;
   /** Names that collided, bots with no ARN, and anything else lossy. */
   warnings: readonly string[];
 }
@@ -665,8 +689,11 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
     const description = n.description?.trim() ?? "";
     add(n.arn, description === "" ? n.number : description, "phonenumber");
   }
+  // A system field (`summary`, `status`) has the same id on every domain and
+  // stays literal in a flow, so it is never a reference (tasks/D06).
+  const customFields = (inventory.casesDomain?.fields ?? []).filter((f) => !isSystemCaseField(f));
   for (const t of inventory.casesDomain?.templates ?? []) add(t.arn, t.name, "casetemplate");
-  for (const f of inventory.casesDomain?.fields ?? []) add(f.arn, f.name, "casefield");
+  for (const f of customFields) add(f.arn, f.name, "casefield");
   for (const a of inventory.assistants ?? []) add(a.arn, a.name, "assistant");
 
   for (const arn of inventory.lambdaFunctions) {
@@ -695,6 +722,19 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
   }
 
   const byArn = assignNames(candidates, warnings);
+  // A Cases template or domain field is held by its bare id in flow content
+  // (rule 44), so each is keyed by id as well, under the name its ARN took.
+  const byCasesId = new Map<string, RefEntry>();
+  const byId = (type: RefType, list: readonly ResourceSummary[]) => {
+    for (const r of list) {
+      const entry = byArn.get(normalizeArn(r.arn));
+      if (r.id !== undefined && r.id !== "" && entry !== undefined) {
+        byCasesId.set(`${type}:${r.id}`, entry);
+      }
+    }
+  };
+  byId("casetemplate", inventory.casesDomain?.templates ?? []);
+  byId("casefield", customFields);
   // An invocation through an alias names the alias by id; key it so the
   // document reads module:<name>@<alias name>, the key the alias resource
   // binds. An alias whose name is not a slug cannot ride in the alias slot,
@@ -715,7 +755,12 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
       alias: a.name,
     });
   }
-  return { byArn, warnings };
+  return { byArn, ...(byCasesId.size === 0 ? {} : { byCasesId }), warnings };
+}
+
+/** A Cases system field: ListFields' System namespace, or a known system id. */
+function isSystemCaseField(f: CasesFieldSummary): boolean {
+  return f.namespace === "System" || (CASE_SYSTEM_FIELDS as readonly string[]).includes(f.id ?? "");
 }
 
 /**
@@ -727,6 +772,7 @@ export function buildReverseMap(inventory: InstanceInventory): ReverseMap {
 export function reverseMapOfResourceMap(resourceMap: Record<string, string>): ReverseMap {
   const warnings: string[] = [];
   const byArn = new Map<string, RefEntry>();
+  const byCasesId = new Map<string, RefEntry>();
   for (const [token, value] of Object.entries(resourceMap).sort(([a], [b]) => (a < b ? -1 : 1))) {
     const entry = parseToken(token);
     if (entry === undefined) {
@@ -736,6 +782,15 @@ export function reverseMapOfResourceMap(resourceMap: Record<string, string>): Re
     // An entry that pins an alias or version is keyed by the ARN exactly as
     // bound, so two aliases of one module bound to their own qualified ARNs
     // stay two entries; lookupArn still falls back to the bare ARN.
+    // A Cases template or field bound to its bare id (what an awscc
+    // template_id or field_id output holds) is keyed by id as export reads
+    // it, so the offline round trip names it again (tasks/D06).
+    if (
+      (entry.type === "casetemplate" || entry.type === "casefield") &&
+      !value.startsWith("arn:")
+    ) {
+      byCasesId.set(`${entry.type}:${value}`, entry);
+    }
     const arn = entry.alias === undefined ? normalizeArn(value) : value;
     const existing = byArn.get(arn);
     if (existing !== undefined) {
@@ -744,7 +799,7 @@ export function reverseMapOfResourceMap(resourceMap: Record<string, string>): Re
     }
     byArn.set(arn, entry);
   }
-  return { byArn, warnings };
+  return { byArn, ...(byCasesId.size === 0 ? {} : { byCasesId }), warnings };
 }
 
 /** Reverse-map lookup, tolerant of a `:$SAVED` or version qualifier. */
@@ -871,6 +926,43 @@ function rewriteArns(
     );
   }
   return value;
+}
+
+/** The two reference types a Cases action holds as bare ids rather than ARNs. */
+const CASES_ID_TYPES: ReadonlySet<RefType> = new Set<RefType>(["casetemplate", "casefield"]);
+
+/**
+ * Names the Cases ids an action holds at its catalog's `casetemplate` and
+ * `casefield` paths (tasks/D06): `CaseTemplateId`, every key of
+ * `CaseRequestFields` and every item of `CaseResponseFields`. A template or
+ * domain field id the inventory lists becomes its token; any other string,
+ * a system field id among them, is kept, since a literal id is not an ARN
+ * and the published flows hold such ids (docs/adr/0008-case-field-ids.md;
+ * whether the service checks them at create is rule 44's pending
+ * probe). Only the
+ * paths the catalog names are read, so an id elsewhere in content is never
+ * mistaken for a reference.
+ */
+function nameCasesIds(action: FlowAction, byCasesId: ReadonlyMap<string, RefEntry>): FlowAction {
+  const paths = refPathsOf(action.Type).filter((r) => CASES_ID_TYPES.has(r.ref));
+  if (paths.length === 0) return action;
+  const params: Record<string, unknown> = { ...action.Parameters };
+  const name = (v: unknown, type: RefType): unknown =>
+    typeof v === "string" ? (byCasesId.get(`${type}:${v}`)?.token ?? v) : v;
+  for (const { path, ref } of paths) {
+    const m = /^([A-Za-z0-9_$-]+)(\.\*~|\[\])?$/.exec(path);
+    if (m === null) continue;
+    const key = m[1]!;
+    const value = params[key];
+    if (m[2] === undefined) params[key] = name(value, ref);
+    else if (m[2] === "[]" && Array.isArray(value)) params[key] = value.map((x) => name(x, ref));
+    else if (isRecord(value)) {
+      params[key] = Object.fromEntries(
+        Object.entries(value).map(([k, x]) => [name(k, ref) as string, x]),
+      );
+    }
+  }
+  return { ...action, Parameters: params };
 }
 
 /**
@@ -1051,9 +1143,10 @@ export function exportFlow(
   }
 
   const acc: RewriteAccumulator = { unknown: new Map(), interpolated: new Map() };
-  const actions = (
-    rewriteArns(raw.Actions, "Actions", reverseMap, acc) as FlowContent["Actions"]
-  ).map(normalizeAction);
+  const byCasesId = reverseMap.byCasesId;
+  const actions = (rewriteArns(raw.Actions, "Actions", reverseMap, acc) as FlowContent["Actions"])
+    .map(normalizeAction)
+    .map((a) => (byCasesId === undefined ? a : nameCasesIds(a, byCasesId)));
   const metadata = rewriteArns(raw.Metadata, "Metadata", reverseMap, acc);
   // A module's Settings (its input and output parameters and transitions)
   // live in its content, where materialize puts them; they are content, so
@@ -1750,7 +1843,7 @@ export function createConnectInventoryClient(
                 })),
               "nextToken",
             );
-            const fields = await pageWith<ResourceSummary>(
+            const fields = await pageWith<CasesFieldSummary>(
               (nextToken) =>
                 sendCases((c) => new c.ListFieldsCommand({ domainId, maxResults: 100, nextToken })),
               (r) =>
@@ -1758,6 +1851,9 @@ export function createConnectInventoryClient(
                   arn: f.fieldArn ?? "",
                   id: f.fieldId ?? "",
                   name: f.name ?? "",
+                  ...(f.namespace === "System" || f.namespace === "Custom"
+                    ? { namespace: f.namespace }
+                    : {}),
                 })),
               "nextToken",
             );

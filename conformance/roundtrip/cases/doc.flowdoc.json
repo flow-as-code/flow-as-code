@@ -1,0 +1,214 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "cases",
+  "description": "The Cases actions: the caller's open cases searched by customer and status, linking the contact and storing three fields, the last updated case read by customer id when several match, the case found updated with a domain field by reference and its summary, linking the current contact, and when none is found a case opened from a template with a domain field by reference and three system fields, linking the current contact, then a call log case opened without linking.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "find-case",
+    "Actions": [
+      {
+        "Identifier": "find-case",
+        "Type": "GetCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN",
+            "status": "open"
+          },
+          "CaseResponseFields": [
+            "case_id",
+            "status",
+            "${cdref:casefield:priority}"
+          ],
+          "GetLastUpdatedCase": "false",
+          "LinkContactToCase": "true"
+        },
+        "Transitions": {
+          "NextAction": "update-case",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "update-case"
+            },
+            {
+              "ErrorType": "MultipleFound",
+              "NextAction": "find-latest"
+            },
+            {
+              "ErrorType": "NoneFound",
+              "NextAction": "open-case"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "find-latest",
+        "Type": "GetCase",
+        "Parameters": {
+          "CaseResponseFields": [
+            "case_id"
+          ],
+          "CustomerId": "$.Customer.ProfileARN",
+          "GetLastUpdatedCase": "true",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "update-case",
+          "Errors": [
+            {
+              "ErrorType": "MultipleFound",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoneFound",
+              "NextAction": "open-case"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "update-case",
+        "Type": "UpdateCase",
+        "Parameters": {
+          "CaseId": "$.Case.case_id",
+          "CaseRequestFields": {
+            "${cdref:casefield:priority}": "high",
+            "summary": "Called again: $.Attributes.reason"
+          },
+          "ContactToLink": "Current",
+          "LinkContactToCase": "true"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "bye"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "open-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "${cdref:casefield:priority}": "high",
+            "customer_id": "$.Customer.ProfileARN",
+            "summary": "$.Attributes.summary",
+            "title": "Billing dispute"
+          },
+          "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
+          "ContactToLink": "Current",
+          "LinkContactToCase": "true"
+        },
+        "Transitions": {
+          "NextAction": "log-case",
+          "Errors": [
+            {
+              "ErrorType": "ContactNotLinked",
+              "NextAction": "log-case"
+            },
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "log-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "${cdref:casefield:channel}": "$.Channel",
+            "status": "open"
+          },
+          "CaseTemplateId": "${cdref:casetemplate:call-log}",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 1060,
+      "y": 20
+    },
+    "find-case": {
+      "x": 20,
+      "y": 20
+    },
+    "find-latest": {
+      "x": 280,
+      "y": 20
+    },
+    "log-case": {
+      "x": 800,
+      "y": 20
+    },
+    "open-case": {
+      "x": 540,
+      "y": 120
+    },
+    "update-case": {
+      "x": 540,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:casefield:channel}",
+      "type": "casefield",
+      "name": "channel"
+    },
+    {
+      "token": "${cdref:casefield:priority}",
+      "type": "casefield",
+      "name": "priority"
+    },
+    {
+      "token": "${cdref:casetemplate:billing-dispute}",
+      "type": "casetemplate",
+      "name": "billing-dispute"
+    },
+    {
+      "token": "${cdref:casetemplate:call-log}",
+      "type": "casetemplate",
+      "name": "call-log"
+    }
+  ]
+}

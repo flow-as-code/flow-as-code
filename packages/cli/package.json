@@ -83,10 +83,14 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-connect": "^3.600.0",
+    "@aws-sdk/client-connectcases": "^3.600.0",
     "@aws-sdk/client-qconnect": "^3.600.0"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-connect": {
+      "optional": true
+    },
+    "@aws-sdk/client-connectcases": {
       "optional": true
     },
     "@aws-sdk/client-qconnect": {

@@ -1,0 +1,39 @@
+{
+  "description": "Rule 44: CreateCase with a request field id the domain does not have: whether the create validates field ids (docs/adr/0008).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseTemplateId": "{{CASE_TEMPLATE_ID}}",
+          "CaseRequestFields": {
+            "{{MISSING_CASE_FIELD_ID}}": "x",
+            "customer_id": "$.Customer.ProfileARN",
+            "summary": "$.Attributes.summary"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

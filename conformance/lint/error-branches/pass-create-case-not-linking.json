@@ -1,0 +1,58 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "case-intake",
+  "description": "ContactNotLinked is required when and only when LinkContactToCase is \"true\" (the catalog's requiredWhenValue), so a case opened without linking the contact wires the catch-all alone.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "open-case",
+    "Actions": [
+      {
+        "Identifier": "open-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "LinkContactToCase": "false",
+          "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
+          "CaseRequestFields": {
+            "customer_id": "$.Customer.ProfileARN",
+            "summary": "$.Attributes.summary"
+          }
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "open-case": {
+      "x": 0,
+      "y": 0
+    },
+    "bye": {
+      "x": 200,
+      "y": 0
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:casetemplate:billing-dispute}",
+      "type": "casetemplate",
+      "name": "billing-dispute"
+    }
+  ]
+}

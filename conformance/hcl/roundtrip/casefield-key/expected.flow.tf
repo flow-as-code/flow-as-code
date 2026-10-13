@@ -19,16 +19,13 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "open-case"
     next = "read-case"
-    generic {
-      type = "CreateCase"
-      parameters = jsonencode({
-        CaseRequestFields = {
-          "$${cdref:casefield:priority}" = "high"
-          "$${cdref:casefield:summary}"  = "$.Attributes.summary"
-        }
-        CaseTemplateId    = "$${cdref:casetemplate:billing-dispute}"
-        LinkContactToCase = "true"
-      })
+    create_case {
+      case_request_fields = {
+        "casefield:priority" = "high"
+        "casefield:summary"  = "$.Attributes.summary"
+      }
+      case_template_id     = "casetemplate:billing-dispute"
+      link_contact_to_case = "true"
     }
     error {
       type = "ContactNotLinked"
@@ -43,14 +40,11 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "read-case"
     next = "follow-up"
-    generic {
-      type = "GetCase"
-      parameters = jsonencode({
-        CaseResponseFields = ["$${cdref:casefield:priority}"]
-        CustomerId         = "$.Customer.ProfileId"
-        GetLastUpdatedCase = "true"
-        LinkContactToCase  = "false"
-      })
+    get_case {
+      case_response_fields  = ["casefield:priority"]
+      customer_id           = "$.Customer.ProfileId"
+      get_last_updated_case = "true"
+      link_contact_to_case  = "false"
     }
     error {
       type = "NoMatchingError"
