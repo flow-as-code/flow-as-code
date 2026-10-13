@@ -241,7 +241,7 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
     await click(present(`[data-testid="node-${id}"]`));
   };
 
-  it("chooses request fields from the page's list and types a custom attribute", async () => {
+  it("chooses request fields from the page's list and offers no typed key", async () => {
     await addProfileBlock("CreateCustomerProfile", "create-profile");
     const add = testId<HTMLSelectElement>("fieldmap-ProfileRequestData-add");
     expect([...add.options].map((o) => o.value)).toContain("FirstName");
@@ -256,18 +256,9 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
       [...testId<HTMLSelectElement>("fieldmap-ProfileRequestData-add").options].map((o) => o.value),
     ).not.toContain("FirstName");
 
-    await typeAndBlur(testId<HTMLInputElement>("fieldmap-ProfileRequestData-custom"), "Nickname");
-    expect(testId("inspector").textContent).toContain(
-      '"Nickname" is not spelled Attributes.<name>',
-    );
-    expect(query('[data-testid="fieldmap-ProfileRequestData-Nickname"]')).toBeNull();
-    await typeAndBlur(
-      testId<HTMLInputElement>("fieldmap-ProfileRequestData-custom"),
-      "Attributes.loyaltyTier",
-    );
-    expect(
-      query('[data-testid="fieldmap-ProfileRequestData-Attributes.loyaltyTier"]'),
-    ).not.toBeNull();
+    // The service refuses a custom attribute as a request key (actions.md,
+    // rule 43), so the request offers no typed key at all.
+    expect(query('[data-testid="fieldmap-ProfileRequestData-custom"]')).toBeNull();
 
     await click(testId("fieldmap-ProfileRequestData-FirstName-remove"));
     expect(query('[data-testid="fieldmap-ProfileRequestData-FirstName"]')).toBeNull();

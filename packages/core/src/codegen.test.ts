@@ -2980,14 +2980,13 @@ describe("the Customer Profiles actions invert their request and response data",
         errors,
       );
 
-    it("emits listed fields and custom attributes, quoting the dotted key", () => {
+    it("emits listed fields, and a custom attribute among the response names", () => {
       const out = typed(
-        create({ FirstName: "$.Attributes.firstName", "Attributes.loyaltyTier": "new" }, [
+        create({ FirstName: "$.Attributes.firstName", PhoneNumber: "$.CustomerEndpoint.Address" }, [
           "FirstName",
           "Attributes.loyaltyTier",
         ]),
       );
-      expect(out).toContain('"Attributes.loyaltyTier": "new"');
       expect(out).toContain('FirstName: "$.Attributes.firstName"');
       expect(out).toContain('response: ["FirstName", "Attributes.loyaltyTier"]');
     });
@@ -3000,6 +2999,8 @@ describe("the Customer Profiles actions invert their request and response data",
 
     it("falls back on a name outside the page's lists, a missing container, the page's braces, or the errors out of shape", () => {
       generic(create({ Nickname: "Sam" }));
+      // The service refuses a custom attribute as a request key (rule 43).
+      generic(create({ "Attributes.loyaltyTier": "new" }));
       generic(create({ "Attributes.a.b": "x" }));
       generic(create({ FirstName: 1 }));
       generic(create({}, ["Firstname"]));
@@ -3147,24 +3148,26 @@ describe("the Customer Profiles actions invert their request and response data",
 
     it("emits its fields as Create does", () => {
       const out = typed(
-        update({ "Attributes.preferredLanguage": "$.Attributes.language" }, [
-          "Attributes.preferredLanguage",
-        ]),
+        update({ EmailAddress: "$.Attributes.email" }, ["Attributes.preferredLanguage"]),
       );
-      expect(out).toContain('"Attributes.preferredLanguage": "$.Attributes.language"');
+      expect(out).toContain('EmailAddress: "$.Attributes.email"');
+      expect(out).toContain('response: ["Attributes.preferredLanguage"]');
     });
 
-    it("falls back on a profile id key, which the page does not list, or the page's braces", () => {
+    it("falls back on a profile id key, a custom attribute key, or the page's braces", () => {
       generic(update({ ProfileId: "$.Customer.ProfileId", FirstName: "x" }));
+      generic(update({ "Attributes.preferredLanguage": "$.Attributes.language" }));
       generic(update({}, {}));
     });
   });
 
   describe("AssociateContactToCustomerProfile", () => {
-    const associate = (request: unknown, response: unknown = [], errors?: string[]) =>
+    const associate = (request: unknown, response?: unknown, errors?: string[]) =>
       action(
         "AssociateContactToCustomerProfile",
-        { ProfileRequestData: request, ProfileResponseData: response },
+        response === undefined
+          ? { ProfileRequestData: request }
+          : { ProfileRequestData: request, ProfileResponseData: response },
         errors,
       );
 
@@ -3175,18 +3178,15 @@ describe("the Customer Profiles actions invert their request and response data",
       typed(associate({ ProfileId: "profile-1", ContactId: "$.ContactId" }));
     });
 
-    it("falls back on a missing id, an extra key, response fields, or the errors out of shape", () => {
+    it("falls back on a missing id, an extra key, any response data, or the errors out of shape", () => {
       generic(associate({ ProfileId: "$.Customer.ProfileId" }));
       generic(associate({ ProfileId: "p", ContactId: "c", ObjectType: "x" }));
       generic(associate({ ProfileId: "p", ContactId: 1 }));
+      // The service refuses ProfileResponseData here, even empty (rule 43).
+      generic(associate({ ProfileId: "p", ContactId: "c" }, []));
       generic(associate({ ProfileId: "p", ContactId: "c" }, ["FirstName"]));
       generic(associate({ ProfileId: "p", ContactId: "c" }, {}));
-      generic(
-        action("AssociateContactToCustomerProfile", {
-          ProfileRequestData: { ProfileId: "p", ContactId: "c" },
-        }),
-      );
-      generic(associate({ ProfileId: "p", ContactId: "c" }, [], []));
+      generic(associate({ ProfileId: "p", ContactId: "c" }, undefined, []));
     });
   });
 });

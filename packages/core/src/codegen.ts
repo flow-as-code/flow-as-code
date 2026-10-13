@@ -3261,18 +3261,16 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     };
   },
 
-  // ProfileRequestData's two ids, static or JSONPath, and the empty
-  // response list the console writes; anything else stays generic.
+  // ProfileRequestData's two ids, static or JSONPath, and nothing else: the
+  // service refuses ProfileResponseData here, even empty (actions.md, rule
+  // 43), so a block carrying it stays generic.
   [ActionType.AssociateContactToCustomerProfile]: (a) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined) return undefined;
     const p = a.Parameters;
-    if (!paramKeysAre(p, ["ProfileRequestData", "ProfileResponseData"])) return undefined;
+    if (!paramKeysAre(p, ["ProfileRequestData"])) return undefined;
     const request = p.ProfileRequestData;
     if (!isStringMap(request) || !paramKeysAre(request, ["ProfileId", "ContactId"])) {
-      return undefined;
-    }
-    if (!Array.isArray(p.ProfileResponseData) || p.ProfileResponseData.length !== 0) {
       return undefined;
     }
     return {

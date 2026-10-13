@@ -1833,7 +1833,6 @@ describe("the Customer Profiles actions", () => {
         request: {
           FirstName: "$.Attributes.firstName",
           PhoneNumber: "$.CustomerEndpoint.Address",
-          "Attributes.loyaltyTier": "new",
         },
         response: ["FirstName", "Attributes.loyaltyTier"],
         next: "link-contact",
@@ -1848,10 +1847,7 @@ describe("the Customer Profiles actions", () => {
       }),
       new UpdateCustomerProfile({
         id: "update-profile",
-        request: {
-          "Attributes.preferredLanguage": "$.Attributes.language",
-          EmailAddress: "$.Attributes.email",
-        },
+        request: { EmailAddress: "$.Attributes.email" },
         response: ["Attributes.preferredLanguage"],
         next: "latest-order",
         onError: "bye",
@@ -1889,7 +1885,7 @@ describe("the Customer Profiles actions", () => {
     expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
   });
 
-  it("write AssociateContactToCustomerProfile with both ids and an empty response list", () => {
+  it("write AssociateContactToCustomerProfile with both ids and no response data, which the service refuses there", () => {
     expect(
       new AssociateContactToCustomerProfile({
         id: "a",
@@ -1903,7 +1899,6 @@ describe("the Customer Profiles actions", () => {
       Type: "AssociateContactToCustomerProfile",
       Parameters: {
         ProfileRequestData: { ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" },
-        ProfileResponseData: [],
       },
       Transitions: {
         NextAction: "n",
@@ -1917,7 +1912,7 @@ describe("the Customer Profiles actions", () => {
     expect(
       new CreateCustomerProfile({
         id: "c",
-        request: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        request: { LastName: "Gold", FirstName: "$.Attributes.name" },
         response: ["Attributes.tier"],
         next: "n",
         onError: "e",
@@ -1926,7 +1921,7 @@ describe("the Customer Profiles actions", () => {
       Identifier: "c",
       Type: "CreateCustomerProfile",
       Parameters: {
-        ProfileRequestData: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        ProfileRequestData: { LastName: "Gold", FirstName: "$.Attributes.name" },
         ProfileResponseData: ["Attributes.tier"],
       },
       Transitions: {
@@ -1943,8 +1938,12 @@ describe("the Customer Profiles actions", () => {
   it("refuse a profile field or name outside the page's lists, a repeated name, or a value that is not a string", () => {
     const base = { id: "c", next: "n", onError: "e" };
     expect(() => new CreateCustomerProfile({ ...base, request: { Nickname: "Sam" } })).toThrow(
-      /request names "Nickname", which is neither a field the page lists nor a name matching/,
+      /request names "Nickname", which is not a field the page lists/,
     );
+    // The service refuses a custom attribute as a request key (rule 43).
+    expect(
+      () => new CreateCustomerProfile({ ...base, request: { "Attributes.tier": "gold" } }),
+    ).toThrow(/request names "Attributes.tier"/);
     expect(
       () => new CreateCustomerProfile({ ...base, request: { "Attributes.a.b": "x" } }),
     ).toThrow(/request names "Attributes.a.b"/);
@@ -1962,7 +1961,7 @@ describe("the Customer Profiles actions", () => {
   it("write UpdateCustomerProfile as Create writes its fields, and refuse the same names", () => {
     const config = {
       id: "u",
-      request: { "Attributes.tier": "gold" },
+      request: { LastName: "Gold" },
       response: ["Attributes.tier"],
       next: "n",
       onError: "e",

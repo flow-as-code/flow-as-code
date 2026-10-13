@@ -3226,15 +3226,6 @@
               "required": true
             }
           ]
-        },
-        {
-          "key": "ProfileResponseData",
-          "attr": "profile_response_data",
-          "kind": "list",
-          "required": false,
-          "of": {
-            "kind": "string"
-          }
         }
       ],
       "refs": [],
@@ -3419,9 +3410,6 @@
             "BillingPostalCode",
             "BillingProvince",
             "BillingState"
-          ],
-          "keyPatterns": [
-            "^Attributes\\.[^.]+$"
           ]
         },
         {
@@ -3743,12 +3731,12 @@
           },
           {
             "type": "MultipleFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
             "type": "NoneFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           }
         ]
@@ -3798,8 +3786,7 @@
               "kind": "enum",
               "required": false,
               "values": [
-                "true",
-                "false"
+                "true"
               ]
             }
           ],
@@ -3924,7 +3911,7 @@
           },
           {
             "type": "NoneFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           }
         ]
@@ -3956,7 +3943,7 @@
           "key": "ProfileResponseData",
           "attr": "profile_response_data",
           "kind": "list",
-          "required": false,
+          "required": true,
           "of": {
             "kind": "string"
           },
@@ -3981,7 +3968,7 @@
           },
           {
             "type": "NoneFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           }
         ]
@@ -4056,9 +4043,6 @@
             "BillingPostalCode",
             "BillingProvince",
             "BillingState"
-          ],
-          "keyPatterns": [
-            "^Attributes\\.[^.]+$"
           ]
         },
         {

@@ -478,9 +478,16 @@ describe("FlowDoc schema rejections: tasks and AI agents", () => {
 // shape every published sample flow carries (no console export of these
 // blocks was taken; actions.md, rule 43): ProfileRequestData an object and
 // ProfileResponseData a list of names. Each type has its own clause, so
-// each is mutated here; deleting any one clause turns its case red. Key lists, the group alternatives
-// and the enums stay in the catalog and the builder until rule 43's probes
-// (pending) show the service refusing them (owner decision 3).
+// each is mutated here; deleting any one clause turns its case red. Beyond
+// the containers each clause holds what rule 43's probes (us-west-2,
+// 2026-10-13) saw the service refuse, and no more (owner decision 3): any
+// response data on an association, a create or update request key outside
+// the page's fields (a custom attribute among them), a response name
+// outside the lists, a lowercase operator, six search criteria, UseLatest
+// other than "true", and a calculated attribute lookup without its response
+// list or with a name lacking the prefix. The group alternatives stay in
+// the catalog and the builder: the service accepted a named profile field
+// as a search and both of the object lookup's forms together.
 describe("FlowDoc schema rejections: customer profiles", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/customer-profiles/doc.flowdoc.json");
@@ -543,14 +550,84 @@ describe("FlowDoc schema rejections: customer profiles", () => {
         a.Parameters.ProfileResponseData = "CalculatedAttributes._frequent_caller";
       }),
     ],
+    [
+      "an association's response data, even the empty list",
+      mutate("link-contact", (a) => {
+        a.Parameters.ProfileResponseData = [];
+      }),
+    ],
+    [
+      "a custom attribute as a create's request key",
+      mutate("create-profile", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, string>)["Attributes.loyaltyTier"] =
+          "new";
+      }),
+    ],
+    [
+      "an update's request key outside the page's fields",
+      mutate("update-profile", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, string>).Nickname = "Sam";
+      }),
+    ],
+    [
+      "a create's response name outside the page's lists",
+      mutate("create-profile", (a) => {
+        a.Parameters.ProfileResponseData = ["Nickname"];
+      }),
+    ],
+    [
+      "a lowercase search operator",
+      mutate("find-by-account", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, unknown>).LogicalOperator = "and";
+      }),
+    ],
+    [
+      "six search criteria",
+      mutate("find-by-account", (a) => {
+        const r = a.Parameters.ProfileRequestData as Record<string, unknown>;
+        r.SearchCriteria = Array.from({ length: 6 }, (_, i) => ({
+          IdentifierName: "_phone",
+          IdentifierValue: `$.Attributes.p${String(i)}`,
+        }));
+      }),
+    ],
+    [
+      'UseLatest "false"',
+      mutate("latest-order", (a) => {
+        (a.Parameters.ProfileRequestData as Record<string, unknown>).UseLatest = "false";
+      }),
+    ],
+    [
+      "a calculated attribute lookup without its response list",
+      mutate("calculated", (a) => {
+        delete a.Parameters.ProfileResponseData;
+      }),
+    ],
+    [
+      "a calculated attribute name without the prefix",
+      mutate("calculated", (a) => {
+        a.Parameters.ProfileResponseData = ["FirstName"];
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
 
-  it("still accepts an association with no response data, which no probe has refused", () => {
-    expect(validate(mutate("link-contact", (a) => delete a.Parameters.ProfileResponseData))).toBe(
-      true,
-    );
+  it("accepts what the service accepted: a named field search and both object lookup forms", () => {
+    expect(
+      validate(
+        mutate("find-caller", (a) => {
+          a.Parameters.ProfileRequestData = { PhoneNumber: "$.CustomerEndpoint.Address" };
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      validate(
+        mutate("asset-by-id", (a) => {
+          (a.Parameters.ProfileRequestData as Record<string, unknown>).UseLatest = "true";
+        }),
+      ),
+    ).toBe(true);
   });
 });
 

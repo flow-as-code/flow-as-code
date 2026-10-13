@@ -136,9 +136,10 @@ export type FieldDesc =
     }
   /**
    * An object of strings whose keys the page lists (chosen from `names`, not
-   * typed) or that match one of `patterns` (typed, `Attributes.<name>`),
-   * each value static or a JSONPath: a Customer Profiles create or update's
-   * ProfileRequestData (catalog `keys` and `keyPatterns`).
+   * typed) or that match one of `patterns` (typed; no typed key is offered
+   * when `patterns` is empty), each value static or a JSONPath: a Customer
+   * Profiles create or update's ProfileRequestData (catalog `keys` and
+   * `keyPatterns`).
    */
   | {
       kind: "fieldMap";
@@ -263,10 +264,22 @@ function profileResponseField(): FieldDesc {
   };
 }
 
-/** The request and response fields of a profile create or update. */
+/**
+ * The request and response fields of a profile create or update. The
+ * request takes the page's fields only: the service refuses its
+ * `Attributes.<name>` key there (actions.md, rule 43), so a custom attribute
+ * is offered among the response names and nowhere else.
+ */
 function profileFieldsFor(): FieldDesc[] {
   return [
-    { kind: "fieldMap", key: "ProfileRequestData", label: "Request fields", ...PROFILE_NAMES },
+    {
+      kind: "fieldMap",
+      key: "ProfileRequestData",
+      label: "Request fields",
+      names: PROFILE_FIELDS,
+      patterns: [],
+      patternHint: "",
+    },
     profileResponseField(),
   ];
 }
@@ -840,14 +853,15 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
       ];
     case ActionType.CreateCustomerProfile:
     case ActionType.UpdateCustomerProfile:
-      // The request fields are chosen from the page's list, and a custom
-      // attribute is typed as Attributes.<name>; the response fields are
-      // ticked from the same list, with custom attributes typed beside them.
-      // A name outside both stays in the raw JSON of a generic block.
+      // The request fields are chosen from the page's list; the response
+      // fields are ticked from the same list, with custom attributes typed
+      // beside them as Attributes.<name>. A name outside both stays in the
+      // raw JSON of a generic block.
       return profileFieldsFor();
     case ActionType.AssociateContactToCustomerProfile:
       // Both ids sit in ProfileRequestData, each static or a JSONPath; the
-      // page's response data is "None.", so there is nothing to choose.
+      // page's response data is "None.", and the service refuses the key
+      // (rule 43), so there is nothing to choose.
       return [
         {
           kind: "text",

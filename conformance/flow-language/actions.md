@@ -1595,11 +1595,13 @@ is read rather than when the type is modeled.
 43. Customer Profiles (tasks/D03; the Developer Guide pages read 2026-10-04
     and again 2026-10-12 with the admin guide's Customer profiles block
     page). The group's types are modeled from their pages and from flows AWS
-    publishes. **Probe pending**: the create sweep the evidence rule asks
-    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
-    AWS credentials had expired, and the Customer Profiles domain the sweep
-    needs is created by a sandbox root that had not been applied. Its inputs
-    are kept in `probes/43/`, with `PENDING.md` saying what the run needs.
+    publishes, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a Customer Profiles domain linked to the instance and
+    the standard `CTR` object type. Its inputs and `results.json` are in
+    `probes/43/`. The bullets below are the reading the types were modeled
+    from; the last bullet is what the service said, and where the two
+    differ the catalog, the builder and the schema follow the service.
     No console export of the block has been taken (owner decision 8), so
     nothing under `exports/` records its stored shape. In its place the
     shape is read from contact flows AWS publishes in its sample
@@ -1608,9 +1610,7 @@ is read rather than when the type is modeled.
     `ProfileResponseData` as a list of names, empty when no response field
     is chosen, where the pages write `{ "FirstName", ... }`, which is not
     JSON. The catalog follows the published flows where they and the pages
-    differ, and records the pages' form here. Until the sweep and an export,
-    every required key, error, `next`, spelling and flow-type entry below is
-    that reading, and each bullet names the probes that settle it.
+    differ, and records the pages' form here.
     The action pages have no Restrictions section, and the admin guide's
     block lists "All flow types" and voice, chat, task and email each
     "Yes", so every type here is unrestricted and carries no `channels`.
@@ -1643,10 +1643,9 @@ is read rather than when the type is modeled.
       preceding Get profile and the contact id from attributes, and has
       Success and Error branches. No published flow carries the type. The
       catalog records `ProfileRequestData` as a required object of the two
-      ids, each a `stringOrJsonPath` and required, and `ProfileResponseData`
-      as an optional list of strings with no names; the class writes the
-      empty list the console writes for the other five types with no
-      response field, and codegen leaves any other response data generic.
+      ids, each a `stringOrJsonPath` and required, and, since the sweep, no
+      `ProfileResponseData`: the service refuses it, even empty, so the
+      class writes none and codegen leaves a block carrying it generic.
       The catch-all is required and wired by the builder, `next` required.
       Planned probes: `assoc-required-set-alone` (the catalog's required
       set alone, without the optional response list; expected accepted),
@@ -1745,9 +1744,8 @@ is read rather than when the type is modeled.
       refusing either (owner decision 3); the class refuses both and
       neither, and codegen leaves the named-field form generic. The three
       errors are in the published flows' order, all wired by the builder;
-      only the catch-all is required, since the page marks neither of the
-      others "Must always be defined" (as `ChannelMismatch` on rule 41's
-      message processor), although every published flow wires both.
+      the page marks neither lookup error "Must always be defined", but the
+      service requires both, so all three are required.
       Planned probes: `get-required-set-alone` (the catalog's required
       set alone: one identifier, no response list, and the catch-all
       without either lookup branch; it is the probe that settles whether
@@ -1787,13 +1785,11 @@ is read rather than when the type is modeled.
       `exactlyOne` over the groups `[UseLatest]` and the pair; and
       `ProfileResponseData` as a list of strings whose `keys` are the 76
       fields and whose `keyPatterns` are the four `*Attributes` forms. The
-      class writes `UseLatest` as `"true"` only; a block with `"false"`, the
-      JSON boolean or another spelling stays generic until
-      `object-latest-boolean`, `object-latest-capitalized` and
-      `object-latest-false` are put to the service. The schema clause holds
-      the containers only. The two errors are wired by the builder,
-      catch-all first as `GetCustomerProfile`'s are written; only the
-      catch-all is required. Planned probes:
+      class writes `UseLatest` as `"true"` only, and since the sweep the
+      enum is `"true"` alone: the service refuses `"false"`, `"True"` and
+      the JSON boolean. The two errors are wired by the builder, catch-all
+      first as `GetCustomerProfile`'s are written; the service requires
+      both. Planned probes:
       `object-required-set-alone` (the catalog's required set alone: no
       response list and the catch-all without `NoneFoundError`),
       `object-latest` (the class's form; expected accepted), `object-no-catch-all`, `object-no-none-found` and
@@ -1829,8 +1825,8 @@ is read rather than when the type is modeled.
       `keyPatterns` is `^CalculatedAttributes\.[^.]+$`, which admits the
       other predefined names and a domain's own; the names are the
       domain's strings, not references (tasks/D03: no new ref type). The
-      two errors are wired by the builder in that repository's order; only
-      the catch-all is required. Planned probes:
+      two errors are wired by the builder in that repository's order; the
+      service requires both, and requires `ProfileResponseData` too. Planned probes:
       `calc-required-set-alone` (the catalog's required set alone: no
       response list and the catch-all without `NoneFoundError`),
       `calc-required` (the class's form; expected accepted), `calc-no-catch-all`, `calc-no-none-found` and
@@ -1839,6 +1835,83 @@ is read rather than when the type is modeled.
       not define), `calc-other-name` (a name without the prefix),
       `calc-no-profile-id`, and `calc-module`.
       https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
+    - The sweep (2026-10-13, 17:08 to 17:09 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 75 of 77 probes, 27 accepted and 48
+      refused, every refusal an `InvalidContactFlowException`.
+      `assoc-static-profile` and `calc-custom-name` did not run: the
+      domain holds no profile and no calculated attribute definition, and
+      neither is a resource the sandbox root creates. The domain was
+      linked before the run, so no probe saw an instance without one.
+      - `AssociateContactToCustomerProfile`: `assoc-required-set-alone`
+        and `assoc-no-response-data` (the ids alone) were accepted; every
+        probe carrying `ProfileResponseData` was refused "Invalid Action
+        property name. Path: Actions[0].Parameters.ProfileResponseData",
+        the empty list (`assoc-required`, `-module`, `-customer-hold`)
+        and the braces (`assoc-response-object`, "Invalid Action type")
+        alike. The module and hold probes were refused for that key alone,
+        no flow-type problem among their messages. `assoc-no-contact-id`,
+        `-no-catch-all` and `-no-next` were refused for what they removed.
+      - `CreateCustomerProfile` and `UpdateCustomerProfile`: the required
+        set alone (no `Parameters`), an empty request, no request and no
+        response list were each accepted, so both containers are optional;
+        so was each in a module, and the create in a customer hold flow.
+        An unlisted key (`Nickname`) was refused "Invalid Action property
+        name. Path: Actions[0].Parameters.ProfileRequestData.Nickname",
+        and so was every custom attribute key the page's `"Attributes.x"`
+        reads as (`Attributes.loyaltyTier`,
+        `Attributes.preferredLanguage`, `Attributes.a.b`), so the request
+        takes the 55 fields alone and `keyPatterns` leaves it; the nested
+        `{"Attributes": {...}}` form was not probed. An unlisted response
+        name was refused ("...ProfileResponseData.Nickname"), and the
+        braces ("Invalid Action type"); `Attributes.<name>` response
+        names drew no complaint in the messages that refused their
+        requests. `update-profile-id-key` was refused ("...ProfileId"),
+        as the page's silence implies. Each catch-all removal was refused
+        "Missing branch. Path: 0.Error", and each `next` removal too.
+      - `GetCustomerProfile`: `get-identifier`, `get-search-and`,
+        `get-search-or`, `get-module` and `get-customer-hold` accepted,
+        and so was `get-named-key`, a search by `PhoneNumber` alone, the
+        step-by-step flows' form. `get-required-set-alone` refused "Action
+        is missing required error. Error: MultipleFoundError" and the
+        same for `NoneFoundError`, as did each lookup branch removed
+        alone, so both are required. `get-identifer-spelling` refused
+        "Invalid Action property name. Path:
+        Actions[0].Parameters.ProfileRequestData.IdentiferValue";
+        `get-both-forms` refused naming `IdentifierName` and
+        `IdentifierValue`; `get-neither-form` and
+        `get-identifier-name-only` refused naming the missing half;
+        `get-search-without-operator` and
+        `get-search-one-without-operator` refused "...LogicalOperator",
+        so the operator is required even with one criterion;
+        `get-operator-lowercase` and `get-six-criteria` refused "Invalid
+        Action property value". The catalog's group alternative stays the
+        page's reading, out of the schema clause, since the named form is
+        accepted.
+      - `GetCustomerProfileObject`: `object-latest`, `-identifier`,
+        `-module`, `-response-names` and `-unknown-type` (an object type
+        the domain lacks) accepted, and so was `object-both-forms`, both
+        retrievals together; `object-neither-form` refused "...missing
+        required property. Path:
+        Actions[0].Parameters.ProfileRequestData". `UseLatest` `"false"`
+        and `"True"` refused "Missing required property. Property:
+        0.UseLatest", and the JSON boolean "Invalid Action type".
+        `object-required-set-alone` refused "Action is missing required
+        error. Error: NoneFoundError", so the branch is required;
+        `-no-object-type` and `-no-profile-id` refused for what they
+        removed.
+      - `GetCalculatedAttributesForCustomerProfile`: `calc-required`,
+        `calc-module` and `calc-unknown-name` (a name the domain does not
+        define) accepted. `calc-required-set-alone` refused for the
+        missing `NoneFoundError` and "Action is missing required property.
+        Path: Actions[0].Parameters.ProfileResponseData", so both are
+        required. `calc-other-name` (`FirstName`) refused "Invalid Action
+        property value. Path: 0.FirstName", so the prefix is enforced.
+      - What moved: the three lookups' errors are required in the catalog
+        and `REQUIRED_EXTRAS`; the association has no
+        `ProfileResponseData`; the create and update request has no
+        `keyPatterns`; `UseLatest` is `"true"` alone; the calculated
+        lookup's response list is required; and the 0.3 clauses hold each
+        refusal above that a clause can state.
 
 44. Cases (tasks/D06; the Developer Guide pages read 2026-10-04 and again
     2026-10-12 with the admin guide's Cases block and case fields pages).

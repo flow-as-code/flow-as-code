@@ -235,23 +235,25 @@ function FieldMapField({
           }}
         />
       )}
-      <TextField
-        key={Object.keys(entries).join("\n")}
-        label={`Add a custom field (${field.patternHint})`}
-        testId={`${id}-custom`}
-        value=""
-        error={error}
-        onCommit={(next) => {
-          const name = next.trim();
-          if (name === "") return;
-          if (!matchesPattern(name, field.patterns)) {
-            setError(`"${name}" is not spelled ${field.patternHint}.`);
-            return;
-          }
-          setError(undefined);
-          if (!Object.hasOwn(entries, name)) onCommit({ ...entries, [name]: "" });
-        }}
-      />
+      {field.patterns.length > 0 && (
+        <TextField
+          key={Object.keys(entries).join("\n")}
+          label={`Add a custom field (${field.patternHint})`}
+          testId={`${id}-custom`}
+          value=""
+          error={error}
+          onCommit={(next) => {
+            const name = next.trim();
+            if (name === "") return;
+            if (!matchesPattern(name, field.patterns)) {
+              setError(`"${name}" is not spelled ${field.patternHint}.`);
+              return;
+            }
+            setError(undefined);
+            if (!Object.hasOwn(entries, name)) onCommit({ ...entries, [name]: "" });
+          }}
+        />
+      )}
     </fieldset>
   );
 }

@@ -2709,9 +2709,11 @@ export class StartOutboundChatContact extends Block {
 
 // ---------------------------------------------------------------------------
 // Customer Profiles (tasks/D03): the six actions of the console's Customer
-// profiles block. Each writes ProfileRequestData and ProfileResponseData,
-// the latter as a list of names, the shape every console export carries
-// (actions.md, rule 43), and needs Customer Profiles enabled on the instance.
+// profiles block. Each writes ProfileRequestData, and every one but
+// AssociateContactToCustomerProfile, which the service refuses it on,
+// ProfileResponseData as a list of names, the shape every console export
+// carries (actions.md, rule 43). Each needs Customer Profiles enabled on the
+// instance.
 // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
 // ---------------------------------------------------------------------------
 
@@ -2725,8 +2727,8 @@ function requireText(where: string, key: string, value: unknown): void {
 /**
  * Whether a name is one the page lists or matches one of its patterns
  * (`Attributes.x` and its kin). The catalog carries the same lists as
- * `keys` and `keyPatterns`; a name outside them stays in a GenericBlock,
- * since rule 43's probe of an unknown key has not run.
+ * `keys` and `keyPatterns`; the service refuses a name outside them
+ * (actions.md, rule 43), so such a block stays a GenericBlock.
  */
 function isListedName(
   name: string,
@@ -2747,19 +2749,26 @@ function requireNames(
   for (const name of given) {
     if (typeof name !== "string" || !isListedName(name, names, patterns)) {
       throw new Error(
-        `${where} ${what} names "${String(name)}", which is neither a field the page lists nor a name matching ${patterns.join(" or ")}.`,
+        patterns.length === 0
+          ? `${where} ${what} names "${String(name)}", which is not a field the page lists.`
+          : `${where} ${what} names "${String(name)}", which is neither a field the page lists nor a name matching ${patterns.join(" or ")}.`,
       );
     }
   }
   if (new Set(given).size !== given.length) throw new Error(`${where} ${what} repeats a name.`);
 }
 
-/** ProfileRequestData of a create or update: listed fields and custom attributes. */
+/**
+ * ProfileRequestData of a create or update: listed fields only. The pages
+ * also list `"Attributes.x"` there, but the service refuses that key
+ * ("Invalid Action property name", actions.md, rule 43, 2026-10-13), so a
+ * custom attribute is a response name and never a request key.
+ */
 function requireProfileFields(where: string, request: Record<string, string>): void {
   if (request === null || typeof request !== "object" || Array.isArray(request)) {
     throw new Error(`${where} request must be an object of field names to values.`);
   }
-  requireNames(where, "request", Object.keys(request), PROFILE_FIELDS, PROFILE_FIELD_PATTERNS);
+  requireNames(where, "request", Object.keys(request), PROFILE_FIELDS, []);
   for (const [key, value] of Object.entries(request)) {
     if (typeof value !== "string") {
       throw new Error(`${where} request field "${key}" must be a string or JSONPath.`);
@@ -2770,8 +2779,9 @@ function requireProfileFields(where: string, request: Record<string, string>): v
 /**
  * The shape `CreateCustomerProfile` and `UpdateCustomerProfile` share.
  * `request` is ProfileRequestData: each key a field the page lists
- * (`FirstName`, `PhoneNumber`, `BillingCity`, ...) or a custom attribute
- * `Attributes.<name>`, each value static or a JSONPath. `response` is
+ * (`FirstName`, `PhoneNumber`, `BillingCity`, ...), each value static or a
+ * JSONPath; the service refuses the page's `Attributes.<name>` key there
+ * (actions.md, rule 43). `response` is
  * ProfileResponseData, the names stored under `$.Customer` (`$.Customer.FirstName`,
  * `$.Customer.Attributes.<name>`), from the same list; the console writes
  * an empty list when none is chosen, and so does the class.
@@ -2882,14 +2892,15 @@ export type ProfileSearch =
  * `OR`, are D01's group alternatives (`exactlyOne` over the two groups). The
  * page's prose writes "IdentiferName" and its example `"IdentiferValue"`;
  * every published flow writes `IdentifierName` and `IdentifierValue`, which
- * the class writes (actions.md, rule 43, probes `get-identifier` and
- * `get-identifer-spelling`). `response` names the fields stored under
+ * the class writes; the service refuses the page's spelling (actions.md,
+ * rule 43, probes `get-identifier` and `get-identifer-spelling`). `response` names the fields stored under
  * `$.Customer`, as CreateCustomerProfile's do. Three errors, in the order
  * every published flow writes them: the catch-all, MultipleFoundError and
- * NoneFoundError; only the catch-all is required until the sweep says
- * otherwise. AWS's step-by-step guide flows also search by a named profile
- * field (`{ "PhoneNumber": ... }`), neither of the page's forms; such a
- * block stays a GenericBlock until `get-named-key` is put to the service.
+ * NoneFoundError, all three required by the service (actions.md, rule 43).
+ * AWS's step-by-step guide flows also search by a named profile field
+ * (`{ "PhoneNumber": ... }`), neither of the page's forms; the service
+ * accepts it (`get-named-key`), but the class writes only the page's two,
+ * so such a block stays a GenericBlock.
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
  */
@@ -2963,13 +2974,14 @@ export class GetCustomerProfile extends Block {
  * a preceding Get profile); `objectType` names one of the domain's object
  * types (`Asset`, `Order`, `Case` or the domain's own). The two retrievals
  * are D01's group alternatives: `latest: true` writes `UseLatest` as the
- * string "true" (the page's "true / false", unquoted; rule 43 probes the
- * other spellings), and `identifier` writes the pair. `response` names the
+ * string "true", the one spelling the service accepts (actions.md, rule 43:
+ * it refuses "false", "True" and the JSON boolean), and `identifier` writes
+ * the pair. The service also accepts both together; the class writes one. `response` names the
  * page's Asset, Order and Case fields or `AssetAttributes.<name>`,
  * `OrderAttributes.<name>`, `CaseAttributes.<name>` and
  * `ObjectAttributes.<name>`, stored under `$.Customer`. Two errors, the
  * catch-all and NoneFoundError, catch-all first as GetCustomerProfile's are
- * written; only the catch-all is required until the sweep.
+ * written; the service requires both (rule 43).
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
  */
@@ -3029,9 +3041,11 @@ export class GetCustomerProfileObject extends Block {
  * be present." in `ProfileRequestData`, static or a JSONPath. `response`
  * names `CalculatedAttributes._average_hold_time`,
  * `CalculatedAttributes._frequent_caller` or any `CalculatedAttributes.<name>`
- * the domain defines, stored under `$.Customer`. Two errors, the catch-all
- * and NoneFoundError, in the order the one published flow that carries the
- * type writes them; only the catch-all is required. The Connect
+ * the domain defines, stored under `$.Customer`; the service requires
+ * `ProfileResponseData` here and refuses a name without the prefix (rule
+ * 43). Two errors, the catch-all and NoneFoundError, in the order the one
+ * published flow that carries the type writes them; the service requires
+ * both. The Connect
  * service-linked role needs `ListCalculatedAttributeDefinitions` and
  * `GetCalculatedAttributeForProfile` at run time (the admin guide).
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
@@ -3078,8 +3092,9 @@ export class GetCalculatedAttributesForCustomerProfile extends Block {
  * "Associate a contact to a customer profile." `ProfileRequestData` holds
  * `ProfileId` and `ContactId` ("A ProfileId and ContactId must be present"),
  * each static or a JSONPath (the admin guide's block reads both from
- * attributes); `ProfileResponseData` holds nothing ("None."), written as
- * the empty list the console writes for a block with no response fields.
+ * attributes). `ProfileResponseData` is "None." on the page, and the
+ * service refuses the key even as an empty list ("Invalid Action property
+ * name", actions.md, rule 43), so the class writes none.
  * Results "None. Conditions are not supported."; one error, the catch-all.
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-associatecontacttocustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
@@ -3102,7 +3117,6 @@ export class AssociateContactToCustomerProfile extends Block {
   protected parameters(): Record<string, unknown> {
     return {
       ProfileRequestData: { ProfileId: this.config.profileId, ContactId: this.config.contactId },
-      ProfileResponseData: [],
     };
   }
 

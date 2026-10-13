@@ -423,18 +423,18 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
   [ActionType.UpdateContactMediaProcessing]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
   // The order every published flow writes (actions.md, rule 43), the
-  // catch-all first; the page lists the two lookups' errors first. Only the
-  // catch-all is marked required: the page marks none "Must always be
-  // defined", and rule 43's probes decide whether either joins
-  // REQUIRED_EXTRAS. The published flows wire all three.
+  // catch-all first; the page lists the two lookups' errors first. The page
+  // marks none "Must always be defined", but the service requires all three
+  // (rule 43), so both lookups are in REQUIRED_EXTRAS. The published flows
+  // wire all three.
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
   [ActionType.GetCustomerProfile]: [NO_MATCHING_ERROR, MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
   // Catch-all first, as GetCustomerProfile's are written; no published flow
-  // carries the type. Only the catch-all is required, as there.
+  // carries the type. The service requires both (rule 43).
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofileobject.html
   [ActionType.GetCustomerProfileObject]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
   // Catch-all first, the order of the one published flow that carries the
-  // type (actions.md, rule 43); only the catch-all is required.
+  // type (actions.md, rule 43); the service requires both.
   // https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcalculatedattributesforcustomerprofile.html
   [ActionType.GetCalculatedAttributesForCustomerProfile]: [NO_MATCHING_ERROR, NONE_FOUND_ERROR],
   // The order of the console's export and of every published flow
@@ -501,6 +501,14 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
   // CreateContactFlow refuses the block without it whatever the metric
   // (2026-09-29, rule 37).
   [ActionType.CheckMetricData]: [NO_MATCHING_CONDITION],
+  // The Customer Profiles lookups' pages mark neither lookup error "Must
+  // always be defined", but CreateContactFlow refuses each type without
+  // them ("Action is missing required error. Error: MultipleFoundError",
+  // and the same for NoneFoundError, us-west-2, 2026-10-13; actions.md,
+  // rule 43).
+  [ActionType.GetCustomerProfile]: [MULTIPLE_FOUND_ERROR, NONE_FOUND_ERROR],
+  [ActionType.GetCustomerProfileObject]: [NONE_FOUND_ERROR],
+  [ActionType.GetCalculatedAttributesForCustomerProfile]: [NONE_FOUND_ERROR],
 };
 
 // The Restrictions section of an action page names flow types in the console's
@@ -977,8 +985,11 @@ export const TASK_DELAY_MAX = 518_400;
  * `ProfileRequestData`, and the names those two and `GetCustomerProfile`
  * store from `ProfileResponseData` under `$.Customer`. Beside them the pages
  * list `"Attributes.x"`, a custom attribute, which PROFILE_FIELD_PATTERNS
- * spells as a key pattern (a name holding no further dot). The catalog's
- * `keys` and `keyPatterns` on those parameters are held to these two.
+ * spells as a key pattern (a name holding no further dot). The service
+ * refuses that key in ProfileRequestData ("Invalid Action property name",
+ * 2026-10-13, actions.md, rule 43), so the pattern applies to the response
+ * names only. The catalog's `keys` and `keyPatterns` on those parameters
+ * are held to these two.
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-createcustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-updatecustomerprofile.html
  * https://docs.aws.amazon.com/connect/latest/devguide/interactions-getcustomerprofile.html
@@ -1195,13 +1206,12 @@ export const ROUTING_OR_MAX = 3;
 export const STORED_CONTENT_TYPES = ["EmailMessage"] as const;
 
 /**
- * GetCustomerProfileObject.UseLatest, "true / false" on the page. The page
- * shows no quotes and no published flow carries the type; the class writes
- * the string "true", the spelling Connect's own flag parameters use in the
- * published flows (`LinkContactToCase`, `GetLastUpdatedCase`), and rule
- * 43's probes put the JSON boolean and "True" to the service.
+ * GetCustomerProfileObject.UseLatest, "true / false" on the page. The
+ * service accepts the string "true" and refuses "false", "True" and the
+ * JSON boolean (us-west-2, 2026-10-13; actions.md, rule 43): the flag
+ * chooses the latest object, and leaving it out is how a block says not to.
  */
-export const PROFILE_USE_LATEST = ["true", "false"] as const;
+export const PROFILE_USE_LATEST = ["true"] as const;
 
 /**
  * The Cases system field ids, in the admin guide's table order: the same on

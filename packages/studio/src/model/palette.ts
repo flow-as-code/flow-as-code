@@ -346,9 +346,10 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // The admin guide's example: the profile found by a preceding Get
       // profile and the current contact, both read from attributes.
       // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+      // No ProfileResponseData: the service refuses it here (actions.md,
+      // rule 43).
       return {
         ProfileRequestData: { ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" },
-        ProfileResponseData: [],
       };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.

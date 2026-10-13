@@ -619,11 +619,14 @@ describe("the Customer Profiles names", () => {
     return { keys: p.keys, keyPatterns: p.keyPatterns };
   };
   const PROFILE = { keys: [...PROFILE_FIELDS], keyPatterns: [...PROFILE_FIELD_PATTERNS] };
+  // The service refuses the page's "Attributes.x" as a request key (rule 43),
+  // so the request side lists the fields alone.
+  const PROFILE_REQUEST = { keys: [...PROFILE_FIELDS], keyPatterns: undefined };
 
   it.each([
-    ["CreateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["CreateCustomerProfile", "ProfileRequestData", PROFILE_REQUEST],
     ["CreateCustomerProfile", "ProfileResponseData", PROFILE],
-    ["UpdateCustomerProfile", "ProfileRequestData", PROFILE],
+    ["UpdateCustomerProfile", "ProfileRequestData", PROFILE_REQUEST],
     ["UpdateCustomerProfile", "ProfileResponseData", PROFILE],
     ["GetCustomerProfile", "ProfileResponseData", PROFILE],
     [
@@ -771,25 +774,32 @@ describe("the action catalog", () => {
     ]);
     expect(requiredErrors("Wait")).toEqual(["NoMatchingError"]);
     // The published flows' order, catch-all first; the page marks none
-    // "Must always be defined", so only the catch-all is required until
-    // rule 43's sweep says otherwise.
+    // "Must always be defined", but the service requires every one (rule 43).
     expect(builderErrors("GetCustomerProfile")).toEqual([
       "NoMatchingError",
       "MultipleFoundError",
       "NoneFoundError",
     ]);
-    expect(requiredErrors("GetCustomerProfile")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("GetCustomerProfile")).toEqual([
+      "NoMatchingError",
+      "MultipleFoundError",
+      "NoneFoundError",
+    ]);
     expect(builderErrors("GetCustomerProfileObject")).toEqual([
       "NoMatchingError",
       "NoneFoundError",
     ]);
-    expect(requiredErrors("GetCustomerProfileObject")).toEqual(["NoMatchingError"]);
+    expect(requiredErrors("GetCustomerProfileObject")).toEqual([
+      "NoMatchingError",
+      "NoneFoundError",
+    ]);
     expect(builderErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
       "NoMatchingError",
       "NoneFoundError",
     ]);
     expect(requiredErrors("GetCalculatedAttributesForCustomerProfile")).toEqual([
       "NoMatchingError",
+      "NoneFoundError",
     ]);
     expect(requiredErrors("DistributeByPercentage")).toEqual(["NoMatchingCondition"]);
     expect(builderErrors("GetMetricData")).toEqual(["NoMatchingError"]);

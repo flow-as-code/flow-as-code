@@ -793,12 +793,11 @@ Block `associate_contact_to_customer_profile`. [Action page](https://docs.aws.am
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
-| HCL attribute           | Flow language key     | Value              | Required |
-| ----------------------- | --------------------- | ------------------ | -------- |
-| `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
-| .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
-| .`contact_id`           | `ContactId`           | string or JSONPath | yes      |
-| `profile_response_data` | `ProfileResponseData` | list               | no       |
+| HCL attribute          | Flow language key    | Value              | Required |
+| ---------------------- | -------------------- | ------------------ | -------- |
+| `profile_request_data` | `ProfileRequestData` | object             | yes      |
+| .`profile_id`          | `ProfileId`          | string or JSONPath | yes      |
+| .`contact_id`          | `ContactId`          | string or JSONPath | yes      |
 
 ## CreateCallbackContact
 
@@ -834,7 +833,7 @@ Block `create_customer_profile`. [Action page](https://docs.aws.amazon.com/conne
 | `profile_request_data`  | `ProfileRequestData`  | map of strings | no       |
 | `profile_response_data` | `ProfileResponseData` | list           | no       |
 
-- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`.
 - `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
 
 ## InvokeLambdaFunction
@@ -861,7 +860,7 @@ Block `get_customer_profile`. [Action page](https://docs.aws.amazon.com/connect/
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `MultipleFoundError`; `NoneFoundError`.
+- Error branches: `NoMatchingError` (required); `MultipleFoundError` (required); `NoneFoundError` (required).
 - Conditions: none.
 - Fields of `profile_request_data`: exactly one of (`IdentifierName` and `IdentifierValue`), (`SearchCriteria` and `LogicalOperator`).
 
@@ -884,19 +883,19 @@ Block `get_customer_profile_object`. [Action page](https://docs.aws.amazon.com/c
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `NoneFoundError`.
+- Error branches: `NoMatchingError` (required); `NoneFoundError` (required).
 - Conditions: none.
 - Fields of `profile_request_data`: exactly one of `UseLatest`, (`IdentifierName` and `IdentifierValue`).
 
-| HCL attribute           | Flow language key     | Value               | Required |
-| ----------------------- | --------------------- | ------------------- | -------- |
-| `profile_request_data`  | `ProfileRequestData`  | object              | yes      |
-| .`profile_id`           | `ProfileId`           | string or JSONPath  | yes      |
-| .`object_type`          | `ObjectType`          | string              | yes      |
-| .`identifier_name`      | `IdentifierName`      | string              | no       |
-| .`identifier_value`     | `IdentifierValue`     | string or JSONPath  | no       |
-| .`use_latest`           | `UseLatest`           | `"true"`, `"false"` | no       |
-| `profile_response_data` | `ProfileResponseData` | list                | no       |
+| HCL attribute           | Flow language key     | Value              | Required |
+| ----------------------- | --------------------- | ------------------ | -------- |
+| `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
+| .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
+| .`object_type`          | `ObjectType`          | string             | yes      |
+| .`identifier_name`      | `IdentifierName`      | string             | no       |
+| .`identifier_value`     | `IdentifierValue`     | string or JSONPath | no       |
+| .`use_latest`           | `UseLatest`           | `"true"`           | no       |
+| `profile_response_data` | `ProfileResponseData` | list               | no       |
 
 - `profile_response_data` values: `AssetAssetId`, `AssetProfileId`, `AssetAssetName`, `AssetSerialNumber`, `AssetModelNumber`, `AssetModelName`, `AssetProductSKU`, `AssetPurchaseDate`, `AssetUsageEndDate`, `AssetStatus`, `AssetPrice`, `AssetQuantity`, `AssetDescription`, `AssetAdditionalInformation`, `AssetDataSource`, `OrderOrderId`, `OrderProfileId`, `OrderCustomerEmail`, `OrderCustomerPhone`, `OrderCreatedDate`, `OrderUpdatedDate`, `OrderProcessedDate`, `OrderClosedDate`, `OrderCancelledDate`, `OrderCancelReason`, `OrderName`, `OrderAdditionalInformation`, `OrderGateway`, `OrderStatus`, `OrderStatusCode`, `OrderStatusUrl`, `OrderCreditCardNumber`, `OrderCreditCardCompany`, `OrderFulfillmentStatus`, `OrderTotalPrice`, `OrderTotalTax`, `OrderTotalDiscounts`, `OrderTotalItemsPrice`, `OrderTotalShippingPrice`, `OrderTotalTipReceived`, `OrderCurrency`, `OrderTotalWeight`, `OrderBillingName`, `OrderBillingAddress1`, `OrderBillingAddress2`, `OrderBillingAddress3`, `OrderBillingAddress4`, `OrderBillingCity`, `OrderBillingCounty`, `OrderBillingCountry`, `OrderBillingPostalCode`, `OrderBillingProvince`, `OrderBillingState`, `OrderShippingName`, `OrderShippingAddress1`, `OrderShippingAddress2`, `OrderShippingAddress3`, `OrderShippingAddress4`, `OrderShippingCity`, `OrderShippingCounty`, `OrderShippingCountry`, `OrderShippingPostalCode`, `OrderShippingProvince`, `OrderShippingState`, `CaseCaseId`, `CaseProfileId`, `CaseTitle`, `CaseSummary`, `CaseStatus`, `CaseReason`, `CaseCreatedBy`, `CaseCreatedDate`, `CaseUpdatedDate`, `CaseClosedDate`, `CaseAdditionalInformation`, `CaseDataSource`, or a name matching `^AssetAttributes\.[^.]+$` or `^OrderAttributes\.[^.]+$` or `^CaseAttributes\.[^.]+$` or `^ObjectAttributes\.[^.]+$`.
 
@@ -906,14 +905,14 @@ Block `get_calculated_attributes_for_customer_profile`. [Action page](https://do
 
 - Legal in: every flow type.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `NoneFoundError`.
+- Error branches: `NoMatchingError` (required); `NoneFoundError` (required).
 - Conditions: none.
 
 | HCL attribute           | Flow language key     | Value              | Required |
 | ----------------------- | --------------------- | ------------------ | -------- |
 | `profile_request_data`  | `ProfileRequestData`  | object             | yes      |
 | .`profile_id`           | `ProfileId`           | string or JSONPath | yes      |
-| `profile_response_data` | `ProfileResponseData` | list               | no       |
+| `profile_response_data` | `ProfileResponseData` | list               | yes      |
 
 - `profile_response_data` values: `CalculatedAttributes._average_hold_time`, `CalculatedAttributes._frequent_caller`, or a name matching `^CalculatedAttributes\.[^.]+$`.
 
@@ -931,7 +930,7 @@ Block `update_customer_profile`. [Action page](https://docs.aws.amazon.com/conne
 | `profile_request_data`  | `ProfileRequestData`  | map of strings | no       |
 | `profile_response_data` | `ProfileResponseData` | list           | no       |
 
-- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
+- `profile_request_data` keys: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`.
 - `profile_response_data` values: `FirstName`, `MiddleName`, `LastName`, `PhoneNumber`, `EmailAddress`, `AccountNumber`, `AdditionalInformation`, `PartyType`, `BusinessName`, `BirthDate`, `Gender`, `MobilePhoneNumber`, `HomePhoneNumber`, `BusinessPhoneNumber`, `BusinessEmailAddress`, `Address1`, `Address2`, `Address3`, `Address4`, `City`, `County`, `Country`, `PostalCode`, `Province`, `State`, `ShippingAddress1`, `ShippingAddress2`, `ShippingAddress3`, `ShippingAddress4`, `ShippingCity`, `ShippingCounty`, `ShippingCountry`, `ShippingPostalCode`, `ShippingProvince`, `ShippingState`, `MailingAddress1`, `MailingAddress2`, `MailingAddress3`, `MailingAddress4`, `MailingCity`, `MailingCounty`, `MailingCountry`, `MailingPostalCode`, `MailingProvince`, `MailingState`, `BillingAddress1`, `BillingAddress2`, `BillingAddress3`, `BillingAddress4`, `BillingCity`, `BillingCounty`, `BillingCountry`, `BillingPostalCode`, `BillingProvince`, `BillingState`, or a name matching `^Attributes\.[^.]+$`.
 
 ## LoadContactContent

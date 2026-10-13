@@ -1745,13 +1745,12 @@
                 "properties": {
                   "ProfileRequestData": {
                     "type": "object"
-                  },
-                  "ProfileResponseData": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
                   }
+                },
+                "not": {
+                  "required": [
+                    "ProfileResponseData"
+                  ]
                 }
               }
             }
@@ -1773,12 +1772,135 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "propertyNames": {
+                      "enum": [
+                        "FirstName",
+                        "MiddleName",
+                        "LastName",
+                        "PhoneNumber",
+                        "EmailAddress",
+                        "AccountNumber",
+                        "AdditionalInformation",
+                        "PartyType",
+                        "BusinessName",
+                        "BirthDate",
+                        "Gender",
+                        "MobilePhoneNumber",
+                        "HomePhoneNumber",
+                        "BusinessPhoneNumber",
+                        "BusinessEmailAddress",
+                        "Address1",
+                        "Address2",
+                        "Address3",
+                        "Address4",
+                        "City",
+                        "County",
+                        "Country",
+                        "PostalCode",
+                        "Province",
+                        "State",
+                        "ShippingAddress1",
+                        "ShippingAddress2",
+                        "ShippingAddress3",
+                        "ShippingAddress4",
+                        "ShippingCity",
+                        "ShippingCounty",
+                        "ShippingCountry",
+                        "ShippingPostalCode",
+                        "ShippingProvince",
+                        "ShippingState",
+                        "MailingAddress1",
+                        "MailingAddress2",
+                        "MailingAddress3",
+                        "MailingAddress4",
+                        "MailingCity",
+                        "MailingCounty",
+                        "MailingCountry",
+                        "MailingPostalCode",
+                        "MailingProvince",
+                        "MailingState",
+                        "BillingAddress1",
+                        "BillingAddress2",
+                        "BillingAddress3",
+                        "BillingAddress4",
+                        "BillingCity",
+                        "BillingCounty",
+                        "BillingCountry",
+                        "BillingPostalCode",
+                        "BillingProvince",
+                        "BillingState"
+                      ]
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "FirstName",
+                            "MiddleName",
+                            "LastName",
+                            "PhoneNumber",
+                            "EmailAddress",
+                            "AccountNumber",
+                            "AdditionalInformation",
+                            "PartyType",
+                            "BusinessName",
+                            "BirthDate",
+                            "Gender",
+                            "MobilePhoneNumber",
+                            "HomePhoneNumber",
+                            "BusinessPhoneNumber",
+                            "BusinessEmailAddress",
+                            "Address1",
+                            "Address2",
+                            "Address3",
+                            "Address4",
+                            "City",
+                            "County",
+                            "Country",
+                            "PostalCode",
+                            "Province",
+                            "State",
+                            "ShippingAddress1",
+                            "ShippingAddress2",
+                            "ShippingAddress3",
+                            "ShippingAddress4",
+                            "ShippingCity",
+                            "ShippingCounty",
+                            "ShippingCountry",
+                            "ShippingPostalCode",
+                            "ShippingProvince",
+                            "ShippingState",
+                            "MailingAddress1",
+                            "MailingAddress2",
+                            "MailingAddress3",
+                            "MailingAddress4",
+                            "MailingCity",
+                            "MailingCounty",
+                            "MailingCountry",
+                            "MailingPostalCode",
+                            "MailingProvince",
+                            "MailingState",
+                            "BillingAddress1",
+                            "BillingAddress2",
+                            "BillingAddress3",
+                            "BillingAddress4",
+                            "BillingCity",
+                            "BillingCounty",
+                            "BillingCountry",
+                            "BillingPostalCode",
+                            "BillingProvince",
+                            "BillingState"
+                          ]
+                        },
+                        {
+                          "pattern": "^Attributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1802,12 +1924,135 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "propertyNames": {
+                      "enum": [
+                        "FirstName",
+                        "MiddleName",
+                        "LastName",
+                        "PhoneNumber",
+                        "EmailAddress",
+                        "AccountNumber",
+                        "AdditionalInformation",
+                        "PartyType",
+                        "BusinessName",
+                        "BirthDate",
+                        "Gender",
+                        "MobilePhoneNumber",
+                        "HomePhoneNumber",
+                        "BusinessPhoneNumber",
+                        "BusinessEmailAddress",
+                        "Address1",
+                        "Address2",
+                        "Address3",
+                        "Address4",
+                        "City",
+                        "County",
+                        "Country",
+                        "PostalCode",
+                        "Province",
+                        "State",
+                        "ShippingAddress1",
+                        "ShippingAddress2",
+                        "ShippingAddress3",
+                        "ShippingAddress4",
+                        "ShippingCity",
+                        "ShippingCounty",
+                        "ShippingCountry",
+                        "ShippingPostalCode",
+                        "ShippingProvince",
+                        "ShippingState",
+                        "MailingAddress1",
+                        "MailingAddress2",
+                        "MailingAddress3",
+                        "MailingAddress4",
+                        "MailingCity",
+                        "MailingCounty",
+                        "MailingCountry",
+                        "MailingPostalCode",
+                        "MailingProvince",
+                        "MailingState",
+                        "BillingAddress1",
+                        "BillingAddress2",
+                        "BillingAddress3",
+                        "BillingAddress4",
+                        "BillingCity",
+                        "BillingCounty",
+                        "BillingCountry",
+                        "BillingPostalCode",
+                        "BillingProvince",
+                        "BillingState"
+                      ]
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "FirstName",
+                            "MiddleName",
+                            "LastName",
+                            "PhoneNumber",
+                            "EmailAddress",
+                            "AccountNumber",
+                            "AdditionalInformation",
+                            "PartyType",
+                            "BusinessName",
+                            "BirthDate",
+                            "Gender",
+                            "MobilePhoneNumber",
+                            "HomePhoneNumber",
+                            "BusinessPhoneNumber",
+                            "BusinessEmailAddress",
+                            "Address1",
+                            "Address2",
+                            "Address3",
+                            "Address4",
+                            "City",
+                            "County",
+                            "Country",
+                            "PostalCode",
+                            "Province",
+                            "State",
+                            "ShippingAddress1",
+                            "ShippingAddress2",
+                            "ShippingAddress3",
+                            "ShippingAddress4",
+                            "ShippingCity",
+                            "ShippingCounty",
+                            "ShippingCountry",
+                            "ShippingPostalCode",
+                            "ShippingProvince",
+                            "ShippingState",
+                            "MailingAddress1",
+                            "MailingAddress2",
+                            "MailingAddress3",
+                            "MailingAddress4",
+                            "MailingCity",
+                            "MailingCounty",
+                            "MailingCountry",
+                            "MailingPostalCode",
+                            "MailingProvince",
+                            "MailingState",
+                            "BillingAddress1",
+                            "BillingAddress2",
+                            "BillingAddress3",
+                            "BillingAddress4",
+                            "BillingCity",
+                            "BillingCounty",
+                            "BillingCountry",
+                            "BillingPostalCode",
+                            "BillingProvince",
+                            "BillingState"
+                          ]
+                        },
+                        {
+                          "pattern": "^Attributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1831,12 +2076,88 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "SearchCriteria": {
+                        "type": "array",
+                        "maxItems": 5
+                      },
+                      "LogicalOperator": {
+                        "enum": [
+                          "AND",
+                          "OR"
+                        ]
+                      }
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "FirstName",
+                            "MiddleName",
+                            "LastName",
+                            "PhoneNumber",
+                            "EmailAddress",
+                            "AccountNumber",
+                            "AdditionalInformation",
+                            "PartyType",
+                            "BusinessName",
+                            "BirthDate",
+                            "Gender",
+                            "MobilePhoneNumber",
+                            "HomePhoneNumber",
+                            "BusinessPhoneNumber",
+                            "BusinessEmailAddress",
+                            "Address1",
+                            "Address2",
+                            "Address3",
+                            "Address4",
+                            "City",
+                            "County",
+                            "Country",
+                            "PostalCode",
+                            "Province",
+                            "State",
+                            "ShippingAddress1",
+                            "ShippingAddress2",
+                            "ShippingAddress3",
+                            "ShippingAddress4",
+                            "ShippingCity",
+                            "ShippingCounty",
+                            "ShippingCountry",
+                            "ShippingPostalCode",
+                            "ShippingProvince",
+                            "ShippingState",
+                            "MailingAddress1",
+                            "MailingAddress2",
+                            "MailingAddress3",
+                            "MailingAddress4",
+                            "MailingCity",
+                            "MailingCounty",
+                            "MailingCountry",
+                            "MailingPostalCode",
+                            "MailingProvince",
+                            "MailingState",
+                            "BillingAddress1",
+                            "BillingAddress2",
+                            "BillingAddress3",
+                            "BillingAddress4",
+                            "BillingCity",
+                            "BillingCounty",
+                            "BillingCountry",
+                            "BillingPostalCode",
+                            "BillingProvince",
+                            "BillingState"
+                          ]
+                        },
+                        {
+                          "pattern": "^Attributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
                 }
@@ -1860,7 +2181,12 @@
               "Parameters": {
                 "properties": {
                   "ProfileRequestData": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "UseLatest": {
+                        "const": "true"
+                      }
+                    }
                   },
                   "ProfileResponseData": {
                     "type": "array",
@@ -1894,10 +2220,24 @@
                   "ProfileResponseData": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "CalculatedAttributes._average_hold_time",
+                            "CalculatedAttributes._frequent_caller"
+                          ]
+                        },
+                        {
+                          "pattern": "^CalculatedAttributes\\.[^.]+$"
+                        }
+                      ]
                     }
                   }
-                }
+                },
+                "required": [
+                  "ProfileResponseData"
+                ]
               }
             }
           }
