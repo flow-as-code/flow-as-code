@@ -948,7 +948,7 @@ Block `load_contact_content`. [Action page](https://docs.aws.amazon.com/connect/
 
 | HCL attribute  | Flow language key | Value            | Required |
 | -------------- | ----------------- | ---------------- | -------- |
-| `content_type` | `ContentType`     | `"EmailMessage"` | no       |
+| `content_type` | `ContentType`     | `"EmailMessage"` | yes      |
 
 ## TransferParticipantToThirdParty
 
@@ -957,9 +957,10 @@ Block `transfer_participant_to_third_party`. [Kept export](https://github.com/fl
 - Legal in: CONTACT_FLOW, CUSTOMER_QUEUE, AGENT_TRANSFER, QUEUE_TRANSFER, MODULE.
 - Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required.
-- Error branches: `CallFailed`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" it is optional, the builder writing it only when wired, and rule 47's probes decide what that form takes; `ConnectionTimeLimitExceeded`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" it is optional, the builder writing it only when wired, and rule 47's probes decide what that form takes; `NoMatchingError` (required).
+- Error branches: `CallFailed`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the service refuses it (actions.md, rule 47, 2026-10-13); `ConnectionTimeLimitExceeded`: ContinueFlowExecution is "True": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with "False" the service refuses it (actions.md, rule 47, 2026-10-13); `NoMatchingError` (required).
 - Conditions: none.
 - Shape with `ContinueFlowExecution` "True": needs branches `CallFailed`, `ConnectionTimeLimitExceeded`.
+- Shape with `ContinueFlowExecution` "False": must not wire `CallFailed`, `ConnectionTimeLimitExceeded`.
 
 | HCL attribute                               | Flow language key                      | Value               | Required |
 | ------------------------------------------- | -------------------------------------- | ------------------- | -------- |

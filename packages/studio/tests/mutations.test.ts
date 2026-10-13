@@ -16,6 +16,7 @@ import {
   moveNode,
   rewireEdge,
   setCaseLink,
+  setContinueFlow,
   setMessageBody,
   setParam,
 } from "../src/model/mutations.js";
@@ -404,17 +405,28 @@ describe("TransferParticipantToThirdParty error drags", () => {
     expectByteStable(wired);
   });
 
-  it("then takes the other two in the class's order, and the flag switches with no demotion", () => {
+  it("offers no other branch on the form that ends the flow, and the flag switches with its branches, with no demotion", () => {
     const { doc, id } = fresh();
-    let d = connectNodes(doc, id, "hang-up", "error")!;
-    d = connectNodes(d, id, "hang-up", "error")!;
-    expect(errors(d, id)).toEqual(["CallFailed", "NoMatchingError"]);
-    d = connectNodes(d, id, "hang-up", "error")!;
-    expect(errors(d, id)).toEqual(["CallFailed", "ConnectionTimeLimitExceeded", "NoMatchingError"]);
-    const resumed = setParam(d, id, "ContinueFlowExecution", "True");
+    const d = connectNodes(doc, id, "hang-up", "error")!;
+    // The service refuses Call failed and Timeout when the flow ends
+    // (actions.md, rule 47), so a second error drag finds nothing to add.
+    const again = connectNodes(d, id, "hang-up", "error");
+    expect(again === undefined ? ["NoMatchingError"] : errors(again, id)).toEqual([
+      "NoMatchingError",
+    ]);
+    const resumed = setContinueFlow(d, id, "True");
     expect(getAction(resumed, id)!.Parameters.ContinueFlowExecution).toBe("True");
+    expect(errors(resumed, id)).toEqual([
+      "CallFailed",
+      "ConnectionTimeLimitExceeded",
+      "NoMatchingError",
+    ]);
     expect(demotedIds(resumed).has(id)).toBe(false);
     expectSchemaValid(resumed);
+    const ended = setContinueFlow(resumed, id, "False");
+    expect(errors(ended, id)).toEqual(["NoMatchingError"]);
+    expect(demotedIds(ended).has(id)).toBe(false);
+    expectSchemaValid(ended);
   });
 
   it("wires the resuming form's required branches in the class's order", () => {

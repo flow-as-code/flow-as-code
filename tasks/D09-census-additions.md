@@ -77,8 +77,8 @@ kept.
       `TransferParticipantToThirdParty` shape is under
       `conformance/flow-language/exports/`; it is the old fixture's action,
       not a file the console wrote, and no owner export has been taken.
-- [x] Probe inputs under `conformance/flow-language/probes/47/`; the sweep
-      itself has not run (see "Evidence" under "Record").
+- [x] Probe inputs under `conformance/flow-language/probes/47/`, run on
+      2026-10-13 (see "Evidence" under "Record").
 - [ ] Provider: re-vendor, oracles re-recorded (lines 11 to 14); the provider
       commit recorded here.
 
@@ -183,22 +183,69 @@ probes ask the service; the typed form follows their results, in this task
 or a follow-up recorded here. The catalog's `InputEncryption`
 (`EncryptionKeyId`, `Key`) was checked against the page and matches.
 
+(2026-10-13: the sweep answered half of it. The page's lowercase `"true"`
+is refused and `"True"` alone, with no `InputTimeLimitSeconds` and no
+`StoreInput`, is accepted, so the buffer form is exempt from the menu
+form's requirements and `conditional-shape`'s reports on it are false
+positives. The other buffer probes used the page's spelling and were
+refused for that alone, so the form stays untyped until they are rerun
+with `"True"` and `"False"`; see "Not done here".)
+
 ### Evidence
 
-Not run. On 2026-10-12 the AWS credentials for the sandbox had expired.
-No AWS call was made and no result is recorded. The inputs are kept in
-`conformance/flow-language/probes/47/` (43 probes) with `PENDING.md`,
-which names what the instance needs (a Customer Profiles domain for
-`segment-keys` and `authenticate-nested-keys`, an encryption key for one
-buffer probe), the two placeholders, and how to read the probes whose
-result depends on another. `load-required-set-alone` and
-`third-required-set-alone` are the accepted-set probes; each required key
-and each required error has a removal probe, and neither type has an
-optional container.
+Run on 2026-10-13, 17:13 to 17:14 UTC, on the sandbox (us-west-2), with
+the sandbox-features root (provider repository,
+`acceptance/sandbox-features`) applied: a Customer Profiles domain linked,
+and no segment definition, Cognito user pool, email address or input
+encryption key. 42 of the 43 inputs in
+`conformance/flow-language/probes/47/` ran, 15 accepted and 27 refused;
+`results.json` holds each, and `PENDING.md` is gone.
+`dtmf-buffer-stop-store-encrypted` did not run: it needs a security key
+uploaded to the instance and an X.509 certificate, which the sandbox lacks
+and a KMS key cannot replace. Rule 47's last bullet quotes every result.
+What moved the model:
+
+- `LoadContactContent` with `Parameters` empty was refused naming
+  `ContentType`, so the catalog and the schema clause require it, and rule
+  47 corrects rule 40's reading of its own empty create (accepted on
+  2026-10-05 on the us-east-1 development instance).
+- `TransferParticipantToThirdParty` with `"False"` and all three branches
+  was refused for `CallFailed` and `ConnectionTimeLimitExceeded`. A second
+  catalog shape forbids them in that form, with a fail fixture; the class
+  refuses them with `continueFlow: false`; codegen leaves such a block
+  generic; and the studio's resume select is now `setContinueFlow`, which
+  adds both branches when switched to `"True"` and removes them when
+  switched to `"False"`, with a UI test.
+- Its time limit was accepted as a number and as a JSONPath, and refused
+  as `"0"`: the schema clause admits an integer, and the catalog marks the
+  parameter `dynamic` with a minimum of 1.
+
+What the run settled without a change:
+
+- A static destination number was accepted (`third-static-number`), so
+  the builder may take one; it does not yet (see "Not done here").
+- `"true"` for `ContinueFlowExecution` was refused; the flow types of both
+  modeled Types stand; `LoadContactContent` needs no email address on the
+  instance to be created.
+- `RouteContactToAgent` is an unknown Type in us-west-2 as in us-east-1,
+  so the spelling, not a Region, is the question. `CheckSegmentMembership`
+  was refused as unknown on an instance with a domain but no segment, the
+  missing segment a possible cause. `AuthenticateParticipant`'s refusal
+  named `CognitoConfiguration.UserPoolArn`, `CognitoConfiguration.AppClientId`
+  and `CustomerProfilesConfiguration.ObjectTypeName`; the sandbox has no
+  user pool, and the value shapes still need an export. All three stay
+  unmodeled.
 
 ### Not done here
 
-- The sweep, above, and any catalog change its results call for.
+- A static destination for `TransferParticipantToThirdParty` in the class
+  and codegen, which the service accepts (rule 47).
+- A rerun of the buffer probes with `"True"` and `"False"`, then typing
+  the Set Touchtone Buffer Behavior form and exempting it from the menu
+  form's shapes; and `dtmf-buffer-stop-store-encrypted`, once the sandbox
+  has an input encryption key.
+- A rerun of `segment-keys` once the sandbox domain has a segment
+  definition, and of `authenticate-nested-keys` with a Cognito user pool.
 - Console exports of the five console-only blocks and of the three
   blocked Types (owner decision 8).
 - `EnableDTMFBuffer`, above.

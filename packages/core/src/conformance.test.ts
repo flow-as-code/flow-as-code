@@ -1102,10 +1102,11 @@ describe("FlowDoc schema rejections: outbound", () => {
 
 // The census-additions round-trip fixture is the subject for the 0.3 clauses
 // of tasks/D09. LoadContactContent's clause holds the admin guide's one
-// content type; TransferParticipantToThirdParty's holds the kept export's
-// JSON types and its True and False. Rule 47's probes (pending) put another
-// value or spelling of each to the service (owner decision 3). Each case
-// below fails if its part of the clause is deleted.
+// content type, which the service requires; TransferParticipantToThirdParty's
+// holds the number to a string, the time limit to a string or an integer and
+// the flag to True and False, which is what rule 47's probes (us-west-2,
+// 2026-10-13) found the service refusing and accepting (owner decision 3).
+// Each case below fails if its part of the clause is deleted.
 describe("FlowDoc schema rejections: census additions", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/census-additions/doc.flowdoc.json");
@@ -1133,9 +1134,15 @@ describe("FlowDoc schema rejections: census additions", () => {
       }),
     ],
     [
-      "a connection time limit that is not a string",
+      "a connection time limit that is neither a string nor an integer",
       mutate("transfer-desk", (a) => {
-        a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 30;
+        a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 30.5;
+      }),
+    ],
+    [
+      "a stored content load without its content type, which the service refuses",
+      mutate("load-email", (a) => {
+        delete a.Parameters.ContentType;
       }),
     ],
     [
@@ -1146,6 +1153,16 @@ describe("FlowDoc schema rejections: census additions", () => {
     ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
+  });
+
+  it("accepts a connection time limit as an integer, which the service accepted", () => {
+    expect(
+      validate(
+        mutate("transfer-desk", (a) => {
+          a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 30;
+        }),
+      ),
+    ).toBe(true);
   });
 });
 

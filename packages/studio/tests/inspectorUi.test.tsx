@@ -12,6 +12,7 @@
 import type { FlowDoc } from "@flow-as-code/core";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import casesFixture from "../../../conformance/roundtrip/cases/doc.flowdoc.json";
+import censusFixture from "../../../conformance/roundtrip/census-additions/doc.flowdoc.json";
 import profilesFixture from "../../../conformance/roundtrip/customer-profiles/doc.flowdoc.json";
 import outboundFixture from "../../../conformance/roundtrip/outbound/doc.flowdoc.json";
 import routingFixture from "../../../conformance/roundtrip/routing-criteria/doc.flowdoc.json";
@@ -518,6 +519,43 @@ describe("Cases link and field picker (tasks/D06)", () => {
 // The wired cases fixture, so every Cases block is typed and the guard
 // refuses any edit that would leave one generic; the saved document is what
 // the assertions read (the pattern of the profile form tests above).
+// The service requires Call failed and Timeout when the flow resumes after
+// the transfer, and refuses them when it ends (actions.md, rule 47), so the
+// flag and the two branches change in one mutation.
+describe("the transfer's resume flag adds and removes its two branches (tasks/D09)", () => {
+  it("adds Call failed and Timeout when switched to True, and removes them when switched to False", async () => {
+    const store = new MemoryStore("opened", [structuredClone(censusFixture) as unknown as FlowDoc]);
+    vi.useFakeTimers();
+    await render(<App store={store} />);
+    await settleLint();
+    const saved = async () => {
+      await settleLint();
+      expect(button("save-button").disabled).toBe(false);
+      await click(button("save-button"));
+      const { doc } = await store.read(censusFixture.name);
+      return doc.content.Actions.find((a) => a.Identifier === "transfer-on-call")!;
+    };
+    await click(present('[data-testid="node-transfer-on-call"]'));
+    const flag = () => testId<HTMLSelectElement>("continueflow-ContinueFlowExecution");
+    expect(flag().value).toBe("False");
+    await selectOption(flag(), "True");
+    expect(query('[data-testid="mutation-notice"]')?.textContent ?? "").not.toContain(
+      "generic block",
+    );
+    const resumed = await saved();
+    expect(resumed.Parameters.ContinueFlowExecution).toBe("True");
+    expect(resumed.Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
+      "CallFailed",
+      "ConnectionTimeLimitExceeded",
+      "NoMatchingError",
+    ]);
+    await selectOption(flag(), "False");
+    const ended = await saved();
+    expect(ended.Parameters.ContinueFlowExecution).toBe("False");
+    expect(ended.Transitions.Errors!.map((e) => e.ErrorType)).toEqual(["NoMatchingError"]);
+  });
+});
+
 describe("the Cases link wires ContactNotLinked in the saved document (tasks/D06)", () => {
   const open = async () => {
     const store = new MemoryStore("opened", [structuredClone(casesFixture) as unknown as FlowDoc]);

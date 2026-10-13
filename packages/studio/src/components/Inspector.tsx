@@ -43,6 +43,7 @@ import {
   setCondition,
   setMessageBody,
   setCaseLink,
+  setContinueFlow,
   type CaseLinkChoice,
   setNumberParam,
   type SetNumberResult,
@@ -927,6 +928,27 @@ export function Inspector() {
             onCommit={(next) => mutate(() => setParam(doc, selected, field.key, next))}
           />
         );
+      case "continueFlow": {
+        const resume = action.Parameters.ContinueFlowExecution === "True" ? "True" : "False";
+        return (
+          <label key={`${selected}:${field.key}:continue`} className="block">
+            <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+              {field.label}
+            </span>
+            <select
+              data-testid={`continueflow-${field.key}`}
+              className="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-600 dark:bg-neutral-800"
+              value={resume}
+              onChange={(e) =>
+                mutate(() => setContinueFlow(doc, selected, e.target.value as "True" | "False"))
+              }
+            >
+              <option value="True">True</option>
+              <option value="False">False</option>
+            </select>
+          </label>
+        );
+      }
       case "caseLink": {
         const choice: CaseLinkChoice =
           action.Parameters.LinkContactToCase !== "true"

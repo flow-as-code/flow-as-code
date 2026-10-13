@@ -42,6 +42,8 @@ import type {
 import {
   builderErrorsFor,
   ActionType,
+  CALL_FAILED,
+  CONNECTION_TIME_LIMIT_EXCEEDED,
   CONTACT_NOT_LINKED,
   MAX_ACTIONS_PER_FLOW,
   MESSAGES_INTERRUPTED,
@@ -478,6 +480,52 @@ export const setCaseLink = guard(
         return {
           ...linked,
           Transitions: { ...a.Transitions, Errors: inBuilderOrder(linked, errors) },
+        };
+      }),
+    ),
+);
+
+/**
+ * Switches a TransferParticipantToThirdParty's Resume flow after disconnect
+ * (`ContinueFlowExecution`) in one mutation, so the block never passes
+ * through a shape the class or the service refuses. "True" requires the
+ * Call failed and Timeout branches, so switching to it adds whichever is
+ * missing, aimed where the catch-all goes until the author rewires it;
+ * "False" refuses both (actions.md, rule 47), so switching to it removes
+ * them.
+ * https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+ */
+export const setContinueFlow = guard(
+  "setContinueFlow",
+  {
+    label: "That resume change",
+    hint: "Wire the block's Error branch first, so the Call failed and Timeout branches have somewhere to go.",
+  },
+  (doc: FlowDoc, id: string, value: "True" | "False"): FlowDoc =>
+    normalize(
+      withAction(doc, id, (a) => {
+        const params = { ...a.Parameters, ContinueFlowExecution: value };
+        const wired = a.Transitions.Errors ?? [];
+        const resume = [CALL_FAILED, CONNECTION_TIME_LIMIT_EXCEEDED];
+        const others = wired.filter((e) => !resume.includes(e.ErrorType));
+        if (value === "False") {
+          return { ...a, Parameters: params, Transitions: { ...a.Transitions, Errors: others } };
+        }
+        const target = others.find((e) => e.ErrorType === NO_MATCHING_ERROR)?.NextAction;
+        const added =
+          target === undefined
+            ? wired.filter((e) => resume.includes(e.ErrorType))
+            : resume.map(
+                (type) =>
+                  wired.find((e) => e.ErrorType === type) ?? {
+                    ErrorType: type,
+                    NextAction: target,
+                  },
+              );
+        const next = { ...a, Parameters: params };
+        return {
+          ...next,
+          Transitions: { ...a.Transitions, Errors: inBuilderOrder(next, [...added, ...others]) },
         };
       }),
     ),

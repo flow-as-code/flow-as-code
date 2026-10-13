@@ -2510,6 +2510,9 @@
           "then": {
             "properties": {
               "Parameters": {
+                "required": [
+                  "ContentType"
+                ],
                 "properties": {
                   "ContentType": {
                     "enum": [
@@ -2540,7 +2543,10 @@
                     "type": "string"
                   },
                   "ThirdPartyConnectionTimeLimitSeconds": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
                   },
                   "ContinueFlowExecution": {
                     "enum": [

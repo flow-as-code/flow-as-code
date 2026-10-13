@@ -3614,20 +3614,18 @@ export class LoadContactContent extends Block {
  *
  * The number is a JSONPath: the console's static form (a country code and a
  * number) has no recorded export, and a destination number is the kind of
- * value a deployment supplies at run time rather than commits; rule 47's
- * `third-static-number` probe records whether the service takes a static
- * one, and until then codegen leaves a static number generic.
+ * value a deployment supplies at run time rather than commits. The service
+ * accepts a static one (actions.md, rule 47, `third-static-number`), so the
+ * class may take one later; codegen leaves a static number generic.
  *
  * `timeLimitSeconds` is a positive safe integer.
  * `continueFlow: true` writes the export's three errors in its order:
  * `onCallFailed` (Call failed), `onTimeout` (Timeout) and `onError`. The
  * service refused that form without any one of them on 2026-09-30, so they
- * are required here. `continueFlow: false` requires only the catch-all and
- * writes the other two when given: a cookbook comment of 2026-09-29 says
- * that form takes only the catch-all, no message was recorded, and rule
- * 47's probes settle whether the service refuses, allows or requires them.
- * Taking them in both forms lets an author wire the branches before
- * switching the flag, without a step where the block is generic. The page's Send
+ * are required here. `continueFlow: false` takes the catch-all alone: the
+ * service refuses that form with either of the other two wired, and accepts
+ * it without them (actions.md, rule 47, 2026-10-13). The studio switches the
+ * flag and the two branches in one mutation. The page's Send
  * DTMF, Caller ID number and Caller ID name have no key in the export and
  * are not modeled; a document carrying any other key stays generic.
  * https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
@@ -3643,7 +3641,7 @@ interface TransferParticipantToThirdPartyBase extends Wired {
 export type TransferParticipantToThirdPartyConfig = TransferParticipantToThirdPartyBase &
   (
     | { continueFlow: true; onCallFailed: Target; onTimeout: Target }
-    | { continueFlow: false; onCallFailed?: Target; onTimeout?: Target }
+    | { continueFlow: false; onCallFailed?: never; onTimeout?: never }
   );
 
 export class TransferParticipantToThirdParty extends Block {
@@ -3651,6 +3649,8 @@ export class TransferParticipantToThirdParty extends Block {
 
   constructor(private readonly config: TransferParticipantToThirdPartyConfig) {
     super(config.id);
+    // Read once: the branch checks below narrow `config` to never.
+    const id = config.id;
     if (typeof config.number !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(config.number)) {
       throw new Error(
         `TransferParticipantToThirdParty "${config.id}" number must be a JSONPath (jsonPath("$.Attributes...")).`,
@@ -3676,7 +3676,16 @@ export class TransferParticipantToThirdParty extends Block {
       (config.onCallFailed === undefined || config.onTimeout === undefined)
     ) {
       throw new Error(
-        `TransferParticipantToThirdParty "${config.id}" with continueFlow true needs onCallFailed and onTimeout.`,
+        `TransferParticipantToThirdParty "${id}" with continueFlow true needs onCallFailed and onTimeout.`,
+      );
+    }
+    if (
+      !config.continueFlow &&
+      ((config as { onCallFailed?: unknown }).onCallFailed !== undefined ||
+        (config as { onTimeout?: unknown }).onTimeout !== undefined)
+    ) {
+      throw new Error(
+        `TransferParticipantToThirdParty "${id}" with continueFlow false takes no onCallFailed or onTimeout: the service refuses either branch in that form.`,
       );
     }
   }

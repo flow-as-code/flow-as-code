@@ -733,8 +733,8 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // No page documents the action. The Transfer to phone number block, which
   // the console writes as it, lists inbound, customer queue, transfer to
   // agent and transfer to queue flows; a module by the note above
-  // IN_MODULE. Rule 47's probes put each, and a customer whisper and a
-  // customer hold flow, to the service.
+  // IN_MODULE. The service accepted each of those and refused a customer
+  // whisper and a customer hold flow (rule 47, 2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
   [ActionType.TransferParticipantToThirdParty]: [
     ...INBOUND,
@@ -958,8 +958,9 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // hold, agent whisper, transfer to agent, transfer to queue and disconnect
   // flows: every FlowDoc connectType (a disconnect flow is a CONTACT_FLOW),
   // and a module by the note above IN_MODULE. Only a campaign flow, which
-  // FlowDoc does not model, is not named. Rule 47's probes put a customer
-  // hold flow and a module to the service.
+  // FlowDoc does not model, is not named. The service accepted it in a
+  // customer hold flow, an outbound whisper flow and a module (rule 47,
+  // 2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
   ActionType.LoadContactContent,
 ];

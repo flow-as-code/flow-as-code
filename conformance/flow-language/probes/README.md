@@ -20,13 +20,13 @@ went to C04's stored-input rule and D00's census.
 A set written before it can be run (its sandbox prerequisites not yet in
 place) carries `PENDING.md` instead of a results file, saying why and what
 the run needs; `tests/probeCreate.test.ts` holds every set to one or the
-other, and the file is removed by the run that writes the results. `41`,
-the contact-state set (tasks/D02), is the first, `42`, the tasks and
-AI agents set (tasks/D05), the second, `43`, the Customer Profiles set
-(tasks/D03), the third, `44`, the Cases set (tasks/D06), the fourth,
-`45`, the routing criteria set (tasks/D07), the fifth, `46`, the
-outbound set (tasks/D04), the sixth, and `47`, the census additions set
-(tasks/D09), the seventh.
+other, and the file is removed by the run that writes the results. The
+sets `41` to `47` (tasks/D02, D05, D03, D06, D07, D04 and D09) were written
+that way on 2026-10-12 and run on 2026-10-13 on the sandbox (us-west-2),
+after the provider repository's `acceptance/sandbox-features` root put
+their prerequisites on the instance. A probe whose prerequisite the
+sandbox still lacks was left out of its run (`--only` the rest), and its
+rule says which and why.
 
 A results file is `results.json`, or `results-<run>.json` with the UTC date
 and the Region in the name (`results-2026-10-05-us-west-2.json`) when a set

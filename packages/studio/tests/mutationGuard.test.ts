@@ -73,6 +73,7 @@ describe("every exported mutation is wrapped", () => {
       "rewireEdge",
       "setCaseLink",
       "setCondition",
+      "setContinueFlow",
       "setMessageBody",
       "setNumberParam",
       "setParam",

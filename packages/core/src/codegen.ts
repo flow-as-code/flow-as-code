@@ -2496,8 +2496,9 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
 
   // The kept export's three keys: the number a JSONPath, the time limit the
   // console's positive decimal string, ContinueFlowExecution "True" with the
-  // export's three errors in its order, or "False" with the catch-all and
-  // either or both of the others before it, in the same order. A static number, another key (the page's Send DTMF or caller ID, whose
+  // export's three errors in its order, or "False" with the catch-all alone,
+  // the one set the service accepts in that form (actions.md, rule 47). A
+  // static number, another key (the page's Send DTMF or caller ID, whose
   // keys no export shows) or another error set stays generic.
   [ActionType.TransferParticipantToThirdParty]: (a, ctx) => {
     const t = a.Transitions;
@@ -2527,6 +2528,7 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     }
     if (wiring.onError === undefined) return undefined;
     if (p.ContinueFlowExecution === "True" && errors.length !== 3) return undefined;
+    if (p.ContinueFlowExecution === "False" && errors.length !== 1) return undefined;
     ctx.jsonPath = true;
     const continueFlow = p.ContinueFlowExecution === "True";
     const entries: [string, V][] = [

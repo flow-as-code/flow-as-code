@@ -171,6 +171,17 @@ export type FieldDesc =
       refType?: RefType;
     }
   /**
+   * A transfer to a phone number's Resume flow after disconnect
+   * (`ContinueFlowExecution`, "True" or "False"). Written by setContinueFlow,
+   * which adds or removes the Call failed and Timeout branches in the same
+   * mutation (actions.md, rule 47).
+   */
+  | {
+      kind: "continueFlow";
+      key: string;
+      label: string;
+    }
+  /**
    * A Cases block's link (tasks/D06): whether `LinkContactToCase` is "true"
    * and, when it is, which contact (`ContactToLink`). Written by
    * setCaseLink, which wires or removes the ContactNotLinked branch in the
@@ -976,10 +987,9 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           asString: true,
         },
         {
-          kind: "select",
+          kind: "continueFlow",
           key: "ContinueFlowExecution",
           label: "Resume flow after disconnect",
-          options: ["True", "False"],
         },
       ];
     case ActionType.UpdatePreviousContactParticipantState:

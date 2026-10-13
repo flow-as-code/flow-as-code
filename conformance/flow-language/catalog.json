@@ -4192,7 +4192,7 @@
           "key": "ContentType",
           "attr": "content_type",
           "kind": "enum",
-          "required": false,
+          "required": true,
           "values": [
             "EmailMessage"
           ]
@@ -4251,7 +4251,9 @@
           "key": "ThirdPartyConnectionTimeLimitSeconds",
           "attr": "third_party_connection_time_limit_seconds",
           "kind": "integerString",
-          "required": true
+          "required": true,
+          "min": 1,
+          "dynamic": true
         },
         {
           "key": "ContinueFlowExecution",
@@ -4277,6 +4279,19 @@
             ]
           },
           "source": "The service, on 2026-09-30 (sandbox, us-west-2; VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript at 84db5c0): with ContinueFlowExecution \"True\" it refused the action without CallFailed, without ConnectionTimeLimitExceeded and without NoMatchingError, each removed alone (\"Action is missing required error. Error: <branch>, Path: Actions[0]\"). No page documents the action."
+        },
+        {
+          "when": {
+            "key": "ContinueFlowExecution",
+            "equals": "False"
+          },
+          "forbids": {
+            "errors": [
+              "CallFailed",
+              "ConnectionTimeLimitExceeded"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 47): with ContinueFlowExecution \"False\" it refused the action with CallFailed and ConnectionTimeLimitExceeded wired (\"Invalid Action error. Error: <branch>, Path: Actions[0]\") and accepted it with the catch-all alone. No page documents the action."
         }
       ],
       "refs": [],
@@ -4288,13 +4303,13 @@
             "type": "CallFailed",
             "required": false,
             "builder": true,
-            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" it is optional, the builder writing it only when wired, and rule 47's probes decide what that form takes"
+            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" the service refuses it (actions.md, rule 47, 2026-10-13)"
           },
           {
             "type": "ConnectionTimeLimitExceeded",
             "required": false,
             "builder": true,
-            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" it is optional, the builder writing it only when wired, and rule 47's probes decide what that form takes"
+            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" the service refuses it (actions.md, rule 47, 2026-10-13)"
           },
           {
             "type": "NoMatchingError",

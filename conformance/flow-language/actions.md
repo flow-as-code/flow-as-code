@@ -2729,13 +2729,14 @@ is read rather than when the type is modeled.
     added from outside the Developer Guide are modeled where a page or a
     kept console export shows their shape and the service has not refused
     them by name; the rest are recorded here as not modeled, with what
-    would settle each. **Probe pending**: the create sweep the evidence rule
-    asks for (tasks/README.md, Phase D) has not run. On 2026-10-12 the
-    sandbox's AWS credentials had expired. Its inputs are kept in
-    `probes/47/`, with `PENDING.md` saying what the run needs. Until the
-    sweep, every required key, error, `next` and flow-type entry below is
-    the page's or the export's reading, and each bullet names the probes
-    that settle it.
+    would settle each. The create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), whose instance has a Customer Profiles domain linked but
+    no segment definition, no Cognito user pool, no email address and no
+    input encryption key. Its inputs and `results.json` are in
+    `probes/47/`. The bullets below are the page's or the export's reading
+    as modeled; the last bullet is what the service said, and where the
+    two differ the catalog follows the service.
     - `LoadContactContent`, modeled from the Get stored content block page
       (its catalog `doc`, `source` `adminguide`). The page: "You can
       configure the **Get stored content** block by using the Connect
@@ -2749,8 +2750,10 @@ is read rather than when the type is modeled.
       and task "No", email "Yes"; flow types inbound, customer queue,
       customer hold, customer whisper, outbound whisper, agent hold, agent
       whisper, transfer to agent, transfer to queue and disconnect. The
-      catalog records `ContentType` as an optional `enum` of the one value
-      (rule 40's create was accepted with `Parameters` empty), channels
+      catalog records `ContentType` as an `enum` of the one value, optional
+      until the sweep (rule 40's create was accepted with `Parameters`
+      empty on 2026-10-05 in us-east-1; the sandbox refused that on
+      2026-10-13, last bullet) and required since, channels
       `EMAIL`, `flowTypes` `unrestricted` (the ten listed are every FlowDoc
       connect type, a disconnect flow being a `CONTACT_FLOW`, and only a
       campaign flow, which FlowDoc does not model, is left out; a module by
@@ -2812,8 +2815,8 @@ is read rather than when the type is modeled.
       above `IN_MODULE`), `next` required, the catch-all required, and a
       shape: with `ContinueFlowExecution` `"True"`, `CallFailed` and
       `ConnectionTimeLimitExceeded` are required, which the
-      `conditional-shape` lint rule enforces. With `"False"` neither is
-      required: the cookbook's reading, until the sweep. The builder takes
+      `conditional-shape` lint rule enforces. With `"False"` both are
+      refused, since the sweep (last bullet), by a second shape. The builder takes
       the number as a JSONPath only (a destination is supplied at run time,
       and whether the service takes a static one is the sweep's), writes
       the time limit as a decimal string and refuses one that is not a
@@ -2919,6 +2922,87 @@ is read rather than when the type is modeled.
       document disables that rule until the sweep says whether the service
       agrees.
       https://docs.aws.amazon.com/connect/latest/adminguide/set-touchtone-buffer-behavior.html
+    - The sweep (2026-10-13, 17:13 to 17:14 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 42 of 43 probes, 15 accepted and 27
+      refused, every refusal an `InvalidContactFlowException`.
+      `dtmf-buffer-stop-store-encrypted` did not run: it needs a security
+      key uploaded to the instance and an X.509 certificate signed with
+      it (https://docs.aws.amazon.com/connect/latest/adminguide/encrypt-data.html),
+      which the sandbox does not have, and a KMS key cannot stand in.
+      - `LoadContactContent`: `load-required` accepted, on an instance with
+        no email address, so the page's "enable email before using this
+        option" is a run-time matter. `load-required-set-alone`
+        (`Parameters` empty) was refused "Invalid Action property value.
+        Path: Actions[0].Parameters.ContentType": `ContentType` is
+        required, and rule 40's reading of its own empty create, accepted
+        on 2026-10-05 on the us-east-1 development instance, is corrected
+        here; the catalog and the schema clause require it.
+        `load-content-type-unknown` and `load-content-type-jsonpath` were
+        refused the same way, so the clause's one value stands.
+        `load-customer-hold`, `load-outbound-whisper` and `load-module`
+        were accepted; `load-no-catch-all` and `load-no-next` refused.
+      - `TransferParticipantToThirdParty`: `third-required-set-alone`
+        (`"False"`, the catch-all alone) and `third-required` (the
+        export's `"True"` form) accepted. `third-end-all-branches`
+        (`"False"` with all three) was refused "Invalid Action error.
+        Error: ConnectionTimeLimitExceeded" and the same for `CallFailed`:
+        the ending form refuses both, so the cookbook's comment was right.
+        A second shape forbids them there, conditional-shape reports them
+        (`fail-third-party-end-with-resume-branches`), the class refuses
+        them with `continueFlow: false`, codegen leaves such a block
+        generic, and the studio switches the flag and the two branches in
+        one mutation (`setContinueFlow`). `third-continue-no-call-failed`,
+        `-no-timeout` and `-no-catch-all` were refused, as VERIFY 16.8
+        recorded on 2026-09-30, and `third-end-no-catch-all`, both
+        `-no-next` probes, `third-no-continue`, `third-no-number` and
+        `third-no-time-limit` were refused for what they removed.
+        `third-static-number` (`+15555550100`) was accepted: the builder
+        may take a static destination, which it does not yet.
+        `third-continue-lowercase` (`"true"`) was refused naming the flag
+        and both resume branches, so the enum's capitalisation is the
+        service's. `third-time-limit-number` (`30`) was accepted, so the
+        schema clause now admits an integer as well as a string;
+        `third-time-limit-jsonpath` was accepted, so the catalog marks
+        the time limit `dynamic`; `third-time-limit-zero` was refused and
+        `third-time-limit-600` accepted, so the catalog's lower bound is 1
+        and no upper bound is known. Accepted in customer queue, agent
+        transfer and queue transfer flows and a module; refused "not
+        supported in contact flow type customerHold" and
+        `customerWhisper`. The flow types stand.
+      - `route-keys` was refused "Invalid Action type. Type:
+        RouteContactToAgent" on the sandbox in us-west-2, as on 2026-10-05
+        in us-east-1: the Type is unknown in both Regions, so the spelling,
+        not a Region rollout, is the question, which a console export
+        settles. It stays unmodeled.
+      - `segment-keys` was refused "Invalid Action type. Type:
+        CheckSegmentMembership" on an instance with a Customer Profiles
+        domain but no segment definition (the sandbox root's "Not created
+        yet" list): the missing segment may be the cause, so this records
+        that feature's absence and changes nothing.
+      - `authenticate-nested-keys` was refused naming the nested keys:
+        "Action is missing required property. Path:
+        Actions[0].Parameters.CognitoConfiguration.UserPoolArn", the same
+        for `CognitoConfiguration.AppClientId` and
+        `CustomerProfilesConfiguration.ObjectTypeName`, and "Invalid Action
+        property value. Path: Actions[0].Transitions.Conditions". The
+        sandbox has no Cognito user pool, and the shapes of the values
+        still need an export; the type stays generic.
+      - The Set Touchtone Buffer Behavior form: `dtmf-buffer-enable`, the
+        page's `"EnableDTMFBuffer": "true"`, was refused "Invalid Action
+        property value. Path: Actions[0].Parameters.EnableDTMFBuffer", and
+        `dtmf-buffer-enable-capitalised`, `"True"` alone with no
+        `InputTimeLimitSeconds` and no `StoreInput`, was accepted. The
+        service spells the flag as every other Connect flag is spelled,
+        and the buffer form is exempt from the menu form's requirements,
+        so `conditional-shape`'s three reports on it are false positives
+        on content the service accepts. Every other buffer probe used the
+        page's lowercase spelling and was refused for it alone, so the
+        Stop and Clear forms, the module and the outbound whisper flow are
+        still unknown; `dtmf-buffer-stop-store` was also refused "Invalid
+        Action property name. Path: Actions[0].Parameters.StoreInput",
+        which suggests `StoreInput` is not taken beside the buffer flag at
+        all. The form stays untyped; typing it, and exempting it from the
+        shapes, waits for a rerun with `"True"` and `"False"`.
 
 ## Per-action parameter shapes
 
@@ -3032,18 +3116,19 @@ RoutingExpression        { AttributeCondition: { Name, Value,   // 1 to 64 each;
                                                  ProficiencyLevel: 1 | 2 | 3 | 4 | 5,
                                                  ComparisonOperator: "NumberGreaterOrEqualTo" } }
                          | { AndExpression: AttributeCondition[] }   // 1 to 8; an OR at the top of a step is refused
-CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected"
-CompleteOutboundCall     { CallerId?: { Number },   // E.164 or a JSONPath
+CheckOutboundCallStatus  {}   // conditions Equals "CallAnswered" | "VoicemailBeep" | "VoicemailNoBeep" | "NotDetected", one or more
+CompleteOutboundCall     { CallerId?: { Number },   // a number claimed on the instance, or a JSONPath; outbound whisper only
                            ConnectionTimeLimitSeconds?: "1".."600" }   // or a JSONPath; VoiceConnector stays generic
 StartOutboundChatContact { SourceEndpoint: { Address: phonenumber, Type: "CONNECT_PHONENUMBER_ARN" },
                            DestinationEndpoint: { Address, Type: "TELEPHONE_NUMBER" },   // E.164 or a JSONPath
                            ContactFlowArn: flow, ContactSubtype: "connect:SMS",
                            InitialSystemMessage?: { Content }, RelatedContact?: "CURRENT" }
-LoadContactContent       { ContentType?: "EmailMessage" }   // the admin guide's example; email only
-TransferParticipantToThirdParty { ThirdPartyPhoneNumber,   // a JSONPath in the builder; static pending rule 47
-                           ThirdPartyConnectionTimeLimitSeconds,   // decimal string
+LoadContactContent       { ContentType: "EmailMessage" }   // required (rule 47); email only
+TransferParticipantToThirdParty { ThirdPartyPhoneNumber,   // a JSONPath in the builder; the service also takes a static one
+                           ThirdPartyConnectionTimeLimitSeconds,   // decimal string, 1 or more, or a JSONPath
                            ContinueFlowExecution: "True" | "False" }   // "True": CallFailed and
-                                                                       // ConnectionTimeLimitExceeded required; voice only
+                                                                       // ConnectionTimeLimitExceeded required; "False":
+                                                                       // both refused; voice only
 ```
 
 `GetParticipantInput` was recorded 2026-09-01 from

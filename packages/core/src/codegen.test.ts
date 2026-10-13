@@ -3817,12 +3817,14 @@ describe("TransferParticipantToThirdParty inverts the kept export's form", () =>
     expect(out).toContain('onCallFailed: "bye"');
     expect(out).toContain('onTimeout: "bye"');
     expect(typed(action("False"))).toContain("continueFlow: false");
+    // The ending form takes the catch-all alone: the service refuses it with
+    // either of the other two (actions.md, rule 47).
     const endWithTimeout = action("False");
     endWithTimeout.Transitions.Errors = [
       { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "bye" },
       { ErrorType: "NoMatchingError", NextAction: "bye" },
     ];
-    expect(typed(endWithTimeout)).toContain('onTimeout: "bye"');
+    generic(endWithTimeout);
   });
 
   it("falls back on a static number, another spelling, another key, or other wiring", () => {

@@ -2896,16 +2896,15 @@ describe("the census additions", () => {
         Conditions: [],
       },
     });
+    // The service refuses the ending form with either other branch (rule 47).
     expect(
-      new TransferParticipantToThirdParty({
-        ...base,
-        continueFlow: false,
-        onTimeout: "o",
-      }).toAction().Transitions.Errors,
-    ).toEqual([
-      { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "o" },
-      { ErrorType: "NoMatchingError", NextAction: "e" },
-    ]);
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: false,
+          onTimeout: cast<never>("o"),
+        }),
+    ).toThrow(/with continueFlow false takes no onCallFailed or onTimeout/);
   });
 
   it("refuse a static number, a time limit that is not a positive safe integer, no flag, or a resuming form without its two branches", () => {
