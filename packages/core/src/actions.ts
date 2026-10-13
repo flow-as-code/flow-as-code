@@ -882,8 +882,8 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // "This action can be used in all contact flow types." The admin guide's
   // Connect assistant block lists five (inbound, customer queue, outbound
   // whisper, transfer to agent, transfer to queue); the action page
-  // governs, and rule 42's probes put each flow type the two disagree on
-  // to the service.
+  // governs, and the service accepted it in every flow type rule 42's
+  // probes put to it, holds, whispers and a module among them (2026-10-13).
   // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
   ActionType.CreateWisdomSession,

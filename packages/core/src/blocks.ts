@@ -2532,7 +2532,8 @@ export class UpdateContactMediaProcessing extends Block {
  * `"Type": "Value"` against StartTaskContact's Reference object), are not
  * recorded from a console export yet, so the class writes no References and
  * a document carrying one, a static ScheduledTime or a numeric DelaySeconds
- * stays a GenericBlock (actions.md, rule 42, probe pending).
+ * stays a GenericBlock. The service accepts each of those at create (actions.md,
+ * rule 42), so the stored spelling waits on an export, not on the service.
  * https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/create-task-block.html
  * https://docs.aws.amazon.com/connect/latest/APIReference/API_StartTaskContact.html
@@ -2601,7 +2602,7 @@ export class CreateTask extends Block {
  * `assistant` reference or a JSONPath. Results "None."; one error, the
  * catch-all. The action page restricts it to voice and allows every flow
  * type; the admin guide's block allows every channel and five flow types,
- * and rule 42's probes put the disagreement to the service. On voice it
+ * and the service accepted it in every flow type rule 42 probed. On voice it
  * needs real-time conversational analytics, set by a recording and
  * analytics block elsewhere in the flow. The admin guide's Config tab also
  * names an Orchestration AI agent, whose key no export has recorded; a

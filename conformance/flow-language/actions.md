@@ -1413,15 +1413,16 @@ is read rather than when the type is modeled.
 42. Tasks and AI agents (tasks/D05; the Developer Guide pages read
     2026-10-04 and again 2026-10-12 with the admin guide's block pages and
     the StartTaskContact API reference). The group's types are modeled from
-    their pages. **Probe pending**: the create sweep the evidence rule asks
-    for (tasks/README.md, Phase D) has not run. On 2026-10-12 the sandbox's
-    AWS credentials had expired, and the instance had no task template.
-    Its inputs are kept in `probes/42/`, with `PENDING.md` saying what the
-    run needs. No console export of either block has been taken (owner
-    decision 8), so nothing under `exports/` records their stored shape
-    yet. Until the sweep and an export, every required key, error,
-    `next`, spelling and flow-type entry below is the pages' reading, and
-    each bullet names the probes that settle it.
+    their pages, and the create sweep the evidence rule asks for
+    (tasks/README.md, Phase D) ran on 2026-10-13 on the sandbox
+    (us-west-2), with a task template (no flow configured), an assistant
+    linked as `WISDOM_ASSISTANT` and a second assistant never linked. Its
+    inputs and `results.json` are in `probes/42/`. No console export of
+    either block has been taken (owner decision 8), so nothing under
+    `exports/` records their stored shape yet. The bullets below are the
+    pages' reading as modeled; the last bullet is what the service said,
+    and where the two differ the catalog and the schema follow the
+    service.
     - `CreateTask` "Creates a new task to run an assigned flow." Parameters
       in the page's order: `ContactFlowId` ("A flow ID or flow ARN. Must be
       fully static or a single valid JSONPath identifier"), `Attributes`
@@ -1470,9 +1471,9 @@ is read rather than when the type is modeled.
       nothing else; the bound and the `atMostOne` stay in the catalog until
       the service is seen to refuse them (owner decision 3). The class
       takes a flow, a template or both; the both form follows the admin
-      guide against StartTaskContact's one-of clause, is unsettled until
-      `task-template-and-flow` runs, and the group fixture's `scheduled`
-      task holds it pending that probe. The class writes `DelaySeconds` as a decimal
+      guide against StartTaskContact's one-of clause, and the service
+      accepted it (`task-template-and-flow`), so the group fixture's
+      `scheduled` task keeps it. The class writes `DelaySeconds` as a decimal
       string and `ScheduledTime` as a JSONPath only, and writes no
       `References`; codegen leaves a document with `References`, a static
       `ScheduledTime` or a numeric `DelaySeconds` generic. Whether
@@ -1537,6 +1538,59 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
       https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
       https://docs.aws.amazon.com/connect/latest/adminguide/ai-agent-initial-setup.html
+    - The sweep (2026-10-13, 17:07 to 17:08 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 35 probes, 25 accepted and 10 refused,
+      every refusal an `InvalidContactFlowException`.
+      - `CreateTask`: `task-required`, `task-module` and
+        `task-customer-hold` accepted, so the type is unrestricted, as
+        the catalog has it; `task-no-catch-all` and `task-no-next` were
+        each refused removed alone. `task-no-name` refused "Missing
+        required property. Property: 0.ContactName" (beside "Invalid
+        Action property value. Path: 0.null"), so `Name` is required.
+        `task-no-flow`, with neither a flow nor a template, refused
+        "Missing required property. Property: 0.ContactFlowId", while
+        `task-template-only` and `task-template-and-flow` were accepted,
+        the first with a template that configures no flow: the create
+        needs one of the two, takes both, and does not check that a
+        template carries a flow. `task-delay-and-schedule` refused "Only
+        one of these properties may be defined. Properties:
+        [DelaySeconds, ScheduledTime], Path: Actions[0]". The 0.3 schema
+        clause now holds those three: `Name` required, at least one of
+        `ContactFlowId` and `TaskTemplateId`, and not both timing keys.
+        `task-delay-out-of-range` (`"518401"`) was accepted, so the
+        page's bound stays in the catalog and out of the clause, and
+        `task-delay-number` and `task-delay-string` were both accepted.
+        Every `ScheduledTime` form was accepted (Epoch seconds as a
+        number and as a string, an ISO 8601 string, a JSONPath): the
+        create does not check the format. `task-template-bare-id` and
+        `task-template-missing` (a well-formed id naming no template)
+        were accepted beside the ARN form: the create checks neither the
+        form nor the template's existence. `task-template-jsonpath`
+        refused "Invalid Action property value. Path:
+        Actions[0].Parameters.TaskTemplateId", so the static reading
+        stands. `task-flow-bare-id` refused "Action with identifier probe
+        has invalid resource: {{TASK_FLOW_ID}}" while the ARN and
+        `task-flow-jsonpath` were accepted: despite the page's "A flow ID
+        or flow ARN", the static flow is an ARN, which is what a `flow`
+        reference resolves to. `task-references-object` (a map of `Type`
+        and `Value` objects, StartTaskContact's shape) was accepted and
+        `task-references-flat` (a map of strings) refused "Invalid Action
+        type. Type: CreateTask, Path: Actions[0].Type"; `References`
+        stays a `json` value in the catalog and generic in codegen until
+        an export records the stored shape.
+      - `CreateWisdomSession`: every probe that kept the required set was
+        accepted, in a contact flow, a module, and the customer queue,
+        customer hold, agent hold, customer whisper and agent whisper
+        flows: the action page's "all contact flow types" is the
+        service's, and the catalog's unrestricted entry stands.
+        `wisdom-unlinked-assistant`, naming an assistant the instance has
+        not linked, and `wisdom-jsonpath` were accepted: the create does
+        not check the link. `wisdom-no-catch-all` and `wisdom-no-next`
+        were each refused removed alone. `wisdom-required` ran with an
+        assistant linked, so an instance with none linked was not
+        probed; `wisdom-unlinked-assistant` shows only that the create
+        does not check which assistant the instance links. The channel
+        still cannot be probed at create.
 
 43. Customer Profiles (tasks/D03; the Developer Guide pages read 2026-10-04
     and again 2026-10-12 with the admin guide's Customer profiles block

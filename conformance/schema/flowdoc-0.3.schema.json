@@ -1672,6 +1672,27 @@
           "then": {
             "properties": {
               "Parameters": {
+                "required": [
+                  "Name"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "ContactFlowId"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "TaskTemplateId"
+                    ]
+                  }
+                ],
+                "not": {
+                  "required": [
+                    "DelaySeconds",
+                    "ScheduledTime"
+                  ]
+                },
                 "properties": {
                   "ContactFlowId": {
                     "$ref": "#/$defs/refField"

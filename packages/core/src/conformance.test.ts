@@ -391,10 +391,12 @@ describe("FlowDoc schema rejections: contact state", () => {
 });
 
 // The tasks-and-assistants round-trip fixture is the subject for the 0.3
-// clauses of tasks/D05. Each clause holds only the reference form: a token
-// or a JSONPath where the page allows one, a token alone where the page says
-// static. Rule 42's probes (pending) put the rest to the service before any
-// enum, bound or constraint is held here (owner decision 3).
+// clauses of tasks/D05. Each clause holds the reference form (a token or a
+// JSONPath where the page allows one, a token alone where the page says
+// static), and CreateTask's holds what rule 42's probes (us-west-2,
+// 2026-10-13) saw the service refuse: no Name, neither a flow nor a
+// template, and DelaySeconds with ScheduledTime. The DelaySeconds bound is
+// not held: the service accepted 518401 (owner decision 3).
 describe("FlowDoc schema rejections: tasks and AI agents", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/tasks-and-assistants/doc.flowdoc.json");
@@ -438,8 +440,30 @@ describe("FlowDoc schema rejections: tasks and AI agents", () => {
         a.Parameters.TaskTemplateId = "$.Attributes.template";
       }),
     ],
+    [
+      "a task without a Name",
+      mutate("follow-up", (a) => {
+        delete a.Parameters.Name;
+      }),
+    ],
+    [
+      "a task with neither a flow nor a template",
+      mutate("follow-up", (a) => {
+        delete a.Parameters.ContactFlowId;
+      }),
+    ],
+    [
+      "a task with both DelaySeconds and ScheduledTime",
+      mutate("follow-up", (a) => {
+        a.Parameters.ScheduledTime = "$.Attributes.when";
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
+  });
+
+  it("accepts a DelaySeconds beyond the page's bound, which the service accepted", () => {
+    expect(validate(mutate("follow-up", (a) => (a.Parameters.DelaySeconds = "518401")))).toBe(true);
   });
 
   it("still accepts a JSONPath as the task's flow", () => {
