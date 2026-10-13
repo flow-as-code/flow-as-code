@@ -1,0 +1,7 @@
+{
+  "description": "Every FlowDoc 0.3 reference type in the generic blocks that hold them, with a casefield token standing as a whole map key of CaseRequestFields and as a list item of CaseResponseFields. Each reference becomes a template variable bound from the address map, the key position included. Not validated: the addresses name awscc Cases, task template and Amazon Q in Connect resources that no validate fixture stubs yet; the group tasks that model these actions add one.",
+  "docs": ["../../roundtrip/phase-d-refs/doc.flowdoc.json"],
+  "unbound": [],
+  "unusedMapKeys": [],
+  "validate": "skip"
+}

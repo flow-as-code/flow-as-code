@@ -52,7 +52,7 @@ function warningSet(dir: string): string {
   mkdirSync(set);
   cpSync(DEMO, join(set, "appointment-line.flowdoc.json"));
   const whisper: FlowDoc = {
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "flow",
     name: "agent-whisper",
     connectType: "AGENT_WHISPER",

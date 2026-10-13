@@ -1,0 +1,5 @@
+{
+  "description": "Every FlowDoc 0.3 reference type, as the generic blocks that hold them until their types are modeled: a casefield token standing as a map key and as a list item, bound in refs like any key. The first awaits-provider case: the published provider's refs key pattern does not know the five types until the release that reads 0.3 (tasks/D10), so it has no validate directory yet.",
+  "doc": "casefield-key.flowdoc.json",
+  "validate": "awaits-provider"
+}

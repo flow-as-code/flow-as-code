@@ -13,7 +13,7 @@ import { basename, join } from "node:path";
 import type { FlowDoc } from "@flow-as-code/core";
 import { describe, expect, it } from "vitest";
 import { bytes, viewed } from "./__fixtures__/view.js";
-import { ERROR_CODES } from "./contract.js";
+import { ADDRESS_SUGAR, ERROR_CODES } from "./contract.js";
 import { HclError } from "./errors.js";
 import { format } from "./format.js";
 import { toFlowDoc } from "./read.js";
@@ -83,6 +83,17 @@ describe("conformance/hcl/parse", () => {
   }
 });
 
+// The reader's table and the conformance file name the same addresses, in the
+// same order, so neither can gain or lose an entry alone.
+describe("conformance/hcl/address-sugar.json", () => {
+  it("lists exactly the addresses the reader rewrites", () => {
+    const file = json<{ sugar: { address: string; type: string }[] }>(HCL, "address-sugar.json");
+    expect(
+      ADDRESS_SUGAR.map((s) => ({ address: `${s.prefix}.<label>.arn`, type: s.type })),
+    ).toEqual(file.sugar);
+  });
+});
+
 describe("conformance/hcl/refuse", () => {
   const names = cases("refuse");
 
@@ -140,7 +151,7 @@ function allDocs(dir: string): string[] {
     if (!e.name.endsWith(".json")) return [];
     try {
       const v = JSON.parse(readFileSync(p, "utf8")) as { flowdoc?: unknown; content?: unknown };
-      return v.flowdoc === "0.2" && typeof v.content === "object" ? [p] : [];
+      return v.flowdoc === "0.3" && typeof v.content === "object" ? [p] : [];
     } catch {
       return [];
     }
@@ -281,7 +292,7 @@ describe("writer edge cases the review found", () => {
   /** A one-action flow ending in a disconnect, for one action under test. */
   const flowWith = (type: string, parameters: Record<string, unknown>): FlowDoc =>
     ({
-      flowdoc: "0.2",
+      flowdoc: "0.3",
       kind: "flow",
       name: "edge",
       connectType: "CONTACT_FLOW",

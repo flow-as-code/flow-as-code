@@ -20,7 +20,7 @@
     "headers": "node scripts/license-headers.mjs",
     "headers:fix": "node scripts/license-headers.mjs --fix",
     "test:integration": "vitest run integration.test",
-    "sync:schema": "cp conformance/schema/flowdoc-0.1.schema.json conformance/schema/flowdoc-0.2.schema.json conformance/schema/scenario-0.1.schema.json packages/cli/schema/ && cp conformance/demo/appointment-line.flowdoc.json packages/cli/template/ && cp conformance/flow-language/catalog.json packages/core/src/catalog/catalog.json",
+    "sync:schema": "cp conformance/schema/flowdoc-0.1.schema.json conformance/schema/flowdoc-0.2.schema.json conformance/schema/flowdoc-0.3.schema.json conformance/schema/scenario-0.1.schema.json packages/cli/schema/ && cp conformance/demo/appointment-line.flowdoc.json packages/cli/template/ && cp conformance/flow-language/catalog.json packages/core/src/catalog/catalog.json",
     "sync:license": "cp LICENSE packages/core/LICENSE && cp LICENSE packages/cdk/LICENSE && cp LICENSE packages/cli/LICENSE && cp LICENSE packages/tf/LICENSE && cp LICENSE packages/hcl/LICENSE && cp LICENSE packages/studio/LICENSE"
   },
   "devDependencies": {

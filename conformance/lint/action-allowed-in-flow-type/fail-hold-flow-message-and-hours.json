@@ -12,7 +12,7 @@
     }
   ],
   "doc": {
-    "flowdoc": "0.2",
+    "flowdoc": "0.3",
     "kind": "flow",
     "name": "hold-music",
     "connectType": "CUSTOMER_HOLD",

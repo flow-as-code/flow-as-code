@@ -99,11 +99,20 @@ export const ADDRESS_SUGAR: readonly { prefix: string; type: string }[] = [
   { prefix: "flowascode_contact_flow", type: "flow" },
   { prefix: "aws_connect_contact_flow_module", type: "module" },
   { prefix: "flowascode_contact_flow_module", type: "module" },
+  // FlowDoc 0.3: the one new type with a hashicorp/aws resource exporting
+  // `arn` (checked 2026-10-05). Task templates, Cases templates and fields and
+  // Amazon Q in Connect assistants are key-form only, as lex bots and views
+  // are.
+  // https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/connect_phone_number
+  { prefix: "aws_connect_phone_number", type: "phonenumber" },
 ];
 
-/** A reference key: `queue:front-desk`, `module:survey@prod`, `view:form@1`. */
+/**
+ * A reference key: `queue:front-desk`, `module:survey@prod`, `view:form@1`,
+ * `casefield:priority`. The type list is TOKEN_PATTERN's (FlowDoc 0.3).
+ */
 export const REF_KEY =
-  /^(queue|hours|lambda|lex|prompt|flow|module|view):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?$/;
+  /^(queue|hours|lambda|lex|prompt|flow|module|view|tasktemplate|casetemplate|casefield|assistant|phonenumber):([a-z0-9]+(?:-[a-z0-9]+)*)(?:@([a-z0-9]+(?:-[a-z0-9]+)*))?$/;
 
 /**
  * What a document may hold in a reference field for a typed sub-block to

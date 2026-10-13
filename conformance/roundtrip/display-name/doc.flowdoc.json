@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "flow",
   "name": "main-line",
   "displayName": "Main Line \"After Hours\" (général)",
@@ -46,6 +46,6 @@
   },
   "refs": [],
   "meta": {
-    "generator": "core@0.2"
+    "generator": "core@0.3"
   }
 }

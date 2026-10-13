@@ -1,0 +1,1662 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flow-as-code.dev/schema/flowdoc-0.3.schema.json",
+  "title": "FlowDoc 0.3",
+  "description": "Interchange format for Amazon Connect flows. See docs/01-flowdoc-spec.md and conformance/flow-language/actions.md. This schema is part of the cross-language contract: a second implementation validates against it. 0.3 adds the tasktemplate, casetemplate, casefield, assistant and phonenumber reference types; a 0.1 or 0.2 document migrates by version bump alone. 0.2 added the view reference type, meta.sourceKind, and an optional description.",
+  "type": "object",
+  "required": [
+    "flowdoc",
+    "kind",
+    "name",
+    "connectType",
+    "content"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "flowdoc": {
+      "const": "0.3"
+    },
+    "kind": {
+      "enum": [
+        "flow",
+        "module"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "displayName": {
+      "description": "The flow's name as Connect shows it, when that is not the slug in name: an adopted flow keeps its console name (\"Main Line\") while name stays a slug for file names and references. Optional; absent means Connect's name is name. CreateContactFlowModule caps a name at 127 characters and requires a non-space character.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 127,
+      "pattern": "\\S"
+    },
+    "description": {
+      "description": "The flow's description as Connect shows it. Optional; CreateContactFlow caps it at 500 characters.",
+      "type": "string",
+      "maxLength": 500
+    },
+    "connectType": {
+      "enum": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "CUSTOMER_HOLD",
+        "CUSTOMER_WHISPER",
+        "AGENT_HOLD",
+        "AGENT_WHISPER",
+        "OUTBOUND_WHISPER",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ]
+    },
+    "content": {
+      "$ref": "#/$defs/flowContent"
+    },
+    "layout": {
+      "description": "Canvas positions keyed by Action Identifier. Projected into content.Metadata.ActionMetadata at materialization; never stored in content.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/point"
+      }
+    },
+    "refs": {
+      "description": "Derived index of every token in content. Regenerated on save.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ref"
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "generator": {
+          "type": "string"
+        },
+        "sourceHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "sourceKind": {
+          "description": "Which companion file meta.sourceHash hashes: the .flow.ts builder file or the .flow.tf resource. Absent means ts.",
+          "enum": [
+            "ts",
+            "tf"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "token": {
+      "description": "A reference token. Occupies an entire field value, or, for a casefield, an entire map key or list item; never interpolated into a longer string, because Connect requires these fields to be fully static or a single JSONPath identifier.",
+      "type": "string",
+      "pattern": "^\\$\\{cdref:(queue|hours|lambda|lex|prompt|flow|module|view|tasktemplate|casetemplate|casefield|assistant|phonenumber):[a-z0-9]+(-[a-z0-9]+)*(@[a-z0-9]+(-[a-z0-9]+)*)?\\}$"
+    },
+    "ref": {
+      "type": "object",
+      "required": [
+        "token",
+        "type",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "token": {
+          "$ref": "#/$defs/token"
+        },
+        "type": {
+          "enum": [
+            "queue",
+            "hours",
+            "lambda",
+            "lex",
+            "prompt",
+            "flow",
+            "module",
+            "view",
+            "tasktemplate",
+            "casetemplate",
+            "casefield",
+            "assistant",
+            "phonenumber"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "alias": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "The module alias, or the view version, the reference pins. No other type carries one."
+        }
+      }
+    },
+    "identifier": {
+      "description": "Unique within the flow, up to 50 chars. Connect forbids % : ( \\ / ) = $ , ; [ ] { } and a set of prototype-pollution names.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50,
+      "pattern": "^[^%:(\\\\/)=$,;\\[\\]{}]+$",
+      "not": {
+        "enum": [
+          "__proto__",
+          "constructor",
+          "__defineGetter__",
+          "__defineSetter__",
+          "toString",
+          "hasOwnProperty",
+          "isPrototypeOf",
+          "propertyIsEnumerable",
+          "toLocaleString",
+          "valueOf"
+        ]
+      }
+    },
+    "flowContent": {
+      "type": "object",
+      "required": [
+        "Version",
+        "StartAction",
+        "Actions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "Version": {
+          "const": "2019-10-30"
+        },
+        "StartAction": {
+          "$ref": "#/$defs/identifier"
+        },
+        "Metadata": {
+          "description": "Not authored in FlowDoc. Materialization writes positions here from `layout`.",
+          "type": "object"
+        },
+        "Actions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 250,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "Settings": {
+          "type": "object",
+          "description": "Module configuration. Required (may be empty) in a module's content; absent in a flow's."
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "Identifier",
+        "Type",
+        "Parameters",
+        "Transitions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "Identifier": {
+          "$ref": "#/$defs/identifier"
+        },
+        "Type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "Parameters": {
+          "type": "object"
+        },
+        "Transitions": {
+          "$ref": "#/$defs/transitions"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactTargetQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CheckHoursOfOperation"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "HoursOfOperationId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "InvokeLambdaFunction"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "LambdaFunctionARN": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "InvokeFlowModule"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "FlowModuleId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "TransferToFlow"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ContactFlowId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "MessageParticipant"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PromptId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactTargetQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "DequeueContactAndTransferToQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "DequeueContactAndTransferToQueue"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactRoutingBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueuePriority": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  },
+                  "QueueTimeAdjustmentSeconds": {
+                    "type": "string",
+                    "pattern": "^-?(0|[1-9][0-9]*)$"
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueuePriority",
+                    "QueueTimeAdjustmentSeconds"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CreateCallbackContact"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "InitialCallDelaySeconds": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  },
+                  "MaximumConnectionAttempts": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  },
+                  "RetryDelaySeconds": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  },
+                  "ContactFlowId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactCallbackNumber"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "CallbackNumber": {
+                    "$ref": "#/$defs/jsonPath"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "Loop"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "LoopCount": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]?|100)$"
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "DistributeByPercentage"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Transitions": {
+                "properties": {
+                  "Conditions": {
+                    "items": {
+                      "properties": {
+                        "Condition": {
+                          "properties": {
+                            "Operator": {
+                              "const": "NumberLessThan"
+                            },
+                            "Operands": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 1,
+                              "items": {
+                                "type": "string",
+                                "pattern": "^(100|[1-9][0-9]?)$"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "Wait"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "TimeLimitSeconds": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]*$"
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  },
+                  "Events": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "CustomerReturned",
+                        "BotParticipantDisconnected"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateFlowAttributes"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "FlowAttributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "required": [
+                        "Value"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "Value": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CheckMetricData"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "MetricType": {
+                    "enum": [
+                      "NumberOfAgentsAvailable",
+                      "NumberOfAgentsStaffed",
+                      "NumberOfAgentsOnline",
+                      "OldestContactInQueueAgeSeconds",
+                      "NumberOfContactsInQueue"
+                    ]
+                  },
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "GetMetricData"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "QueueId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "AgentId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "QueueChannel": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "Voice",
+                          "Chat"
+                        ]
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  }
+                },
+                "not": {
+                  "required": [
+                    "QueueId",
+                    "AgentId"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "TagContact"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "Tags": {
+                    "type": "object",
+                    "maxProperties": 6,
+                    "propertyNames": {
+                      "pattern": "^(?!aws:)"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UntagContact"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "TagKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?!aws:).+"
+                    },
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactTextToSpeechVoice"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "TextToSpeechVoice": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "TextToSpeechEngine": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "Standard",
+                          "Neural",
+                          "Generative"
+                        ]
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  },
+                  "TextToSpeechStyle": {
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "None",
+                          "Conversational",
+                          "Newscaster"
+                        ]
+                      },
+                      {
+                        "$ref": "#/$defs/jsonPath"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactData"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "Name": {
+                    "type": "string"
+                  },
+                  "Description": {
+                    "type": "string"
+                  },
+                  "LanguageCode": {
+                    "type": "string"
+                  },
+                  "CustomerId": {
+                    "type": "string"
+                  },
+                  "References": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "IsVoiceIdStreamingEnabled": {
+                    "enum": [
+                      "TRUE",
+                      "FALSE"
+                    ]
+                  },
+                  "IsVoiceAuthenticationEnabled": {
+                    "enum": [
+                      "TRUE",
+                      "FALSE"
+                    ]
+                  },
+                  "IsFraudDetectionEnabled": {
+                    "enum": [
+                      "TRUE",
+                      "FALSE"
+                    ]
+                  },
+                  "VoiceAuthenticationThreshold": {
+                    "type": "string",
+                    "pattern": "^(100|[1-9]?[0-9])$"
+                  },
+                  "VoiceAuthenticationResponseTime": {
+                    "type": "string",
+                    "pattern": "^([5-9]|10)$"
+                  },
+                  "FraudDetectionThreshold": {
+                    "type": "string",
+                    "pattern": "^(100|[1-9]?[0-9])$"
+                  },
+                  "WatchlistId": {
+                    "type": "string"
+                  },
+                  "WisdomSessionArn": {
+                    "type": "string"
+                  },
+                  "TargetContact": {
+                    "enum": [
+                      "Current",
+                      "Related"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactEventHooks"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "EventHooks": {
+                    "type": "object",
+                    "maxProperties": 1,
+                    "propertyNames": {
+                      "enum": [
+                        "AgentHold",
+                        "AgentWhisper",
+                        "CustomerHold",
+                        "CustomerQueue",
+                        "CustomerRemaining",
+                        "CustomerWhisper",
+                        "DefaultAgentUI",
+                        "DisconnectAgentUI",
+                        "PauseContact",
+                        "ResumeContact"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/$defs/refField"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "MessageParticipantIteratively"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "Messages": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "maxProperties": 1,
+                      "additionalProperties": false,
+                      "properties": {
+                        "Text": {
+                          "type": "string"
+                        },
+                        "SSML": {
+                          "type": "string"
+                        },
+                        "PromptId": {
+                          "$ref": "#/$defs/refField"
+                        },
+                        "Media": {
+                          "type": "object",
+                          "required": [
+                            "Uri",
+                            "SourceType",
+                            "MediaType"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "Uri": {
+                              "type": "string"
+                            },
+                            "SourceType": {
+                              "enum": [
+                                "S3"
+                              ]
+                            },
+                            "MediaType": {
+                              "enum": [
+                                "Audio"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "InterruptFrequencySeconds": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "ConnectParticipantWithLexBot"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PromptId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "LexV2Bot": {
+                    "type": "object",
+                    "required": [
+                      "AliasArn"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "AliasArn": {
+                        "$ref": "#/$defs/refField"
+                      }
+                    }
+                  },
+                  "LexSessionAttributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "LexInitializationData": {
+                    "type": "object",
+                    "required": [
+                      "InitialMessage"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "InitialMessage": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "LexTimeoutSeconds": {
+                    "type": "object",
+                    "required": [
+                      "Text"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "Text": {
+                        "type": "string",
+                        "pattern": "^([6-9][0-9]|[1-9][0-9]{2,4}|[1-5][0-9]{5}|60[0-3][0-9]{3}|604[0-7][0-9]{2}|604800)$"
+                      }
+                    }
+                  }
+                },
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "PromptId",
+                        "Text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "PromptId",
+                        "SSML"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "Text",
+                        "SSML"
+                      ]
+                    }
+                  ]
+                },
+                "oneOf": [
+                  {
+                    "required": [
+                      "LexBot"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "LexV2Bot"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "ShowView"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ViewResource": {
+                    "type": "object",
+                    "required": [
+                      "Id"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "Id": {
+                        "$ref": "#/$defs/refField"
+                      },
+                      "Version": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "InvocationTimeLimitSeconds": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  },
+                  "ViewData": {
+                    "type": "object"
+                  },
+                  "SensitiveDataConfiguration": {
+                    "type": "object",
+                    "required": [
+                      "HideResponseOn"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "HideResponseOn": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "ViewResource",
+                  "InvocationTimeLimitSeconds"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "MessageParticipant"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "oneOf": [
+                  {
+                    "required": [
+                      "PromptId"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "Text"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "SSML"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "Text"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "PromptId"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "SSML"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "SSML"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "PromptId"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "Text"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "InvokeLambdaFunction"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "InvocationTimeLimitSeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "InvocationType": {
+                    "enum": [
+                      "SYNCHRONOUS",
+                      "ASYNCHRONOUS"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "GetParticipantInput"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "PromptId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "StoreInput": {
+                    "enum": [
+                      "True",
+                      "False"
+                    ]
+                  },
+                  "InputTimeLimitSeconds": {
+                    "oneOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]*$"
+                      }
+                    ]
+                  }
+                },
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "PromptId",
+                        "Text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "PromptId",
+                        "SSML"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "Text",
+                        "SSML"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateContactRecordingAndAnalyticsBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "VoiceBehavior": {
+                    "type": "object",
+                    "properties": {
+                      "VoiceRecordingBehavior": {
+                        "type": "object",
+                        "properties": {
+                          "RecordedParticipants": {
+                            "type": "array",
+                            "items": {
+                              "enum": [
+                                "Agent",
+                                "Customer"
+                              ]
+                            },
+                            "uniqueItems": true
+                          },
+                          "IVRRecordingBehavior": {
+                            "enum": [
+                              "Enabled",
+                              "Disabled"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "RecordedParticipants"
+                        ]
+                      },
+                      "VoiceAnalyticsBehavior": {
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "VoiceRecordingBehavior"
+                    ]
+                  },
+                  "ChatBehavior": {
+                    "type": "object"
+                  },
+                  "ScreenRecordingBehavior": {
+                    "type": "object",
+                    "properties": {
+                      "ScreenRecordedParticipants": {
+                        "type": "array",
+                        "items": {
+                          "const": "Agent"
+                        },
+                        "maxItems": 1
+                      }
+                    },
+                    "required": [
+                      "ScreenRecordedParticipants"
+                    ]
+                  }
+                },
+                "oneOf": [
+                  {
+                    "required": [
+                      "ChatBehavior"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "VoiceBehavior"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "ScreenRecordingBehavior"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "UpdateFlowLoggingBehavior"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "FlowLoggingBehavior": {
+                    "enum": [
+                      "Enabled",
+                      "Disabled"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "transitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "NextAction": {
+          "$ref": "#/$defs/identifier"
+        },
+        "Errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ErrorType",
+              "NextAction"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ErrorType": {
+                "type": "string",
+                "minLength": 1
+              },
+              "NextAction": {
+                "$ref": "#/$defs/identifier"
+              }
+            }
+          }
+        },
+        "Conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "NextAction",
+              "Condition"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "NextAction": {
+                "$ref": "#/$defs/identifier"
+              },
+              "Condition": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          }
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": [
+        "Operator",
+        "Operands"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "Operator": {
+          "enum": [
+            "Equals",
+            "TextStartsWith",
+            "TextEndsWith",
+            "TextContains",
+            "NumberGreaterThan",
+            "NumberGreaterOrEqualTo",
+            "NumberLessThan",
+            "NumberLessOrEqualTo"
+          ]
+        },
+        "Operands": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10
+        }
+      }
+    },
+    "jsonPath": {
+      "description": "A single JSONPath identifier, e.g. $.Attributes.queueId",
+      "type": "string",
+      "pattern": "^\\$\\.[A-Za-z0-9_$.\\[\\]'-]+$"
+    },
+    "refField": {
+      "description": "A reference-bearing parameter: either a cdref token or a single JSONPath identifier. Never a literal ARN.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/token"
+        },
+        {
+          "$ref": "#/$defs/jsonPath"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "module"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "connectType": {
+            "const": "MODULE"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "connectType": {
+            "not": {
+              "const": "MODULE"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

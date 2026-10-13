@@ -22,7 +22,7 @@ interface FailFixture {
 const docsOf = (parsed: { doc?: FlowDoc; docs?: FlowDoc[] }): FlowDoc[] =>
   parsed.docs ?? (parsed.doc === undefined ? [parsed as unknown as FlowDoc] : [parsed.doc]);
 
-const schema = JSON.parse(read("conformance/schema/flowdoc-0.2.schema.json"));
+const schema = JSON.parse(read("conformance/schema/flowdoc-0.3.schema.json"));
 const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
 
 const ruleDirs = dirs("conformance/lint")

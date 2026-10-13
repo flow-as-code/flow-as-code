@@ -71,6 +71,7 @@ export const ALLOWED_URLS = new Set([
   // and every older version the studio still reads.
   "https://flow-as-code.dev/schema/flowdoc-0.1.schema.json",
   "https://flow-as-code.dev/schema/flowdoc-0.2.schema.json",
+  "https://flow-as-code.dev/schema/flowdoc-0.3.schema.json",
   ...catalogCitations(),
   // Citations @flow-as-code/tf WRITES into the HCL it emits, as comments above the
   // resources they document (packages/tf/src/emit.ts). The studio bundles

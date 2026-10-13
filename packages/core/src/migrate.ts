@@ -5,18 +5,20 @@
 // Reading an older FlowDoc. docs/01-flowdoc-spec.md: every version bump ships
 // a migration in this package plus fixtures (conformance/migrate).
 //
-// 0.1 to 0.2 is a version bump and nothing else. 0.2 added the `view`
-// reference type, `meta.sourceKind`, and an optional `description`, all of
-// which a 0.1 document simply lacks; nothing a 0.1 document could say means
-// something different in 0.2. Every reader (the CLI, the studio, the CDK
-// construct, the Terraform emitter) runs this on the way in, so the rest of
-// the code sees one version.
+// 0.1 to 0.2 and 0.2 to 0.3 are each a version bump and nothing else. 0.2
+// added the `view` reference type, `meta.sourceKind`, and an optional
+// `description`; 0.3 added the `tasktemplate`, `casetemplate`, `casefield`,
+// `assistant` and `phonenumber` reference types (docs/01-flowdoc-spec.md,
+// "Versioning"). An older document simply lacks them; nothing an older
+// document could say means something different in 0.3. Every reader (the
+// CLI, the studio, the CDK construct, the Terraform emitters) runs this on
+// the way in, so the rest of the code sees one version.
 
 import type { FlowDoc } from "./flowdoc.js";
 import { FLOWDOC_VERSION, InvalidFlowDocError, assertFlowDoc } from "./flowdoc.js";
 
 /** Every format version this build reads, oldest first. */
-export const SUPPORTED_FLOWDOC_VERSIONS = ["0.1", FLOWDOC_VERSION] as const;
+export const SUPPORTED_FLOWDOC_VERSIONS = ["0.1", "0.2", FLOWDOC_VERSION] as const;
 
 export type SupportedFlowDocVersion = (typeof SUPPORTED_FLOWDOC_VERSIONS)[number];
 
@@ -37,8 +39,8 @@ export function migrateFlowDoc(value: unknown, context = "migrateFlowDoc"): Flow
   assertFlowDoc(value, context);
   const version = (value as { flowdoc?: unknown }).flowdoc;
   if (version === FLOWDOC_VERSION) return value;
-  if (version === "0.1") return { ...value, flowdoc: FLOWDOC_VERSION };
+  if (version === "0.1" || version === "0.2") return { ...value, flowdoc: FLOWDOC_VERSION };
   throw new InvalidFlowDocError(
-    `${context}: FlowDoc version ${JSON.stringify(version)} is not supported; this build reads ${SUPPORTED_FLOWDOC_VERSIONS.map((v) => JSON.stringify(v)).join(" and ")}.`,
+    `${context}: FlowDoc version ${JSON.stringify(version)} is not supported; this build reads ${SUPPORTED_FLOWDOC_VERSIONS.map((v) => JSON.stringify(v)).join(", ")}.`,
   );
 }

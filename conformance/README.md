@@ -4,8 +4,9 @@ Cross-language and cross-tool contract. The future Go provider vendors this
 directory and must pass identically.
 
 ```
-schema/flowdoc-0.2.schema.json    machine-readable FlowDoc definition (current version)
-schema/flowdoc-0.1.schema.json    the previous version, frozen; migrate inputs validate against it
+schema/flowdoc-0.3.schema.json    machine-readable FlowDoc definition (current version)
+schema/flowdoc-0.2.schema.json    the previous version, frozen; migrate inputs validate against it
+schema/flowdoc-0.1.schema.json    the version before, frozen likewise
 migrate/<case>/input.flowdoc.json a document at an older version
 migrate/<case>/expected.flowdoc.json the exact bytes migrateFlowDoc turns it into
 migrate/invalid.json              versions no build reads, which must be refused

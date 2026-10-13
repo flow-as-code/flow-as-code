@@ -1,0 +1,94 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "open-case",
+  "Actions": [
+    {
+      "Identifier": "open-case",
+      "Type": "CreateCase",
+      "Parameters": {
+        "LinkContactToCase": "false",
+        "CaseTemplateId": "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000001/template/eeee9999-0000-4000-8000-000000000001",
+        "CaseRequestFields": {
+          "ffff0000-0000-4000-8000-000000000001": "high"
+        }
+      },
+      "Transitions": {
+        "NextAction": "read-case",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "read-case",
+      "Type": "GetCase",
+      "Parameters": {
+        "LinkContactToCase": "false",
+        "GetLastUpdatedCase": "true",
+        "CustomerId": "$.Customer.ProfileId",
+        "CaseResponseFields": [
+          "arn:aws:cases:us-east-1:111122223333:domain/dddd8888-0000-4000-8000-000000000001/field/ffff0000-0000-4000-8000-000000000001"
+        ]
+      },
+      "Transitions": {
+        "NextAction": "assist",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "assist",
+      "Type": "CreateWisdomSession",
+      "Parameters": {
+        "WisdomAssistantArn": "arn:aws:wisdom:us-east-1:111122223333:assistant/aaaa0000-0000-4000-8000-000000000001"
+      },
+      "Transitions": {
+        "NextAction": "text-back",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "text-back",
+      "Type": "StartOutboundChatContact",
+      "Parameters": {
+        "SourceEndpoint": {
+          "Address": "arn:aws:connect:us-east-1:111122223333:phone-number/pppp7777-0000-4000-8000-000000000001",
+          "Type": "CONNECT_PHONENUMBER_ARN"
+        },
+        "DestinationEndpoint": {
+          "Address": "$.CustomerEndpoint.Address",
+          "Type": "TELEPHONE_NUMBER"
+        },
+        "ContactFlowArn": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/contact-flow/cccc3333-0000-4000-8000-000000000032",
+        "ContactSubtype": "connect:SMS"
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ]
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

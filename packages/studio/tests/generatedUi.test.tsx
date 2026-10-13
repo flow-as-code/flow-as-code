@@ -52,7 +52,7 @@ const welcomeText = () => testId<HTMLTextAreaElement>("message-body").value;
 describe("foreignGenerator", () => {
   it("names a generator that is not this toolchain's own stamp", () => {
     expect(foreignGenerator(generatedDoc(GENERATOR))).toBe(GENERATOR);
-    expect(foreignGenerator(generatedDoc("core@0.2"))).toBeUndefined();
+    expect(foreignGenerator(generatedDoc("core@0.3"))).toBeUndefined();
     expect(foreignGenerator(generatedDoc("cli@0.2.1"))).toBeUndefined();
     expect(foreignGenerator(generatedDoc(undefined))).toBeUndefined();
     expect(foreignGenerator(generatedDoc(""))).toBeUndefined();

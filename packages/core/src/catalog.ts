@@ -35,9 +35,20 @@ export type ParameterKind =
   | "object"
   | "json";
 
+/**
+ * Keys that stand in for one another. `keys` names single parameters: at
+ * most, exactly, or never more than one of them is present. `groups` (FlowDoc
+ * 0.3 vocabulary, tasks/D01) names alternatives that are each several keys
+ * (`GetCustomerProfile`: the `IdentifierName` and `IdentifierValue` pair, or
+ * `SearchCriteria`): a group is present when every key in it is, a group
+ * with some of its keys present is a violation on its own, and the rule
+ * then reads over the groups as it reads over keys. A constraint carries one
+ * of the two. `constraintViolations` is the one reading of both.
+ */
 export interface CatalogConstraint {
   rule: "exactlyOne" | "atMostOne" | "neverBoth";
-  keys: readonly string[];
+  keys?: readonly string[];
+  groups?: readonly (readonly string[])[];
 }
 
 /** The shape of a value: a parameter without its key, as list elements are. */
@@ -58,8 +69,19 @@ export interface CatalogElement {
   /** map: the keys the page allows, when it lists them. */
   keys?: readonly string[];
   /**
+   * map: patterns a key may match beside `keys`, as anchored regular
+   * expression sources (`^Attributes\\.[^.]+$` for the `Attributes.x` the
+   * Customer Profiles pages allow). FlowDoc 0.3 vocabulary (tasks/D01); a map
+   * with neither admits any key.
+   */
+  keyPatterns?: readonly string[];
+  /**
    * The page also accepts a single JSONPath identifier in this position
    * ("fully static or fully dynamic"). The kind describes the static form.
+   * On a scalar kind since 0.1; on a `list` since FlowDoc 0.3
+   * (`UpdateRoutingCriteria.RoutingCriteria.Steps`, docs/adr/0009), where a
+   * JSONPath may stand for the whole list. Never on an `object`, `map` or
+   * `json`.
    */
   dynamic?: boolean;
 }
@@ -102,6 +124,14 @@ export interface CatalogError {
    * branch is not required on every form.
    */
   requiredWhenKey?: string;
+  /**
+   * A top-level Parameters key whose static value makes the branch required
+   * (`CreateCase`'s `ContactNotLinked` when `LinkContactToCase` is `"true"`),
+   * where presence alone says nothing. FlowDoc 0.3 vocabulary (tasks/D01);
+   * read by `requiredErrorsFor` beside `requiredWhenKey`, and carried by an
+   * error that is not also `required` or `requiredWhenKey`.
+   */
+  requiredWhenValue?: { key: string; equals: string };
 }
 
 /** `required`, `none`, `mirrors:error:<type>`, or `mirrors:condition:<operand>`. */
@@ -220,6 +250,13 @@ export interface UnmodeledAction {
   doc: string;
   modeled: false;
   source?: CatalogSource;
+  /**
+   * As on a modeled entry, so a page's channel restriction can be recorded
+   * before the type is modeled (FlowDoc 0.3 vocabulary, tasks/D01);
+   * channel-restricted-action reads it through `channelRestriction` either
+   * way.
+   */
+  channels?: readonly Channel[];
 }
 
 export type CatalogAction = ModeledAction | UnmodeledAction;
@@ -262,17 +299,71 @@ export function requiredErrors(type: string): string[] {
 
 /**
  * The error branches a document must wire on this action: the always
- * required ones and those required by a parameter the action carries
- * (`requiredWhenKey`), in the catalog's order.
+ * required ones, those required by a parameter the action carries
+ * (`requiredWhenKey`) and those required by a parameter's static value
+ * (`requiredWhenValue`), in the catalog's order.
  */
 export function requiredErrorsFor(type: string, parameters: Record<string, unknown>): string[] {
-  return (modeledEntry(type)?.transitions.errors ?? [])
+  const entry = modeledEntry(type);
+  return entry === undefined ? [] : requiredErrorsOf(entry.transitions.errors, parameters);
+}
+
+/**
+ * `requiredErrorsFor` over a given error list, so the reading can be shown
+ * on an entry the catalog does not hold yet; the provider's lint port reads
+ * the same three flags.
+ */
+export function requiredErrorsOf(
+  errors: readonly CatalogError[],
+  parameters: Record<string, unknown>,
+): string[] {
+  return errors
     .filter(
       (e) =>
         e.required ||
-        (e.requiredWhenKey !== undefined && parameters[e.requiredWhenKey] !== undefined),
+        (e.requiredWhenKey !== undefined && parameters[e.requiredWhenKey] !== undefined) ||
+        (e.requiredWhenValue !== undefined &&
+          parameters[e.requiredWhenValue.key] === e.requiredWhenValue.equals),
     )
     .map((e) => e.type);
+}
+
+/**
+ * The constraints a set of values breaks, each as one sentence naming the
+ * keys or groups, in the catalog's order; empty when none does. The one
+ * reading of `keys` and `groups`: a key is present when the value holds it
+ * (`undefined` is absent), a group when every key in it is present, and a
+ * group with some but not all of its keys present breaks the constraint
+ * whatever the rule. `exactlyOne` wants one present, `atMostOne` and
+ * `neverBoth` want no more than one (actions.md, "Machine-readable form").
+ */
+export function constraintViolations(
+  constraints: readonly CatalogConstraint[],
+  values: Record<string, unknown>,
+): string[] {
+  const out: string[] = [];
+  for (const c of constraints) {
+    const alternatives: readonly (readonly string[])[] = c.groups ?? (c.keys ?? []).map((k) => [k]);
+    const label = (alternative: readonly string[]) =>
+      alternative.length === 1 ? alternative[0]! : `(${alternative.join(" and ")})`;
+    const spelled = alternatives.map(label).join(", ");
+    let present = 0;
+    for (const alternative of alternatives) {
+      const held = alternative.filter((k) => values[k] !== undefined).length;
+      if (held === alternative.length) present += 1;
+      else if (held > 0) {
+        out.push(
+          `${label(alternative)} is incomplete: a group is present only with every key in it.`,
+        );
+      }
+    }
+    if (c.rule === "exactlyOne" && present !== 1) {
+      out.push(`exactly one of ${spelled} is required; ${String(present)} present.`);
+    } else if (c.rule !== "exactlyOne" && present > 1) {
+      out.push(`at most one of ${spelled} may be present; ${String(present)} present.`);
+    }
+  }
+  return out;
 }
 
 /** The error branches the builder's modeled form wires, in its order; empty when none. */
@@ -354,7 +445,11 @@ export function recordingEnablerPath(type: string): string | undefined {
   return modeledEntry(type)?.recordingEnabler;
 }
 
-/** The channels an action of this type is restricted to, or undefined when its page names none. */
+/**
+ * The channels an action of this type is restricted to, or undefined when
+ * its page names none. Read off any entry, modeled or not, since a page's
+ * restriction may be recorded before the type is modeled.
+ */
 export function channelRestriction(type: string): readonly Channel[] | undefined {
-  return modeledEntry(type)?.channels;
+  return catalogEntry(type)?.channels;
 }

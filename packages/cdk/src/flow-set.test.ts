@@ -6,7 +6,7 @@
 // CloudFormation templates (aws-cdk-lib/assertions); the live-deploy half of
 // the acceptance lives in integration.test.ts behind FLOW_TEST_INSTANCE_ARN.
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { collectRefs, serialize, type FlowDoc } from "@flow-as-code/core";
@@ -211,6 +211,35 @@ describe("FlowSet validation", () => {
     expect(() => synthTemplate([demoDoc()], binder as TokenBinder)).toThrow(
       /TokenBinder has no hours\(\) method.*\$\{cdref:hours:main-line\}/,
     );
+  });
+
+  // FlowDoc 0.3: a casefield token standing as a whole map key reaches the
+  // binder like a value, and a binder with no casefield() names the token.
+  it("binds a casefield map key, and names it when the binder cannot", () => {
+    const url = new URL(
+      "../../../conformance/hcl/roundtrip/casefield-key/casefield-key.flowdoc.json",
+      import.meta.url,
+    );
+    const doc = JSON.parse(readFileSync(url, "utf8")) as FlowDoc;
+    const phaseD: TokenBinder = {
+      ...opaqueBinder(),
+      flow: (n) => `FLOW_TOKEN[${n}]`,
+      tasktemplate: (n) => `TASKTEMPLATE_TOKEN[${n}]`,
+      casetemplate: (n) => `CASETEMPLATE_TOKEN[${n}]`,
+      assistant: (n) => `ASSISTANT_TOKEN[${n}]`,
+      phonenumber: (n) => `PHONENUMBER_TOKEN[${n}]`,
+    };
+    expect(() => synthTemplate([doc], phaseD)).toThrow(
+      /TokenBinder has no casefield\(\) method.*\$\{cdref:casefield:priority\}/,
+    );
+    const [, flow] = only(
+      synthTemplate([doc], { ...phaseD, casefield: (n) => `CASEFIELD_TOKEN[${n}]` }),
+      "AWS::Connect::ContactFlow",
+    );
+    const { text } = splitContent(flow.Properties.Content);
+    expect(text).toContain('"CASEFIELD_TOKEN[priority]": "high"');
+    expect(text).toContain('"CASEFIELD_TOKEN[summary]": "$.Attributes.summary"');
+    expect(text).not.toContain("cdref");
   });
 
   it("rejects a binder method returning undefined", () => {

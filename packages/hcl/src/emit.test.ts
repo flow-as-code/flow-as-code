@@ -84,8 +84,9 @@ describe("conformance/hcl/emit", () => {
         expect(text, path).toBe(read(expected, path));
         expect(format(text), `${path} is not a fmt fixed point`).toBe(text);
       }
-      // validate.test.ts runs it against the published provider (task B03e).
-      expect(spec.validate).toBe("pass");
+      // validate.test.ts runs it against the published provider (task B03e),
+      // unless it awaits the provider release that reads it (tasks/D01).
+      expect(["pass", "awaits-provider"]).toContain(spec.validate);
     });
 
     it(`${name}: each resource in flows.tf reads back to its document`, () => {
@@ -141,7 +142,7 @@ describe("emitFlowascode", () => {
 
   it("refuses two module aliases that label one alias resource", () => {
     const module = (name: string): FlowDoc => ({
-      flowdoc: "0.2",
+      flowdoc: "0.3",
       kind: "module",
       name,
       connectType: "MODULE",
@@ -245,7 +246,7 @@ describe("emitFlowascode", () => {
   });
 
   const moduleDoc = (name: string): FlowDoc => ({
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "module",
     name,
     connectType: "MODULE",

@@ -12,6 +12,13 @@
 //     validation and no arn-shape checks, because intrinsics are resolved by
 //     CloudFormation long after this code runs.
 //
+// Both backends refuse a token embedded in a longer string before they
+// substitute anything (FlowDoc invariant 4), and both resolve a token that
+// stands as a whole map key, which is where a `casefield` reference sits
+// (docs/adr/0008-case-field-ids.md). Resolution is token-driven: a key and a
+// value go through one rule, so neither backend needs to know which paths
+// hold a key reference.
+//
 // Both backends emit content ONLY: `layout`, `refs`, and `meta` are tool
 // metadata and are dropped. Before dropping, `layout` is projected into
 // `content.Metadata` so the flow lays out correctly in the Connect console
@@ -86,21 +93,25 @@ export class MaterializeError extends Error {
   }
 }
 
+/** A whole-string token resolved, anything else returned as it was. */
+function resolveString(value: string, resolve: (entry: RefEntry) => string): string {
+  const entry = parseToken(value);
+  return entry === undefined ? value : resolve(entry);
+}
+
 /**
- * A reference token occupies an entire field value and is never interpolated
- * into a longer string (FlowDoc invariant 4), so replacement only ever swaps
- * whole string values. Binder output is inserted exactly as returned.
+ * A reference token occupies an entire field value, or an entire map key for
+ * a `casefield`, and is never interpolated into a longer string (FlowDoc
+ * invariant 4), so replacement only ever swaps whole strings, keys and values
+ * alike. Binder output is inserted exactly as returned.
  */
 function resolveDeep(value: unknown, resolve: (entry: RefEntry) => string): unknown {
-  if (typeof value === "string") {
-    const entry = parseToken(value);
-    return entry === undefined ? value : resolve(entry);
-  }
+  if (typeof value === "string") return resolveString(value, resolve);
   if (Array.isArray(value)) return value.map((v) => resolveDeep(v, resolve));
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([k, v]) => [
-        k,
+        resolveString(k, resolve),
         resolveDeep(v, resolve),
       ]),
     );
@@ -171,9 +182,9 @@ function projectLayout(
 const TOKEN_OPEN = "${cdref:";
 
 /**
- * Every `${cdref:...}` left in serialized content, each once, sorted: an
- * opening followed by a closing brace before any double quote, so a token
- * never spans a JSON string boundary. The regex this replaced
+ * Every `${cdref:...}` inside one string, each once: an opening followed by a
+ * closing brace before any double quote, so a token never spans a JSON string
+ * boundary when the text is serialized content. The regex this replaced
  * (`/\$\{cdref:[^}"]*\}/g`) backtracked over a run of openings with no close,
  * which code scanning flagged as polynomial on document content
  * (js/polynomial-redos); this is one forward pass. The closing position is
@@ -181,28 +192,72 @@ const TOKEN_OPEN = "${cdref:";
  * ends at a quote moves on by one opening as the regex did, so the next
  * opening after a match is sought past the match, never inside it.
  */
-function embeddedTokens(json: string): string[] {
-  const found = new Set<string>();
-  let open = json.indexOf(TOKEN_OPEN);
+function embeddedTokens(text: string, found = new Set<string>()): Set<string> {
+  let open = text.indexOf(TOKEN_OPEN);
   let close = -1;
   while (open !== -1) {
     const body = open + TOKEN_OPEN.length;
     if (close < body) {
       close = body;
-      while (close < json.length && json[close] !== "}" && json[close] !== '"') close += 1;
+      while (close < text.length && text[close] !== "}" && text[close] !== '"') close += 1;
     }
-    if (close === json.length) break;
-    if (json[close] === "}") {
-      found.add(json.slice(open, close + 1));
-      open = json.indexOf(TOKEN_OPEN, close + 1);
+    if (close === text.length) break;
+    if (text[close] === "}") {
+      found.add(text.slice(open, close + 1));
+      open = text.indexOf(TOKEN_OPEN, close + 1);
     } else {
-      open = json.indexOf(TOKEN_OPEN, open + 1);
+      open = text.indexOf(TOKEN_OPEN, open + 1);
     }
   }
+  return found;
+}
+
+/**
+ * Every token embedded in a longer key or value anywhere in `value`, sorted.
+ * A string that is a whole token is what substitution swaps; any other string
+ * holding one would survive substitution as literal text, on either backend,
+ * so the check runs over the document before anything is resolved rather than
+ * over the output, where a binder that returns the token itself (the CDK
+ * version hash) is legitimate.
+ */
+function interpolatedTokens(value: unknown): string[] {
+  const found = new Set<string>();
+  const visit = (s: string): void => {
+    if (parseToken(s) === undefined) embeddedTokens(s, found);
+  };
+  const walk = (v: unknown): void => {
+    if (typeof v === "string") visit(v);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v !== null && typeof v === "object") {
+      for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+        visit(k);
+        walk(x);
+      }
+    }
+  };
+  walk(value);
   return [...found].sort();
 }
 
+/** The refusal both backends raise for a token that is not a whole key or value. */
+function refuseInterpolated(doc: FlowDoc): void {
+  const leaked = interpolatedTokens({
+    Settings: doc.content.Settings,
+    Metadata: doc.content.Metadata,
+    Actions: doc.content.Actions,
+  });
+  if (leaked.length > 0) {
+    throw new MaterializeError(
+      leaked,
+      "Token(s) would survive materialization because they are embedded in a longer string. " +
+        "A reference must be the entire field value, or the entire map key for a casefield " +
+        "(FlowDoc invariant 4).",
+    );
+  }
+}
+
 function materialize(doc: FlowDoc, resolve: (entry: RefEntry) => string): FlowContent {
+  refuseInterpolated(doc);
   // A module requires a top-level Settings in its deployable content; Connect
   // rejects the create without it. Default to {} when the doc does not carry
   // one; resolve tokens in it for consistency with the rest of the content.
@@ -239,29 +294,21 @@ export function materializeWithMap(doc: FlowDoc, resourceMap: Record<string, str
   );
   if (missing.length > 0) throw MaterializeError.missingKeys(missing);
 
-  const content = materialize(doc, (entry) => lookupRefValue(resourceMap, entry) as string);
-
   // Completeness is not enough. collectRefs finds a token anywhere in a string
-  // while substitution only replaces a whole-value token, so an interpolated
+  // while substitution only replaces a whole-string token, so an interpolated
   // token used to satisfy the check above and then survive into deployable
-  // output as literal text that Connect would read aloud. Refusing here means
-  // render and emit, which do not run lint, cannot ship one either.
-  const leaked = embeddedTokens(JSON.stringify(content));
-  if (leaked.length > 0) {
-    throw new MaterializeError(
-      leaked,
-      "Token(s) survived materialization because they are embedded in a longer string. " +
-        "A reference must be the entire field value (FlowDoc invariant 4).",
-    );
-  }
-  return content;
+  // output as literal text that Connect would read aloud. materialize refuses
+  // it first, so render and emit, which do not run lint, cannot ship one.
+  return materialize(doc, (entry) => lookupRefValue(resourceMap, entry) as string);
 }
 
 /**
  * Binder materialization for IaC backends (@flow-as-code/cdk). The binder returns an
  * opaque string per reference, typically a CDK token that CloudFormation later
  * resolves to an ARN. Output passes through exactly as returned, with no
- * validation and no arn-shape lint (SPEC.md, Materialization).
+ * validation and no arn-shape lint (SPEC.md, Materialization). The document
+ * is held to invariant 4 before the binder runs, as on the map path: an
+ * interpolated token is refused rather than deployed as literal text.
  */
 export function materializeWithBinder(
   doc: FlowDoc,

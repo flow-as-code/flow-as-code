@@ -111,6 +111,25 @@ function rows(params, depth = 0) {
   return out;
 }
 
+/**
+ * One constraint as a sentence, without its final period. The alternatives
+ * are `keys`, one key each, or `groups`, each a set of keys that count only
+ * when every one is present, spelled `(a and b)` as constraintViolations in
+ * packages/core/src/catalog.ts labels them.
+ */
+export function constraintSentence(c) {
+  const rule = {
+    exactlyOne: "exactly one of",
+    atMostOne: "at most one of",
+    neverBoth: "never both of",
+  }[c.rule];
+  const alternatives = c.groups ?? (c.keys ?? []).map((k) => [k]);
+  const spelled = alternatives
+    .map((g) => (g.length === 1 ? `\`${g[0]}\`` : `(${g.map((k) => `\`${k}\``).join(" and ")})`))
+    .join(", ");
+  return `${rule ?? c.rule} ${spelled}`;
+}
+
 function section(type, a) {
   const t = a.transitions;
   const lines = [`## ${type}`, ""];
@@ -136,14 +155,7 @@ function section(type, a) {
       `- Conditions: ${CONDITIONS[t.conditions] ?? t.conditions}${t.minConditions ? `; at least ${t.minConditions}` : ""}.`,
     );
   }
-  for (const c of a.constraints ?? []) {
-    const rule = {
-      exactlyOne: "exactly one of",
-      atMostOne: "at most one of",
-      neverBoth: "never both of",
-    }[c.rule];
-    lines.push(`- Parameters: ${rule ?? c.rule} ${c.keys.map((k) => `\`${k}\``).join(", ")}.`);
-  }
+  for (const c of a.constraints ?? []) lines.push(`- Parameters: ${constraintSentence(c)}.`);
   for (const s of a.shapes ?? []) {
     const when = whenOf(s.when);
     const parts = [];

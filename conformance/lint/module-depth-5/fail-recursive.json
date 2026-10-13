@@ -7,7 +7,7 @@
   ],
   "docs": [
     {
-      "flowdoc": "0.2",
+      "flowdoc": "0.3",
       "kind": "flow",
       "name": "entry",
       "connectType": "CONTACT_FLOW",
@@ -60,7 +60,7 @@
       ]
     },
     {
-      "flowdoc": "0.2",
+      "flowdoc": "0.3",
       "kind": "module",
       "name": "m1",
       "connectType": "MODULE",
@@ -113,7 +113,7 @@
       ]
     },
     {
-      "flowdoc": "0.2",
+      "flowdoc": "0.3",
       "kind": "module",
       "name": "m2",
       "connectType": "MODULE",

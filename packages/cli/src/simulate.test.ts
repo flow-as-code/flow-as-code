@@ -526,7 +526,7 @@ describe("simulate --dry-run", () => {
 
   it("fails on a FlowDoc the schema rejects, naming the file", async () => {
     const dir = tempDir();
-    writeFileSync(join(dir, "bad.flowdoc.json"), JSON.stringify({ flowdoc: "0.2" }));
+    writeFileSync(join(dir, "bad.flowdoc.json"), JSON.stringify({ flowdoc: "0.3" }));
     const error = await expectCliError(() => dryRunSimulate(CLEAN, dir));
     expect(error.message).toContain(`${join(dir, "bad.flowdoc.json")}: not a valid FlowDoc`);
   });

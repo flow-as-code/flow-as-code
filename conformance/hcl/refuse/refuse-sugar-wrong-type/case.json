@@ -1,0 +1,5 @@
+{
+  "description": "A phone number resource address (address-sugar.json, FlowDoc 0.3) in a queue field: the parser reads the address as the key phonenumber:main-did and refuses it for the field's type, rather than as an unlisted address.",
+  "providerCode": "REF_EXPRESSION_REFUSED",
+  "providerWhy": "The provider sees the address's value, unknown until the phone number exists, and cannot tell a listed address from an unlisted one; it refuses every expression in a reference field alike."
+}

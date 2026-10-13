@@ -1,5 +1,5 @@
 {
-  "flowdoc": "0.2",
+  "flowdoc": "0.3",
   "kind": "flow",
   "name": "recording-analytics",
   "description": "The recording block in each of its forms, one per block, announced first.",

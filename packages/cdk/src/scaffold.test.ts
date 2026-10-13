@@ -79,6 +79,36 @@ describe("cdkScaffold", () => {
         Parameters: { ViewResource: { Id: "${cdref:view:after-contact-work@1}" } },
         Transitions: {},
       },
+      // The five FlowDoc 0.3 types, each the binder's (there is no document to
+      // resolve them from), carried by the generic blocks that hold them
+      // until their types are modeled.
+      {
+        Identifier: "task",
+        Type: "CreateTask",
+        Parameters: { Name: "Follow up", TaskTemplateId: "${cdref:tasktemplate:follow-up}" },
+        Transitions: {},
+      },
+      {
+        Identifier: "case",
+        Type: "CreateCase",
+        Parameters: {
+          CaseTemplateId: "${cdref:casetemplate:billing}",
+          CaseRequestFields: { "${cdref:casefield:priority}": "high" },
+        },
+        Transitions: {},
+      },
+      {
+        Identifier: "assist",
+        Type: "CreateWisdomSession",
+        Parameters: { WisdomAssistantArn: "${cdref:assistant:agent-help}" },
+        Transitions: {},
+      },
+      {
+        Identifier: "sms",
+        Type: "StartOutboundChatContact",
+        Parameters: { SourceEndpoint: { Address: "${cdref:phonenumber:main-did}" } },
+        Transitions: {},
+      },
     ];
     referrer.refs = collectRefs(referrer.content);
 
@@ -90,15 +120,30 @@ describe("cdkScaffold", () => {
     // A view is the binder's too, with the version the token pins.
     expect(alone).toContain("  view: (name, version) => {");
     expect(alone).toContain("// Names referenced: after-contact-work.");
+    for (const [type, name] of [
+      ["tasktemplate", "follow-up"],
+      ["casetemplate", "billing"],
+      ["casefield", "priority"],
+      ["assistant", "agent-help"],
+      ["phonenumber", "main-did"],
+    ]) {
+      expect(alone).toContain(`  ${type}: (name) => {`);
+      expect(alone).toContain(`// Names referenced: ${name}.`);
+    }
     // Alphabetical with the required methods, so the file reads as one list.
     const order = [
+      "assistant:",
+      "casefield:",
+      "casetemplate:",
       "flow:",
       "hours:",
       "lambda:",
       "lex:",
       "module:",
+      "phonenumber:",
       "prompt:",
       "queue:",
+      "tasktemplate:",
       "view:",
     ].map((key) => alone.indexOf(`  ${key} `));
     expect(order).toEqual([...order].sort((a, b) => a - b));

@@ -2,14 +2,15 @@
  * Copyright 2026 The flow-as-code Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-import { channelRestriction, modeledEntry } from "../../catalog.js";
+import { catalogEntry, channelRestriction } from "../../catalog.js";
 import type { Rule } from "../types.js";
 
 /**
  * Two modeled actions are restricted by channel rather than by flow type:
  * Wait "is supported only by the chat channel" and ShowView "is only
  * supported on the chat channel" (the catalog's `channels`, from each
- * action's page). A contact flow's channel is decided by the contact that
+ * action's page; an unmodeled entry may carry it too since FlowDoc 0.3, so
+ * a generic block is reported the same way once its page is recorded). A contact flow's channel is decided by the contact that
  * reaches it, not by the document, and FlowDoc records no channel, so the
  * finding is a warning: an inbound flow may serve chat alone, and the
  * document cannot say so. The message names the channels the page allows
@@ -26,7 +27,7 @@ export const channelRestrictedAction: Rule = {
     for (const action of doc.content.Actions) {
       const channels = channelRestriction(action.Type);
       if (channels === undefined) continue;
-      const page = modeledEntry(action.Type)?.doc ?? "";
+      const page = catalogEntry(action.Type)?.doc ?? "";
       report({
         severity: "warning",
         blockId: action.Identifier,

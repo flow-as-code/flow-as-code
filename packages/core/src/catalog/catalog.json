@@ -102,7 +102,12 @@
     "prompt",
     "flow",
     "module",
-    "view"
+    "view",
+    "tasktemplate",
+    "casetemplate",
+    "casefield",
+    "assistant",
+    "phonenumber"
   ],
   "flowTypeGroups": {
     "INBOUND": [

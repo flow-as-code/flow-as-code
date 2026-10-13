@@ -1,0 +1,67 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "task-follow-up",
+  "displayName": "Task Follow Up",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "create-task",
+    "Actions": [
+      {
+        "Identifier": "create-task",
+        "Type": "CreateTask",
+        "Parameters": {
+          "ContactFlowId": "${cdref:flow:case-intake}",
+          "Name": "Follow up",
+          "TaskTemplateId": "${cdref:tasktemplate:follow-up}"
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "create-task": {
+      "x": 20,
+      "y": 20
+    },
+    "hang-up": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:flow:case-intake}",
+      "type": "flow",
+      "name": "case-intake"
+    },
+    {
+      "token": "${cdref:tasktemplate:follow-up}",
+      "type": "tasktemplate",
+      "name": "follow-up"
+    }
+  ],
+  "meta": {
+    "generator": "core@0.3",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000032",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Task Follow Up"
+    }
+  }
+}

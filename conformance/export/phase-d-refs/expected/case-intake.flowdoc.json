@@ -1,0 +1,158 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "case-intake",
+  "displayName": "Case Intake",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "open-case",
+    "Actions": [
+      {
+        "Identifier": "open-case",
+        "Type": "CreateCase",
+        "Parameters": {
+          "CaseRequestFields": {
+            "ffff0000-0000-4000-8000-000000000001": "high"
+          },
+          "CaseTemplateId": "${cdref:casetemplate:billing-dispute}",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "read-case",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "read-case",
+        "Type": "GetCase",
+        "Parameters": {
+          "CaseResponseFields": [
+            "${cdref:casefield:priority}"
+          ],
+          "CustomerId": "$.Customer.ProfileId",
+          "GetLastUpdatedCase": "true",
+          "LinkContactToCase": "false"
+        },
+        "Transitions": {
+          "NextAction": "assist",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "assist",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "${cdref:assistant:agent-help}"
+        },
+        "Transitions": {
+          "NextAction": "text-back",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "text-back",
+        "Type": "StartOutboundChatContact",
+        "Parameters": {
+          "ContactFlowArn": "${cdref:flow:task-follow-up}",
+          "ContactSubtype": "connect:SMS",
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
+          },
+          "SourceEndpoint": {
+            "Address": "${cdref:phonenumber:main-did}",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "hang-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hang-up"
+            }
+          ]
+        }
+      },
+      {
+        "Identifier": "hang-up",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "assist": {
+      "x": 540,
+      "y": 20
+    },
+    "hang-up": {
+      "x": 1060,
+      "y": 20
+    },
+    "open-case": {
+      "x": 20,
+      "y": 20
+    },
+    "read-case": {
+      "x": 280,
+      "y": 20
+    },
+    "text-back": {
+      "x": 800,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:assistant:agent-help}",
+      "type": "assistant",
+      "name": "agent-help"
+    },
+    {
+      "token": "${cdref:casefield:priority}",
+      "type": "casefield",
+      "name": "priority"
+    },
+    {
+      "token": "${cdref:casetemplate:billing-dispute}",
+      "type": "casetemplate",
+      "name": "billing-dispute"
+    },
+    {
+      "token": "${cdref:flow:task-follow-up}",
+      "type": "flow",
+      "name": "task-follow-up"
+    },
+    {
+      "token": "${cdref:phonenumber:main-did}",
+      "type": "phonenumber",
+      "name": "main-did"
+    }
+  ],
+  "meta": {
+    "generator": "core@0.3",
+    "source": {
+      "id": "cccc3333-0000-4000-8000-000000000031",
+      "instanceId": "11111111-2222-3333-4444-555555555555",
+      "name": "Case Intake"
+    }
+  }
+}

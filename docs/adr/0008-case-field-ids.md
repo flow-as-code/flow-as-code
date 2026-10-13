@@ -1,7 +1,10 @@
 # ADR-0008: Cases field ids are `casefield` references, usable as map keys
 
 Status: accepted, 2026-10-05 (owner decision 5's default, tasks/README.md,
-"Phase D", "Owner decisions"; implemented by D06 on the format D01 ships)
+"Phase D", "Owner decisions"; implemented by D06 on the format D01 ships,
+except that `materialize`'s key resolution and lint's key walk landed with
+D01 on 2026-10-06, on review: without them a key token reached the CDK
+deploy path unresolved and unreported, tasks/D01, "Review")
 
 ## Context
 
@@ -63,13 +66,15 @@ What each reader does with it, implemented in D06 on D01's format:
 - `materialize` resolves a key that parses as a token exactly as it resolves
   a value, anywhere in the content, and the provider's port does the same.
   Resolution stays token-driven, not path-driven, so a key and a value are
-  handled by one rule.
+  handled by one rule. (The TypeScript side landed in D01; the provider's
+  port is in D01's provider batch.)
 - Export's inventory gains the Cases `ListFields` call for the domain the
   instance's `CASES_DOMAIN` integration association names, and maps each id
   back to a token by the field's name. A field id is not a Connect ARN, so
   `parseConnectArn` is not the way in; the catalog path is.
-- Lint's `walkStrings` visits keys as well as values, so `no-unresolved-token`
-  reports a malformed token in a key and `no-literal-arn` sees every string.
+- Lint's `walkStrings` visits keys as well as values (landed in D01), so
+  `no-unresolved-token` reports a malformed token in a key and
+  `no-literal-arn` sees every string.
   A literal UUID in a key is not refused by anything: the service accepts it,
   it is not an ARN, and it round-trips as authored. D06 adds a warning only if
   its sweep shows the service validating ids at create.

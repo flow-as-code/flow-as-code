@@ -30,7 +30,9 @@ other direction.
   fix is made in the satellite and re-synced, never here.
 - `tests/vendoredExample.test.ts`, offline: recomputes the manifest and fails
   on any added, removed or changed file; validates each FlowDoc against the
-  schema of the version it names; runs lint with the current catalog and
+  schema of the version it names; runs lint with the current catalog, on
+  each document read through `migrateFlowDoc` (a 0.2 snapshot is linted at
+  0.3; tasks/D01, 2026-10-12), and
   fails on any finding of severity `error`; asserts no `arn:aws:` and no
   phone number outside 555-0100 to 555-0199. Each check shown red by a
   mutation (an edited byte, an extra file, a catalog change that the snapshot

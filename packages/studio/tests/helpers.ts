@@ -18,7 +18,7 @@ import { demoDoc } from "../src/store/demoStore.js";
 
 export { demoDoc };
 
-/** Asserts the doc validates against conformance/schema/flowdoc-0.2.schema.json. */
+/** Asserts the doc validates against conformance/schema/flowdoc-0.3.schema.json. */
 export function expectSchemaValid(doc: FlowDoc): void {
   expect(schemaErrorsFor(doc)).toEqual([]);
 }
@@ -38,7 +38,7 @@ export function expectByteStable(doc: FlowDoc): void {
  */
 export function compareDoc(): FlowDoc {
   return {
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "flow",
     name: "compare-line",
     connectType: "CONTACT_FLOW",
@@ -101,7 +101,7 @@ export function menuDoc(): FlowDoc {
     },
   });
   return {
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "flow",
     name: "menu-line",
     connectType: "CONTACT_FLOW",
@@ -159,7 +159,7 @@ export function menuDoc(): FlowDoc {
  */
 export function detachableDoc(): FlowDoc {
   return {
-    flowdoc: "0.2",
+    flowdoc: "0.3",
     kind: "flow",
     name: "detachable",
     connectType: "CONTACT_FLOW",

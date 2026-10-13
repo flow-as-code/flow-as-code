@@ -71,4 +71,9 @@ export const REF_TYPE_ORDER: readonly RefType[] = [
   "flow",
   "module",
   "view",
+  "tasktemplate",
+  "casetemplate",
+  "casefield",
+  "assistant",
+  "phonenumber",
 ];

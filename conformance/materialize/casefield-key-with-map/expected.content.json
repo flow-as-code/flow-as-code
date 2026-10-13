@@ -1,0 +1,166 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "open-case",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "assist": {
+        "Position": {
+          "x": 980,
+          "y": 20
+        }
+      },
+      "follow-up": {
+        "Position": {
+          "x": 660,
+          "y": 20
+        }
+      },
+      "hang-up": {
+        "Position": {
+          "x": 1620,
+          "y": 20
+        }
+      },
+      "open-case": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "read-case": {
+        "Position": {
+          "x": 340,
+          "y": 20
+        }
+      },
+      "text-back": {
+        "Position": {
+          "x": 1300,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "open-case",
+      "Type": "CreateCase",
+      "Parameters": {
+        "CaseRequestFields": {
+          "bbbbbbbb-1111-2222-3333-444444444444": "high",
+          "cccccccc-1111-2222-3333-444444444444": "$.Attributes.summary"
+        },
+        "CaseTemplateId": "dddddddd-1111-2222-3333-444444444444",
+        "LinkContactToCase": "true"
+      },
+      "Transitions": {
+        "NextAction": "read-case",
+        "Errors": [
+          {
+            "ErrorType": "ContactNotLinked",
+            "NextAction": "hang-up"
+          },
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "read-case",
+      "Type": "GetCase",
+      "Parameters": {
+        "CaseResponseFields": [
+          "bbbbbbbb-1111-2222-3333-444444444444"
+        ],
+        "CustomerId": "$.Customer.ProfileId",
+        "GetLastUpdatedCase": "true",
+        "LinkContactToCase": "false"
+      },
+      "Transitions": {
+        "NextAction": "follow-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "follow-up",
+      "Type": "CreateTask",
+      "Parameters": {
+        "ContactFlowId": "arn:aws:connect:us-east-1:111122223333:instance/eeeeeeee-1111-2222-3333-444444444444/contact-flow/ffffffff-1111-2222-3333-444444444444",
+        "Name": "Follow up",
+        "TaskTemplateId": "arn:aws:connect:us-east-1:111122223333:instance/eeeeeeee-1111-2222-3333-444444444444/task-template/88888888-1111-2222-3333-444444444444"
+      },
+      "Transitions": {
+        "NextAction": "assist",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "assist",
+      "Type": "CreateWisdomSession",
+      "Parameters": {
+        "WisdomAssistantArn": "arn:aws:wisdom:us-east-1:111122223333:assistant/aaaaaaaa-1111-2222-3333-444444444444"
+      },
+      "Transitions": {
+        "NextAction": "text-back",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "text-back",
+      "Type": "StartOutboundChatContact",
+      "Parameters": {
+        "ContactFlowArn": "arn:aws:connect:us-east-1:111122223333:instance/eeeeeeee-1111-2222-3333-444444444444/contact-flow/ffffffff-1111-2222-3333-444444444444",
+        "ContactSubtype": "connect:SMS",
+        "DestinationEndpoint": {
+          "Address": "$.CustomerEndpoint.Address",
+          "Type": "TELEPHONE_NUMBER"
+        },
+        "SourceEndpoint": {
+          "Address": "arn:aws:connect:us-east-1:111122223333:phone-number/99999999-1111-2222-3333-444444444444",
+          "Type": "CONNECT_PHONENUMBER_ARN"
+        }
+      },
+      "Transitions": {
+        "NextAction": "hang-up",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "hang-up"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "hang-up",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

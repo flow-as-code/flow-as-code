@@ -7,7 +7,7 @@
     }
   ],
   "doc": {
-    "flowdoc": "0.2",
+    "flowdoc": "0.3",
     "kind": "flow",
     "name": "queue-wait",
     "connectType": "CUSTOMER_QUEUE",

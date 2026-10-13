@@ -1,0 +1,9 @@
+{
+  "${cdref:assistant:agent-help}": "arn:aws:wisdom:us-east-1:111122223333:assistant/aaaaaaaa-1111-2222-3333-444444444444",
+  "casefield:priority": "bbbbbbbb-1111-2222-3333-444444444444",
+  "casefield:summary": "cccccccc-1111-2222-3333-444444444444",
+  "casetemplate:billing-dispute": "dddddddd-1111-2222-3333-444444444444",
+  "flow_task_line_arn": "arn:aws:connect:us-east-1:111122223333:instance/eeeeeeee-1111-2222-3333-444444444444/contact-flow/ffffffff-1111-2222-3333-444444444444",
+  "${cdref:phonenumber:main-did}": "arn:aws:connect:us-east-1:111122223333:phone-number/99999999-1111-2222-3333-444444444444",
+  "tasktemplate_follow_up_arn": "arn:aws:connect:us-east-1:111122223333:instance/eeeeeeee-1111-2222-3333-444444444444/task-template/88888888-1111-2222-3333-444444444444"
+}

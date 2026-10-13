@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 // FlowDoc: the single interchange format. See docs/01-flowdoc-spec.md and
-// conformance/schema/flowdoc-0.2.schema.json, which is the normative form of
-// these types. A 0.1 document is read through migrateFlowDoc (migrate.ts).
+// conformance/schema/flowdoc-0.3.schema.json, which is the normative form of
+// these types. A 0.1 or 0.2 document is read through migrateFlowDoc
+// (migrate.ts).
 
-export const FLOWDOC_VERSION = "0.2";
+export const FLOWDOC_VERSION = "0.3";
 
 /** The only Flow language version Connect supports. */
 export const FLOW_LANGUAGE_VERSION = "2019-10-30";
@@ -126,7 +127,29 @@ export interface Point {
   y: number;
 }
 
-export type RefType = "queue" | "hours" | "lambda" | "lex" | "prompt" | "flow" | "module" | "view";
+/**
+ * What a reference token names. The first eight are 0.1 and 0.2 types; FlowDoc
+ * 0.3 added the five Phase D types in one bump (docs/01-flowdoc-spec.md,
+ * "Versioning"): a task template (`CreateTask.TaskTemplateId`), a Cases
+ * template (`CreateCase.CaseTemplateId`), a Cases field (a map key of
+ * `CaseRequestFields` or an item of `CaseResponseFields`, ADR 0008), an
+ * Amazon Q in Connect assistant (`CreateWisdomSession.WisdomAssistantArn`)
+ * and a claimed phone number (`StartOutboundChatContact.SourceEndpoint.Address`).
+ */
+export type RefType =
+  | "queue"
+  | "hours"
+  | "lambda"
+  | "lex"
+  | "prompt"
+  | "flow"
+  | "module"
+  | "view"
+  | "tasktemplate"
+  | "casetemplate"
+  | "casefield"
+  | "assistant"
+  | "phonenumber";
 
 export interface RefEntry {
   token: string;
@@ -212,7 +235,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  *
  * Deliberately shallow: it checks the shape the library dereferences without
  * asking, not the FlowDoc schema. Full validation is
- * conformance/schema/flowdoc-0.2.schema.json, which `flow-cli lint` runs;
+ * conformance/schema/flowdoc-0.3.schema.json, which `flow-cli lint` runs;
  * doing it here would make every entry point pay for an Ajv compile and would
  * reject documents the studio legitimately holds mid-edit.
  *

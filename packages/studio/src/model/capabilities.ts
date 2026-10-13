@@ -142,7 +142,7 @@ export function acceptsConditions(action: FlowAction): boolean {
 
 /**
  * The condition operators the Flow language defines, in schema order
- * (conformance/schema/flowdoc-0.2.schema.json, $defs.condition.Operator). The
+ * (conformance/schema/flowdoc-0.3.schema.json, $defs.condition.Operator). The
  * `satisfies` keeps this list from drifting from @flow-as-code/core's type.
  */
 export const CONDITION_OPERATORS = [

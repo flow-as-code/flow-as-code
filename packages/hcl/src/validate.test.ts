@@ -19,7 +19,15 @@
 // Gated on RUN_TOFU_VALIDATE=1 like every test that runs the real tool, and on
 // an OpenTofu at or above the provider's floor: the emit-tf job's 1.7.0 lane
 // skips it, the 1.10 and current lanes run it.
-import { readdirSync, readFileSync } from "node:fs";
+//
+// A case whose golden carries a typed sub-block or a reference key type the
+// pinned provider lacks (the five FlowDoc 0.3 types, the Phase D sub-blocks)
+// is `"validate": "awaits-provider"` and has no validate/ directory: it is
+// byte-checked by the round-trip tests from the day it lands, and tofu
+// validate is run for it once the provider release that reads 0.3 is pinned
+// (tasks/README.md, "HCL goldens before the provider release"; tasks/D10
+// flips every such case to pass and leaves none).
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -46,6 +54,13 @@ const cases = (family: string): string[] =>
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
     .sort();
+const validateOf = (family: string, name: string): string | undefined =>
+  json<{ validate?: string }>(HCL, family, name, "case.json").validate;
+const hasValidateDir = (family: string, name: string): boolean =>
+  existsSync(join(HCL, family, name, "validate"));
+/** The cases the pinned provider validates: every one not awaiting a release. */
+const validated = (family: string): string[] =>
+  cases(family).filter((name) => validateOf(family, name) !== "awaits-provider");
 
 describe("the gate on the flowascode provider", () => {
   it("floats the provider under the range the emitter writes", () => {
@@ -59,20 +74,30 @@ describe("the gate on the flowascode provider", () => {
     expect(emitTfCiTofuVersions().some((v) => v.startsWith(`${floor}.`))).toBe(true);
   });
 
-  it("pins the provider in every case's fixture and names it in the CI cache key", () => {
+  it("pins the provider in every validated case's fixture and names it in the CI cache key", () => {
     const pins = pinnedProviders().filter((p) => p.source === FLOWASCODE_PROVIDER_SOURCE);
-    expect(pins.length).toBe(cases("roundtrip").length + cases("emit").length);
+    expect(pins.length).toBe(validated("roundtrip").length + validated("emit").length);
     for (const pin of pins) expect(emitTfCiJob()).toContain(`flowascode${pin.version}`);
   });
 
-  it("marks every case pass", () => {
+  it("marks every case pass or awaits-provider, with a validate directory exactly when pass", () => {
     for (const family of ["roundtrip", "emit"]) {
       for (const name of cases(family)) {
-        expect(json<{ validate?: string }>(HCL, family, name, "case.json").validate, name).toBe(
-          "pass",
+        const validate = validateOf(family, name);
+        expect(["pass", "awaits-provider"], `${family}/${name}`).toContain(validate);
+        expect(hasValidateDir(family, name), `${family}/${name} validate/`).toBe(
+          validate === "pass",
         );
       }
     }
+  });
+
+  it("has at least one awaits-provider case until D10 flips them", () => {
+    // The first is roundtrip/casefield-key (tasks/D01). D10 removes this
+    // assertion in the commit that raises the pins.
+    expect(
+      cases("roundtrip").some((name) => validateOf("roundtrip", name) === "awaits-provider"),
+    ).toBe(true);
   });
 });
 
@@ -87,7 +112,7 @@ function validates(files: Record<string, string>): void {
 }
 
 describe.skipIf(!flowascodeSupported())("tofu validate (RUN_TOFU_VALIDATE=1)", () => {
-  it.each(cases("roundtrip"))(
+  it.each(validated("roundtrip"))(
     "the %s round-trip golden validates with its stubs",
     (name) => {
       validates({
@@ -98,7 +123,7 @@ describe.skipIf(!flowascodeSupported())("tofu validate (RUN_TOFU_VALIDATE=1)", (
     600_000,
   );
 
-  it.each(cases("emit"))(
+  it.each(validated("emit"))(
     "the %s emitter output validates with its stubs",
     (name) => {
       const dir = join(HCL, "emit", name);
