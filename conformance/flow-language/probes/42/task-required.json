@@ -1,0 +1,34 @@
+{
+  "description": "Rule 42: CreateTask with a flow ARN and a name, the two keys the page does not mark optional, a NextAction and the catch-all; expected accepted.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateTask",
+        "Parameters": {
+          "ContactFlowId": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:instance/{{INSTANCE}}/contact-flow/{{TASK_FLOW_ID}}",
+          "Name": "Probe task"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

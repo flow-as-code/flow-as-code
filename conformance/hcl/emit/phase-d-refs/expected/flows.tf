@@ -69,13 +69,10 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "follow-up"
     next = "assist"
-    generic {
-      type = "CreateTask"
-      parameters = jsonencode({
-        ContactFlowId  = "$${cdref:flow:task-line}"
-        Name           = "Follow up"
-        TaskTemplateId = "$${cdref:tasktemplate:follow-up}"
-      })
+    create_task {
+      contact_flow_id  = "flow:task-line"
+      name             = "Follow up"
+      task_template_id = "tasktemplate:follow-up"
     }
     error {
       type = "NoMatchingError"
@@ -90,11 +87,8 @@ resource "flowascode_contact_flow" "casefield_key" {
   action {
     id   = "assist"
     next = "text-back"
-    generic {
-      type = "CreateWisdomSession"
-      parameters = jsonencode({
-        WisdomAssistantArn = "$${cdref:assistant:agent-help}"
-      })
+    create_wisdom_session {
+      wisdom_assistant_arn = "assistant:agent-help"
     }
     error {
       type = "NoMatchingError"

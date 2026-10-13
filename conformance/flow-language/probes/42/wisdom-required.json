@@ -1,0 +1,33 @@
+{
+  "description": "Rule 42: CreateWisdomSession with the linked assistant's ARN, a NextAction and the catch-all, in an inbound flow (both pages allow it); expected accepted.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "arn:aws:wisdom:{{REGION}}:{{ACCOUNT}}:assistant/{{ASSISTANT_ID}}"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "description": "Rule 42: CreateWisdomSession in a agent whisper flow, which the action page allows (\"all contact flow types\") and the admin guide's Connect assistant block does not list.",
+  "type": "AGENT_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "arn:aws:wisdom:{{REGION}}:{{ACCOUNT}}:assistant/{{ASSISTANT_ID}}"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

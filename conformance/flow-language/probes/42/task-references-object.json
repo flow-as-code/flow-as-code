@@ -1,0 +1,40 @@
+{
+  "description": "Rule 42: CreateTask with References as StartTaskContact's Reference objects ({ Type, Value } under a name).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateTask",
+        "Parameters": {
+          "ContactFlowId": "arn:aws:connect:{{REGION}}:{{ACCOUNT}}:instance/{{INSTANCE}}/contact-flow/{{TASK_FLOW_ID}}",
+          "Name": "Probe task",
+          "References": {
+            "order": {
+              "Type": "URL",
+              "Value": "https://example.com/orders/1"
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

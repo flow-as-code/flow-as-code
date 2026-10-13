@@ -59,6 +59,16 @@ export interface LiveClients {
 /** The peer dependency every live command needs. */
 export const SDK_PACKAGE = "@aws-sdk/client-connect";
 
+/**
+ * The optional peer that lets `export` and `diff` name AI agents assistants
+ * (`CreateWisdomSession`'s `WisdomAssistantArn`, an `assistant` reference
+ * since FlowDoc 0.3). Without it the inventory lists no assistant and an
+ * assistant ARN in flow content stays literal, which export reports as it
+ * reports any ARN it cannot name.
+ * https://docs.aws.amazon.com/amazon-q-connect/latest/APIReference/API_ListAssistants.html
+ */
+export const QCONNECT_PACKAGE = "@aws-sdk/client-qconnect";
+
 export const MISSING_SDK_MESSAGE =
   `Connecting to an instance needs the optional peer dependency ${SDK_PACKAGE}. ` +
   `Install it beside flow-cli (npm install ${SDK_PACKAGE}).`;
@@ -97,20 +107,48 @@ interface ConnectSdk {
   CreateTestCaseCommand?: unknown;
 }
 
+/** The slice of @aws-sdk/client-qconnect the CLI touches. */
+export interface QConnectSdk {
+  QConnectClient: new (config: { region: string }) => AwsCommandSender;
+}
+
 /**
- * Whether `error` is Node failing to find the SDK package itself: the ESM
+ * Whether `error` is Node failing to find the package `name` itself: the ESM
  * resolver's ERR_MODULE_NOT_FOUND, whose message quotes the bare specifier it
  * could not resolve (`Cannot find package '<name>' imported from <file>`). A
  * package the SDK depends on being absent raises the same code for a
  * different specifier, or CommonJS's MODULE_NOT_FOUND, and is not this.
  * https://nodejs.org/api/errors.html#err_module_not_found
  */
-function isSdkNotFound(error: unknown): boolean {
+function isPackageNotFound(error: unknown, name: string): boolean {
   return (
     error instanceof Error &&
     (error as { code?: unknown }).code === "ERR_MODULE_NOT_FOUND" &&
-    error.message.includes(`'${SDK_PACKAGE}'`)
+    error.message.includes(`'${name}'`)
   );
+}
+
+function isSdkNotFound(error: unknown): boolean {
+  return isPackageNotFound(error, SDK_PACKAGE);
+}
+
+/**
+ * Loads @aws-sdk/client-qconnect if it is installed. The package being absent
+ * is not an error: it is an optional peer, and export runs without assistant
+ * names. A package that is present but cannot be loaded is reported with the
+ * loader's reason, as the Connect SDK is. `load` is the seam the tests use.
+ */
+export async function loadQConnectSdk(
+  load: () => Promise<unknown> = () => import("@aws-sdk/client-qconnect"),
+): Promise<QConnectSdk | undefined> {
+  try {
+    return (await load()) as QConnectSdk;
+  } catch (error) {
+    if (isPackageNotFound(error, QCONNECT_PACKAGE)) return undefined;
+    throw new CliError(`${QCONNECT_PACKAGE} could not be loaded: ${messageOf(error)}`, 1, {
+      cause: error,
+    });
+  }
 }
 
 async function loadSdk(): Promise<ConnectSdk> {
@@ -136,7 +174,16 @@ async function connectClient(
 export const SDK_CLIENTS: LiveClients = {
   async inventory(target) {
     const { connect } = await connectClient(target);
-    return createConnectInventoryClient({ connect, instanceId: target.instanceId });
+    // FlowDoc 0.3's assistant references, when the optional peer is there
+    // (tasks/D05). The Cases client is D06's, with the CreateCase family.
+    const qconnect = await loadQConnectSdk();
+    return createConnectInventoryClient({
+      connect,
+      instanceId: target.instanceId,
+      ...(qconnect === undefined
+        ? {}
+        : { qconnect: new qconnect.QConnectClient({ region: target.region }) }),
+    });
   },
   async test(target) {
     const { sdk, connect } = await connectClient(target);

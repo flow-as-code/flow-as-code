@@ -1,0 +1,33 @@
+{
+  "description": "Rule 42: CreateWisdomSession in a customer queue flow, which both pages allow (the admin guide's list), as the control for the flow types they disagree on.",
+  "type": "CUSTOMER_QUEUE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "arn:aws:wisdom:{{REGION}}:{{ACCOUNT}}:assistant/{{ASSISTANT_ID}}"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

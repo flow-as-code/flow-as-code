@@ -54,6 +54,8 @@ export const ActionType = {
   UpdatePreviousContactParticipantState: "UpdatePreviousContactParticipantState",
   UpdateContactMediaStreamingBehavior: "UpdateContactMediaStreamingBehavior",
   UpdateContactMediaProcessing: "UpdateContactMediaProcessing",
+  CreateTask: "CreateTask",
+  CreateWisdomSession: "CreateWisdomSession",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -91,6 +93,12 @@ export const REFERENCE_FIELDS: Readonly<Record<string, Readonly<Record<string, R
   // The chat message processor, nested; "Must be set statically", so a
   // token and never a JSONPath.
   [ActionType.UpdateContactMediaProcessing]: { "ChatProcessor.LambdaProcessorARN": "lambda" },
+  // The flow the task runs ("Must be fully static or a single valid
+  // JSONPath identifier") and its template ("This must be defined
+  // statically", so a token and never a JSONPath).
+  [ActionType.CreateTask]: { ContactFlowId: "flow", TaskTemplateId: "tasktemplate" },
+  // The AI agents assistant ("May be specified statically or dynamically").
+  [ActionType.CreateWisdomSession]: { WisdomAssistantArn: "assistant" },
 };
 
 /**
@@ -594,6 +602,14 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
   [ActionType.UpdateContactMediaProcessing]: ["CHAT"],
+  // "This action is only supported on the voice channel." The admin guide's
+  // Connect assistant block reads voice, chat, task and email "Yes", and
+  // says conversational analytics "is not required to use AI agents with
+  // chats"; the action page governs here as everywhere else, and rule 42
+  // records the disagreement.
+  // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
+  [ActionType.CreateWisdomSession]: ["VOICE"],
 };
 
 /**
@@ -665,6 +681,19 @@ export const FLOW_TYPE_UNRESTRICTED: readonly string[] = [
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
   // https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
   ActionType.ResumeContact,
+  // "This action is supported on all channels and in all contact flow
+  // types."; the admin guide's Create task block: "All flows".
+  // https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/create-task-block.html
+  ActionType.CreateTask,
+  // "This action can be used in all contact flow types." The admin guide's
+  // Connect assistant block lists five (inbound, customer queue, outbound
+  // whisper, transfer to agent, transfer to queue); the action page
+  // governs, and rule 42's probes put each flow type the two disagree on
+  // to the service.
+  // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
+  // https://docs.aws.amazon.com/connect/latest/adminguide/connect-assistant-block.html
+  ActionType.CreateWisdomSession,
 ];
 
 /**
@@ -687,6 +716,14 @@ export const QUEUE_PRIORITY_MIN = 1;
 export const CALLBACK_DELAY_MIN = 1;
 export const CALLBACK_DELAY_MAX = 259_200;
 export const CALLBACK_ATTEMPTS_MIN = 1;
+
+/**
+ * CreateTask.DelaySeconds, "Time in seconds after which the task should be
+ * created ... The integer value between 1 and 518400 (6 days)."
+ * https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
+ */
+export const TASK_DELAY_MIN = 1;
+export const TASK_DELAY_MAX = 518_400;
 
 /**
  * Loop.LoopCount "must be between 0 and 100 (inclusive)", written as a decimal

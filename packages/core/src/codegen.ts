@@ -46,6 +46,8 @@ import {
   QUEUE_CHANNELS,
   SYSTEM_TAG_PREFIX,
   TAG_LIMIT,
+  TASK_DELAY_MAX,
+  TASK_DELAY_MIN,
   TIME_LIMIT_EXCEEDED,
   TARGET_CONTACTS,
   TTS_ENGINES,
@@ -85,6 +87,8 @@ import {
   Compare,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateTask,
+  CreateWisdomSession,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   DistributeByPercentage,
@@ -2292,6 +2296,111 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           onChannelMismatch: errors[1]!.NextAction,
         }),
       ),
+    };
+  },
+
+  // The page's form less References, whose value shape no console export
+  // has recorded yet. The template is a token only ("This must be defined
+  // statically"); DelaySeconds is the console's decimal string or a JSONPath,
+  // ScheduledTime a JSONPath only. Anything else stays generic.
+  [ActionType.CreateTask]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined) return undefined;
+    const p = a.Parameters;
+    const optional = [
+      "ContactFlowId",
+      "Attributes",
+      "Description",
+      "DelaySeconds",
+      "ScheduledTime",
+      "TaskTemplateId",
+    ];
+    if (!paramKeysAre(p, ["Name"], optional)) return undefined;
+    if (p.ContactFlowId === undefined && p.TaskTemplateId === undefined) return undefined;
+    if (p.DelaySeconds !== undefined && p.ScheduledTime !== undefined) return undefined;
+    if (typeof p.Name !== "string") return undefined;
+    const entries: [string, V][] = [
+      ["id", a.Identifier],
+      ["name", p.Name],
+    ];
+    const config: Record<string, unknown> = { id: a.Identifier, name: p.Name };
+    if (p.ContactFlowId !== undefined) {
+      const ref = refSource(p.ContactFlowId, "flow", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["flow", ref]);
+      config.flow = p.ContactFlowId;
+    }
+    if (p.TaskTemplateId !== undefined) {
+      const id = p.TaskTemplateId;
+      if (typeof id !== "string" || parseToken(id)?.type !== "tasktemplate") return undefined;
+      const ref = refSource(id, "tasktemplate", ctx);
+      if (ref === undefined) return undefined;
+      entries.push(["template", ref]);
+      config.template = id;
+    }
+    if (p.Description !== undefined) {
+      if (typeof p.Description !== "string") return undefined;
+      entries.push(["description", p.Description]);
+      config.description = p.Description;
+    }
+    if (p.Attributes !== undefined) {
+      if (!isStringMap(p.Attributes)) return undefined;
+      entries.push(["attributes", toV(p.Attributes)]);
+      config.attributes = p.Attributes;
+    }
+    if (p.DelaySeconds !== undefined) {
+      const raw = p.DelaySeconds;
+      if (typeof raw !== "string") return undefined;
+      if (/^[1-9][0-9]*$/.test(raw)) {
+        const seconds = Number(raw);
+        if (seconds < TASK_DELAY_MIN || seconds > TASK_DELAY_MAX) return undefined;
+        entries.push(["delaySeconds", seconds]);
+        config.delaySeconds = seconds;
+      } else if (/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) {
+        ctx.jsonPath = true;
+        entries.push(["delaySeconds", new Raw(`jsonPath(${quoteString(raw)})`)]);
+        config.delaySeconds = raw;
+      } else {
+        return undefined;
+      }
+    }
+    if (p.ScheduledTime !== undefined) {
+      const raw = p.ScheduledTime;
+      if (typeof raw !== "string" || !/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(raw)) return undefined;
+      ctx.jsonPath = true;
+      entries.push(["scheduledTime", new Raw(`jsonPath(${quoteString(raw)})`)]);
+      config.scheduledTime = raw;
+    }
+    entries.push(["next", w.next], ["onError", w.onError]);
+    return {
+      cls: "CreateTask",
+      entries,
+      block: new CreateTask(cast<never>({ ...config, next: w.next, onError: w.onError })),
+    };
+  },
+
+  // The assistant by reference or JSONPath, the catch-all and nothing else;
+  // the Orchestration AI agent the admin guide's block names has no
+  // recorded key, so any other parameter stays generic.
+  [ActionType.CreateWisdomSession]: (a, ctx) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, ["WisdomAssistantArn"])) return undefined;
+    const ref = refSource(a.Parameters.WisdomAssistantArn, "assistant", ctx);
+    if (ref === undefined) return undefined;
+    return {
+      cls: "CreateWisdomSession",
+      entries: [
+        ["id", a.Identifier],
+        ["assistant", ref],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new CreateWisdomSession({
+        id: a.Identifier,
+        assistant: cast<never>(a.Parameters.WisdomAssistantArn),
+        next: w.next,
+        onError: w.onError,
+      }),
     };
   },
 

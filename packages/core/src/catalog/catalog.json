@@ -147,12 +147,132 @@
     "CreateTask": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/createtask.html",
-      "modeled": false
+      "modeled": true,
+      "block": "create_task",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "parameters": [
+        {
+          "key": "ContactFlowId",
+          "attr": "contact_flow_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "flow"
+        },
+        {
+          "key": "Attributes",
+          "attr": "attributes",
+          "kind": "map",
+          "required": false
+        },
+        {
+          "key": "Name",
+          "attr": "name",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "key": "Description",
+          "attr": "description",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "key": "References",
+          "attr": "references",
+          "kind": "json",
+          "required": false
+        },
+        {
+          "key": "DelaySeconds",
+          "attr": "delay_seconds",
+          "kind": "integerString",
+          "required": false,
+          "min": 1,
+          "max": 518400,
+          "dynamic": true
+        },
+        {
+          "key": "ScheduledTime",
+          "attr": "scheduled_time",
+          "kind": "stringOrJsonPath",
+          "required": false
+        },
+        {
+          "key": "TaskTemplateId",
+          "attr": "task_template_id",
+          "kind": "ref",
+          "required": false,
+          "ref": "tasktemplate"
+        }
+      ],
+      "constraints": [
+        {
+          "rule": "atMostOne",
+          "keys": [
+            "DelaySeconds",
+            "ScheduledTime"
+          ]
+        }
+      ],
+      "refs": [
+        {
+          "path": "ContactFlowId",
+          "ref": "flow"
+        },
+        {
+          "path": "TaskTemplateId",
+          "ref": "tasktemplate"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "CreateWisdomSession": {
       "category": "contact",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html",
-      "modeled": false
+      "modeled": true,
+      "block": "create_wisdom_session",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "WisdomAssistantArn",
+          "attr": "wisdom_assistant_arn",
+          "kind": "ref",
+          "required": true,
+          "ref": "assistant"
+        }
+      ],
+      "refs": [
+        {
+          "path": "WisdomAssistantArn",
+          "ref": "assistant"
+        }
+      ],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "DequeueContactAndTransferToQueue": {
       "category": "contact",

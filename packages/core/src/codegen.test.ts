@@ -2341,6 +2341,7 @@ describe("the unknown-actions fixture holds only types the builder does not mode
     const out = codegen(doc);
     expect(out.match(/new GenericBlock\(/g)).toHaveLength(doc.content.Actions.length);
     expect(out).toContain('"${cdref:flow:task-flow}"');
+    expect(out).toContain('"${cdref:queue:support}"');
     expect(out).not.toContain("Refs.");
   });
 });
@@ -2777,5 +2778,146 @@ describe("UpdateContactMediaProcessing inverts the enabled and disabled chat pro
     generic(action({ ...enabled, Extra: "1" }));
     generic(action(enabled, ["NoMatchingError"]));
     generic(action(enabled, ["ChannelMismatch", "NoMatchingError"]));
+  });
+});
+
+describe("CreateTask inverts the page's form less References", () => {
+  const action = (
+    parameters: Record<string, unknown>,
+    errors = ["NoMatchingError"],
+  ): FlowAction => ({
+    Identifier: "task",
+    Type: "CreateTask",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "CreateTask"');
+    expect(out).not.toContain("new CreateTask(");
+  };
+  const full = {
+    ContactFlowId: "${cdref:flow:task-line}",
+    Attributes: { customerNumber: "$.CustomerEndpoint.Address" },
+    Name: "Call back",
+    Description: "About the order.",
+    DelaySeconds: "3600",
+    TaskTemplateId: "${cdref:tasktemplate:follow-up}",
+  };
+
+  it("emits the class with both references, the attributes and the delay", () => {
+    const out = codegen(docWith([action(full), bye]));
+    expect(out).toContain("new CreateTask({");
+    expect(out).toContain('name: "Call back"');
+    expect(out).toContain('flow: Refs.flow("task-line")');
+    expect(out).toContain('template: Refs.tasktemplate("follow-up")');
+    expect(out).toContain('customerNumber: "$.CustomerEndpoint.Address"');
+    expect(out).toContain("delaySeconds: 3600");
+    expect(out).not.toContain("GenericBlock");
+    const dynamic = codegen(
+      docWith([
+        action({
+          ContactFlowId: "$.Attributes.taskFlow",
+          Name: "N",
+          ScheduledTime: "$.Attributes.at",
+        }),
+        bye,
+      ]),
+    );
+    expect(dynamic).toContain('flow: jsonPath("$.Attributes.taskFlow")');
+    expect(dynamic).toContain('scheduledTime: jsonPath("$.Attributes.at")');
+    const delayed = codegen(
+      docWith([
+        action({ TaskTemplateId: full.TaskTemplateId, Name: "N", DelaySeconds: "$.Attributes.d" }),
+        bye,
+      ]),
+    );
+    expect(delayed).toContain('delaySeconds: jsonPath("$.Attributes.d")');
+  });
+
+  it("falls back on References, a static schedule, an unrecorded delay spelling, a JSONPath or literal template, or the errors out of shape", () => {
+    generic(
+      action({ ...full, References: { link: { Type: "URL", Value: "https://example.com" } } }),
+    );
+    generic(action({ ContactFlowId: full.ContactFlowId, Name: "N", ScheduledTime: "1679609303" }));
+    generic(action({ ...full, DelaySeconds: 3600 }));
+    generic(action({ ...full, DelaySeconds: "0" }));
+    generic(action({ ...full, DelaySeconds: "518401" }));
+    generic(action({ ...full, Extra: "1" }));
+    generic(action({ ...full, ScheduledTime: "$.Attributes.at" }));
+    generic(action({ ...full, TaskTemplateId: "$.Attributes.template" }));
+    generic(
+      action({
+        ...full,
+        TaskTemplateId: "arn:aws:connect:us-east-1:111122223333:instance/i/task-template/t",
+      }),
+    );
+    generic(action({ ...full, ContactFlowId: "${cdref:queue:task-line}" }));
+    generic(action({ Name: "N" }));
+    const { Name: _name, ...nameless } = full;
+    generic(action(nameless));
+    generic(action({ ...full, Attributes: { n: 1 } }));
+    generic(action(full, []));
+    generic(action(full, ["NoMatchingError", "NoMatchingError"]));
+  });
+});
+
+describe("CreateWisdomSession inverts its assistant by reference or JSONPath", () => {
+  const action = (
+    parameters: Record<string, unknown>,
+    errors = ["NoMatchingError"],
+  ): FlowAction => ({
+    Identifier: "assist",
+    Type: "CreateWisdomSession",
+    Parameters: parameters,
+    Transitions: {
+      NextAction: "bye",
+      Errors: errors.map((ErrorType) => ({ ErrorType, NextAction: "bye" })),
+      Conditions: [],
+    },
+  });
+  const bye: FlowAction = {
+    Identifier: "bye",
+    Type: "DisconnectParticipant",
+    Parameters: {},
+    Transitions: {},
+  };
+  const generic = (a: FlowAction) => {
+    const out = codegen(docWith([a, bye]));
+    expect(out).toContain('type: "CreateWisdomSession"');
+    expect(out).not.toContain("new CreateWisdomSession(");
+  };
+
+  it("emits the class with the assistant as a reference or a JSONPath", () => {
+    const out = codegen(
+      docWith([action({ WisdomAssistantArn: "${cdref:assistant:agent-help}" }), bye]),
+    );
+    expect(out).toContain("new CreateWisdomSession({");
+    expect(out).toContain('assistant: Refs.assistant("agent-help")');
+    expect(out).not.toContain("GenericBlock");
+    const dynamic = codegen(docWith([action({ WisdomAssistantArn: "$.Attributes.a" }), bye]));
+    expect(dynamic).toContain('assistant: jsonPath("$.Attributes.a")');
+  });
+
+  it("falls back on a literal ARN, another reference type, an extra key, or the errors out of shape", () => {
+    generic(
+      action({
+        WisdomAssistantArn: "arn:aws:wisdom:us-east-1:111122223333:assistant/agent-help",
+      }),
+    );
+    generic(action({ WisdomAssistantArn: "${cdref:lambda:agent-help}" }));
+    generic(action({ WisdomAssistantArn: "${cdref:assistant:agent-help}", AiAgent: "x" }));
+    generic(action({}));
+    generic(action({ WisdomAssistantArn: "${cdref:assistant:agent-help}" }, []));
   });
 });

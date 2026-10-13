@@ -5,19 +5,44 @@
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
-    "StartAction": "create-task",
+    "StartAction": "text-back",
     "Actions": [
       {
-        "Identifier": "create-task",
-        "Type": "CreateTask",
+        "Identifier": "text-back",
+        "Type": "StartOutboundChatContact",
         "Parameters": {
-          "Attributes": {
-            "CustomerPhoneNumber": "$.CustomerEndpoint.Address",
-            "queue": "${cdref:queue:support}"
+          "ContactFlowArn": "${cdref:flow:task-flow}",
+          "ContactSubtype": "connect:SMS",
+          "DestinationEndpoint": {
+            "Address": "$.CustomerEndpoint.Address",
+            "Type": "TELEPHONE_NUMBER"
           },
-          "ContactFlowId": "${cdref:flow:task-flow}",
-          "Description": "A task for the agent, with the customer's number.",
-          "Name": "Follow up"
+          "SourceEndpoint": {
+            "Address": "$.Attributes.smsNumberArn",
+            "Type": "CONNECT_PHONENUMBER_ARN"
+          }
+        },
+        "Transitions": {
+          "NextAction": "remember-queue",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "hand-off"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "remember-queue",
+        "Type": "UpdateCustomerProfile",
+        "Parameters": {
+          "ProfileRequestData": {
+            "Attributes.preferredQueue": "${cdref:queue:support}"
+          },
+          "ProfileResponseData": [
+            "Attributes.preferredQueue"
+          ]
         },
         "Transitions": {
           "NextAction": "load-content",
@@ -92,20 +117,24 @@
     ]
   },
   "layout": {
-    "create-task": {
-      "x": 20,
-      "y": 20
-    },
     "hand-off": {
-      "x": 800,
+      "x": 1060,
       "y": 20
     },
     "load-content": {
+      "x": 540,
+      "y": 20
+    },
+    "remember-queue": {
       "x": 280,
       "y": 20
     },
+    "text-back": {
+      "x": 20,
+      "y": 20
+    },
     "transfer-third-party": {
-      "x": 540,
+      "x": 800,
       "y": 20
     }
   },

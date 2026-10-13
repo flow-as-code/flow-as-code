@@ -368,6 +368,65 @@ describe("FlowDoc schema rejections: contact state", () => {
   });
 });
 
+// The tasks-and-assistants round-trip fixture is the subject for the 0.3
+// clauses of tasks/D05. Each clause holds only the reference form: a token
+// or a JSONPath where the page allows one, a token alone where the page says
+// static. Rule 42's probes (pending) put the rest to the service before any
+// enum, bound or constraint is held here (owner decision 3).
+describe("FlowDoc schema rejections: tasks and AI agents", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/tasks-and-assistants/doc.flowdoc.json");
+  const at = (d: FlowDoc, id: string): Action =>
+    d.content.Actions.find((a) => a.Identifier === id) as unknown as Action;
+  const mutate = (id: string, f: (a: Action) => void): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    f(at(d, id));
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it.each([
+    [
+      "a literal ARN as the task's flow",
+      mutate("follow-up", (a) => {
+        a.Parameters.ContactFlowId =
+          "arn:aws:connect:us-east-1:111122223333:instance/i/contact-flow/f";
+      }),
+    ],
+    [
+      "a literal ARN as the task template",
+      mutate("templated", (a) => {
+        a.Parameters.TaskTemplateId =
+          "arn:aws:connect:us-east-1:111122223333:instance/i/task-template/t";
+      }),
+    ],
+    [
+      "a literal ARN as the AI agents assistant",
+      mutate("assist", (a) => {
+        a.Parameters.WisdomAssistantArn =
+          "arn:aws:wisdom:us-east-1:111122223333:assistant/agent-help";
+      }),
+    ],
+    [
+      "a JSONPath as the task template, which the page says is static",
+      mutate("templated", (a) => {
+        a.Parameters.TaskTemplateId = "$.Attributes.template";
+      }),
+    ],
+  ])("rejects %s", (_label, doc) => {
+    expect(validate(doc)).toBe(false);
+  });
+
+  it("still accepts a JSONPath as the task's flow", () => {
+    expect(
+      validate(mutate("follow-up", (a) => (a.Parameters.ContactFlowId = "$.Attributes.f"))),
+    ).toBe(true);
+  });
+});
+
 describe("FlowDoc schema rejections: flow control", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/flow-control/doc.flowdoc.json");

@@ -82,10 +82,14 @@
     "yaml": "^2.9.0"
   },
   "peerDependencies": {
-    "@aws-sdk/client-connect": "^3.600.0"
+    "@aws-sdk/client-connect": "^3.600.0",
+    "@aws-sdk/client-qconnect": "^3.600.0"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-connect": {
+      "optional": true
+    },
+    "@aws-sdk/client-qconnect": {
       "optional": true
     }
   },

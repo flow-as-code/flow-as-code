@@ -29,6 +29,8 @@ import {
   VOICE_ID_THRESHOLD_MAX,
   VOICE_ID_THRESHOLD_MIN,
   QUEUE_PRIORITY_MIN,
+  TASK_DELAY_MAX,
+  TASK_DELAY_MIN,
   WAIT_TIMEOUT_MAX,
   WAIT_TIMEOUT_MIN,
 } from "@flow-as-code/core";
@@ -366,6 +368,59 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
           optional: true,
         },
         { kind: "text", key: "CallerId", label: "Caller ID (number or JSONPath)", optional: true },
+      ];
+    case ActionType.CreateTask:
+      // The flow and the template are each optional (a template may carry
+      // its flow); the template is static, so its picker offers no
+      // JSONPath that the schema would accept. A delay and a schedule are
+      // alternatives ("If ScheduledTime is specified, this parameter may not
+      // be specified"); the schedule is a JSONPath to epoch seconds, the
+      // form the builder models. References stay in the raw JSON until a
+      // console export records their shape (actions.md, rule 42).
+      return [
+        {
+          kind: "ref",
+          key: "ContactFlowId",
+          label: "Flow the task runs",
+          refType: "flow",
+          optional: true,
+        },
+        {
+          kind: "ref",
+          key: "TaskTemplateId",
+          label: "Task template",
+          refType: "tasktemplate",
+          optional: true,
+        },
+        { kind: "text", key: "Name", label: "Task name" },
+        { kind: "text", key: "Description", label: "Description", multiline: true, optional: true },
+        { kind: "json", key: "Attributes", label: "Attributes" },
+        {
+          kind: "number",
+          key: "DelaySeconds",
+          label: "Delay (seconds)",
+          min: TASK_DELAY_MIN,
+          max: TASK_DELAY_MAX,
+          asString: true,
+          optional: true,
+          clears: ["ScheduledTime"],
+        },
+        {
+          kind: "text",
+          key: "ScheduledTime",
+          label: "Scheduled time (JSONPath to Unix epoch seconds)",
+          optional: true,
+          clears: ["DelaySeconds"],
+        },
+      ];
+    case ActionType.CreateWisdomSession:
+      return [
+        {
+          kind: "ref",
+          key: "WisdomAssistantArn",
+          label: "AI agents assistant",
+          refType: "assistant",
+        },
       ];
     case ActionType.UpdateContactAttributes:
       return [

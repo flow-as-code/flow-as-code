@@ -1,0 +1,63 @@
+{
+  "expect": [
+    {
+      "rule": "no-literal-arn",
+      "blockId": "follow-up",
+      "messageIncludes": "Parameter \"TaskTemplateId\" contains a literal ARN"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "task-follow-up",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "follow-up",
+      "Actions": [
+        {
+          "Identifier": "follow-up",
+          "Type": "CreateTask",
+          "Parameters": {
+            "ContactFlowId": "${cdref:flow:task-line}",
+            "Name": "Follow up",
+            "TaskTemplateId": "arn:aws:connect:us-east-1:111122223333:instance/11111111-2222-3333-4444-555555555555/task-template/66666666-7777-8888-9999-000000000000"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "follow-up": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": [
+      {
+        "token": "${cdref:flow:task-line}",
+        "type": "flow",
+        "name": "task-line"
+      }
+    ]
+  }
+}

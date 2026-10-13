@@ -1,0 +1,5 @@
+{
+  "assistant:agent-help": "awscc_wisdom_assistant.agent_help.assistant_arn",
+  "flow:task-line": "flowascode_contact_flow.task_line.arn",
+  "tasktemplate:follow-up": "awscc_connect_task_template.follow_up.arn"
+}

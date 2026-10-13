@@ -37,6 +37,7 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   UpdatePreviousContactParticipantState: ["VOICE"],
   UpdateContactMediaStreamingBehavior: ["VOICE"],
   UpdateContactMediaProcessing: ["CHAT"],
+  CreateWisdomSession: ["VOICE"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -194,6 +195,8 @@ describe("FLOW_TYPE_RESTRICTIONS", () => {
   it("records the unrestricted actions rather than leaving a gap", () => {
     expect([...FLOW_TYPE_UNRESTRICTED].sort()).toEqual([
       "Compare",
+      "CreateTask",
+      "CreateWisdomSession",
       "GetMetricData",
       "InvokeLambdaFunction",
       "Loop",

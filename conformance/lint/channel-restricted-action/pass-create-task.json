@@ -1,0 +1,54 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "task-follow-up",
+  "description": "Create task, the other action of tasks/D05, is \"supported on all channels\", so it is not reported where the AI agents session is.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "follow-up",
+    "Actions": [
+      {
+        "Identifier": "follow-up",
+        "Type": "CreateTask",
+        "Parameters": {
+          "ContactFlowId": "${cdref:flow:task-line}",
+          "Name": "Follow up"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "follow-up": {
+      "x": 0,
+      "y": 0
+    },
+    "bye": {
+      "x": 200,
+      "y": 0
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:flow:task-line}",
+      "type": "flow",
+      "name": "task-line"
+    }
+  ]
+}

@@ -21,6 +21,8 @@ import {
   collectRefs,
   ConnectParticipantWithLexBot,
   CreateCallbackContact,
+  CreateTask,
+  CreateWisdomSession,
   DequeueContactAndTransferToQueue,
   DisconnectParticipant,
   DistributeByPercentage,
@@ -1623,5 +1625,146 @@ describe("the contact-state actions", () => {
           onChannelMismatch: "c",
         }),
     ).toThrow(/enabled must be a boolean/);
+  });
+});
+
+// conformance/roundtrip/tasks-and-assistants, built with the typed builder:
+// each class writes exactly the fixture's bytes (tasks/D05).
+describe("the task and AI agent actions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/tasks-and-assistants/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the tasks-and-assistants fixture", () => {
+    const flow = new Flow({
+      name: "tasks-and-assistants",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new CreateWisdomSession({
+        id: "assist",
+        assistant: Refs.assistant("agent-help"),
+        next: "assist-by-attribute",
+        onError: "bye",
+      }),
+      new CreateWisdomSession({
+        id: "assist-by-attribute",
+        assistant: jsonPath("$.Attributes.assistantArn"),
+        next: "follow-up",
+        onError: "bye",
+      }),
+      new CreateTask({
+        id: "follow-up",
+        name: "Call back",
+        flow: Refs.flow("task-line"),
+        attributes: { customerNumber: "$.CustomerEndpoint.Address", reason: "order" },
+        description: "Call the customer back about their order.",
+        delaySeconds: 3600,
+        next: "templated",
+        onError: "bye",
+      }),
+      new CreateTask({
+        id: "templated",
+        name: "Templated follow up",
+        template: Refs.tasktemplate("follow-up"),
+        next: "scheduled",
+        onError: "bye",
+      }),
+      new CreateTask({
+        id: "scheduled",
+        name: "Scheduled follow up",
+        flow: Refs.flow("task-line"),
+        template: Refs.tasktemplate("follow-up"),
+        scheduledTime: jsonPath("$.Attributes.scheduledTaskTime"),
+        next: "delayed-by-attribute",
+        onError: "bye",
+      }),
+      new CreateTask({
+        id: "delayed-by-attribute",
+        name: "Delayed follow up",
+        flow: jsonPath("$.Attributes.taskFlow"),
+        delaySeconds: jsonPath("$.Attributes.taskDelay"),
+        next: "resume-task",
+        onError: "bye",
+      }),
+      new ResumeContact({ id: "resume-task", next: "bye", onError: "bye" }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write CreateWisdomSession with its assistant and the catch-all", () => {
+    expect(
+      new CreateWisdomSession({
+        id: "a",
+        assistant: Refs.assistant("agent-help"),
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "a",
+      Type: "CreateWisdomSession",
+      Parameters: { WisdomAssistantArn: "${cdref:assistant:agent-help}" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("write CreateTask in the page's key order, its delay as a decimal string", () => {
+    expect(
+      new CreateTask({
+        id: "t",
+        name: "N",
+        flow: Refs.flow("f"),
+        template: Refs.tasktemplate("tt"),
+        attributes: { a: "1" },
+        description: "D",
+        delaySeconds: 60,
+        next: "n",
+        onError: "e",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "t",
+      Type: "CreateTask",
+      Parameters: {
+        ContactFlowId: "${cdref:flow:f}",
+        Attributes: { a: "1" },
+        Name: "N",
+        Description: "D",
+        DelaySeconds: "60",
+        TaskTemplateId: "${cdref:tasktemplate:tt}",
+      },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+
+  it("refuse a task with no flow or template, both a delay and a schedule, or a delay out of range", () => {
+    const base = { id: "t", name: "N", next: "n", onError: "e" };
+    expect(() => new CreateTask(base)).toThrow(/needs a flow, a template, or both/);
+    expect(
+      () =>
+        new CreateTask({
+          ...base,
+          flow: Refs.flow("f"),
+          delaySeconds: 60,
+          scheduledTime: jsonPath("$.Attributes.at"),
+        }),
+    ).toThrow(/delaySeconds or scheduledTime, not both/);
+    for (const delaySeconds of [0, 518_401, 1.5]) {
+      expect(() => new CreateTask({ ...base, flow: Refs.flow("f"), delaySeconds })).toThrow(
+        /delaySeconds must be an integer between 1 and 518400/,
+      );
+    }
+    expect(() => new CreateTask({ ...base, name: cast<never>(1), flow: Refs.flow("f") })).toThrow(
+      /name must be a string/,
+    );
   });
 });

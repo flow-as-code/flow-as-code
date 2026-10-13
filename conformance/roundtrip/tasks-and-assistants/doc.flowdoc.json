@@ -1,0 +1,200 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "tasks-and-assistants",
+  "description": "The task and AI agent actions: an AI agents assistant associated by reference and by attribute, a task created from a flow after a delay, from a template, on a schedule and with its flow and delay read from attributes, and a paused task resumed.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "assist",
+    "Actions": [
+      {
+        "Identifier": "assist",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "${cdref:assistant:agent-help}"
+        },
+        "Transitions": {
+          "NextAction": "assist-by-attribute",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "assist-by-attribute",
+        "Type": "CreateWisdomSession",
+        "Parameters": {
+          "WisdomAssistantArn": "$.Attributes.assistantArn"
+        },
+        "Transitions": {
+          "NextAction": "follow-up",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "follow-up",
+        "Type": "CreateTask",
+        "Parameters": {
+          "Attributes": {
+            "customerNumber": "$.CustomerEndpoint.Address",
+            "reason": "order"
+          },
+          "ContactFlowId": "${cdref:flow:task-line}",
+          "DelaySeconds": "3600",
+          "Description": "Call the customer back about their order.",
+          "Name": "Call back"
+        },
+        "Transitions": {
+          "NextAction": "templated",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "templated",
+        "Type": "CreateTask",
+        "Parameters": {
+          "Name": "Templated follow up",
+          "TaskTemplateId": "${cdref:tasktemplate:follow-up}"
+        },
+        "Transitions": {
+          "NextAction": "scheduled",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "scheduled",
+        "Type": "CreateTask",
+        "Parameters": {
+          "ContactFlowId": "${cdref:flow:task-line}",
+          "Name": "Scheduled follow up",
+          "ScheduledTime": "$.Attributes.scheduledTaskTime",
+          "TaskTemplateId": "${cdref:tasktemplate:follow-up}"
+        },
+        "Transitions": {
+          "NextAction": "delayed-by-attribute",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "delayed-by-attribute",
+        "Type": "CreateTask",
+        "Parameters": {
+          "ContactFlowId": "$.Attributes.taskFlow",
+          "DelaySeconds": "$.Attributes.taskDelay",
+          "Name": "Delayed follow up"
+        },
+        "Transitions": {
+          "NextAction": "resume-task",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "resume-task",
+        "Type": "ResumeContact",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "assist": {
+      "x": 20,
+      "y": 20
+    },
+    "assist-by-attribute": {
+      "x": 280,
+      "y": 20
+    },
+    "bye": {
+      "x": 800,
+      "y": 220
+    },
+    "delayed-by-attribute": {
+      "x": 280,
+      "y": 220
+    },
+    "follow-up": {
+      "x": 540,
+      "y": 20
+    },
+    "resume-task": {
+      "x": 540,
+      "y": 220
+    },
+    "scheduled": {
+      "x": 20,
+      "y": 220
+    },
+    "templated": {
+      "x": 800,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:assistant:agent-help}",
+      "type": "assistant",
+      "name": "agent-help"
+    },
+    {
+      "token": "${cdref:flow:task-line}",
+      "type": "flow",
+      "name": "task-line"
+    },
+    {
+      "token": "${cdref:tasktemplate:follow-up}",
+      "type": "tasktemplate",
+      "name": "follow-up"
+    }
+  ]
+}

@@ -39,6 +39,8 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdatePreviousContactParticipantState]: "Set",
   [ActionType.UpdateContactMediaStreamingBehavior]: "Set",
   [ActionType.UpdateContactMediaProcessing]: "Set",
+  [ActionType.CreateTask]: "Integrate",
+  [ActionType.CreateWisdomSession]: "Integrate",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -112,6 +114,8 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdatePreviousContactParticipantState]: "hold-participant",
   [ActionType.UpdateContactMediaStreamingBehavior]: "media-streaming",
   [ActionType.UpdateContactMediaProcessing]: "message-processor",
+  [ActionType.CreateTask]: "create-task",
+  [ActionType.CreateWisdomSession]: "connect-assistant",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -208,6 +212,17 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // inspector's picker fills before the author turns processing on.
       // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
       return { ChatProcessor: { ProcessingEnabled: "False" } };
+    case ActionType.CreateTask:
+      // Name is the one key the page does not mark optional besides the
+      // flow, which is a JSONPath placeholder until the inspector's picker
+      // names a flow or a template. The page states no console default.
+      // https://docs.aws.amazon.com/connect/latest/devguide/createtask.html
+      return { ContactFlowId: "$.Attributes.taskFlow", Name: "Follow up" };
+    case ActionType.CreateWisdomSession:
+      // A JSONPath placeholder until the inspector's picker names an
+      // assistant; the page allows either form.
+      // https://docs.aws.amazon.com/connect/latest/devguide/createwisdomsession.html
+      return { WisdomAssistantArn: "$.Attributes.assistantArn" };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.
       // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateflowloggingbehavior.html

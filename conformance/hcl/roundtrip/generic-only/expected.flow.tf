@@ -12,18 +12,39 @@ resource "flowascode_contact_flow" "unknown_actions" {
   }
 
   action {
-    id   = "create-task"
+    id   = "text-back"
+    next = "remember-queue"
+    generic {
+      type = "StartOutboundChatContact"
+      parameters = jsonencode({
+        ContactFlowArn = "$${cdref:flow:task-flow}"
+        ContactSubtype = "connect:SMS"
+        DestinationEndpoint = {
+          Address = "$.CustomerEndpoint.Address"
+          Type    = "TELEPHONE_NUMBER"
+        }
+        SourceEndpoint = {
+          Address = "$.Attributes.smsNumberArn"
+          Type    = "CONNECT_PHONENUMBER_ARN"
+        }
+      })
+    }
+    error {
+      type = "NoMatchingError"
+      next = "hand-off"
+    }
+  }
+
+  action {
+    id   = "remember-queue"
     next = "load-content"
     generic {
-      type = "CreateTask"
+      type = "UpdateCustomerProfile"
       parameters = jsonencode({
-        Attributes = {
-          CustomerPhoneNumber = "$.CustomerEndpoint.Address"
-          queue               = "$${cdref:queue:support}"
+        ProfileRequestData = {
+          "Attributes.preferredQueue" = "$${cdref:queue:support}"
         }
-        ContactFlowId = "$${cdref:flow:task-flow}"
-        Description   = "A task for the agent, with the customer's number."
-        Name          = "Follow up"
+        ProfileResponseData = ["Attributes.preferredQueue"]
       })
     }
     error {

@@ -1659,6 +1659,55 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CreateTask"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "ContactFlowId": {
+                    "$ref": "#/$defs/refField"
+                  },
+                  "TaskTemplateId": {
+                    "$ref": "#/$defs/token"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "CreateWisdomSession"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "properties": {
+                  "WisdomAssistantArn": {
+                    "$ref": "#/$defs/refField"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
