@@ -303,9 +303,12 @@ describe("FlowDoc schema rejections: contact routing", () => {
 });
 
 // The contact-state round-trip fixture is the subject for the 0.3 clauses of
-// tasks/D02. Each clause holds the page's enums and reference form; rule 41's
-// probes (pending) decide whether the service refuses each of them at
-// create, which owner decision 3 asks of a 0.3 clause.
+// tasks/D02. Each clause holds the page's enums and reference form where
+// rule 41's probes (us-west-2, 2026-10-13) found the service refusing what
+// the clause refuses, and no more (owner decision 3): the service refused a
+// participant state outside the enum, an agent participant and a repeated
+// media direction, and accepted ProcessingEnabled "true", so the clause
+// holds no enum there.
 describe("FlowDoc schema rejections: contact state", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   const raw = read("conformance/roundtrip/contact-state/doc.flowdoc.json");
@@ -341,6 +344,15 @@ describe("FlowDoc schema rejections: contact state", () => {
       }),
     ],
     [
+      "a media direction given twice, which the service refuses",
+      mutate("start-stream", (a) => {
+        (a.Parameters.Participants as Record<string, unknown>[])[0]!.MediaDirections = [
+          "From",
+          "From",
+        ];
+      }),
+    ],
+    [
       "a media direction other than From or To",
       mutate("start-stream", (a) => {
         (a.Parameters.Participants as Record<string, unknown>[])[0]!.MediaDirections = ["Both"];
@@ -366,14 +378,15 @@ describe("FlowDoc schema rejections: contact state", () => {
           "$.Attributes.processor";
       }),
     ],
-    [
-      "processing enabled spelled other than True or False",
-      mutate("process-messages", (a) => {
-        (a.Parameters.ChatProcessor as Record<string, unknown>).ProcessingEnabled = "true";
-      }),
-    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
+  });
+
+  it("accepts processing enabled spelled true, which the service accepted", () => {
+    const doc = mutate("process-messages", (a) => {
+      (a.Parameters.ChatProcessor as Record<string, unknown>).ProcessingEnabled = "true";
+    });
+    expect(validate(doc)).toBe(true);
   });
 });
 

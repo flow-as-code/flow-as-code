@@ -1288,9 +1288,9 @@
           },
           {
             "type": "ChannelMismatch",
-            "required": false,
+            "required": true,
             "builder": true,
-            "when": "the contact's channel is not chat; the page does not say it must be defined, and rule 41's probe decides whether the service requires it"
+            "when": "the contact's channel is not chat; the page does not say it must be defined, but the service refuses the action without it (rule 41, 2026-10-13)"
           }
         ]
       }

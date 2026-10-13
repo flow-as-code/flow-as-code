@@ -331,7 +331,7 @@ Block `update_contact_media_processing`. [Action page](https://docs.aws.amazon.c
 - Legal in: every flow type.
 - Channels: CHAT only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
 - `next`: required.
-- Error branches: `NoMatchingError` (required); `ChannelMismatch`: the contact's channel is not chat; the page does not say it must be defined, and rule 41's probe decides whether the service requires it.
+- Error branches: `NoMatchingError` (required); `ChannelMismatch` (required): the contact's channel is not chat; the page does not say it must be defined, but the service refuses the action without it (rule 41, 2026-10-13).
 - Conditions: none.
 
 | HCL attribute                   | Flow language key            | Value                           | Required |

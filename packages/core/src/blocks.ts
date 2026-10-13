@@ -2319,8 +2319,8 @@ export class UpdateContactRecordingAndAnalyticsBehavior extends Block {
  * task and routes voice, chat and email down its Error branch, which the
  * catalog records as the channel restriction; its configured block has an
  * Error branch beside the path a resumed task takes, written here as the
- * block's own NextAction. That the service refuses the block without
- * NextAction or without the catch-all is rule 41's to settle (probe pending).
+ * block's own NextAction. The service refuses the block without NextAction
+ * or without the catch-all (actions.md, rule 41, 2026-10-13).
  * https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactresumecontact.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/resume-contact.html
  */

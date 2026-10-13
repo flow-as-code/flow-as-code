@@ -1220,14 +1220,14 @@ is read rather than when the type is modeled.
       export shows the three keys' shapes.
 41. Contact state (tasks/D02; the Developer Guide pages read 2026-10-04
     and again 2026-10-12 with the admin guide's block pages). The group's
-    types are modeled from their pages. **Probe pending**: the create
-    sweep the evidence rule asks for (tasks/README.md, Phase D) has not
-    run. On 2026-10-12 the sandbox's AWS credentials had expired, and the
-    instance had neither live media streaming nor a Lambda function
-    associated as `MESSAGE_PROCESSOR`. Its inputs are kept in
-    `probes/41/`, with `PENDING.md` saying what the run needs. Until it
-    runs, every required error, `next` and flow-type entry below is the
-    pages' reading, and each bullet names the probes that settle it.
+    types are modeled from their pages, and the create sweep the evidence
+    rule asks for (tasks/README.md, Phase D) ran on 2026-10-13 on the
+    sandbox (us-west-2), with live media streaming enabled, one Lambda
+    associated as `MESSAGE_PROCESSOR`, one associated plainly and one never
+    associated. Its inputs and `results.json` are in `probes/41/`. The
+    bullets below are the pages' reading as modeled; the last bullet is
+    what the service said, and where the two differ the catalog follows
+    the service.
     - `ResumeContact` "Resumes a contact from a paused state." "No
       parameters are expected." Results "None."; errors "NoMatchingError -
       if no other Error matches."; Restrictions "None. This action can be
@@ -1339,9 +1339,10 @@ is read rather than when the type is modeled.
       `no-literal-arn` fails a literal ARN there), `ProcessingEnabled`
       required and the other two optional, `channels: ["CHAT"]`, the type
       unrestricted by flow type, `next` required, the catch-all required
-      and `ChannelMismatch` wired by the builder but not required: the page
-      requires only the catch-all, and D02 asks that the two be required
-      if and only if the service refuses each removed alone. The class
+      and `ChannelMismatch` wired by the builder and, since the sweep,
+      required: the page requires only the catch-all, D02 asks that the
+      two be required if and only if the service refuses each removed
+      alone, and the service refused each. The class
       requires a Lambda when processing is enabled, the console's form.
       Planned probes: `processing-required`, `processing-no-catch-all`,
       `processing-no-channel-mismatch`, `processing-no-next`,
@@ -1355,6 +1356,59 @@ is read rather than when the type is modeled.
       https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
       https://docs.aws.amazon.com/connect/latest/adminguide/set-recording-analytics-processing-behavior.html
       https://docs.aws.amazon.com/connect/latest/APIReference/API_CreateIntegrationAssociation.html
+    - The sweep (2026-10-13, 17:06 to 17:07 UTC, us-west-2,
+      `scripts/probe-create.mjs`): 35 probes, 18 accepted and 17 refused,
+      every refusal an `InvalidContactFlowException`.
+      - `ResumeContact`: `resume-required`, `resume-module` and
+        `resume-customer-hold` accepted; `resume-no-catch-all` refused
+        "Action is missing required error. Error: NoMatchingError" and
+        `resume-no-next` "Action is missing required property. Path:
+        Actions[0].Transitions.NextAction". The catalog stands.
+      - `UpdatePreviousContactParticipantState`: `previous-state-required`,
+        `-agent-transfer`, `-queue-transfer` and `-module` accepted;
+        `-outbound-whisper` and `-customer-queue` refused "Action with
+        identifier probe is not supported in contact flow type
+        outboundWhisper" (and `customerQueue`), so the action page, not the
+        block page, is right about outbound whisper, and the catalog's flow
+        types stand. `-other-value` (`OnHold`) refused "Invalid Action
+        property value. Path:
+        Actions[0].Parameters.PreviousContactParticipantState", so the
+        schema clause keeps the enum. The catch-all and `next` were each
+        refused removed alone.
+      - `UpdateContactMediaStreamingBehavior`: `stream-required`,
+        `stream-stop`, `stream-from-only`, `stream-module` and
+        `stream-agent-whisper` accepted; `stream-customer-hold` refused as
+        not supported in `customerHold`, as the page says.
+        `stream-stop-bare` refused "Action is missing required property.
+        Path: Actions[0].Parameters.MediaStreamType" and the same for
+        `Participants`, so all three keys are required on both states, as
+        the catalog has it. `stream-agent-participant` refused "Invalid
+        Action property value. Path:
+        Actions[0].Parameters.Participants[0].ParticipantType", and
+        `stream-duplicate-direction` (`From` twice) "Invalid Action
+        property value. Path:
+        Actions[0].Parameters.Participants[0].MediaDirections": the schema
+        clause now holds `MediaDirections` to unique items, which the
+        class already did.
+      - `UpdateContactMediaProcessing`: `processing-required`,
+        `-disabled`, `-module` and `-customer-hold` accepted, and so was
+        `processing-unassociated-lambda`, which names a function the
+        instance has never associated: the create does not check the
+        association. `processing-no-channel-mismatch` refused "Action is
+        missing required error. Error: ChannelMismatch", so
+        `ChannelMismatch` is now required in the catalog and in
+        `REQUIRED_EXTRAS`, and the lint fixture that passed without it is
+        now `fail-message-processor-without-channel-mismatch`.
+        `processing-enabled-without-lambda` refused "Action is missing
+        required property. Path:
+        Actions[0].Parameters.ChatProcessor.LambdaProcessorARN" while
+        `processing-disabled` (the switch alone) was accepted: the Lambda
+        is required when processing is enabled, which the class already
+        enforces and the catalog's vocabulary cannot say of a nested key.
+        `processing-lowercase-flag` (`"true"`) was accepted, so the schema
+        clause no longer holds `ProcessingEnabled` to the page's enum
+        (owner decision 3); codegen still reads only `"True"` and
+        `"False"` and keeps any other spelling generic.
 
 42. Tasks and AI agents (tasks/D05; the Developer Guide pages read
     2026-10-04 and again 2026-10-12 with the admin guide's block pages and

@@ -417,10 +417,9 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   // matches. Must always be defined." and "ChannelMismatch - if the media
   // channel that initiated the contact is not the same as the one defined
   // in the action. As of now, only chat is supported in this action." Only
-  // the catch-all is marked required; the admin guide's block shows both
-  // branches, so the builder wires both, and rule 41's probe decides
-  // whether ChannelMismatch joins REQUIRED_EXTRAS, as it did on the
-  // recording action.
+  // the catch-all is marked required on the page, but the service refuses
+  // the action without ChannelMismatch too (rule 41, 2026-10-13), so it is
+  // in REQUIRED_EXTRAS, as it is on the recording action.
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatecontactmediaprocessing.html
   [ActionType.UpdateContactMediaProcessing]: [NO_MATCHING_ERROR, CHANNEL_MISMATCH],
   // The order every published flow writes (actions.md, rule 43), the
@@ -484,6 +483,11 @@ export const REQUIRED_EXTRAS: Readonly<Record<string, readonly string[]>> = {
   // "ChannelMismatch - if the media channel that initiated the contact is not
   // the same as the one defined in the action. ... Must always be defined."
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: [CHANNEL_MISMATCH],
+  // The page marks only the catch-all "Must always be defined", but
+  // CreateContactFlow refuses the action without ChannelMismatch ("Action is
+  // missing required error. Error: ChannelMismatch", us-west-2, 2026-10-13;
+  // actions.md, rule 41).
+  [ActionType.UpdateContactMediaProcessing]: [CHANNEL_MISMATCH],
   // The page marks neither, but CreateContactFlow refuses the block without
   // either ("Action is missing required error", checked 2026-09-15).
   [ActionType.ShowView]: [NO_MATCHING_CONDITION, TIME_LIMIT_EXCEEDED],
@@ -668,8 +672,9 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
   // flows."
   // https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-updatepreviouscontactparticipantstate.html
   // The admin guide's Hold customer or agent block also lists the outbound
-  // whisper flow; the action page governs, as for every other row, until
-  // rule 41's probe in an outbound whisper flow settles it.
+  // whisper flow; the service refuses it there ("not supported in contact
+  // flow type outboundWhisper", 2026-10-13, rule 41), so the action page is
+  // right.
   // https://docs.aws.amazon.com/connect/latest/adminguide/hold-customer-agent.html
   [ActionType.UpdatePreviousContactParticipantState]: [...INBOUND, ...TRANSFER, ...IN_MODULE],
   // "This is supported in contact flows, customer queue flows, transfer

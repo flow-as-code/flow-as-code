@@ -1,0 +1,404 @@
+[
+  {
+    "probe": "previous-state-agent-transfer",
+    "description": "Rule 41: in a transfer to agent flow, which both pages allow.",
+    "flowType": "AGENT_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "previous-state-customer-queue",
+    "description": "Rule 41: in a customer queue flow, which neither page allows; a refusal shows the service enforces the restriction at create.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:06Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerQueue, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "previous-state-module",
+    "description": "Rule 41: in a flow module, which the catalog allows (a module runs under whichever flow invokes it) and neither page names.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:07Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "previous-state-no-catch-all",
+    "description": "Rule 41: the same with Errors empty, NoMatchingError removed alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "previous-state-no-next",
+    "description": "Rule 41: the same without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:09Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "previous-state-other-value",
+    "description": "Rule 41: a value outside the page's three (OnHold); a refusal keeps the enum in the 0.3 schema clause (owner decision 3), an acceptance takes it out.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:09Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.PreviousContactParticipantState"
+    ]
+  },
+  {
+    "probe": "previous-state-outbound-whisper",
+    "description": "Rule 41: in an outbound whisper flow, which the admin guide lists and the action page's Restrictions omit; the result decides the catalog's flowTypes.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:10Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type outboundWhisper, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "previous-state-queue-transfer",
+    "description": "Rule 41: in a transfer to queue flow, which both pages allow.",
+    "flowType": "QUEUE_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:11Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "previous-state-required",
+    "description": "Rule 41: Hold customer or agent (AgentOnHold) in an inbound flow with a NextAction and the catalog's required catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:12Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "processing-customer-hold",
+    "description": "Rule 41: in a customer hold flow; the admin guide's block is \"supported for all flow types except journey flows\".",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:14Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "processing-disabled",
+    "description": "Rule 41: processing disabled with ProcessingEnabled alone, the console's disabled form as the admin guide's screenshot shows it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:15Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "processing-enabled-without-lambda",
+    "description": "Rule 41: processing enabled with no LambdaProcessorARN; a refusal is a shape (the ARN required when ProcessingEnabled is True) the catalog does not record yet.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:17Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ChatProcessor.LambdaProcessorARN"
+    ]
+  },
+  {
+    "probe": "processing-lowercase-flag",
+    "description": "Rule 41: ProcessingEnabled spelled \"true\", outside the page's \"True\" or \"False\"; a refusal keeps the enum in the 0.3 schema clause (owner decision 3).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:18Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "processing-module",
+    "description": "Rule 41: in a flow module; the page has no Restrictions section.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:20Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "processing-no-catch-all",
+    "description": "Rule 41: the same with NoMatchingError removed alone (the page: \"Must always be defined\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:21Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "processing-no-channel-mismatch",
+    "description": "Rule 41: the same with ChannelMismatch removed alone; the page does not say it must be defined, and a refusal makes it required, as on the recording action (rule 35).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: ChannelMismatch, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "processing-no-next",
+    "description": "Rule 41: the same without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "processing-required",
+    "description": "Rule 41: Set message processor (enabled, the instance's MESSAGE_PROCESSOR Lambda, unprocessed messages delivered) with a NextAction and both errors the page lists; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:23Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "processing-unassociated-lambda",
+    "description": "Rule 41: a LambdaProcessorARN the instance has not associated as MESSAGE_PROCESSOR, to learn whether the create validates the association.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:24Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "resume-customer-hold",
+    "description": "Rule 41: ResumeContact in a customer hold flow, one of the flow types the admin guide's \"all flow types\" covers and no other probe does.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:26Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "resume-module",
+    "description": "Rule 41: ResumeContact in a flow module, the page's \"can be used everywhere\" put to the second shape the task names.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:27Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "resume-no-catch-all",
+    "description": "Rule 41: ResumeContact with Errors empty, the catalog's required NoMatchingError removed alone; a refusal keeps it required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "resume-no-next",
+    "description": "Rule 41: ResumeContact without NextAction; the catalog's next is required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "resume-required",
+    "description": "Rule 41: ResumeContact with no parameters, a NextAction and the catalog's required catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:30Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "stream-agent-participant",
+    "description": "Rule 41: ParticipantType Agent, which the page says is not supported (\"only Customer\"); a refusal keeps the enum in the 0.3 schema clause.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.Participants[0].ParticipantType"
+    ]
+  },
+  {
+    "probe": "stream-agent-whisper",
+    "description": "Rule 41: in an agent whisper flow, which both pages allow.",
+    "flowType": "AGENT_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:32Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "stream-customer-hold",
+    "description": "Rule 41: in a customer hold flow, which the page excludes (\"It is not supported in hold flows\"); a refusal shows the service enforces it at create.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerHold, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "stream-duplicate-direction",
+    "description": "Rule 41: MediaDirections naming From twice; a refusal lets the 0.3 schema clause hold the list's items unique (owner decision 3), which it does not until then.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.Participants[0].MediaDirections"
+    ]
+  },
+  {
+    "probe": "stream-from-only",
+    "description": "Rule 41: one direction (From), the console's from-the-customer option alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:35Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "stream-module",
+    "description": "Rule 41: in a flow module, which neither page names; the catalog allows MODULE wherever a page does not scope an action to modules.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "stream-no-catch-all",
+    "description": "Rule 41: the same with Errors empty, NoMatchingError removed alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "stream-no-next",
+    "description": "Rule 41: the same without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "stream-required",
+    "description": "Rule 41: Start media streaming (both directions) with a NextAction and the catalog's required catch-all; expected accepted on an instance with live media streaming enabled.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:39Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "stream-stop-bare",
+    "description": "Rule 41: Stop media streaming with MediaStreamingState alone (the Stop block has no properties); an acceptance makes Participants and MediaStreamType optional on Disabled.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.MediaStreamType",
+      "Action is missing required property. Path: Actions[0].Parameters.Participants"
+    ]
+  },
+  {
+    "probe": "stream-stop",
+    "description": "Rule 41: Stop media streaming in the page's shape, Participants and MediaStreamType included.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:06:41Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  }
+]

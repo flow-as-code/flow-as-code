@@ -1595,6 +1595,7 @@
                         },
                         "MediaDirections": {
                           "type": "array",
+                          "uniqueItems": true,
                           "items": {
                             "enum": [
                               "From",
@@ -1634,10 +1635,7 @@
                     "type": "object",
                     "properties": {
                       "ProcessingEnabled": {
-                        "enum": [
-                          "True",
-                          "False"
-                        ]
+                        "type": "string"
                       },
                       "LambdaProcessorARN": {
                         "$ref": "#/$defs/token"
