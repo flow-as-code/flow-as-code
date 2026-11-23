@@ -74,7 +74,7 @@
     "@aws-sdk/client-connectcases": "^3.925.0",
     "@aws-sdk/client-qconnect": "^3.925.0",
     "ajv": "^8.20.0",
-    "eslint": "^10.9.1",
+    "eslint": "^10.15.0",
     "prettier": "^3.9.6",
     "typescript": "^5.9.3"
   },

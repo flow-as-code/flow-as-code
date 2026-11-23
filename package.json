@@ -27,14 +27,14 @@
     "@changesets/cli": "^2.31.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.1",
-    "eslint": "^10.9.1",
+    "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.11.0",
     "marked": "^18.0.12",
     "prettier": "^3.9.6",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.69.0",
+    "typescript-eslint": "^8.74.0",
     "vitest": "^4.1.12"
   },
   "engines": {
