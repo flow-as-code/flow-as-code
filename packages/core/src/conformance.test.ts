@@ -1103,9 +1103,10 @@ describe("FlowDoc schema rejections: outbound", () => {
 // The census-additions round-trip fixture is the subject for the 0.3 clauses
 // of tasks/D09. LoadContactContent's clause holds the admin guide's one
 // content type, which the service requires; TransferParticipantToThirdParty's
-// holds the number to a string, the time limit to a string or an integer and
-// the flag to True and False, which is what rule 47's probes (us-west-2,
-// 2026-10-13) found the service refusing and accepting (owner decision 3).
+// requires all three of its parameters and holds the number to a string, the
+// time limit to a string or an integer other than zero and the flag to True
+// and False, which is what rule 47's probes (us-west-2, 2026-10-13) found the
+// service refusing and accepting (owner decision 3).
 // Each case below fails if its part of the clause is deleted.
 describe("FlowDoc schema rejections: census additions", () => {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
@@ -1151,15 +1152,49 @@ describe("FlowDoc schema rejections: census additions", () => {
         a.Parameters.ContinueFlowExecution = "false";
       }),
     ],
+    [
+      "a transfer without its destination number, which the service refuses",
+      mutate("transfer-desk", (a) => {
+        delete a.Parameters.ThirdPartyPhoneNumber;
+      }),
+    ],
+    [
+      "a transfer without its connection time limit, which the service refuses",
+      mutate("transfer-desk", (a) => {
+        delete a.Parameters.ThirdPartyConnectionTimeLimitSeconds;
+      }),
+    ],
+    [
+      "a transfer without its resume flag, which the service refuses",
+      mutate("transfer-desk", (a) => {
+        delete a.Parameters.ContinueFlowExecution;
+      }),
+    ],
+    [
+      'a connection time limit of "0", which the service refuses',
+      mutate("transfer-desk", (a) => {
+        a.Parameters.ThirdPartyConnectionTimeLimitSeconds = "0";
+      }),
+    ],
+    [
+      "a connection time limit of the integer 0",
+      mutate("transfer-desk", (a) => {
+        a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 0;
+      }),
+    ],
   ])("rejects %s", (_label, doc) => {
     expect(validate(doc)).toBe(false);
   });
 
-  it("accepts a connection time limit as an integer, which the service accepted", () => {
+  it.each([
+    ["an integer", 30],
+    ["a digit string", "600"],
+    ["a JSONPath", "$.Attributes.ringSeconds"],
+  ])("accepts a connection time limit as %s, which the service accepted", (_label, value) => {
     expect(
       validate(
         mutate("transfer-desk", (a) => {
-          a.Parameters.ThirdPartyConnectionTimeLimitSeconds = 30;
+          a.Parameters.ThirdPartyConnectionTimeLimitSeconds = value;
         }),
       ),
     ).toBe(true);

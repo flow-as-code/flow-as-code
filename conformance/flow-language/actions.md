@@ -2965,8 +2965,11 @@ is read rather than when the type is modeled.
         `third-time-limit-jsonpath` was accepted, so the catalog marks
         the time limit `dynamic`; `third-time-limit-zero` was refused and
         `third-time-limit-600` accepted, so the catalog's lower bound is 1
-        and no upper bound is known. Accepted in customer queue, agent
-        transfer and queue transfer flows and a module; refused "not
+        and no upper bound is known. Since 2026-11-23 the schema clause
+        also requires the number, the time limit and the flag, and refuses
+        a time limit of `0` or `"0"`, from the same refusals. Accepted in
+        customer queue, agent transfer and queue transfer flows and a
+        module; refused "not
         supported in contact flow type customerHold" and
         `customerWhisper`. The flow types stand.
       - `route-keys` was refused "Invalid Action type. Type:

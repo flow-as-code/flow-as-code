@@ -2538,6 +2538,11 @@
           "then": {
             "properties": {
               "Parameters": {
+                "required": [
+                  "ThirdPartyPhoneNumber",
+                  "ThirdPartyConnectionTimeLimitSeconds",
+                  "ContinueFlowExecution"
+                ],
                 "properties": {
                   "ThirdPartyPhoneNumber": {
                     "type": "string"
@@ -2546,7 +2551,12 @@
                     "type": [
                       "string",
                       "integer"
-                    ]
+                    ],
+                    "minimum": 1,
+                    "not": {
+                      "type": "string",
+                      "pattern": "^0+$"
+                    }
                   },
                   "ContinueFlowExecution": {
                     "enum": [
