@@ -968,11 +968,11 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
         { kind: "select", key: "MediaStreamType", label: "Stream type", options: ["Audio"] },
       ];
     case ActionType.TransferParticipantToThirdParty:
-      // The number is a JSONPath (codegen leaves a static one generic until
-      // rule 47 records whether the service takes it). Resume flow after
-      // disconnect True carries the Call failed and Timeout branches, which
-      // the service requires in that form; False requires only the catch-all
-      // and keeps either of the other two when wired.
+      // The number is a JSONPath: the service accepts a static one (rule 47),
+      // which the builder and codegen do not take yet, so codegen leaves it
+      // generic. Resume flow after disconnect True carries the Call failed
+      // and Timeout branches, which the service requires in that form; False
+      // takes the catch-all alone, and setContinueFlow removes the other two.
       return [
         {
           kind: "text",

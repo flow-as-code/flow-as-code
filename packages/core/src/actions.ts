@@ -461,9 +461,8 @@ export const EXTRA_ERRORS: Readonly<Record<string, readonly string[]>> = {
   [ActionType.UpdateCase]: [CONTACT_NOT_LINKED, NO_MATCHING_ERROR],
   // The kept export's order, catch-all last. No page documents the action.
   // With ContinueFlowExecution "True" the service requires all three (the
-  // catalog's shape); with "False" only the catch-all is required, which a
-  // cookbook comment says is all that form takes and rule 47's probes
-  // settle, and the builder writes the other two only when wired.
+  // catalog's shape); with "False" it takes the catch-all alone and refuses
+  // the other two (rule 47), which the class and a second shape refuse.
   // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
   [ActionType.TransferParticipantToThirdParty]: [
     CALL_FAILED,

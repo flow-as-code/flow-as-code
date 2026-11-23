@@ -249,7 +249,18 @@ What the run settled without a change:
 - Console exports of the five console-only blocks and of the three
   blocked Types (owner decision 8).
 - `EnableDTMFBuffer`, above.
-- The review round tasks/README.md asks of each group.
+- The review round tasks/README.md asks of each group (the 2026-11-23
+  review below covers this branch, not the groups D03 to D07 it follows).
+- The studio's "all of the routing criteria from a JSONPath" option on a
+  typed `UpdateContactRoutingCriteria` goes through the guarded `setParam`,
+  which refuses the demotion to a generic block, so it only works on a
+  block already generic (`packages/studio/src/components/Inspector.tsx`,
+  `onCommitWhole`; predates this branch, reported by the 2026-11-23 review
+  and not reproduced).
+- `channel-restricted-action`'s message for
+  `TransferParticipantToThirdParty` ends with the kept export's
+  repository path, which an npm install does not carry; the skill
+  reference already writes it as an absolute URL.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists; the provider's typed blocks for the two Types come
   with it, and `conditional-shape`'s port meets its first shape with no
@@ -332,3 +343,36 @@ existing non-string rejection cases in `conformance.test.ts` still go red
 with either clause deleted (the document then validates), and a new case
 holds each message to the type error alone, which fails against the
 schema before the fix.
+
+### Review (2026-11-23)
+
+A review of #52 at `058c2e3`, after `main` (the Dependabot updates of
+2026-11-23: happy-dom 21, vitest 4.1.12, vite 8.3.5, fast-uri,
+source-map-js, setup-node) was merged into the branch. Repaired here:
+
+- The 0.3 clause for `TransferParticipantToThirdParty` checked types
+  only, though rule 47 recorded the service refusing the action without
+  `ThirdPartyPhoneNumber` or `ContinueFlowExecution` ("Action is missing
+  required property"), without `ThirdPartyConnectionTimeLimitSeconds`, and
+  with it `"0"` (both "Invalid Action property value"). The clause now
+  requires the three keys and refuses a time limit of `0` or `"0"`, in
+  both schema copies, with a rejection case for each that fails against
+  the clause before the change. Each removal was probed on the `"True"`
+  form only; every `"False"` probe carried all three keys, so the clause
+  requires them on both forms, as the catalog does. A digit string, an
+  integer and a JSONPath (`third-time-limit-600`, `-number`, `-jsonpath`,
+  all accepted) are held as accepted.
+- `.changeset/cases-actions.md` said the `unknown-actions` fixture holds
+  `UpdateRoutingCriteria`, which it no longer does; the sentence is gone.
+- `packages/core/SPEC.md` still described `Steps` as a list or a
+  JSONPath built with `or`; it now says what rule 45 left.
+- Comments in `blocks.ts`, `codegen.ts`, `actions.ts`, `catalog.ts` and
+  the studio's `inspectorSchema.ts` that predated the sweep (the optional
+  `ContentType`, the resume branches written on the ending form, a
+  JSONPath `Steps`, an OR below the top) now match the code; a repeated
+  safe-integer check in codegen is removed.
+
+Each gate is green locally except six timing-bound CLI tests under the
+full parallel run (`cli.test.ts`, `simulate.test.ts`, `watch.test.ts`,
+`bridge/server.test.ts`: 5 s timeouts and the 1 s resync budget), which
+pass outside the full run, each file alone; CI is the check.

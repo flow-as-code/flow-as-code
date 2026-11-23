@@ -84,10 +84,10 @@ export interface CatalogElement {
   /**
    * The page also accepts a single JSONPath identifier in this position
    * ("fully static or fully dynamic"). The kind describes the static form.
-   * On a scalar kind since 0.1; on a `list` since FlowDoc 0.3
-   * (`UpdateContactRoutingCriteria.RoutingCriteria.Steps`, docs/adr/0009), where a
-   * JSONPath may stand for the whole list. Never on an `object`, `map` or
-   * `json`.
+   * On a scalar kind since 0.1. FlowDoc 0.3 allows it on a `list`, where a
+   * JSONPath would stand for the whole list; no list carries it, since the
+   * service refuses `UpdateContactRoutingCriteria.RoutingCriteria.Steps` as
+   * a JSONPath (actions.md, rule 45). Never on an `object`, `map` or `json`.
    */
   dynamic?: boolean;
 }

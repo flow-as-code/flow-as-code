@@ -738,7 +738,7 @@ function keysAre(value: unknown, keys: readonly string[]): value is Record<strin
  * A routing expression as the helper calls that write it, or undefined for a
  * shape they do not write: a tag outside the three, a requirement whose keys
  * are not the four in the page's order, a level outside the five numbers,
- * an AND holding anything but requirements, an OR below the top. The helpers
+ * an AND holding anything but requirements, an OR anywhere. The helpers
  * rebuild it and the caller holds the result to the source in canonical
  * bytes, so a spelling they would not write stays generic.
  */
@@ -890,7 +890,6 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
     if (seconds !== undefined) {
       if (typeof seconds !== "string" || !/^[1-9][0-9]*$/.test(seconds)) return undefined;
       // The class takes a safe integer only.
-      if (!Number.isSafeInteger(Number(seconds))) return undefined;
       const n = Number(seconds);
       if (!Number.isSafeInteger(n)) return undefined;
       entries.push(["interruptFrequencySeconds", n], ["onInterrupt", interrupt!.NextAction]);
@@ -2476,9 +2475,8 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   },
 
   // The Get stored content block in the admin guide's Flow language form:
-  // ContentType "EmailMessage", the catch-all and a next. The service took
-  // the action with no ContentType (rule 40), which the class never writes,
-  // so that form stays generic.
+  // ContentType "EmailMessage", the catch-all and a next. The service
+  // requires ContentType (rule 47), so an action without it stays generic.
   [ActionType.LoadContactContent]: (a) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined || !paramKeysAre(a.Parameters, ["ContentType"])) return undefined;

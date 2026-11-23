@@ -3576,10 +3576,9 @@ export class CreateCallbackContact extends Block {
  * type but a campaign's.
  *
  * The class takes no configuration but its wiring and always writes the
- * page's `ContentType`. The service accepted the action with `Parameters`
- * empty on 2026-10-05 (actions.md, rule 40), so the catalog does not require
- * the key; codegen reads back only the page's form, and an action without
- * `ContentType` stays a GenericBlock.
+ * page's `ContentType`, which the service requires: rule 47's sweep
+ * (2026-10-13) refused the action with `Parameters` empty, correcting rule
+ * 40's reading of its own create. Codegen reads back only the page's form.
  * https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
  */
 export type LoadContactContentConfig = Wired;
