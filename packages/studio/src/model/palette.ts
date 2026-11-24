@@ -49,7 +49,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "Set",
   [ActionType.UpdateFlowLoggingBehavior]: "Set",
   [ActionType.UpdateContactRoutingBehavior]: "Set",
-  [ActionType.UpdateRoutingCriteria]: "Set",
+  [ActionType.UpdateContactRoutingCriteria]: "Set",
   [ActionType.UpdateContactCallbackNumber]: "Set",
   [ActionType.UpdateFlowAttributes]: "Set",
   [ActionType.GetMetricData]: "Set",
@@ -73,6 +73,8 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.GetCustomerProfile]: "Integrate",
   [ActionType.GetCustomerProfileObject]: "Integrate",
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "Integrate",
+  [ActionType.LoadContactContent]: "Set",
+  [ActionType.TransferParticipantToThirdParty]: "Terminate",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -135,7 +137,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.UpdateContactRecordingAndAnalyticsBehavior]: "set-recording-analytics",
   [ActionType.UpdateFlowLoggingBehavior]: "set-logging",
   [ActionType.UpdateContactRoutingBehavior]: "set-routing-priority",
-  [ActionType.UpdateRoutingCriteria]: "set-routing-criteria",
+  [ActionType.UpdateContactRoutingCriteria]: "set-routing-criteria",
   [ActionType.CheckOutboundCallStatus]: "check-call-progress",
   [ActionType.CompleteOutboundCall]: "call-phone-number",
   [ActionType.StartOutboundChatContact]: "send-sms",
@@ -162,6 +164,8 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.GetCustomerProfile]: "get-profile",
   [ActionType.GetCustomerProfileObject]: "get-profile-object",
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "calculated-attributes",
+  [ActionType.LoadContactContent]: "get-stored-content",
+  [ActionType.TransferParticipantToThirdParty]: "transfer-to-phone",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -342,9 +346,10 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // The admin guide's example: the profile found by a preceding Get
       // profile and the current contact, both read from attributes.
       // https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles-block.html
+      // No ProfileResponseData: the service refuses it here (actions.md,
+      // rule 43).
       return {
         ProfileRequestData: { ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" },
-        ProfileResponseData: [],
       };
     case ActionType.UpdateFlowLoggingBehavior:
       // The demo's own setting; the page states no console default.
@@ -385,12 +390,27 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
         ContactFlowArn: "$.Attributes.smsFlowArn",
         ContactSubtype: "connect:SMS",
       };
-    case ActionType.UpdateRoutingCriteria:
+    case ActionType.UpdateContactRoutingCriteria:
       // One step of one requirement that never expires, on the admin guide's
       // example attribute at the lowest level; the author names the
       // instance's own predefined attribute.
       // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
       return { RoutingCriteria: { Steps: [{ Expression: DEFAULT_ROUTING_EXPRESSION }] } };
+    case ActionType.LoadContactContent:
+      // The block's one option, Email message (Plain text), as the admin
+      // guide's Flow language example writes it.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html
+      return { ContentType: "EmailMessage" };
+    case ActionType.TransferParticipantToThirdParty:
+      // The block page's example timeout, 30 seconds, and the form that
+      // ends the flow on transfer, whose one branch is the catch-all; the
+      // number is a JSONPath, since a destination is supplied at run time.
+      // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
+      return {
+        ThirdPartyPhoneNumber: "$.Attributes.transferNumber",
+        ThirdPartyConnectionTimeLimitSeconds: "30",
+        ContinueFlowExecution: "False",
+      };
     case ActionType.UpdateContactRoutingBehavior:
       // "The default priority for new contacts is 5", so a fresh block starts
       // where the contact already is and the author moves it from there.

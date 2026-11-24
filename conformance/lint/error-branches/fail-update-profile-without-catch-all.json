@@ -20,7 +20,7 @@
           "Type": "UpdateCustomerProfile",
           "Parameters": {
             "ProfileRequestData": {
-              "Attributes.preferredLanguage": "$.Attributes.language"
+              "EmailAddress": "$.Attributes.email"
             },
             "ProfileResponseData": [
               "Attributes.preferredLanguage"

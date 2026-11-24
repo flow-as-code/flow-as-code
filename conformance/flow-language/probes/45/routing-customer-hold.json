@@ -1,5 +1,5 @@
 {
-  "description": "Rule 45: UpdateRoutingCriteria in a customer hold flow, which the page forbids.",
+  "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a customer hold flow, which the page forbids.",
   "type": "CUSTOMER_HOLD",
   "content": {
     "Version": "2019-10-30",
@@ -7,7 +7,7 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
           "RoutingCriteria": {
             "Steps": [

@@ -938,8 +938,7 @@ const CASES_ID_TYPES: ReadonlySet<RefType> = new Set<RefType>(["casetemplate", "
  * domain field id the inventory lists becomes its token; any other string,
  * a system field id among them, is kept, since a literal id is not an ARN
  * and the published flows hold such ids (docs/adr/0008-case-field-ids.md;
- * whether the service checks them at create is rule 44's pending
- * probe). Only the
+ * the service checks neither an id nor its form at create, rule 44). Only the
  * paths the catalog names are read, so an id elsewhere in content is never
  * mistaken for a reference.
  */

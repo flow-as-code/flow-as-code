@@ -1,0 +1,62 @@
+{
+  "expect": [
+    {
+      "rule": "conditional-shape",
+      "blockId": "transfer-desk",
+      "messageIncludes": "needs its \"CallFailed\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "desk-transfer",
+    "description": "A transfer that resumes the flow after the third party hangs up, without its Call failed branch, which the service refused on 2026-09-30.",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "transfer-desk",
+      "Actions": [
+        {
+          "Identifier": "transfer-desk",
+          "Type": "TransferParticipantToThirdParty",
+          "Parameters": {
+            "ContinueFlowExecution": "True",
+            "ThirdPartyConnectionTimeLimitSeconds": "30",
+            "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+          },
+          "Transitions": {
+            "NextAction": "done",
+            "Errors": [
+              {
+                "ErrorType": "ConnectionTimeLimitExceeded",
+                "NextAction": "done"
+              },
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "done"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "done",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "transfer-desk": {
+        "x": 0,
+        "y": 0
+      },
+      "done": {
+        "x": 260,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

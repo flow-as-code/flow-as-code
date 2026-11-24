@@ -88,8 +88,8 @@ and this task records which.
 
 - [x] flow-as-code, checklist lines 1 to 10, per type.
 - [x] Export and materialize cases for the `phonenumber` ref.
-- [x] Probe inputs under `conformance/flow-language/probes/46/`; the sweep
-      itself has not run (see "Evidence" under "Record").
+- [x] Probe inputs under `conformance/flow-language/probes/46/`, run on
+      2026-10-13 (see "Evidence" under "Record").
 - [ ] Provider: re-vendor, oracles re-recorded, `export/arn.go` and the
       inventory fake exercised by a phone-number case (lines 11 to 14); the
       provider commit recorded here.
@@ -162,6 +162,11 @@ models 54 of the 61 Types.
   static destination to E.164.
 
 ### Flow types are the admin guide's until the sweep
+
+(Settled on 2026-10-13, see "Evidence": the service accepted
+`CheckOutboundCallStatus` and `StartOutboundChatContact` in every flow type
+probed, and `CompleteOutboundCall` in outbound whisper flows only, a module
+refused. The record below is as it stood before the sweep.)
 
 The acceptance criterion asks that the catalog record the flow types each
 type is accepted in, by probe. No probe has run, so each entry is the
@@ -253,24 +258,48 @@ description says so. `flow-cli emit` writes the group fixture for `tf`,
 
 ### Evidence
 
-Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
-and the claimed DID and the probe flow the sweep names come from a sandbox
-root that had not been applied. No AWS call was made and no result is
-recorded. The inputs are kept in `conformance/flow-language/probes/46/`
-(75 probes: 19 for `CheckOutboundCallStatus`, 23 for
-`CompleteOutboundCall`, 33 for `StartOutboundChatContact`) with
-`PENDING.md`, which names the three placeholders the run fills (the DID's
-number and id, a published flow's id). Each type's `<type>-required-set-alone`
-probe sends the catalog's required set and nothing optional and is named
-in rule 46 as its accepted-set probe. Each evidence item above has its
-probes: every flow type for each type (and `status-campaign`);
-`sms-source-did-set-alone` and `sms-required` with the voice DID, against
-`sms-required-set-alone` and `sms-source-jsonpath`, for the number's
-capability; `complete-voice-connector` with an invented
-connector ARN; and `status-required` and `status-required-set-alone`, run
-on the sandbox, which has no outbound campaigns. A create refused for a
-missing campaigns or SMS feature is recorded as such, and the type then
-stays generic until the owner opens the gate.
+Run on 2026-10-13, 17:12 to 17:13 UTC, on the sandbox (us-west-2), after
+the sandbox-features root (provider repository,
+`acceptance/sandbox-features`) claimed one US DID to the instance and
+published the probe target flow. The 75 inputs in
+`conformance/flow-language/probes/46/` gave 37 accepted and 38 refused;
+`results.json` holds each, and `PENDING.md` is gone. The sandbox has
+neither outbound campaigns nor SMS messaging, so each acceptance is the
+deployable reading owner decision 6 asks for. Rule 46's last bullet quotes
+every result. What moved the model:
+
+- `CompleteOutboundCall` was refused in every flow type but outbound
+  whisper, a module included ("not supported in a flow module"), so its
+  `flowTypes` is `OUTBOUND_WHISPER` alone, without the module the note
+  above `IN_MODULE` had allowed; `fail-complete-outbound-call-in-module`
+  holds it.
+- `CheckOutboundCallStatus` with the catch-all and no status condition was
+  refused naming `Transitions.Conditions`, so the catalog carries
+  `minConditions` 1 and error-branches reports a block without one
+  (`fail-check-outbound-call-status-without-conditions`). The class
+  already required one status.
+
+What the run settled without a change:
+
+- `CheckOutboundCallStatus` and `StartOutboundChatContact` are accepted in
+  every flow type probed and in a module, on an instance with neither
+  campaigns nor SMS: both are deployable, as modeled.
+- A static caller ID must be a number claimed on the instance: an
+  unclaimed number and the DID's ARN were refused "invalid resource", a
+  JSONPath accepted. The catalog keeps a `stringOrJsonPath`; the class's
+  comment says a static number is environment-specific.
+- `CompleteOutboundCall` refuses an error branch, and accepts its time
+  limit as a string, a number, a JSONPath and `"601"`; with a voice
+  connector the time limit is required, and an invented connector ARN is
+  accepted. That form stays generic (owner decision 4).
+- `StartOutboundChatContact`'s source was accepted as the voice DID by ARN
+  and by number: the create checks neither the number's SMS capability nor
+  the address's form. Its required keys, constants and the message's
+  object shape were each refused when broken; the WhatsApp subtype asks
+  for `InitialTemplatedSystemMessage`, a form that stays generic.
+- `status-campaign`, in a `CAMPAIGN` flow, was refused for the
+  disconnect as well as the status check, which says nothing about the
+  action on an instance without campaigns.
 
 ### Review (2026-10-12)
 
@@ -327,7 +356,6 @@ Three findings refuted but close, each decided here:
 
 ### Not done here
 
-- The sweep, above.
 - A console export of each block from the sandbox (owner decision 8).
   The call's shape rests on four published flows, the status check's on
   an AWS sample's console export whose block was never wired (so not its

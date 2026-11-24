@@ -12,6 +12,7 @@
 import type { FlowDoc } from "@flow-as-code/core";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import casesFixture from "../../../conformance/roundtrip/cases/doc.flowdoc.json";
+import censusFixture from "../../../conformance/roundtrip/census-additions/doc.flowdoc.json";
 import profilesFixture from "../../../conformance/roundtrip/customer-profiles/doc.flowdoc.json";
 import outboundFixture from "../../../conformance/roundtrip/outbound/doc.flowdoc.json";
 import routingFixture from "../../../conformance/roundtrip/routing-criteria/doc.flowdoc.json";
@@ -241,7 +242,7 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
     await click(present(`[data-testid="node-${id}"]`));
   };
 
-  it("chooses request fields from the page's list and types a custom attribute", async () => {
+  it("chooses request fields from the page's list and offers no typed key", async () => {
     await addProfileBlock("CreateCustomerProfile", "create-profile");
     const add = testId<HTMLSelectElement>("fieldmap-ProfileRequestData-add");
     expect([...add.options].map((o) => o.value)).toContain("FirstName");
@@ -256,18 +257,9 @@ describe("Customer Profiles request and response fields (tasks/D03)", () => {
       [...testId<HTMLSelectElement>("fieldmap-ProfileRequestData-add").options].map((o) => o.value),
     ).not.toContain("FirstName");
 
-    await typeAndBlur(testId<HTMLInputElement>("fieldmap-ProfileRequestData-custom"), "Nickname");
-    expect(testId("inspector").textContent).toContain(
-      '"Nickname" is not spelled Attributes.<name>',
-    );
-    expect(query('[data-testid="fieldmap-ProfileRequestData-Nickname"]')).toBeNull();
-    await typeAndBlur(
-      testId<HTMLInputElement>("fieldmap-ProfileRequestData-custom"),
-      "Attributes.loyaltyTier",
-    );
-    expect(
-      query('[data-testid="fieldmap-ProfileRequestData-Attributes.loyaltyTier"]'),
-    ).not.toBeNull();
+    // The service refuses a custom attribute as a request key (actions.md,
+    // rule 43), so the request offers no typed key at all.
+    expect(query('[data-testid="fieldmap-ProfileRequestData-custom"]')).toBeNull();
 
     await click(testId("fieldmap-ProfileRequestData-FirstName-remove"));
     expect(query('[data-testid="fieldmap-ProfileRequestData-FirstName"]')).toBeNull();
@@ -527,6 +519,43 @@ describe("Cases link and field picker (tasks/D06)", () => {
 // The wired cases fixture, so every Cases block is typed and the guard
 // refuses any edit that would leave one generic; the saved document is what
 // the assertions read (the pattern of the profile form tests above).
+// The service requires Call failed and Timeout when the flow resumes after
+// the transfer, and refuses them when it ends (actions.md, rule 47), so the
+// flag and the two branches change in one mutation.
+describe("the transfer's resume flag adds and removes its two branches (tasks/D09)", () => {
+  it("adds Call failed and Timeout when switched to True, and removes them when switched to False", async () => {
+    const store = new MemoryStore("opened", [structuredClone(censusFixture) as unknown as FlowDoc]);
+    vi.useFakeTimers();
+    await render(<App store={store} />);
+    await settleLint();
+    const saved = async () => {
+      await settleLint();
+      expect(button("save-button").disabled).toBe(false);
+      await click(button("save-button"));
+      const { doc } = await store.read(censusFixture.name);
+      return doc.content.Actions.find((a) => a.Identifier === "transfer-on-call")!;
+    };
+    await click(present('[data-testid="node-transfer-on-call"]'));
+    const flag = () => testId<HTMLSelectElement>("continueflow-ContinueFlowExecution");
+    expect(flag().value).toBe("False");
+    await selectOption(flag(), "True");
+    expect(query('[data-testid="mutation-notice"]')?.textContent ?? "").not.toContain(
+      "generic block",
+    );
+    const resumed = await saved();
+    expect(resumed.Parameters.ContinueFlowExecution).toBe("True");
+    expect(resumed.Transitions.Errors!.map((e) => e.ErrorType)).toEqual([
+      "CallFailed",
+      "ConnectionTimeLimitExceeded",
+      "NoMatchingError",
+    ]);
+    await selectOption(flag(), "False");
+    const ended = await saved();
+    expect(ended.Parameters.ContinueFlowExecution).toBe("False");
+    expect(ended.Transitions.Errors!.map((e) => e.ErrorType)).toEqual(["NoMatchingError"]);
+  });
+});
+
 describe("the Cases link wires ContactNotLinked in the saved document (tasks/D06)", () => {
   const open = async () => {
     const store = new MemoryStore("opened", [structuredClone(casesFixture) as unknown as FlowDoc]);
@@ -614,7 +643,7 @@ describe("routing criteria steps (tasks/D07)", () => {
     expect(testId<HTMLInputElement>("steps-RoutingCriteria-0-expiry").value).toBe("30");
     expect(testId<HTMLInputElement>("steps-RoutingCriteria-2-expiry").value).toBe("");
     expect(testId<HTMLTextAreaElement>("steps-RoutingCriteria-0-expression").value).toContain(
-      '"OrExpression"',
+      '"AndExpression"',
     );
 
     await typeAndBlur(testId<HTMLInputElement>("steps-RoutingCriteria-1-expiry"), "45");
@@ -642,7 +671,7 @@ describe("routing criteria steps (tasks/D07)", () => {
     expect(steps[1]!.Expiry).toEqual({ DurationInSeconds: "61" });
   });
 
-  it("adds a step after one that never expired, removes one, and switches to a JSONPath", async () => {
+  it("adds a step after one that never expired, removes one, and offers no JSONPath for the steps", async () => {
     const store = await openFixture();
     await click(present('[data-testid="node-by-proficiency"]'));
     await click(testId("steps-RoutingCriteria-add"));
@@ -651,12 +680,11 @@ describe("routing criteria steps (tasks/D07)", () => {
     await click(testId("steps-RoutingCriteria-0-remove"));
     expect((await saved(store, "by-proficiency")) as unknown[]).toHaveLength(3);
 
-    await selectOption(testId<HTMLSelectElement>("steps-RoutingCriteria-mode"), "jsonpath");
-    await typeAndBlur(
-      testId<HTMLInputElement>("steps-RoutingCriteria-jsonpath"),
-      "$.External.criteria",
-    );
-    expect(await saved(store, "by-proficiency")).toBe("$.External.criteria");
+    // Steps as a JSONPath is not offered: the service refuses it (actions.md,
+    // rule 45).
+    expect(
+      [...testId<HTMLSelectElement>("steps-RoutingCriteria-mode").options].map((o) => o.value),
+    ).toEqual(["list", "criteria"]);
   });
 
   it("shows an expiry stored as a number, the admin guide's spelling, as its seconds", async () => {
@@ -670,10 +698,8 @@ describe("routing criteria steps (tasks/D07)", () => {
   });
 
   it("shows all of the routing criteria as a JSONPath, and edits it without replacing its form", async () => {
-    const store = await openFixture((doc) => {
-      doc.content.Actions.find((x) => x.Identifier === "from-lambda")!.Parameters.RoutingCriteria =
-        "$.External.RoutingCriteria";
-    });
+    // The fixture's from-lambda holds this form.
+    const store = await openFixture();
     await click(present('[data-testid="node-from-lambda"]'));
     expect(testId<HTMLSelectElement>("steps-RoutingCriteria-mode").value).toBe("criteria");
     expect(testId<HTMLInputElement>("steps-RoutingCriteria-criteria").value).toBe(

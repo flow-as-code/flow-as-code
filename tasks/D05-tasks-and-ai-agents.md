@@ -80,8 +80,8 @@ for this phase", for both types; and:
       were D01's (`conformance/export/phase-d-refs`,
       `conformance/materialize/casefield-key-with-map`), and D01's
       `export.test.ts` runs the export case against its goldens.
-- [x] Probe inputs under `conformance/flow-language/probes/42/`; the sweep
-      itself has not run (see "Evidence" under "Record").
+- [x] Probe inputs under `conformance/flow-language/probes/42/`, run on
+      2026-10-13 (see "Evidence" under "Record").
 - [ ] A console export of each block under
       `conformance/flow-language/exports/` (owner decision 8; see "Not
       done here").
@@ -133,8 +133,9 @@ Rule 42 in `conformance/flow-language/actions.md` quotes them.
   `References` generic. The class takes a flow, a template or both. The
   both form follows the admin guide; StartTaskContact says to "include only
   one of" a flow, a quick connect or a template and returns an error for
-  more than one, so it is unsettled until `task-template-and-flow` runs, and
-  the group fixture's `scheduled` task holds the pair pending that probe.
+  more than one; the service accepted the pair at create
+  (`task-template-and-flow`, 2026-10-13), and the group fixture's
+  `scheduled` task keeps it.
   Unrestricted by flow type and channel.
 - `CreateWisdomSession`: one `assistant` reference, required, a JSONPath
   allowed. The action page says voice only and every flow type; the admin
@@ -197,19 +198,40 @@ D06's. `packages/cli/README.md` names the peer and `wisdom:ListAssistants`.
 
 ### Evidence
 
-Not run. On 2026-10-12 the AWS credentials for the sandbox had expired, and
-the instance had neither a task template nor a linked AI agents assistant
-(owner actions under "Sandbox prerequisites and cost"). No AWS call was made
-and no result is recorded. The inputs are kept in
-`conformance/flow-language/probes/42/` (35 probes: 24 for `CreateTask`, 11
-for `CreateWisdomSession`) with `PENDING.md`, which names the five
-placeholders the run fills. Each evidence item above has its probes: the
-two timing keys together and alone (`task-delay-and-schedule`,
-`task-delay-string`, `task-schedule-jsonpath`), `ScheduledTime` in three
-static candidate formats, a template the instance does not have
-(`task-template-missing`), the flow types the guides disagree on, and an
-unlinked assistant. When the sweep runs, the catalog, `actions.ts`, the
-schema clauses and the fixtures change only where a result says so.
+Run on 2026-10-13, 17:07 to 17:08 UTC, on the sandbox (us-west-2), after
+the sandbox-features root (provider repository,
+`acceptance/sandbox-features`) put a task template (no flow configured),
+an assistant linked as `WISDOM_ASSISTANT` and a second, unlinked
+assistant on the instance. The 35 inputs in
+`conformance/flow-language/probes/42/` gave 25 accepted and 10 refused;
+`results.json` holds each, and `PENDING.md` is gone. Rule 42's last bullet
+quotes every result. What moved the model:
+
+- `CreateTask` without `Name`, with neither a flow nor a template, and
+  with `DelaySeconds` and `ScheduledTime` together was each refused, so
+  the 0.3 clause now holds all three (owner decision 3). The catalog
+  already had `Name` required and the `atMostOne`.
+
+What the run settled without a change:
+
+- A template and a flow together were accepted, as the admin guide has it
+  against StartTaskContact; so was a template that configures no flow.
+- `TaskTemplateId` was accepted as a bare id, as an ARN and as an id
+  naming no template; a JSONPath was refused, so it stays static.
+- `ContactFlowId` was refused as a bare id ("has invalid resource") and
+  accepted as an ARN or a JSONPath: a `flow` reference resolves to the
+  ARN, so nothing changes.
+- `DelaySeconds` `"518401"`, past the page's bound, was accepted, as were a
+  number and a string; the bound stays in the catalog only.
+- Every `ScheduledTime` form was accepted, and `References` as a map of
+  `Type` and `Value` objects was accepted while a map of strings was
+  refused. Both stay generic in codegen until an export records the
+  stored spelling.
+- `CreateWisdomSession` was accepted in every flow type probed (customer
+  queue, both holds, both whispers, a module), so the action page's "all
+  contact flow types" stands, and with an assistant the instance has not
+  linked, so the create does not check the link. An instance with no
+  assistant linked at all was not probed: the link existed before the run.
 
 ### Not done here
 
@@ -217,10 +239,10 @@ schema clauses and the fixtures change only where a result says so.
   References and a static schedule) and of a Connect assistant block (with
   an Orchestration AI agent), committed under
   `conformance/flow-language/exports/` with ids replaced. Owner action
-  (decision 8); no AWS console was reachable. Until then whether
-  `TaskTemplateId` holds an id or an ARN, the `References` value shape and
-  `ScheduledTime`'s format are unsettled, and those forms stay generic.
-- The sweep, above.
+  (decision 8); no AWS console was reachable. The sweep showed the create
+  accepts either form of `TaskTemplateId`, the object form of `References`
+  and any `ScheduledTime`, so which spelling the console stores is the
+  export's to say, and those forms stay generic until it does.
 - The review round tasks/README.md asks of each group.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists.

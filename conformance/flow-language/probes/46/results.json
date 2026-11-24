@@ -1,0 +1,869 @@
+[
+  {
+    "probe": "complete-agent-hold",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a agent hold flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "AGENT_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type agentHold, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-agent-transfer",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a agent transfer flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "AGENT_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type agentTransfer, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-agent-whisper",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a agent whisper flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "AGENT_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:09Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type agentWhisper, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-caller-id-arn",
+    "description": "Rule 46: CompleteOutboundCall with the claimed DID's ARN rather than its number as the static caller ID; decides whether the field is a number or could hold a phonenumber reference.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:10Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe has invalid resource: arn:aws:connect:us-west-2:{{ACCOUNT}}:phone-number/{{DID_ID}}, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-caller-id-empty",
+    "description": "Rule 46: CompleteOutboundCall with CallerId present and empty, its required Number removed.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:10Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.CallerId.Number"
+    ]
+  },
+  {
+    "probe": "complete-caller-id-jsonpath",
+    "description": "Rule 46: CompleteOutboundCall with the caller ID read from an attribute (\"Can either be fully static or a single valid JSONPath identifier\"), the form three of the four published exports carry.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:11Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-caller-id-unclaimed",
+    "description": "Rule 46: CompleteOutboundCall with a fictional number the instance has not claimed as its static caller ID; decides whether the create validates the number.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:12Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe has invalid resource: +15555550100, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-contact-flow",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a contact flow flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:13Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type contactFlow, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-customer-hold",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a customer hold flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:13Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerHold, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-customer-queue",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a customer queue flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:14Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerQueue, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-customer-whisper",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a customer whisper flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "CUSTOMER_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:14Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerWhisper, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-module",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a flow module; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:15Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowModuleException",
+    "problems": [
+      "Action with identifier probe is not supported in a flow module, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-no-next",
+    "description": "Rule 46: CompleteOutboundCall in the class's form without a NextAction, removed alone.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:15Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "complete-queue-transfer",
+    "description": "Rule 46: CompleteOutboundCall in the class's form in a queue transfer flow; the admin guide's block names the outbound whisper flow alone and the action page none, so the result decides whether the restriction is the service's.",
+    "flowType": "QUEUE_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:16Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type queueTransfer, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "complete-required-set-alone",
+    "description": "Rule 46: CompleteOutboundCall with the catalog's required set alone: no parameters (CallerId and ConnectionTimeLimitSeconds are optional) and a NextAction, no error branch; the accepted-set probe, in the outbound whisper flow the admin guide names.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:16Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-required",
+    "description": "Rule 46: CompleteOutboundCall in the class's form: the claimed DID as a static caller ID and a NextAction, no error branch; expected accepted.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:17Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-time-limit-601",
+    "description": "Rule 46: CompleteOutboundCall with ConnectionTimeLimitSeconds \"601\", one over the page's 1 to 600.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:19Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-time-limit-jsonpath",
+    "description": "Rule 46: CompleteOutboundCall with ConnectionTimeLimitSeconds a JSONPath (\"Can be set statically or dynamically\").",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:20Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-time-limit-number",
+    "description": "Rule 46: CompleteOutboundCall with ConnectionTimeLimitSeconds as the JSON number 30, the spelling the catalog's integerString does not write.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-time-limit",
+    "description": "Rule 46: CompleteOutboundCall with ConnectionTimeLimitSeconds \"30\" and no voice connector; the page uses it \"Only\" for the voice connector, and the decimal string is the catalog's integerString.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:23Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-voice-connector-other-type",
+    "description": "Rule 46: CompleteOutboundCall with a VoiceConnectorType other than ChimeConnector; the page: Only support \"ChimeConnector\".",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:25Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.VoiceConnector.VoiceConnectorType",
+      "Action is missing required property. Path: Actions[0].Parameters.ConnectionTimeLimitSeconds"
+    ]
+  },
+  {
+    "probe": "complete-voice-connector",
+    "description": "Rule 46: CompleteOutboundCall in the page's VoiceConnector form with an invented Chime voice connector ARN and a 30 second limit; decides whether the create validates the connector (owner decision 4 keeps the form generic either way).",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:25Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "complete-with-catch-all",
+    "description": "Rule 46: CompleteOutboundCall in the class's form with NoMatchingError added; the page and the admin guide say there is no error, and rule 37 found the service refusing NoMatchingError on UpdateContactRecordingBehavior, whose page also says None.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:27Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "sms-agent-hold",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a agent hold flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "AGENT_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:27Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-agent-transfer",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a agent transfer flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "AGENT_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-agent-whisper",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a agent whisper flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "AGENT_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-customer-hold",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a customer hold flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:32Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-customer-queue",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a customer queue flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-customer-whisper",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a customer whisper flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "CUSTOMER_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:35Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-destination-not-e164",
+    "description": "Rule 46: StartOutboundChatContact with a static destination that is not E.164 (no plus or country code). The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:37Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-destination-static",
+    "description": "Rule 46: StartOutboundChatContact with a static E.164 destination, the fictional +15555550100; nothing is sent at create. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-flow-jsonpath",
+    "description": "Rule 46: StartOutboundChatContact with the flow read from an attribute (the admin guide's Set dynamically). The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-message-string",
+    "description": "Rule 46: StartOutboundChatContact with InitialSystemMessage a string rather than the page's object of Content. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:41Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: StartOutboundChatContact, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "sms-module",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a flow module; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-no-catch-all",
+    "description": "Rule 46: StartOutboundChatContact in the required set without NoMatchingError, removed alone. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:43Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "sms-no-contact-flow",
+    "description": "Rule 46: StartOutboundChatContact in the required set without ContactFlowArn, a required key removed alone. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:44Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ContactFlowArn"
+    ]
+  },
+  {
+    "probe": "sms-no-destination-address",
+    "description": "Rule 46: StartOutboundChatContact in the required set with DestinationEndpoint holding its Type alone, the required Address removed. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:45Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.DestinationEndpoint.Address"
+    ]
+  },
+  {
+    "probe": "sms-no-destination-endpoint",
+    "description": "Rule 46: StartOutboundChatContact in the required set without DestinationEndpoint, a required key removed alone. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:45Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.DestinationEndpoint"
+    ]
+  },
+  {
+    "probe": "sms-no-destination-type",
+    "description": "Rule 46: StartOutboundChatContact in the required set with DestinationEndpoint holding its Address alone, the required Type removed. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:46Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.DestinationEndpoint.Type"
+    ]
+  },
+  {
+    "probe": "sms-no-initial-message",
+    "description": "Rule 46: StartOutboundChatContact in the class's full form without InitialSystemMessage, the one optional container removed alone (sms-required-set-alone also lacks it). The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:46Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-no-message-content",
+    "description": "Rule 46: StartOutboundChatContact with InitialSystemMessage present and empty, its required Content removed. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:48Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.InitialSystemMessage.Content"
+    ]
+  },
+  {
+    "probe": "sms-no-next",
+    "description": "Rule 46: StartOutboundChatContact in the required set without a NextAction, removed alone. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:48Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "sms-no-source-address",
+    "description": "Rule 46: StartOutboundChatContact in the required set with SourceEndpoint holding its Type alone, the required Address removed.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.SourceEndpoint.Address"
+    ]
+  },
+  {
+    "probe": "sms-no-source-endpoint",
+    "description": "Rule 46: StartOutboundChatContact in the required set without SourceEndpoint, a required key removed alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.SourceEndpoint"
+    ]
+  },
+  {
+    "probe": "sms-no-source-type",
+    "description": "Rule 46: StartOutboundChatContact in the required set with SourceEndpoint holding its Address alone, the required Type removed. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.SourceEndpoint.Type"
+    ]
+  },
+  {
+    "probe": "sms-no-subtype",
+    "description": "Rule 46: StartOutboundChatContact in the required set without ContactSubtype, a required key removed alone. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ContactSubtype"
+    ]
+  },
+  {
+    "probe": "sms-outbound-whisper",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a outbound whisper flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:51Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-queue-transfer",
+    "description": "Rule 46: StartOutboundChatContact with its source read from an attribute in a queue transfer flow; the action page names no flow type and the admin guide's block allows every one, so the result decides the catalog's flowTypes.",
+    "flowType": "QUEUE_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:52Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-related-other",
+    "description": "Rule 46: StartOutboundChatContact with RelatedContact PREVIOUS; the page: \"Only supported value is CURRENT\". The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:54Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.RelatedContact"
+    ]
+  },
+  {
+    "probe": "sms-required-set-alone",
+    "description": "Rule 46: StartOutboundChatContact with the catalog's required set alone: the source read from an attribute, a JSONPath destination, the probe flow, the SMS subtype, a NextAction and the catch-all, and neither optional key; the accepted-set probe. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:54Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-required",
+    "description": "Rule 46: StartOutboundChatContact in the class's full form with the sandbox's claimed voice DID as the source by ARN: the required set with InitialSystemMessage and RelatedContact. With sms-source-did-set-alone, the probe of a number that is not SMS-enabled; sms-source-jsonpath is the same form with the source read from an attribute.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:56Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-source-did-set-alone",
+    "description": "Rule 46: StartOutboundChatContact with the required set alone and the sandbox's claimed voice DID, which is not SMS-enabled, as the source by ARN; with sms-required, the probe of a number that is not SMS-enabled. Compare with sms-required-set-alone, which differs only in the source.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-source-jsonpath",
+    "description": "Rule 46: StartOutboundChatContact in the class's full form with the source number read from an attribute, so no number's capability can be checked at create; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:12:59Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-source-number",
+    "description": "Rule 46: StartOutboundChatContact with the DID's E.164 number in place of its ARN as the source address, to learn whether the create requires the ARN form.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:01Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "sms-source-type-other",
+    "description": "Rule 46: StartOutboundChatContact with a SourceEndpoint Type other than CONNECT_PHONENUMBER_ARN (EMAIL_ADDRESS), which the page says is the only one supported. The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:02Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.SourceEndpoint.Type"
+    ]
+  },
+  {
+    "probe": "sms-subtype-whatsapp",
+    "description": "Rule 46: StartOutboundChatContact with ContactSubtype connect:WhatsApp, which the API reference names and the page does not (\"only supports connect:SMS\"). The source is read from an attribute, so no number's SMS capability is checked and the result answers this probe's question alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:03Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.InitialTemplatedSystemMessage"
+    ]
+  },
+  {
+    "probe": "status-agent-hold",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a agent hold flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "AGENT_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:03Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-agent-transfer",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a agent transfer flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "AGENT_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-agent-whisper",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a agent whisper flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "AGENT_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:06Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-campaign",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a CAMPAIGN flow, the CreateContactFlow type outbound campaigns use. FlowDoc has no CAMPAIGN connectType, so the catalog cannot record the result; rule 46 does. On an instance without campaigns a refusal naming the flow type is recorded as what it was.",
+    "flowType": "CAMPAIGN",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "DisconnectParticipant action type is not supported",
+      "CheckOutboundCallStatus action type is not supported"
+    ]
+  },
+  {
+    "probe": "status-customer-hold",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a customer hold flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-customer-queue",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a customer queue flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:09Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-customer-whisper",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a customer whisper flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "CUSTOMER_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:11Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-lowercase-operand",
+    "description": "Rule 46: CheckOutboundCallStatus with an Equals condition on callanswered, the page's operand in another case.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:12Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "status-module",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a flow module; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:13Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-next-elsewhere",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form with its NextAction on a different action from its catch-all, which the class mirrors; decides whether the service requires the mirror.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:14Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-no-catch-all",
+    "description": "Rule 46: CheckOutboundCallStatus without NoMatchingError, the page's one error, removed alone from the class's form.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:16Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "status-no-next",
+    "description": "Rule 46: CheckOutboundCallStatus without a NextAction, removed alone from the class's form; the page says nothing of NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:16Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "status-other-operator",
+    "description": "Rule 46: CheckOutboundCallStatus with a TextContains condition; the page supports only the Equals operator.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:17Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions[0].Operator",
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "status-outbound-whisper",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a outbound whisper flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:17Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-queue-transfer",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form in a queue transfer flow; the action page names no flow type and the admin guide's block allows all, so the result decides the catalog's flowTypes.",
+    "flowType": "QUEUE_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:19Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-required-set-alone",
+    "description": "Rule 46: CheckOutboundCallStatus with the catalog's required set alone: no parameters, a NextAction and the catch-all, and no status condition (conditions are optional in the catalog); the accepted-set probe. Run on an instance without outbound campaigns, it is also the probe of an instance without campaigns.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:20Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "status-required",
+    "description": "Rule 46: CheckOutboundCallStatus in the class's form: no parameters, an Equals condition on each of the page's four statuses in its order, the catch-all, and a NextAction mirroring it; expected accepted. Run on an instance without outbound campaigns, as the sandbox is.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:21Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "status-unknown-operand",
+    "description": "Rule 46: CheckOutboundCallStatus with an Equals condition on Busy, which the page does not list (\"the only supported operands\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "status-with-parameter",
+    "description": "Rule 46: CheckOutboundCallStatus with a parameter the page's empty object does not list (Timeout).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:13:23Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.Timeout"
+    ]
+  }
+]

@@ -1,0 +1,37 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "hold-email-body",
+  "description": "Get stored content in a customer hold flow, one of the ten flow types the admin guide's block page lists. A hold flow cannot disconnect, so the block loops on itself.",
+  "connectType": "CUSTOMER_HOLD",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "load-email",
+    "Actions": [
+      {
+        "Identifier": "load-email",
+        "Type": "LoadContactContent",
+        "Parameters": {
+          "ContentType": "EmailMessage"
+        },
+        "Transitions": {
+          "NextAction": "load-email",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "load-email"
+            }
+          ],
+          "Conditions": []
+        }
+      }
+    ]
+  },
+  "layout": {
+    "load-email": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

@@ -1,0 +1,33 @@
+{
+  "description": "Rule 47: the Set Touchtone Buffer Behavior block's Enable form exactly as its page writes it: GetParticipantInput with EnableDTMFBuffer \"true\" alone, a NextAction and the catch-all. The catalog requires InputTimeLimitSeconds and, without StoreInput \"True\", StoreInput and two more branches; this settles whether the buffer form is exempt.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "EnableDTMFBuffer": "true"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

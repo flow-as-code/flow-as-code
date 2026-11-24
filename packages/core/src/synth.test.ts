@@ -52,6 +52,7 @@ import {
   InvokeLambdaFunction,
   jsonPath,
   lint,
+  LoadContactContent,
   Loop,
   materializeWithMap,
   MessageParticipant,
@@ -68,6 +69,7 @@ import {
   TagContact,
   TransferContactToAgent,
   TransferContactToQueue,
+  TransferParticipantToThirdParty,
   UntagContact,
   UpdateCase,
   UpdateContactCallbackNumber,
@@ -79,10 +81,9 @@ import {
   UpdateContactRecordingBehavior,
   UpdateContactRoutingBehavior,
   UpdateContactTargetQueue,
-  UpdateRoutingCriteria,
+  UpdateContactRoutingCriteria,
   and,
   attributeCondition,
-  or,
   UpdateContactTextToSpeechVoice,
   UpdateCustomerProfile,
   UpdateFlowAttributes,
@@ -1831,7 +1832,6 @@ describe("the Customer Profiles actions", () => {
         request: {
           FirstName: "$.Attributes.firstName",
           PhoneNumber: "$.CustomerEndpoint.Address",
-          "Attributes.loyaltyTier": "new",
         },
         response: ["FirstName", "Attributes.loyaltyTier"],
         next: "link-contact",
@@ -1846,10 +1846,7 @@ describe("the Customer Profiles actions", () => {
       }),
       new UpdateCustomerProfile({
         id: "update-profile",
-        request: {
-          "Attributes.preferredLanguage": "$.Attributes.language",
-          EmailAddress: "$.Attributes.email",
-        },
+        request: { EmailAddress: "$.Attributes.email" },
         response: ["Attributes.preferredLanguage"],
         next: "latest-order",
         onError: "bye",
@@ -1887,7 +1884,7 @@ describe("the Customer Profiles actions", () => {
     expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
   });
 
-  it("write AssociateContactToCustomerProfile with both ids and an empty response list", () => {
+  it("write AssociateContactToCustomerProfile with both ids and no response data, which the service refuses there", () => {
     expect(
       new AssociateContactToCustomerProfile({
         id: "a",
@@ -1901,7 +1898,6 @@ describe("the Customer Profiles actions", () => {
       Type: "AssociateContactToCustomerProfile",
       Parameters: {
         ProfileRequestData: { ProfileId: "$.Customer.ProfileId", ContactId: "$.ContactId" },
-        ProfileResponseData: [],
       },
       Transitions: {
         NextAction: "n",
@@ -1915,7 +1911,7 @@ describe("the Customer Profiles actions", () => {
     expect(
       new CreateCustomerProfile({
         id: "c",
-        request: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        request: { LastName: "Gold", FirstName: "$.Attributes.name" },
         response: ["Attributes.tier"],
         next: "n",
         onError: "e",
@@ -1924,7 +1920,7 @@ describe("the Customer Profiles actions", () => {
       Identifier: "c",
       Type: "CreateCustomerProfile",
       Parameters: {
-        ProfileRequestData: { "Attributes.tier": "gold", FirstName: "$.Attributes.name" },
+        ProfileRequestData: { LastName: "Gold", FirstName: "$.Attributes.name" },
         ProfileResponseData: ["Attributes.tier"],
       },
       Transitions: {
@@ -1941,8 +1937,12 @@ describe("the Customer Profiles actions", () => {
   it("refuse a profile field or name outside the page's lists, a repeated name, or a value that is not a string", () => {
     const base = { id: "c", next: "n", onError: "e" };
     expect(() => new CreateCustomerProfile({ ...base, request: { Nickname: "Sam" } })).toThrow(
-      /request names "Nickname", which is neither a field the page lists nor a name matching/,
+      /request names "Nickname", which is not a field the page lists/,
     );
+    // The service refuses a custom attribute as a request key (rule 43).
+    expect(
+      () => new CreateCustomerProfile({ ...base, request: { "Attributes.tier": "gold" } }),
+    ).toThrow(/request names "Attributes.tier"/);
     expect(
       () => new CreateCustomerProfile({ ...base, request: { "Attributes.a.b": "x" } }),
     ).toThrow(/request names "Attributes.a.b"/);
@@ -1960,7 +1960,7 @@ describe("the Customer Profiles actions", () => {
   it("write UpdateCustomerProfile as Create writes its fields, and refuse the same names", () => {
     const config = {
       id: "u",
-      request: { "Attributes.tier": "gold" },
+      request: { LastName: "Gold" },
       response: ["Attributes.tier"],
       next: "n",
       onError: "e",
@@ -2441,22 +2441,22 @@ describe("the routing criteria action", () => {
         next: "from-lambda",
         onError: "bye",
       }),
-      new UpdateRoutingCriteria({
+      // The whole criteria from a Lambda's response: the service accepts it
+      // (actions.md, rule 45), and the class has no form for it.
+      new GenericBlock({
         id: "from-lambda",
-        steps: jsonPath("$.External.routingSteps"),
+        type: "UpdateContactRoutingCriteria",
+        parameters: { RoutingCriteria: "$.External.RoutingCriteria" },
         next: "transfer",
-        onError: "by-proficiency",
+        errors: [{ errorType: "NoMatchingError", target: "by-proficiency" }],
       }),
-      new UpdateRoutingCriteria({
+      new UpdateContactRoutingCriteria({
         id: "by-proficiency",
         steps: [
           {
-            expression: or(
-              and(
-                attributeCondition("Language", "English", 4),
-                attributeCondition("Technology", "AWS Kinesis", 2),
-              ),
-              attributeCondition("Language", "Spanish", 5),
+            expression: and(
+              attributeCondition("Language", "English", 4),
+              attributeCondition("Technology", "AWS Kinesis", 2),
             ),
             expiresAfterSeconds: 30,
           },
@@ -2485,7 +2485,7 @@ describe("the routing criteria action", () => {
 
   it("writes the expression as the page spells it, and each expiry as a decimal string", () => {
     expect(
-      new UpdateRoutingCriteria({
+      new UpdateContactRoutingCriteria({
         id: "r",
         steps: [
           { expression: attributeCondition("Language", "English", 4), expiresAfterSeconds: 30 },
@@ -2496,7 +2496,7 @@ describe("the routing criteria action", () => {
       }).toAction(),
     ).toEqual({
       Identifier: "r",
-      Type: "UpdateRoutingCriteria",
+      Type: "UpdateContactRoutingCriteria",
       Parameters: {
         RoutingCriteria: {
           Steps: [
@@ -2553,41 +2553,39 @@ describe("the routing criteria action", () => {
     expect(() => attributeCondition("x".repeat(64), "y".repeat(64), 5)).not.toThrow();
   });
 
-  it("holds an AND to one to eight requirements and an OR to one to three, with OR at the top", () => {
+  it("holds an AND to one to eight requirements, and refuses an OR, which the service refuses at the top of a step", () => {
     const c = attributeCondition("Language", "English", 1);
     expect(() => and()).toThrow(/and\(...\) takes 1 to 8 expressions, got 0/);
     expect(() => and(...Array.from({ length: 9 }, () => c))).toThrow(/got 9/);
     expect(() => and(...Array.from({ length: 8 }, () => c))).not.toThrow();
-    expect(() => or()).toThrow(/or\(...\) takes 1 to 3 expressions, got 0/);
-    expect(() => or(c, c, c, c)).toThrow(/got 4/);
-    expect(() => or(and(c, c), c, and(c))).not.toThrow();
     expect(() => and(and(c) as never)).toThrow(/an AND holds requirements only/);
-    expect(() => or(or(c) as never)).toThrow(/an AND holds requirements only/);
-    expect(
-      () =>
-        new UpdateRoutingCriteria({
-          id: "r",
-          steps: [{ expression: { AndExpression: [or(c)] } as never }],
-          next: "n",
-          onError: "e",
-        }),
-    ).toThrow(/an AND holds requirements only/);
+    const make = (expression: unknown) =>
+      new UpdateContactRoutingCriteria({
+        id: "r",
+        steps: [{ expression: expression as never }],
+        next: "n",
+        onError: "e",
+      });
+    expect(() => make({ OrExpression: [c, c] })).toThrow(
+      /an expression is attributeCondition\(...\) or and\(...\)/,
+    );
+    expect(() => make({ AndExpression: [{ OrExpression: [c] }] })).toThrow(
+      /an AND holds requirements only/,
+    );
   });
 
-  it("refuses no steps, a step before the last without an expiry, and a bad expiry or JSONPath", () => {
+  it("refuses no steps, a step before the last without an expiry, a bad expiry, and steps as a JSONPath", () => {
     const expression = attributeCondition("Language", "English", 1);
-    const make = (steps: ConstructorParameters<typeof UpdateRoutingCriteria>[0]["steps"]) =>
-      new UpdateRoutingCriteria({ id: "r", steps, next: "n", onError: "e" });
+    const make = (steps: ConstructorParameters<typeof UpdateContactRoutingCriteria>[0]["steps"]) =>
+      new UpdateContactRoutingCriteria({ id: "r", steps, next: "n", onError: "e" });
     expect(() => make([])).toThrow(/needs at least one step/);
     expect(() => make([{ expression }, { expression }])).toThrow(
       /step 1 needs expiresAfterSeconds: only the last step may never expire/,
     );
     expect(() => make([{ expression, expiresAfterSeconds: 0 }])).toThrow(/positive integer, got 0/);
     expect(() => make([{ expression, expiresAfterSeconds: 1.5 }])).toThrow(/got 1.5/);
-    expect(() => make("External.steps" as never)).toThrow(/Invalid JSONPath/);
-    expect(make(jsonPath("$.External.steps")).toAction().Parameters).toEqual({
-      RoutingCriteria: { Steps: "$.External.steps" },
-    });
+    // The service refuses Steps as a JSONPath (actions.md, rule 45).
+    expect(() => make("$.External.steps" as never)).toThrow(/needs at least one step/);
     expect(() =>
       make([
         {
@@ -2811,5 +2809,165 @@ describe("the outbound actions", () => {
     ).toThrow(
       /branches only on CallAnswered, VoicemailBeep, VoicemailNoBeep, NotDetected, got Busy/,
     );
+  });
+});
+
+// conformance/roundtrip/census-additions, built with the typed builder: each
+// census-additions class writes exactly the fixture's bytes (tasks/D09).
+describe("the census additions", () => {
+  const expected = JSON.parse(
+    fixture("conformance/roundtrip/census-additions/doc.flowdoc.json"),
+  ) as FlowDoc;
+
+  it("build the census-additions fixture", () => {
+    const flow = new Flow({
+      name: "census-additions",
+      connectType: "CONTACT_FLOW",
+      description: expected.description,
+      layout: expected.layout,
+    }).add(
+      new TransferParticipantToThirdParty({
+        id: "transfer-desk",
+        number: jsonPath("$.Attributes.deskPhone"),
+        timeLimitSeconds: 30,
+        continueFlow: true,
+        next: "load-email",
+        onCallFailed: "transfer-on-call",
+        onTimeout: "transfer-on-call",
+        onError: "bye",
+      }),
+      new TransferParticipantToThirdParty({
+        id: "transfer-on-call",
+        number: jsonPath("$.Attributes.onCallPhone"),
+        timeLimitSeconds: 45,
+        continueFlow: false,
+        next: "load-email",
+        onError: "load-email",
+      }),
+      new LoadContactContent({ id: "load-email", next: "bye", onError: "bye" }),
+      new DisconnectParticipant({ id: "bye" }),
+    );
+    expect(serialize(synth(flow, { includeMeta: false }))).toBe(serialize(expected));
+  });
+
+  it("write TransferParticipantToThirdParty's export keys, with the branches each form takes", () => {
+    const base = {
+      id: "t",
+      number: jsonPath("$.Attributes.deskPhone"),
+      timeLimitSeconds: 30,
+      next: "n",
+      onError: "e",
+    };
+    const parameters = (cont: string) => ({
+      ThirdPartyPhoneNumber: "$.Attributes.deskPhone",
+      ThirdPartyConnectionTimeLimitSeconds: "30",
+      ContinueFlowExecution: cont,
+    });
+    expect(
+      new TransferParticipantToThirdParty({
+        ...base,
+        continueFlow: true,
+        onCallFailed: "f",
+        onTimeout: "o",
+      }).toAction(),
+    ).toEqual({
+      Identifier: "t",
+      Type: "TransferParticipantToThirdParty",
+      Parameters: parameters("True"),
+      Transitions: {
+        NextAction: "n",
+        Errors: [
+          { ErrorType: "CallFailed", NextAction: "f" },
+          { ErrorType: "ConnectionTimeLimitExceeded", NextAction: "o" },
+          { ErrorType: "NoMatchingError", NextAction: "e" },
+        ],
+        Conditions: [],
+      },
+    });
+    expect(
+      new TransferParticipantToThirdParty({ ...base, continueFlow: false }).toAction(),
+    ).toEqual({
+      Identifier: "t",
+      Type: "TransferParticipantToThirdParty",
+      Parameters: parameters("False"),
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+    // The service refuses the ending form with either other branch (rule 47).
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: false,
+          onTimeout: cast<never>("o"),
+        }),
+    ).toThrow(/with continueFlow false takes no onCallFailed or onTimeout/);
+  });
+
+  it("refuse a static number, a time limit that is not a positive safe integer, no flag, or a resuming form without its two branches", () => {
+    const base = { id: "t", next: "n", onError: "e", continueFlow: false as const };
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          number: "+15555550100" as never,
+          timeLimitSeconds: 30,
+        }),
+    ).toThrow(/must be a JSONPath/);
+    for (const t of [0, -5, 2.5, 1e21, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(
+        () =>
+          new TransferParticipantToThirdParty({
+            ...base,
+            number: jsonPath("$.Attributes.deskPhone"),
+            timeLimitSeconds: t,
+          }),
+      ).toThrow(/positive safe integer/);
+    }
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: "True" as never,
+          number: jsonPath("$.Attributes.deskPhone"),
+          timeLimitSeconds: 30,
+        }),
+    ).toThrow(/true or false/);
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: true,
+          number: jsonPath("$.Attributes.deskPhone"),
+          timeLimitSeconds: 30,
+          onTimeout: "o",
+        } as never),
+    ).toThrow(/needs onCallFailed and onTimeout/);
+    expect(
+      () =>
+        new TransferParticipantToThirdParty({
+          ...base,
+          continueFlow: true,
+          number: jsonPath("$.Attributes.deskPhone"),
+          timeLimitSeconds: 30,
+          onCallFailed: "f",
+        } as never),
+    ).toThrow(/needs onCallFailed and onTimeout/);
+  });
+
+  it("write LoadContactContent with the page's one content type and the catch-all", () => {
+    expect(new LoadContactContent({ id: "l", next: "n", onError: "e" }).toAction()).toEqual({
+      Identifier: "l",
+      Type: "LoadContactContent",
+      Parameters: { ContentType: "EmailMessage" },
+      Transitions: {
+        NextAction: "n",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
   });
 });

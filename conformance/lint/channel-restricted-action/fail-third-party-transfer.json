@@ -1,0 +1,66 @@
+{
+  "expect": [
+    {
+      "rule": "channel-restricted-action",
+      "blockId": "transfer-desk",
+      "messageIncludes": "TransferParticipantToThirdParty is supported only on the VOICE channel, and the document does not record which channels this flow serves"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "desk-transfer",
+    "description": "A transfer to a phone number in an inbound flow that may serve any channel; the block page routes chat, task and email down its Error branch.",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "transfer-desk",
+      "Actions": [
+        {
+          "Identifier": "transfer-desk",
+          "Type": "TransferParticipantToThirdParty",
+          "Parameters": {
+            "ContinueFlowExecution": "True",
+            "ThirdPartyConnectionTimeLimitSeconds": "30",
+            "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+          },
+          "Transitions": {
+            "NextAction": "done",
+            "Errors": [
+              {
+                "ErrorType": "CallFailed",
+                "NextAction": "done"
+              },
+              {
+                "ErrorType": "ConnectionTimeLimitExceeded",
+                "NextAction": "done"
+              },
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "done"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "done",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "transfer-desk": {
+        "x": 0,
+        "y": 0
+      },
+      "done": {
+        "x": 260,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

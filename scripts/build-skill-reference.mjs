@@ -178,10 +178,24 @@ function nestedConstraintLines(params, prefix = "") {
   return out;
 }
 
+/**
+ * The link to an entry's evidence. A page is an AWS URL. A Type no page
+ * documents has a repository path, the kept console export (catalog
+ * `source` `console-export`); written as it is, that path would resolve
+ * against this reference's own directory in the plugin and on the site, so
+ * it becomes an absolute URL on the repository's main branch, the form the
+ * site gives every repository file it does not render (scripts/site/render.mjs,
+ * resolveLink). A commit pin would go stale with every re-export.
+ */
+function docLink(doc) {
+  if (/^https?:\/\//.test(doc)) return `[Action page](${doc})`;
+  return `[Kept export](https://github.com/flow-as-code/flow-as-code/blob/main/${doc})`;
+}
+
 function section(type, a) {
   const t = a.transitions;
   const lines = [`## ${type}`, ""];
-  lines.push(`Block \`${a.block}\`. [Action page](${a.doc}).`);
+  lines.push(`Block \`${a.block}\`. ${docLink(a.doc)}.`);
   const where = Array.isArray(a.flowTypes) ? a.flowTypes.join(", ") : "every flow type";
   lines.push("", `- Legal in: ${where}.`);
   if (a.channels !== undefined) {

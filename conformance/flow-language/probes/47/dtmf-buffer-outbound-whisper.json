@@ -1,0 +1,33 @@
+{
+  "description": "Rule 47: the Enable form in an outbound whisper flow, which the Set Touchtone Buffer Behavior page lists and the catalog's GetParticipantInput flow types do not.",
+  "type": "OUTBOUND_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "EnableDTMFBuffer": "true"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

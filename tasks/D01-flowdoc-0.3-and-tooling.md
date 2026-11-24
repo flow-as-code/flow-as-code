@@ -198,8 +198,11 @@ is exercised before any group needs it.
   placeholder from `PROBE_<NAME>`, appends to `results.json` (or a
   `--results results-<date>-<region>.json`) beside the inputs with every
   filled value scrubbed back to its placeholder, and refuses to start while
-  an `hh-probe-*` or `fac-probe-*` flow or module exists. It has not been run live;
-  the first live run is the next sweep. The Voice ID probes of 2026-10-05
+  an `hh-probe-*` or `fac-probe-*` flow or module exists. Its first live
+  run was the Phase D sweep of 2026-10-13 (rules 41 to 47), which found
+  one bug: `ListContactFlowModules` on an instance with no modules answers
+  `NextToken: ""`, and the leftover check looped on it until throttled; an
+  empty token now ends the paging, and the test stub answers that way. The Voice ID probes of 2026-10-05
   (tasks/D08, "Record") are the first set under the convention, recorded by
   hand before the runner existed. ADR 0008 landed the same day.
 
@@ -447,6 +450,29 @@ replaced, is pending on the owner's resources and is recorded here when it
 runs; D05 and D06 settle whether `TaskTemplateId`, `CaseTemplateId` and the
 `CaseRequestFields` keys hold an ARN or a bare id on the wire.
 
+Run on 2026-10-13 at 18:03 UTC on the sandbox (us-west-2), once the
+provider repository's `acceptance/sandbox-features` root had put the
+resources on the instance: `ListTaskTemplates`, `ListPhoneNumbersV2`,
+`ListIntegrationAssociations` (`CASES_DOMAIN`), Cases `ListTemplates` and
+`ListFields`, and Q in Connect `ListAssistants`. The output was compared
+with `conformance/export/phase-d-refs/inventory.json` and not committed,
+since every id in it is the sandbox's; with account ids, UUIDs and the
+number replaced, each form is the one the inventory records:
+
+| API                           | Id                                                     | ARN form                                                                       |
+| ----------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `ListTaskTemplates`           | a UUID                                                 | `arn:aws:connect:<region>:<account>:instance/<id>/task-template/<id>`          |
+| `ListPhoneNumbersV2`          | a UUID                                                 | `arn:aws:connect:<region>:<account>:phone-number/<id>`, not under the instance |
+| `ListIntegrationAssociations` | (the domain's)                                         | `arn:aws:cases:<region>:<account>:domain/<id>`                                 |
+| Cases `ListTemplates`         | a UUID                                                 | `arn:aws:cases:<region>:<account>:domain/<id>/template/<id>`                   |
+| Cases `ListFields`            | a UUID (`Custom`), a name such as `case_id` (`System`) | `arn:aws:cases:<region>:<account>:domain/<id>/field/<id>`                      |
+| Q in Connect `ListAssistants` | a UUID                                                 | `arn:aws:wisdom:<region>:<account>:assistant/<id>`                             |
+
+What a flow holds was settled by the create sweeps, not the listings:
+`TaskTemplateId` is accepted as a bare id or an ARN (rule 42),
+`CaseTemplateId` and the field keys likewise (rule 44), and export maps
+the bare forms it reads from the inventory.
+
 ### Release hygiene
 
 Two changesets: `flowdoc-0-3.md` (every package, minor; says older tools
@@ -691,8 +717,8 @@ is if they remain in `perType`.
 
 ### Not done here
 
-- The live listings (above) and the probe runner's first live run (the
-  next sweep).
+- (Done 2026-10-13: the live listings and the runner's first live run,
+  above.)
 - The CLI's `export` wiring of the Cases and Q in Connect clients (D05,
   D06).
 - The HCL rule for a reference in a map key, and the typed `create_case`

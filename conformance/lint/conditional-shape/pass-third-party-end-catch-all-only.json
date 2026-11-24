@@ -1,0 +1,49 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "desk-transfer",
+  "description": "A transfer that ends the flow, with the catch-all alone; the catalog requires the other two branches only when the flow resumes.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "transfer-desk",
+    "Actions": [
+      {
+        "Identifier": "transfer-desk",
+        "Type": "TransferParticipantToThirdParty",
+        "Parameters": {
+          "ContinueFlowExecution": "False",
+          "ThirdPartyConnectionTimeLimitSeconds": "30",
+          "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "transfer-desk": {
+      "x": 0,
+      "y": 0
+    },
+    "done": {
+      "x": 260,
+      "y": 0
+    }
+  },
+  "refs": []
+}

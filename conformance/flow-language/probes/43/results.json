@@ -1,0 +1,904 @@
+[
+  {
+    "probe": "assoc-customer-hold",
+    "description": "Rule 43: AssociateContactToCustomerProfile in a customer hold flow; the admin guide's block allows all flow types.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:30Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileResponseData"
+    ]
+  },
+  {
+    "probe": "assoc-module",
+    "description": "Rule 43: AssociateContactToCustomerProfile in a flow module; the admin guide's block allows all flow types.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowModuleException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileResponseData"
+    ]
+  },
+  {
+    "probe": "assoc-no-catch-all",
+    "description": "Rule 43: AssociateContactToCustomerProfile without its catch-all, a removal alone; the catalog requires it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]",
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileResponseData"
+    ]
+  },
+  {
+    "probe": "assoc-no-contact-id",
+    "description": "Rule 43: AssociateContactToCustomerProfile without ContactId; the page says \"A ProfileId and ContactId must be present.\"",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.ContactId",
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileResponseData"
+    ]
+  },
+  {
+    "probe": "assoc-no-next",
+    "description": "Rule 43: AssociateContactToCustomerProfile without NextAction; the catalog's next is required.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:32Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction",
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileResponseData"
+    ]
+  },
+  {
+    "probe": "assoc-no-response-data",
+    "description": "Rule 43: AssociateContactToCustomerProfile without ProfileResponseData, the page's \"None.\" read as absent; the class writes an empty list.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:33Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "assoc-required-set-alone",
+    "description": "Rule 43: AssociateContactToCustomerProfile with the catalog's required set alone: ProfileRequestData's two ids, no ProfileResponseData, the catch-all and a NextAction; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "assoc-required",
+    "description": "Rule 43: AssociateContactToCustomerProfile with both ids as JSONPaths, an empty response list, a NextAction and the catch-all; expected accepted. Run before the Profiles domain is linked, it is also the probe of an instance with no domain.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileResponseData"
+    ]
+  },
+  {
+    "probe": "assoc-response-object",
+    "description": "Rule 43: AssociateContactToCustomerProfile with ProfileResponseData an empty object, the page's braces read literally.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: AssociateContactToCustomerProfile, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "calc-module",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile in a flow module.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:36Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "calc-no-catch-all",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile without its catch-all, a removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:38Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "calc-no-next",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:39Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "calc-no-none-found",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile without NoneFoundError, a removal alone; the catalog does not require it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:39Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoneFoundError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "calc-no-profile-id",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile without ProfileId (\"A ProfileId must be present\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:39Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.ProfileId"
+    ]
+  },
+  {
+    "probe": "calc-other-name",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile with a name outside the CalculatedAttributes prefix (FirstName).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: 0.FirstName"
+    ]
+  },
+  {
+    "probe": "calc-required-set-alone",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile with the catalog's required set alone: the profile id, no ProfileResponseData, and the catch-all without NoneFoundError.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:40Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoneFoundError, Path: Actions[0]",
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileResponseData"
+    ]
+  },
+  {
+    "probe": "calc-required",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile with a JSONPath profile id and a predefined name, both page errors; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:41Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "calc-unknown-name",
+    "description": "Rule 43: GetCalculatedAttributesForCustomerProfile with a calculated attribute the domain does not define, to learn whether the create checks the name.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:42Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-customer-hold",
+    "description": "Rule 43: CreateCustomerProfile in a customer hold flow.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:44Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-dotted-custom-key",
+    "description": "Rule 43: CreateCustomerProfile with a custom attribute whose name holds a dot (Attributes.a.b), which the catalog's key pattern refuses.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:45Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.Attributes.a.b"
+    ]
+  },
+  {
+    "probe": "create-empty-request",
+    "description": "Rule 43: CreateCustomerProfile with ProfileRequestData empty; the page marks every field optional.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:46Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-module",
+    "description": "Rule 43: CreateCustomerProfile in a flow module.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:47Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-named-and-custom",
+    "description": "Rule 43: CreateCustomerProfile with named and Attributes.x request fields and response names, the group fixture's shape.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.Attributes.loyaltyTier"
+    ]
+  },
+  {
+    "probe": "create-no-catch-all",
+    "description": "Rule 43: CreateCustomerProfile without its catch-all, a removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:49Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Missing branch. Path: 0.Error"
+    ]
+  },
+  {
+    "probe": "create-no-next",
+    "description": "Rule 43: CreateCustomerProfile without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "create-no-request-data",
+    "description": "Rule 43: CreateCustomerProfile without ProfileRequestData.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:50Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-no-response-data",
+    "description": "Rule 43: CreateCustomerProfile without ProfileResponseData; the console writes an empty list.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:52Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-required-set-alone",
+    "description": "Rule 43: CreateCustomerProfile with the catalog's required set alone: no ProfileRequestData and no ProfileResponseData (both optional), the catch-all and a NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:53Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-required",
+    "description": "Rule 43: CreateCustomerProfile with one named request field and an empty response list, a NextAction and the catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:55Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "create-response-object",
+    "description": "Rule 43: CreateCustomerProfile with ProfileResponseData an object of names, the page's braces read literally.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:56Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: CreateCustomerProfile, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "create-unknown-key",
+    "description": "Rule 43: CreateCustomerProfile with a request key the page does not list (Nickname), to learn whether the key list is enforced at create.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:56Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.Nickname"
+    ]
+  },
+  {
+    "probe": "create-unknown-response-name",
+    "description": "Rule 43: CreateCustomerProfile with a response name the page does not list (Nickname).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileResponseData.Nickname"
+    ]
+  },
+  {
+    "probe": "get-both-forms",
+    "description": "Rule 43: GetCustomerProfile with the identifier pair and SearchCriteria together; the catalog's exactlyOne refuses it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:57Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.IdentifierName",
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.IdentifierValue"
+    ]
+  },
+  {
+    "probe": "get-customer-hold",
+    "description": "Rule 43: GetCustomerProfile in a customer hold flow.",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:58Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-identifer-spelling",
+    "description": "Rule 43: GetCustomerProfile with the page's spelling IdentiferValue (sic), as UnTagContact's spelling was put to the service (rule 28).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:08:59Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.IdentiferValue",
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.IdentifierValue"
+    ]
+  },
+  {
+    "probe": "get-identifier-name-only",
+    "description": "Rule 43: GetCustomerProfile with IdentifierName alone, half of a group.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.IdentifierValue"
+    ]
+  },
+  {
+    "probe": "get-identifier",
+    "description": "Rule 43: GetCustomerProfile by one identifier, spelled IdentifierValue as every published flow spells it, with the three page errors; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-module",
+    "description": "Rule 43: GetCustomerProfile in a flow module.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:02Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-named-key",
+    "description": "Rule 43: GetCustomerProfile searched by a named profile key (PhoneNumber), the form AWS's step-by-step guide flows write; neither of the page's forms.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:03Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-neither-form",
+    "description": "Rule 43: GetCustomerProfile with ProfileRequestData empty, as a published console export holds it; the catalog's exactlyOne refuses it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.IdentifierName",
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.IdentifierValue"
+    ]
+  },
+  {
+    "probe": "get-no-catch-all",
+    "description": "Rule 43: GetCustomerProfile without its catch-all, a removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-no-multiple-found",
+    "description": "Rule 43: GetCustomerProfile without MultipleFoundError, a removal alone; the catalog does not require it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:06Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: MultipleFoundError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-no-next",
+    "description": "Rule 43: GetCustomerProfile without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:06Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "get-no-none-found",
+    "description": "Rule 43: GetCustomerProfile without NoneFoundError, a removal alone; the catalog does not require it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:07Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoneFoundError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-operator-lowercase",
+    "description": "Rule 43: GetCustomerProfile with LogicalOperator \"and\", outside the page's AND or OR.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:07Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ProfileRequestData.LogicalOperator"
+    ]
+  },
+  {
+    "probe": "get-required-set-alone",
+    "description": "Rule 43: GetCustomerProfile with the catalog's required set alone: one identifier, no ProfileResponseData, and the catch-all without MultipleFoundError or NoneFoundError; expected accepted if the two lookup branches are optional.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: MultipleFoundError, Path: Actions[0]",
+      "Action is missing required error. Error: NoneFoundError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "get-search-and",
+    "description": "Rule 43: GetCustomerProfile by two SearchCriteria joined by AND.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:08Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-search-one-without-operator",
+    "description": "Rule 43: GetCustomerProfile with one SearchCriteria entry and no LogicalOperator; the admin guide asks for an operator only with several identifiers.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:10Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.LogicalOperator"
+    ]
+  },
+  {
+    "probe": "get-search-or",
+    "description": "Rule 43: GetCustomerProfile by two SearchCriteria joined by OR.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:10Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "get-search-without-operator",
+    "description": "Rule 43: GetCustomerProfile with SearchCriteria and no LogicalOperator (\"Required when using SearchCriteria\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:12Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.LogicalOperator"
+    ]
+  },
+  {
+    "probe": "get-six-criteria",
+    "description": "Rule 43: GetCustomerProfile with six SearchCriteria, past the page's \"up to five total\".",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:13Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Parameters.ProfileRequestData.SearchCriteria"
+    ]
+  },
+  {
+    "probe": "object-both-forms",
+    "description": "Rule 43: GetCustomerProfileObject with UseLatest and the identifier pair together; the catalog's exactlyOne refuses it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:13Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "object-identifier",
+    "description": "Rule 43: GetCustomerProfileObject by an identifier pair.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:15Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "object-latest-boolean",
+    "description": "Rule 43: GetCustomerProfileObject with UseLatest the JSON true, the page's \"true / false\" read as a boolean.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:16Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action type. Type: GetCustomerProfileObject, Path: Actions[0].Type"
+    ]
+  },
+  {
+    "probe": "object-latest-capitalized",
+    "description": "Rule 43: GetCustomerProfileObject with UseLatest \"True\", the console's spelling of other flags.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:17Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Missing required property. Property: 0.UseLatest"
+    ]
+  },
+  {
+    "probe": "object-latest-false",
+    "description": "Rule 43: GetCustomerProfileObject with UseLatest \"false\" and no identifier pair.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:17Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Missing required property. Property: 0.UseLatest"
+    ]
+  },
+  {
+    "probe": "object-latest",
+    "description": "Rule 43: GetCustomerProfileObject of the domain's object type, UseLatest \"true\", with both page errors; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:18Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "object-module",
+    "description": "Rule 43: GetCustomerProfileObject in a flow module.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:19Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "object-neither-form",
+    "description": "Rule 43: GetCustomerProfileObject with neither UseLatest nor the identifier pair (\"Either UseLatest, or IdentifierName and IdentifierValue must be present\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:21Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData"
+    ]
+  },
+  {
+    "probe": "object-no-catch-all",
+    "description": "Rule 43: GetCustomerProfileObject without its catch-all, a removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:21Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "object-no-next",
+    "description": "Rule 43: GetCustomerProfileObject without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "object-no-none-found",
+    "description": "Rule 43: GetCustomerProfileObject without NoneFoundError, a removal alone; the catalog does not require it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoneFoundError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "object-no-object-type",
+    "description": "Rule 43: GetCustomerProfileObject without ObjectType (\"A ProfileId and ObjectType must be present\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:22Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.ObjectType"
+    ]
+  },
+  {
+    "probe": "object-no-profile-id",
+    "description": "Rule 43: GetCustomerProfileObject without ProfileId.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:23Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Parameters.ProfileRequestData.ProfileId"
+    ]
+  },
+  {
+    "probe": "object-required-set-alone",
+    "description": "Rule 43: GetCustomerProfileObject with the catalog's required set alone: the profile, the object type and UseLatest, no ProfileResponseData, and the catch-all without NoneFoundError.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:24Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoneFoundError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "object-response-names",
+    "description": "Rule 43: GetCustomerProfileObject with named and pattern response names (OrderStatus, OrderAttributes.giftWrap).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:24Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "object-unknown-type",
+    "description": "Rule 43: GetCustomerProfileObject of an object type the domain does not have, to learn whether the create checks it.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:26Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-module",
+    "description": "Rule 43: UpdateCustomerProfile in a flow module.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:27Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-no-catch-all",
+    "description": "Rule 43: UpdateCustomerProfile without its catch-all, a removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Missing branch. Path: 0.Error"
+    ]
+  },
+  {
+    "probe": "update-no-next",
+    "description": "Rule 43: UpdateCustomerProfile without NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:29Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "update-no-response-data",
+    "description": "Rule 43: UpdateCustomerProfile without ProfileResponseData.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:30Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-profile-id-key",
+    "description": "Rule 43: UpdateCustomerProfile with a ProfileId request key, which the page does not list (it updates the profile \"previously created or retrieved in the flow\").",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:31Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.ProfileId"
+    ]
+  },
+  {
+    "probe": "update-required-set-alone",
+    "description": "Rule 43: UpdateCustomerProfile with the catalog's required set alone: no ProfileRequestData and no ProfileResponseData (both optional), the catch-all and a NextAction.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:32Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "update-required",
+    "description": "Rule 43: UpdateCustomerProfile with one custom attribute and its response name, a NextAction and the catch-all; expected accepted.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:33Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.Attributes.preferredLanguage"
+    ]
+  },
+  {
+    "probe": "update-unknown-key",
+    "description": "Rule 43: UpdateCustomerProfile with a request key the page does not list (Nickname).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-10-13T17:09:34Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.ProfileRequestData.Nickname"
+    ]
+  }
+]

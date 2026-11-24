@@ -1,5 +1,5 @@
 {
-  "description": "Rule 45: UpdateRoutingCriteria in a AGENT_TRANSFER flow, which the page allows.",
+  "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a AGENT_TRANSFER flow, which the page allows.",
   "type": "AGENT_TRANSFER",
   "content": {
     "Version": "2019-10-30",
@@ -7,7 +7,7 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
           "RoutingCriteria": {
             "Steps": [

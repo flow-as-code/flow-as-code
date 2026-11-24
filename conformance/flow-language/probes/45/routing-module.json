@@ -1,5 +1,5 @@
 {
-  "description": "Rule 45: UpdateRoutingCriteria in a flow module, which neither page names.",
+  "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) in a flow module, which neither page names.",
   "type": "MODULE",
   "content": {
     "Version": "2019-10-30",
@@ -8,7 +8,7 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
           "RoutingCriteria": {
             "Steps": [

@@ -199,14 +199,21 @@ function problemsOf(error) {
   return messages.length > 0 ? messages : [String(error.message ?? error)];
 }
 
-/** Every page of a List call, followed by NextToken; the SDK's paginators insist on a real client, a stub cannot drive them. */
+/**
+ * Every page of a List call, followed by NextToken; the SDK's paginators
+ * insist on a real client, a stub cannot drive them. The last page's token
+ * may be absent or empty: on 2026-10-13 (us-west-2) ListContactFlowModules
+ * on an instance with no modules answered every call with an empty list
+ * and `NextToken: ""`, so a loop that stopped only on an absent token never
+ * ended. Any empty token ends it.
+ */
 async function pages(client, make, listKey) {
   const out = [];
   let NextToken;
   do {
     const page = await client.send(make(NextToken));
     out.push(...(page[listKey] ?? []));
-    NextToken = page.NextToken;
+    NextToken = page.NextToken || undefined;
   } while (NextToken !== undefined);
   return out;
 }

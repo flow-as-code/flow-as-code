@@ -2,7 +2,7 @@
   "flowdoc": "0.3",
   "kind": "flow",
   "name": "customer-profiles",
-  "description": "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, a custom attribute and an email address updated, the latest order and an asset by its identifier read, and a predefined and a custom calculated attribute read.",
+  "description": "The Customer Profiles actions: the caller looked up by one identifier, then by two search criteria joined by AND when several match, a profile created when none is found, the contact associated with the profile, an email address updated and a custom attribute read back, the latest order and an asset by its identifier read, and a predefined and a custom calculated attribute read.",
   "connectType": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -87,7 +87,6 @@
         "Type": "CreateCustomerProfile",
         "Parameters": {
           "ProfileRequestData": {
-            "Attributes.loyaltyTier": "new",
             "FirstName": "$.Attributes.firstName",
             "PhoneNumber": "$.CustomerEndpoint.Address"
           },
@@ -114,8 +113,7 @@
           "ProfileRequestData": {
             "ContactId": "$.ContactId",
             "ProfileId": "$.Customer.ProfileId"
-          },
-          "ProfileResponseData": []
+          }
         },
         "Transitions": {
           "NextAction": "update-profile",
@@ -133,7 +131,6 @@
         "Type": "UpdateCustomerProfile",
         "Parameters": {
           "ProfileRequestData": {
-            "Attributes.preferredLanguage": "$.Attributes.language",
             "EmailAddress": "$.Attributes.email"
           },
           "ProfileResponseData": [

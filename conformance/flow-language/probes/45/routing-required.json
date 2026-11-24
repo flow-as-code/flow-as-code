@@ -1,5 +1,5 @@
 {
-  "description": "Rule 45: UpdateRoutingCriteria as the class writes it: an AND of two requirements expiring after \"30\" seconds, then one requirement that never expires.",
+  "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) as the class writes it: an AND of two requirements expiring after \"30\" seconds, then one requirement that never expires.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -7,7 +7,7 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {
           "RoutingCriteria": {
             "Steps": [

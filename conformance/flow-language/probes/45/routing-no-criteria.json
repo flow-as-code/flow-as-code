@@ -1,5 +1,5 @@
 {
-  "description": "Rule 45: UpdateRoutingCriteria without RoutingCriteria (Parameters empty), which the page marks Required, removed alone.",
+  "description": "Rule 45: UpdateContactRoutingCriteria (rerun under the accepted Type, 2026-10-13) without RoutingCriteria (Parameters empty), which the page marks Required, removed alone.",
   "type": "CONTACT_FLOW",
   "content": {
     "Version": "2019-10-30",
@@ -7,7 +7,7 @@
     "Actions": [
       {
         "Identifier": "probe",
-        "Type": "UpdateRoutingCriteria",
+        "Type": "UpdateContactRoutingCriteria",
         "Parameters": {},
         "Transitions": {
           "NextAction": "done",

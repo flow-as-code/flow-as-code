@@ -86,8 +86,8 @@ for this phase", for each type; and:
 - [x] flow-as-code, checklist lines 1 to 10, per type.
 - [ ] Console exports committed with ids replaced (owner decision 8; see
       "Not done here").
-- [x] Probe inputs under `conformance/flow-language/probes/43/`; the sweep
-      itself has not run (see "Evidence" under "Record").
+- [x] Probe inputs under `conformance/flow-language/probes/43/`, run on
+      2026-10-13 (see "Evidence" under "Record").
 - [ ] Provider: re-vendor, oracles re-recorded, key-pattern and group
       vocabulary exercised by its conformance run (lines 11 to 14); the
       provider commit recorded here.
@@ -185,9 +185,10 @@ and every channel. Every type requires its catch-all and `next`.
 `MultipleFoundError` and `NoneFoundError` are wired by the builder and not
 required: the pages list them without "Must always be defined", the
 reading D02 gave `ChannelMismatch` on the message processor, although
-every published flow wires them. `pass-get-profile-catch-all-only` holds
-that reading, and the `*-no-multiple-found` and `*-no-none-found` probes
-settle it.
+every published flow wires them. The `*-no-multiple-found` and
+`*-no-none-found` probes settled it the other way on 2026-10-13: the
+service requires them, and the fixture that held the pages' reading is now
+`fail-get-profile-catch-all-only` (see "Evidence").
 
 ### Vocabulary
 
@@ -256,40 +257,74 @@ for `tf`, `cdk` and `flowascode`.
 
 ### Evidence
 
-Not run. On 2026-10-12 the AWS credentials for the sandbox had expired,
-and the Customer Profiles domain is created by a sandbox root that had not
-been applied (owner actions under "Sandbox prerequisites and cost"). No AWS
-call was made and no result is recorded. The inputs are kept in
-`conformance/flow-language/probes/43/` (77 probes: 10 for
-`AssociateContactToCustomerProfile`, 14 for `CreateCustomerProfile`, 8 for
-`UpdateCustomerProfile`, 19 for `GetCustomerProfile`, 16 for
-`GetCustomerProfileObject`, 10 for
-`GetCalculatedAttributesForCustomerProfile`) with `PENDING.md`, which names
-the sandbox root's outputs to check (the domain's name and ARN, an object
-type with one object, a calculated attribute definition) and the four
-placeholders the run fills from the environment; no probe needs the
-account, Region or instance placeholders. Each type's
-`<type>-required-set-alone` probe sends the catalog's required set and
-nothing else (no optional container, no optional branch), which is the
-evidence rule's first bullet; for `GetCustomerProfile` it is the one probe
-that wires the catch-all without either lookup branch. Each evidence item above has its probes:
-`get-identifer-spelling` beside `get-identifier`; `get-both-forms`,
-`get-neither-form`, `object-both-forms` and `object-neither-form`;
-`assoc-required` run before the domain is linked; and `create-unknown-key`.
-When the sweep runs, the catalog, `actions.ts`, the schema clauses and the
-fixtures change only where a result says so.
+Run on 2026-10-13, 17:08 to 17:09 UTC, on the sandbox (us-west-2), after
+the sandbox-features root (provider repository,
+`acceptance/sandbox-features`) put a Customer Profiles domain on the
+instance, linked by its integration, with the standard `CTR` object type.
+75 of the 77 inputs in `conformance/flow-language/probes/43/` ran: 27
+accepted and 48 refused; `results.json` holds each, and `PENDING.md` is
+gone. Two did not run, because the domain has neither a profile nor a
+calculated attribute definition (the root's "Not created yet" list):
+`assoc-static-profile` (`{{PROFILE_ID}}`) and `calc-custom-name`
+(`{{CALCULATED_ATTRIBUTE}}`). The domain was linked before the run, so no
+probe saw an instance without one. Rule 43's last bullet quotes every
+result. What moved the model:
+
+- The lookup errors are required. `get-required-set-alone` was refused
+  without `MultipleFoundError` and `NoneFoundError`, and the object and
+  calculated lookups without `NoneFoundError`. The catalog and
+  `REQUIRED_EXTRAS` require them, `pass-get-profile-catch-all-only` became
+  a fail fixture, and two fail fixtures cover the other two types.
+- `AssociateContactToCustomerProfile` refuses `ProfileResponseData`, even
+  `[]` ("Invalid Action property name"), and accepts the block without it.
+  The catalog drops the parameter, and the class, the palette, codegen and
+  the group fixture write none. Its module and customer hold probes were
+  refused only for that key, so they say nothing against the type there.
+- A custom attribute is refused as a create or update request key
+  (`Attributes.loyaltyTier`, `Attributes.preferredLanguage`, and the
+  dotted `Attributes.a.b`), as is an unlisted field (`Nickname`). The
+  request's `keyPatterns` are gone: the class and the studio take the
+  page's fields alone there, and `Attributes.<name>` stays a response name.
+- `UseLatest` is accepted only as the string `"true"`; `"false"`, `"True"`
+  and the JSON boolean were refused, so the enum holds `"true"` alone.
+- `GetCalculatedAttributesForCustomerProfile` without `ProfileResponseData`
+  was refused, so the list is required; a name without the
+  `CalculatedAttributes.` prefix was refused, and one the domain does not
+  define accepted.
+- The 0.3 clauses now hold what the service refused: response data on an
+  association, request keys outside the fields, response names outside the
+  lists, the operator's case, six criteria, `UseLatest` other than
+  `"true"`, and the calculated lookup's list and prefix.
+
+What the run settled without a change:
+
+- `IdentifierValue` is the service's spelling; the page's
+  `IdentiferValue` was refused. `LogicalOperator` is required with
+  `SearchCriteria` even for one criterion.
+- The catalog's two group alternatives stay the page's reading, out of
+  the clauses: the service accepted a search by a named field
+  (`get-named-key`), and both of the object lookup's forms together.
+- Every type but the association (refused there only for its response
+  key) was accepted in a module, and the create and the profile lookup in
+  a customer hold flow, so the types stay unrestricted.
+- An object type the domain lacks and a calculated attribute it does not
+  define were each accepted: the create checks neither.
 
 ### Three readings the review asked to state
 
-- `UseLatest` `"false"` cannot be written by the builder, read typed by
-  codegen, or chosen in the studio, although the catalog's enum holds it.
+- (Settled on 2026-10-13: the service refuses `"false"`, so the enum holds
+  `"true"` alone.) `UseLatest` `"false"` cannot be written by the builder,
+  read typed by codegen, or chosen in the studio, although the catalog's
+  enum held it.
   The page's "Either UseLatest, or IdentifierName and IdentifierValue must
   be present" does not say what `"false"` means alone or beside the pair,
   so the typed form takes only the one reading the page makes plain (the
   latest object), and a document with `"false"` round-trips as a
   GenericBlock, content kept. `object-latest-false` decides it; if the
   service accepts it, the class gains the form and the enum stays.
-- The builder takes `onMultipleFound` and `onNoneFound` (and
+- (Settled on 2026-10-13: the service requires every lookup branch, so
+  the catalog now marks them required.) The builder takes
+  `onMultipleFound` and `onNoneFound` (and
   `onNoneFound` on the object and calculated lookups) as required, while
   the catalog marks those branches optional. That is the catalog's two
   flags doing what they say: `builder: true` is the branch the typed form
@@ -341,10 +376,10 @@ Nine confirmed findings on #48 (head `80f7e94`), each repaired:
 - A console export of each of the six actions, committed under
   `conformance/flow-language/exports/` with ids replaced. Owner action
   (decision 8); no console was reachable. Until then the shapes rest on the
-  published flows above and the pages, and `AssociateContactToCustomerProfile`'s
-  response, `UseLatest`'s spelling and the object lookup's error order rest
-  on the pages alone.
-- The sweep, above.
+  published flows above, the pages and the sweep; the object lookup's
+  error order rests on the pages alone.
+- A profile and a calculated attribute definition in the sandbox domain,
+  so `assoc-static-profile` and `calc-custom-name` can run.
 - The review round tasks/README.md asks of each group.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists, including whatever its catalog checks need for

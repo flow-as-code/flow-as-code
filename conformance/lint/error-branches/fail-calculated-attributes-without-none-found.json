@@ -1,0 +1,60 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "calculated",
+      "messageIncludes": "GetCalculatedAttributesForCustomerProfile does not wire its \"NoneFoundError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "customer-profile-check",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "calculated",
+      "Actions": [
+        {
+          "Identifier": "calculated",
+          "Type": "GetCalculatedAttributesForCustomerProfile",
+          "Parameters": {
+            "ProfileRequestData": {
+              "ProfileId": "$.Customer.ProfileId"
+            },
+            "ProfileResponseData": [
+              "CalculatedAttributes._frequent_caller"
+            ]
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "calculated": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

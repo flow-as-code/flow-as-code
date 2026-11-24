@@ -1,0 +1,71 @@
+{
+  "expect": [
+    {
+      "rule": "conditional-shape",
+      "blockId": "transfer-desk",
+      "messageIncludes": "CallFailed"
+    },
+    {
+      "rule": "conditional-shape",
+      "blockId": "transfer-desk",
+      "messageIncludes": "ConnectionTimeLimitExceeded"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "desk-transfer",
+    "description": "TransferParticipantToThirdParty with ContinueFlowExecution \"False\" and all three branches wired. The service refuses CallFailed and ConnectionTimeLimitExceeded in that form (\"Invalid Action error\", actions.md, rule 47, 2026-10-13), so the shape forbids them.",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "transfer-desk",
+      "Actions": [
+        {
+          "Identifier": "transfer-desk",
+          "Type": "TransferParticipantToThirdParty",
+          "Parameters": {
+            "ContinueFlowExecution": "False",
+            "ThirdPartyConnectionTimeLimitSeconds": "30",
+            "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
+          },
+          "Transitions": {
+            "NextAction": "done",
+            "Errors": [
+              {
+                "ErrorType": "CallFailed",
+                "NextAction": "done"
+              },
+              {
+                "ErrorType": "ConnectionTimeLimitExceeded",
+                "NextAction": "done"
+              },
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "done"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "done",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "transfer-desk": {
+        "x": 0,
+        "y": 0
+      },
+      "done": {
+        "x": 260,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}

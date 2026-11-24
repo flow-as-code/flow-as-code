@@ -16,6 +16,7 @@ import {
   moveNode,
   rewireEdge,
   setCaseLink,
+  setContinueFlow,
   setMessageBody,
   setParam,
 } from "../src/model/mutations.js";
@@ -155,10 +156,12 @@ describe("addBlock", () => {
       "GetCustomerProfile",
       "GetCustomerProfileObject",
       "GetCalculatedAttributesForCustomerProfile",
-      "UpdateRoutingCriteria",
+      "UpdateContactRoutingCriteria",
       "CheckOutboundCallStatus",
       "CompleteOutboundCall",
       "StartOutboundChatContact",
+      "LoadContactContent",
+      "TransferParticipantToThirdParty",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }
@@ -379,5 +382,67 @@ describe("setCaseLink (tasks/D06)", () => {
     expect(() => setParam(casesDoc(), "log-case", "LinkContactToCase", "true")).toThrow(
       MutationRefused,
     );
+  });
+});
+
+describe("TransferParticipantToThirdParty error drags", () => {
+  // A fresh block ends the flow (ContinueFlowExecution "False"), whose one
+  // required branch is the catch-all; the resuming form also requires
+  // CallFailed and ConnectionTimeLimitExceeded (actions.md, rule 47).
+  const fresh = () => {
+    const added = addBlock(demoDoc(), "TransferParticipantToThirdParty", { x: 0, y: 900 });
+    return { doc: connectNodes(added.doc, added.id, "hang-up", "primary")!, id: added.id };
+  };
+  const errors = (doc: FlowDoc, id: string) =>
+    getAction(doc, id)!.Transitions.Errors!.map((e) => e.ErrorType);
+
+  it("wires the catch-all first on the form that ends the flow, and the block is typed", () => {
+    const { doc, id } = fresh();
+    const wired = connectNodes(doc, id, "hang-up", "error")!;
+    expect(errors(wired, id)).toEqual(["NoMatchingError"]);
+    expect(demotedIds(wired).has(id)).toBe(false);
+    expectSchemaValid(wired);
+    expectByteStable(wired);
+  });
+
+  it("offers no other branch on the form that ends the flow, and the flag switches with its branches, with no demotion", () => {
+    const { doc, id } = fresh();
+    const d = connectNodes(doc, id, "hang-up", "error")!;
+    // The service refuses Call failed and Timeout when the flow ends
+    // (actions.md, rule 47), so a second error drag finds nothing to add.
+    const again = connectNodes(d, id, "hang-up", "error");
+    expect(again === undefined ? ["NoMatchingError"] : errors(again, id)).toEqual([
+      "NoMatchingError",
+    ]);
+    const resumed = setContinueFlow(d, id, "True");
+    expect(getAction(resumed, id)!.Parameters.ContinueFlowExecution).toBe("True");
+    expect(errors(resumed, id)).toEqual([
+      "CallFailed",
+      "ConnectionTimeLimitExceeded",
+      "NoMatchingError",
+    ]);
+    expect(demotedIds(resumed).has(id)).toBe(false);
+    expectSchemaValid(resumed);
+    const ended = setContinueFlow(resumed, id, "False");
+    expect(errors(ended, id)).toEqual(["NoMatchingError"]);
+    expect(demotedIds(ended).has(id)).toBe(false);
+    expectSchemaValid(ended);
+  });
+
+  it("wires the resuming form's required branches in the class's order", () => {
+    const { doc, id } = fresh();
+    const resuming = {
+      ...doc,
+      content: {
+        ...doc.content,
+        Actions: doc.content.Actions.map((a) =>
+          a.Identifier === id
+            ? { ...a, Parameters: { ...a.Parameters, ContinueFlowExecution: "True" } }
+            : a,
+        ),
+      },
+    };
+    const first = connectNodes(resuming, id, "hang-up", "error")!;
+    expect(errors(first, id)).toEqual(["CallFailed"]);
   });
 });

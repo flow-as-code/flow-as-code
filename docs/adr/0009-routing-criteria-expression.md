@@ -1,7 +1,7 @@
-# ADR-0009: `UpdateRoutingCriteria`'s expression is a `json` value inside typed steps
+# ADR-0009: `UpdateContactRoutingCriteria`'s expression is a `json` value inside typed steps
 
 Status: accepted, 2026-10-05 (the default D07 names; implemented by D07 on
-the format D01 ships)
+the format D01 ships); amended 2026-10-13 by rule 45's sweep (below)
 
 ## Context
 
@@ -105,3 +105,28 @@ is new, and D01 adds that case to `catalog.test.ts` and to the provider's
 strict parser before the re-vendor. D07's fixture holds a nested
 `AndExpression`, an `OrExpression` if the console writes one, and the
 JSONPath form.
+
+## Amendment (2026-10-13)
+
+Rule 45's create sweep (conformance/flow-language/actions.md, sandbox,
+us-west-2) changed three things this record assumed; the decision itself,
+a `json` expression inside typed steps, stands.
+
+- The Type is `UpdateContactRoutingCriteria`. The service refused the
+  page's `UpdateRoutingCriteria` as an invalid action type and accepted the
+  same content under the other name, so the catalog key, the class and the
+  HCL block (`update_contact_routing_criteria`) carry it. The text above
+  keeps the page's name where it quotes the page.
+- `Steps` is not `dynamic`. The service refused `Steps` as a JSONPath and
+  accepted the whole of `RoutingCriteria` as one. A list attribute could
+  not hold either; the whole-criteria form is a `generic` block in HCL and
+  a GenericBlock in codegen, as the `Steps` JSONPath form was.
+- The builder writes no OR. The service refused an `OrExpression` at the
+  top of a step, the only place `or(...)` wrote one (the admin guide: OR
+  only "when setting attributes dynamically"), and accepted one inside an
+  AND, which the admin guide forbids. `or(...)` is gone; an OR anywhere
+  stays generic. `attributeCondition(...)` and `and(...)` remain.
+
+The integer spelling of `ProficiencyLevel` is accepted, as is the string
+`"4.0"` and the level 2.5; 0.5 and 5.5 are refused, which the schema clause
+now holds for a numeric level. The format needed no change for any of it.

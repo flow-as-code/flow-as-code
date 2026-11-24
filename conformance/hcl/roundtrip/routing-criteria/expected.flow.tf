@@ -5,7 +5,7 @@ resource "flowascode_contact_flow" "routing_criteria" {
   instance_id = var.connect_instance_id
   name        = "routing-criteria"
   type        = "CONTACT_FLOW"
-  description = "Routing criteria set on a contact before its transfer to queue: the steps read from a Lambda's response by a JSONPath and, when that fails, three typed steps, an OR of an AND and a requirement, an AND of two requirements, and a requirement whose value is read from an attribute, the last never expiring."
+  description = "Routing criteria set on a contact before its transfer to queue: the whole criteria read from a Lambda's response by a JSONPath and, when that fails, three typed steps, an AND of two requirements, another AND of two, and a requirement whose value is read from an attribute, the last never expiring."
 
   action {
     id   = "set-queue"
@@ -23,11 +23,9 @@ resource "flowascode_contact_flow" "routing_criteria" {
     id   = "from-lambda"
     next = "transfer"
     generic {
-      type = "UpdateRoutingCriteria"
+      type = "UpdateContactRoutingCriteria"
       parameters = jsonencode({
-        RoutingCriteria = {
-          Steps = "$.External.routingSteps"
-        }
+        RoutingCriteria = "$.External.RoutingCriteria"
       })
     }
     error {
@@ -39,7 +37,7 @@ resource "flowascode_contact_flow" "routing_criteria" {
   action {
     id   = "by-proficiency"
     next = "transfer"
-    update_routing_criteria {
+    update_contact_routing_criteria {
       routing_criteria = {
         steps = [
           {
@@ -47,33 +45,21 @@ resource "flowascode_contact_flow" "routing_criteria" {
               duration_in_seconds = 30
             }
             expression = jsonencode({
-              OrExpression = [
-                {
-                  AndExpression = [
-                    {
-                      AttributeCondition = {
-                        ComparisonOperator = "NumberGreaterOrEqualTo"
-                        Name               = "Language"
-                        ProficiencyLevel   = 4
-                        Value              = "English"
-                      }
-                    },
-                    {
-                      AttributeCondition = {
-                        ComparisonOperator = "NumberGreaterOrEqualTo"
-                        Name               = "Technology"
-                        ProficiencyLevel   = 2
-                        Value              = "AWS Kinesis"
-                      }
-                    },
-                  ]
-                },
+              AndExpression = [
                 {
                   AttributeCondition = {
                     ComparisonOperator = "NumberGreaterOrEqualTo"
                     Name               = "Language"
-                    ProficiencyLevel   = 5
-                    Value              = "Spanish"
+                    ProficiencyLevel   = 4
+                    Value              = "English"
+                  }
+                },
+                {
+                  AttributeCondition = {
+                    ComparisonOperator = "NumberGreaterOrEqualTo"
+                    Name               = "Technology"
+                    ProficiencyLevel   = 2
+                    Value              = "AWS Kinesis"
                   }
                 },
               ]

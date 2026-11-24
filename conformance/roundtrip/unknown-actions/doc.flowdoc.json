@@ -50,52 +50,8 @@
           }
         },
         "Transitions": {
-          "NextAction": "load-content",
-          "Errors": [],
-          "Conditions": []
-        }
-      },
-      {
-        "Identifier": "load-content",
-        "Type": "LoadContactContent",
-        "Parameters": {
-          "ContentType": "EmailMessage"
-        },
-        "Transitions": {
-          "NextAction": "transfer-third-party",
-          "Errors": [
-            {
-              "ErrorType": "NoMatchingError",
-              "NextAction": "hand-off"
-            }
-          ],
-          "Conditions": []
-        }
-      },
-      {
-        "Identifier": "transfer-third-party",
-        "Type": "TransferParticipantToThirdParty",
-        "Parameters": {
-          "ContinueFlowExecution": "True",
-          "ThirdPartyConnectionTimeLimitSeconds": "30",
-          "ThirdPartyPhoneNumber": "$.Attributes.deskPhone"
-        },
-        "Transitions": {
           "NextAction": "hand-off",
-          "Errors": [
-            {
-              "ErrorType": "CallFailed",
-              "NextAction": "hand-off"
-            },
-            {
-              "ErrorType": "ConnectionTimeLimitExceeded",
-              "NextAction": "hand-off"
-            },
-            {
-              "ErrorType": "NoMatchingError",
-              "NextAction": "hand-off"
-            }
-          ],
+          "Errors": [],
           "Conditions": []
         }
       },
@@ -104,11 +60,11 @@
         "Type": "StartVoiceIdStream",
         "Parameters": {},
         "Transitions": {
-          "NextAction": "load-content",
+          "NextAction": "dial-connector",
           "Errors": [
             {
               "ErrorType": "NoMatchingError",
-              "NextAction": "load-content"
+              "NextAction": "dial-connector"
             }
           ],
           "Conditions": []
@@ -122,19 +78,11 @@
       "y": 20
     },
     "hand-off": {
-      "x": 1060,
-      "y": 20
-    },
-    "load-content": {
       "x": 540,
       "y": 20
     },
     "text-back": {
       "x": 20,
-      "y": 20
-    },
-    "transfer-third-party": {
-      "x": 800,
       "y": 20
     }
   },

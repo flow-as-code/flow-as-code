@@ -167,20 +167,23 @@ export function detachableDoc(): FlowDoc {
       Version: "2019-10-30",
       StartAction: "raw-a",
       Actions: [
-        // A type the builder does not model, in the shape of the admin
-        // guide's Flow language example. These carried the logging block
-        // until 2026-09-11 and UpdatePreviousContactParticipantState until
-        // 2026-10-12 (tasks/D02), each moved when the builder modeled it.
+        // A type the builder does not model. These carried the logging block
+        // until 2026-09-11, UpdatePreviousContactParticipantState until
+        // 2026-10-12 (tasks/D02) and LoadContactContent until D09 modeled it
+        // the same day, each moved when the builder modeled it.
+        // AuthenticateParticipant stays generic: its parameters' shapes are
+        // unknown until a console export (actions.md, rule 47), and the
+        // studio needs only a type it does not model.
         {
           Identifier: "raw-a",
-          Type: "LoadContactContent",
-          Parameters: { ContentType: "EmailMessage" },
+          Type: "AuthenticateParticipant",
+          Parameters: {},
           Transitions: { NextAction: "target", Errors: [], Conditions: [] },
         },
         {
           Identifier: "raw-b",
-          Type: "LoadContactContent",
-          Parameters: { ContentType: "EmailMessage" },
+          Type: "AuthenticateParticipant",
+          Parameters: {},
           Transitions: {
             NextAction: "raw-a",
             Errors: [{ ErrorType: "NoMatchingError", NextAction: "target" }],

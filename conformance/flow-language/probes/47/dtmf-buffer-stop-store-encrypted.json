@@ -1,0 +1,38 @@
+{
+  "description": "Rule 47: the page's second example: EnableDTMFBuffer \"false\", StoreInput \"true\" and InputEncryption with EncryptionKeyId and Key, the shape the catalog already records for InputEncryption.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "GetParticipantInput",
+        "Parameters": {
+          "EnableDTMFBuffer": "false",
+          "StoreInput": "true",
+          "InputEncryption": {
+            "EncryptionKeyId": "{{ENCRYPTION_KEY_ID}}",
+            "Key": "{{ENCRYPTION_KEY}}"
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -385,7 +385,7 @@ was already a workaround. A phase of its own can close on its own evidence.
 | D04 | Outbound (3 types)                                                  | engine   | D01; deploy-only where quotas block     |
 | D05 | Tasks and AI agents (`CreateTask`, `CreateWisdomSession`)           | engine   | D01, an AI agents domain on the sandbox |
 | D06 | Cases (3 types); ADR on per-domain field ids                        | engine   | D01, D03's Profiles domain, a Cases one |
-| D07 | `UpdateRoutingCriteria`; ADR on the recursive expression            | engine   | D01                                     |
+| D07 | `UpdateContactRoutingCriteria`; ADR on the recursive expression     | engine   | D01                                     |
 | D08 | Voice ID (2 types), gated on the service still accepting them       | engine   | D01, a probe                            |
 | D09 | Types D00 adds from the admin guide and console exports             | engine   | D00 exports, D01 (C04 is on main)       |
 | D10 | Release of Phase C and D: provider minor, npm minor, pins, showcase | release  | D02 to D09, C07 to C09 (C11 folded in)  |
@@ -562,7 +562,7 @@ types (outbound campaigns, SMS, Voice ID) may only ever be deployable.
   form. D00 records them so the denominator does not hide them.
 - A `voiceconnector` ref type for `CompleteOutboundCall`'s Chime
   `VoiceConnector` form, by default (owner decision 4).
-- A `number` catalog kind for `UpdateRoutingCriteria`'s `ProficiencyLevel`, by
+- A `number` catalog kind for `UpdateContactRoutingCriteria`'s `ProficiencyLevel`, by
   default: the expression is a `json` value (D07), so nothing outside it
   needs a float.
 - Exercising Voice ID live. The service ended on 2026-05-20; D08 probes only

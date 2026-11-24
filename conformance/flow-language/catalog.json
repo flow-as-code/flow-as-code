@@ -64,9 +64,9 @@
         "Loop",
         "StartVoiceIdStream",
         "TransferToFlow",
+        "UpdateContactRoutingCriteria",
         "UpdateFlowAttributes",
         "UpdateFlowLoggingBehavior",
-        "UpdateRoutingCriteria",
         "Wait"
       ]
     },
@@ -141,8 +141,7 @@
       "block": "complete_outbound_call",
       "terminal": false,
       "flowTypes": [
-        "OUTBOUND_WHISPER",
-        "MODULE"
+        "OUTBOUND_WHISPER"
       ],
       "channels": [
         "VOICE"
@@ -246,6 +245,20 @@
         {
           "path": "CaseRequestFields.*~",
           "ref": "casefield"
+        }
+      ],
+      "shapes": [
+        {
+          "when": {
+            "key": "LinkContactToCase",
+            "equals": "false"
+          },
+          "forbids": {
+            "errors": [
+              "ContactNotLinked"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 44): with LinkContactToCase \"false\" it refused the action with ContactNotLinked wired (\"Invalid Action error. Error: ContactNotLinked, Path: Actions[0]\"). No page says so."
         }
       ],
       "transitions": {
@@ -510,7 +523,7 @@
           "key": "GetLastUpdatedCase",
           "attr": "get_last_updated_case",
           "kind": "enum",
-          "required": true,
+          "required": false,
           "values": [
             "true",
             "false"
@@ -583,6 +596,20 @@
           "ref": "casefield"
         }
       ],
+      "shapes": [
+        {
+          "when": {
+            "key": "LinkContactToCase",
+            "equals": "false"
+          },
+          "forbids": {
+            "errors": [
+              "ContactNotLinked"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 44): with LinkContactToCase \"false\" it refused the action with ContactNotLinked wired (\"Invalid Action error. Error: ContactNotLinked, Path: Actions[0]\"). No page says so."
+        }
+      ],
       "transitions": {
         "next": "required",
         "conditions": "none",
@@ -598,12 +625,12 @@
           },
           {
             "type": "MultipleFound",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
             "type": "NoneFound",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
@@ -941,6 +968,20 @@
         {
           "path": "CaseRequestFields.*~",
           "ref": "casefield"
+        }
+      ],
+      "shapes": [
+        {
+          "when": {
+            "key": "LinkContactToCase",
+            "equals": "false"
+          },
+          "forbids": {
+            "errors": [
+              "ContactNotLinked"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 44): with LinkContactToCase \"false\" it refused the action with ContactNotLinked wired (\"Invalid Action error. Error: ContactNotLinked, Path: Actions[0]\"). No page says so."
         }
       ],
       "transitions": {
@@ -1288,9 +1329,9 @@
           },
           {
             "type": "ChannelMismatch",
-            "required": false,
+            "required": true,
             "builder": true,
-            "when": "the contact's channel is not chat; the page does not say it must be defined, and rule 41's probe decides whether the service requires it"
+            "when": "the contact's channel is not chat; the page does not say it must be defined, but the service refuses the action without it (rule 41, 2026-10-13)"
           }
         ]
       }
@@ -2774,6 +2815,7 @@
           "VoicemailNoBeep",
           "NotDetected"
         ],
+        "minConditions": 1,
         "errors": [
           {
             "type": "NoMatchingError",
@@ -3073,11 +3115,11 @@
         "errors": []
       }
     },
-    "UpdateRoutingCriteria": {
+    "UpdateContactRoutingCriteria": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html",
       "modeled": true,
-      "block": "update_routing_criteria",
+      "block": "update_contact_routing_criteria",
       "terminal": false,
       "flowTypes": [
         "CONTACT_FLOW",
@@ -3098,7 +3140,7 @@
               "attr": "steps",
               "kind": "list",
               "required": true,
-              "dynamic": true,
+              "min": 1,
               "of": {
                 "kind": "object",
                 "fields": [
@@ -3226,15 +3268,6 @@
               "required": true
             }
           ]
-        },
-        {
-          "key": "ProfileResponseData",
-          "attr": "profile_response_data",
-          "kind": "list",
-          "required": false,
-          "of": {
-            "kind": "string"
-          }
         }
       ],
       "refs": [],
@@ -3419,9 +3452,6 @@
             "BillingPostalCode",
             "BillingProvince",
             "BillingState"
-          ],
-          "keyPatterns": [
-            "^Attributes\\.[^.]+$"
           ]
         },
         {
@@ -3743,12 +3773,12 @@
           },
           {
             "type": "MultipleFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           },
           {
             "type": "NoneFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           }
         ]
@@ -3798,8 +3828,7 @@
               "kind": "enum",
               "required": false,
               "values": [
-                "true",
-                "false"
+                "true"
               ]
             }
           ],
@@ -3924,7 +3953,7 @@
           },
           {
             "type": "NoneFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           }
         ]
@@ -3956,7 +3985,7 @@
           "key": "ProfileResponseData",
           "attr": "profile_response_data",
           "kind": "list",
-          "required": false,
+          "required": true,
           "of": {
             "kind": "string"
           },
@@ -3981,7 +4010,7 @@
           },
           {
             "type": "NoneFoundError",
-            "required": false,
+            "required": true,
             "builder": true
           }
         ]
@@ -4056,9 +4085,6 @@
             "BillingPostalCode",
             "BillingProvince",
             "BillingState"
-          ],
-          "keyPatterns": [
-            "^Attributes\\.[^.]+$"
           ]
         },
         {
@@ -4153,8 +4179,37 @@
     "LoadContactContent": {
       "category": "other",
       "doc": "https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html",
-      "modeled": false,
-      "source": "adminguide"
+      "modeled": true,
+      "source": "adminguide",
+      "block": "load_contact_content",
+      "terminal": false,
+      "flowTypes": "unrestricted",
+      "channels": [
+        "EMAIL"
+      ],
+      "parameters": [
+        {
+          "key": "ContentType",
+          "attr": "content_type",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "EmailMessage"
+          ]
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "AuthenticateParticipant": {
       "category": "other",
@@ -4170,9 +4225,99 @@
     },
     "TransferParticipantToThirdParty": {
       "category": "other",
-      "doc": "conformance/roundtrip/unknown-actions/doc.flowdoc.json",
-      "modeled": false,
-      "source": "console-export"
+      "doc": "conformance/flow-language/exports/transfer-participant-to-third-party.json",
+      "modeled": true,
+      "source": "console-export",
+      "block": "transfer_participant_to_third_party",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "CUSTOMER_QUEUE",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [
+        {
+          "key": "ThirdPartyPhoneNumber",
+          "attr": "third_party_phone_number",
+          "kind": "stringOrJsonPath",
+          "required": true
+        },
+        {
+          "key": "ThirdPartyConnectionTimeLimitSeconds",
+          "attr": "third_party_connection_time_limit_seconds",
+          "kind": "integerString",
+          "required": true,
+          "min": 1,
+          "dynamic": true
+        },
+        {
+          "key": "ContinueFlowExecution",
+          "attr": "continue_flow_execution",
+          "kind": "enum",
+          "required": true,
+          "values": [
+            "True",
+            "False"
+          ]
+        }
+      ],
+      "shapes": [
+        {
+          "when": {
+            "key": "ContinueFlowExecution",
+            "equals": "True"
+          },
+          "requires": {
+            "errors": [
+              "CallFailed",
+              "ConnectionTimeLimitExceeded"
+            ]
+          },
+          "source": "The service, on 2026-09-30 (sandbox, us-west-2; VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript at 84db5c0): with ContinueFlowExecution \"True\" it refused the action without CallFailed, without ConnectionTimeLimitExceeded and without NoMatchingError, each removed alone (\"Action is missing required error. Error: <branch>, Path: Actions[0]\"). No page documents the action."
+        },
+        {
+          "when": {
+            "key": "ContinueFlowExecution",
+            "equals": "False"
+          },
+          "forbids": {
+            "errors": [
+              "CallFailed",
+              "ConnectionTimeLimitExceeded"
+            ]
+          },
+          "source": "The service, on 2026-10-13 (sandbox, us-west-2; actions.md, rule 47): with ContinueFlowExecution \"False\" it refused the action with CallFailed and ConnectionTimeLimitExceeded wired (\"Invalid Action error. Error: <branch>, Path: Actions[0]\") and accepted it with the catch-all alone. No page documents the action."
+        }
+      ],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "CallFailed",
+            "required": false,
+            "builder": true,
+            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" the service refuses it (actions.md, rule 47, 2026-10-13)"
+          },
+          {
+            "type": "ConnectionTimeLimitExceeded",
+            "required": false,
+            "builder": true,
+            "when": "ContinueFlowExecution is \"True\": the service refused the action without it (VERIFY 16.8 in flow-as-code/hollow-hour-example-typescript, sandbox, 2026-09-30); with \"False\" the service refuses it (actions.md, rule 47, 2026-10-13)"
+          },
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     }
   }
 }

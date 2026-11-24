@@ -1,0 +1,56 @@
+{
+  "expect": [
+    {
+      "rule": "channel-restricted-action",
+      "blockId": "load-email",
+      "messageIncludes": "LoadContactContent is supported only on the EMAIL channel, and the document does not record which channels this flow serves"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "load-email-body",
+    "description": "Get stored content, which loads an email message body, in an inbound flow that may serve any channel.",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "load-email",
+      "Actions": [
+        {
+          "Identifier": "load-email",
+          "Type": "LoadContactContent",
+          "Parameters": {
+            "ContentType": "EmailMessage"
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "bye": {
+        "x": 280,
+        "y": 20
+      },
+      "load-email": {
+        "x": 20,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

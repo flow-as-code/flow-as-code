@@ -1,0 +1,64 @@
+{
+  "expect": [
+    {
+      "rule": "conditional-shape",
+      "blockId": "update-case",
+      "messageIncludes": "ContactNotLinked"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "case-update",
+    "description": "UpdateCase that does not link with ContactNotLinked wired. The service refuses that branch on a non-linking block (actions.md, rule 44, 2026-10-13).",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "update-case",
+      "Actions": [
+        {
+          "Identifier": "update-case",
+          "Type": "UpdateCase",
+          "Parameters": {
+            "LinkContactToCase": "false",
+            "CaseId": "$.Case.case_id",
+            "CaseRequestFields": {
+              "status": "closed"
+            }
+          },
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [
+              {
+                "ErrorType": "ContactNotLinked",
+                "NextAction": "bye"
+              },
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "bye"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "update-case": {
+        "x": 0,
+        "y": 0
+      },
+      "bye": {
+        "x": 200,
+        "y": 0
+      }
+    },
+    "refs": []
+  }
+}
