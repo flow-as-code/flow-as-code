@@ -22,22 +22,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: build and deploy
+  # Two jobs, as in GitHub's own Pages starter workflow, rather than one. In a
+  # single job deploy-pages looked the artifact up about 0.3 s after
+  # upload-pages-artifact finalized it, and on three of the eight deploys from
+  # 2026-11-23 to 2026-11-24 the artifact list came back without it ("No
+  # artifacts named github-pages were found"), while the artifact itself was
+  # there. A green run had the same gap, so this reads as the listing lagging
+  # the upload. Splitting the jobs puts a job start between the two; it is a
+  # mitigation, not a proven cause.
+  build:
+    name: build
     # GitHub Pages cannot serve a private repository on the free plan. The
-    # repository is public now and this job deploys on every push to main; the
-    # gate is kept because it is what made every run SKIPPED and green rather
-    # than failed on configure-pages while the repository was private, and it
-    # would do the same again. `push` and `workflow_dispatch` both carry the
-    # repository object in their payload, so this reads the live visibility
-    # rather than a variable someone has to remember to set.
+    # repository is public now and this workflow deploys on every push to main;
+    # the gate is kept because it is what made every run SKIPPED and green
+    # rather than failed on configure-pages while the repository was private,
+    # and it would do the same again. `push` and `workflow_dispatch` both carry
+    # the repository object in their payload, so this reads the live visibility
+    # rather than a variable someone has to remember to set. Both jobs carry it.
     # tasks/A14-hosted-demo.md records the operator settings this needed.
     if: github.event.repository.visibility == 'public'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # Pinned to a commit SHA, with the tag it carried in the comment, the same
       # way every workflow here pins and for the reason release.yml gives.
@@ -63,5 +68,16 @@ jobs:
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist-site
+
+  deploy:
+    name: deploy
+    needs: build
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
