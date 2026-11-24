@@ -89,9 +89,10 @@ Status only where it changes what you should do. The work record is `tasks/`.
   provider is released and on both registries, the npm set is at 0.2.0, and the
   site carries the provider tutorials, the flow cookbook and the agent skills.
 - Phase C (a vendored showcase and the tool gaps it exposed, tasks C01 to
-  C15) was planned on 2026-09-30; the plan is the Phase C section of
-  `tasks/README.md`. Its code tasks (C02 to C06, C12 to C15) merged on
-  2026-10-05; only C07 to C09 remain. Phase C is code complete; by owner
+  C16) was planned on 2026-09-30; the plan is the Phase C section of
+  `tasks/README.md`. Its code tasks C02 to C06 and C12 to C15 merged on
+  2026-10-05. C16 (an unaliased module reference, issue #41) was added on
+  2026-11-24 and is open; it and C07 to C09 remain. By owner
   decision on 2026-10-05, C11 is folded into D10 and the next release is
   one aggregated minor carrying Phase C and Phase D together, the provider
   minor that reads FlowDoc 0.3 published first (`tasks/README.md`, Phase D,
