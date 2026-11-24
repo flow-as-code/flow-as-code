@@ -148,23 +148,24 @@ Settled by the owner on 2026-09-30; do not re-ask them.
 
 ## Order
 
-| #   | Task                                                                    | Group       | Gate                          | Status (2026-10-05)                |
-| --- | ----------------------------------------------------------------------- | ----------- | ----------------------------- | ---------------------------------- |
-| C01 | CI green on main again (demo-boot teardown)                             | baseline    | none                          | closed, run 37344998368            |
-| C02 | The site's staleness inputs cover `conformance/demo/`                   | baseline    | none                          | merged, #25 `940af58`              |
-| C03 | Channel-restricted actions: `Wait` and `ShowView` on voice              | contract    | none                          | merged, #26 `eb68746`              |
-| C04 | Stored-input `GetParticipantInput` in the typed builder                 | engine      | none                          | merged, #27 `1b674b1`              |
-| C05 | Releasing a module nothing in the set references                        | emitters    | none                          | merged, #34 into C13, main via #39 |
-| C06 | CDK: same-set flow refs in event hooks, out-of-set modules              | emitters    | none                          | merged, #28 `3bd04c4`              |
-| C07 | `scripts/sync-example.mjs` and `examples/vendored/hollow-hour-example/` | integration | a satellite commit            | waits on a showcase tag            |
-| C08 | Hosted-studio example picker                                            | studio      | C01, C07                      | waits on C07                       |
-| C09 | Tutorial: a worked example at a tag                                     | docs        | C08, satellite public, a tag  | waits on C08 and the tag           |
-| C10 | Simulate: Lex substitution and mock responses                           | live AWS    | Lex enters the showcase scope | gated                              |
-| C12 | Emit: unbound refs on flowascode, unused map keys, constraint           | emitters    | none                          | merged, #29 `8322121`              |
-| C13 | Emit: per-flow outputs for a promotion gate                             | emitters    | none                          | merged, #32 into C12, main via #39 |
-| C14 | Simulate: a library entry point and an offline dry run                  | simulate    | none                          | merged, #31 `4ef9c91`              |
-| C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio | none                          | merged, #35 `78b0a87`              |
-| C11 | Release and close                                                       | release     | C01 to C09, C12 to C15        | folded into D10 (2026-10-05)       |
+| #   | Task                                                                    | Group        | Gate                          | Status (2026-10-05)                |
+| --- | ----------------------------------------------------------------------- | ------------ | ----------------------------- | ---------------------------------- |
+| C01 | CI green on main again (demo-boot teardown)                             | baseline     | none                          | closed, run 37344998368            |
+| C02 | The site's staleness inputs cover `conformance/demo/`                   | baseline     | none                          | merged, #25 `940af58`              |
+| C03 | Channel-restricted actions: `Wait` and `ShowView` on voice              | contract     | none                          | merged, #26 `eb68746`              |
+| C04 | Stored-input `GetParticipantInput` in the typed builder                 | engine       | none                          | merged, #27 `1b674b1`              |
+| C05 | Releasing a module nothing in the set references                        | emitters     | none                          | merged, #34 into C13, main via #39 |
+| C06 | CDK: same-set flow refs in event hooks, out-of-set modules              | emitters     | none                          | merged, #28 `3bd04c4`              |
+| C07 | `scripts/sync-example.mjs` and `examples/vendored/hollow-hour-example/` | integration  | a satellite commit            | waits on a showcase tag            |
+| C08 | Hosted-studio example picker                                            | studio       | C01, C07                      | waits on C07                       |
+| C09 | Tutorial: a worked example at a tag                                     | docs         | C08, satellite public, a tag  | waits on C08 and the tag           |
+| C10 | Simulate: Lex substitution and mock responses                           | live AWS     | Lex enters the showcase scope | gated                              |
+| C12 | Emit: unbound refs on flowascode, unused map keys, constraint           | emitters     | none                          | merged, #29 `8322121`              |
+| C13 | Emit: per-flow outputs for a promotion gate                             | emitters     | none                          | merged, #32 into C12, main via #39 |
+| C14 | Simulate: a library entry point and an offline dry run                  | simulate     | none                          | merged, #31 `4ef9c91`              |
+| C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio  | none                          | merged, #35 `78b0a87`              |
+| C16 | Builder and codegen: an unaliased module reference (#41)                | core, studio | none                          | open (added 2026-11-24)            |
+| C11 | Release and close                                                       | release      | C01 to C09, C12 to C16        | folded into D10 (2026-10-05)       |
 
 C12 to C15 were added after the plan's first draft, from the showcase's build
 reports, and are numbered after C11 so no earlier number moves; they come
@@ -172,7 +173,11 @@ before it in order. C15 takes up the smaller gaps the first tier's build
 reported that C12 to C14 do not cover, several of which the first draft had
 deferred or declined; its criteria keep those reasons as constraints. What
 remains under "Considered and not taken" states its reason and whether it is
-deferred or declined.
+deferred or declined. C16 was added on 2026-11-24 from issue #41, which the
+showcase's second tier raised: the builder and codegen cannot write a module
+reference without an alias that the emitters bind. It is a tool gap like C12
+to C15, not one of Phase D's new types, so "Why a separate phase" does not
+apply to it, and D10 waits on it.
 
 ## Why the baseline comes first
 
@@ -265,6 +270,10 @@ What remains: C07 to C09 wait on a commit and a public tag in the showcase
 repository, C10 is gated on Lex entering the showcase's scope, and C11
 releases and closes.
 
+Amended 2026-11-24: C16 (issue #41) was added and is open. It needs no
+satellite commit, so it is the one Phase C code task that can land before the
+showcase's tag; Phase C is code complete again when it merges.
+
 Amended later on 2026-10-05, by owner decision: Phase C and all of Phase D
 ship together as the next minor release, so C11 is folded into D10 and
 there is no separate Phase C release. Phase C is code complete on main; its
@@ -300,7 +309,7 @@ showcase flow at `#example=hollow-hour-example`, with the bundle making no netwo
 request and the npm studio package carrying none of the showcase; the snapshot
 under `examples/vendored/hollow-hour-example/` matches its `COMMIT` and `MANIFEST.json`
 and lints clean against the current catalog in CI; the tutorial is on the site
-and links only to the satellite at a tag; C03 to C06 and C12 to C15 are
+and links only to the satellite at a tag; C03 to C06 and C12 to C16 are
 released with fixtures and a provider re-vendor where `conformance/` changed;
 CI is green on main. The release that meets this is D10's, which carries
 Phase C and Phase D together (owner decision 2026-10-05; C11 folded into
@@ -376,19 +385,19 @@ was already a workaround. A phase of its own can close on its own evidence.
 
 ## Order
 
-| #   | Task                                                                | Group    | Gate                                    |
-| --- | ------------------------------------------------------------------- | -------- | --------------------------------------- |
-| D00 | Catalog census: what "every action" is measured against             | contract | none                                    |
-| D01 | FlowDoc 0.3, catalog vocabulary, provider and oracle prep           | contract | D00, ADR 0008 (C03 is on main)          |
-| D02 | Contact state (4 types); re-author `roundtrip/unknown-actions`      | engine   | D01                                     |
-| D03 | Customer Profiles (6 types)                                         | engine   | D01, a Profiles domain on the sandbox   |
-| D04 | Outbound (3 types)                                                  | engine   | D01; deploy-only where quotas block     |
-| D05 | Tasks and AI agents (`CreateTask`, `CreateWisdomSession`)           | engine   | D01, an AI agents domain on the sandbox |
-| D06 | Cases (3 types); ADR on per-domain field ids                        | engine   | D01, D03's Profiles domain, a Cases one |
-| D07 | `UpdateContactRoutingCriteria`; ADR on the recursive expression     | engine   | D01                                     |
-| D08 | Voice ID (2 types), gated on the service still accepting them       | engine   | D01, a probe                            |
-| D09 | Types D00 adds from the admin guide and console exports             | engine   | D00 exports, D01 (C04 is on main)       |
-| D10 | Release of Phase C and D: provider minor, npm minor, pins, showcase | release  | D02 to D09, C07 to C09 (C11 folded in)  |
+| #   | Task                                                                | Group    | Gate                                        |
+| --- | ------------------------------------------------------------------- | -------- | ------------------------------------------- |
+| D00 | Catalog census: what "every action" is measured against             | contract | none                                        |
+| D01 | FlowDoc 0.3, catalog vocabulary, provider and oracle prep           | contract | D00, ADR 0008 (C03 is on main)              |
+| D02 | Contact state (4 types); re-author `roundtrip/unknown-actions`      | engine   | D01                                         |
+| D03 | Customer Profiles (6 types)                                         | engine   | D01, a Profiles domain on the sandbox       |
+| D04 | Outbound (3 types)                                                  | engine   | D01; deploy-only where quotas block         |
+| D05 | Tasks and AI agents (`CreateTask`, `CreateWisdomSession`)           | engine   | D01, an AI agents domain on the sandbox     |
+| D06 | Cases (3 types); ADR on per-domain field ids                        | engine   | D01, D03's Profiles domain, a Cases one     |
+| D07 | `UpdateContactRoutingCriteria`; ADR on the recursive expression     | engine   | D01                                         |
+| D08 | Voice ID (2 types), gated on the service still accepting them       | engine   | D01, a probe                                |
+| D09 | Types D00 adds from the admin guide and console exports             | engine   | D00 exports, D01 (C04 is on main)           |
+| D10 | Release of Phase C and D: provider minor, npm minor, pins, showcase | release  | D02 to D09, C07 to C09, C16 (C11 folded in) |
 
 D02 to D09 may run in any order once D01 is merged; the order above is
 cheapest evidence first. Each group follows B01's pattern: one commit per
