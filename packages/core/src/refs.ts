@@ -93,6 +93,9 @@ export const Refs = {
    * content, the bare module ARN, which suits a module deployed with the flows
    * that invoke it. Connect runs `<module ARN>:<alias id>` as the alias and the
    * bare ARN as the current content (tasks/B04-terraform-provider.md; task C16).
+   * The flowascode and tf emitters bind an unaliased ref to the bare ARN;
+   * `@flow-as-code/cdk` binds it to the module's default alias `live` instead,
+   * an open decision (docs/01-flowdoc-spec.md, issue #65).
    * https://docs.aws.amazon.com/connect/latest/adminguide/contact-flow-modules.html
    */
   module: (name: string, alias?: string): Ref<"module"> => token("module", name, alias),

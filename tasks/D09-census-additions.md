@@ -258,11 +258,17 @@ What the run settled without a change:
   `onCommitWhole`; predates this branch, reported by the 2026-11-23 review
   and not reproduced).
 - `channel-restricted-action`'s message for
-  `TransferParticipantToThirdParty` ends with the kept export's
-  repository path, which an npm install does not carry; the skill
-  reference already writes it as an absolute URL.
+  `TransferParticipantToThirdParty` ended with the kept export's
+  repository path, which an npm install does not carry. Fixed on
+  2026-11-25: the rule writes it as the file's URL on main, as the skill
+  reference does, held by a test in `lint.test.ts`. The fixture matches the
+  message's start only, but the provider's lint oracle records every
+  fixture's full output, so its Go port
+  (`internal/lint/rule_channel_restricted_action.go`) must write the same
+  URL when D10's re-vendor re-records the oracle.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
-  merge commit exists; the provider's typed blocks for the two Types come
+  merge commit exists (`ba9cf10`, #52); by owner decision on 2026-11-24 it
+  waits for D10's final re-vendor rather than running per group; the provider's typed blocks for the two Types come
   with it, and `conditional-shape`'s port meets its first shape with no
   `requires.parameters`.
 
