@@ -1,0 +1,12 @@
+{
+  "description": "A flow invoking a module this set emits without an alias, which resolves to the module resource's own arn (its current content; task C16), and another through an alias, which resolves to the alias resource. The address map's entry for the unaliased module is ignored, and validate would fail if it were not; a reference reaches it all the same, so it is not an unused key.",
+  "docs": [
+    "../../../roundtrip/module-unaliased/doc.flowdoc.json",
+    "../../../emit-tf/module-unaliased/offer-callback.flowdoc.json",
+    "../../../roundtrip/after-call-survey/doc.flowdoc.json",
+    "../../../emit-tf/module-set/satisfaction-question.flowdoc.json"
+  ],
+  "unbound": [],
+  "unusedMapKeys": [],
+  "validate": "pass"
+}

@@ -1,0 +1,47 @@
+{
+  "flowdoc": "0.3",
+  "kind": "module",
+  "name": "offer-callback",
+  "connectType": "MODULE",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "offer",
+    "Actions": [
+      {
+        "Identifier": "offer",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "We can call you back when an agent is free."
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowModuleExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ],
+    "Settings": {}
+  },
+  "layout": {
+    "done": {
+      "x": 280,
+      "y": 20
+    },
+    "offer": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

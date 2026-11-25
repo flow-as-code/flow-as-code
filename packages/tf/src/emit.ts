@@ -253,8 +253,10 @@ function checkDocs(docs: readonly FlowDoc[], declared: DeclaredAliases): FlowDoc
 /**
  * Every reference in the set, resolved. Documents in the set resolve their own
  * references: a `${cdref:module:x@prod}` whose module x is emitted here points
- * at the alias resource emitted with it, and a `${cdref:flow:y}` whose flow y is
- * emitted here points at that flow. Everything else comes from the address map,
+ * at the alias resource emitted with it, a `${cdref:module:x}` with no alias at
+ * the module resource itself (its bare ARN, the module's current content; task
+ * C16), and a `${cdref:flow:y}` whose flow y is emitted here points at that
+ * flow. Everything else comes from the address map,
  * and what the map does not cover gets a placeholder that fails `validate`.
  */
 function resolveRefs(
@@ -288,8 +290,11 @@ function resolveRefs(
     if (supplied !== undefined) checkExpression(`address for ${entry.token}`, supplied, problems);
 
     let inSet: string | undefined;
-    if (entry.type === "module" && entry.alias !== undefined && modules.has(entry.name)) {
-      inSet = `awscc_connect_contact_flow_module_alias.${ident(entry.name)}_${ident(entry.alias)}.contact_flow_module_alias_arn`;
+    if (entry.type === "module" && modules.has(entry.name)) {
+      inSet =
+        entry.alias === undefined
+          ? `aws_connect_contact_flow_module.${ident(entry.name)}.arn`
+          : `awscc_connect_contact_flow_module_alias.${ident(entry.name)}_${ident(entry.alias)}.contact_flow_module_alias_arn`;
     } else if (entry.type === "flow" && flows.has(entry.name)) {
       inSet = `aws_connect_contact_flow.${ident(entry.name)}.arn`;
     }
