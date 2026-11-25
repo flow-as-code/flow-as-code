@@ -19,6 +19,18 @@ import type { Rule } from "../types.js";
  * Added 2026-10-05 (tasks/C03). The severity rises to error only on a
  * create the service refuses, recorded in actions.md rule 37.
  */
+/**
+ * The catalog's `doc` as a URL a reader can open. Most are AWS pages; the one
+ * kept console export (catalog `source` `console-export`) is a repository
+ * path, which an npm install does not carry, so it becomes the file's URL on
+ * the repository's main branch, as scripts/build-skill-reference.mjs writes
+ * it in the skill reference.
+ */
+function pageUrl(doc: string): string {
+  if (doc === "" || /^https?:\/\//.test(doc)) return doc;
+  return `https://github.com/flow-as-code/flow-as-code/blob/main/${doc}`;
+}
+
 export const channelRestrictedAction: Rule = {
   id: "channel-restricted-action",
   description:
@@ -27,7 +39,7 @@ export const channelRestrictedAction: Rule = {
     for (const action of doc.content.Actions) {
       const channels = channelRestriction(action.Type);
       if (channels === undefined) continue;
-      const page = catalogEntry(action.Type)?.doc ?? "";
+      const page = pageUrl(catalogEntry(action.Type)?.doc ?? "");
       report({
         severity: "warning",
         blockId: action.Identifier,

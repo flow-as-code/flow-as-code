@@ -133,6 +133,19 @@ describe("channel-restricted-action", () => {
     );
     expect(hasBlockingFindings(found)).toBe(false);
   });
+
+  it("links a kept console export by its URL, not a repository path", () => {
+    // TransferParticipantToThirdParty has no Developer Guide page; its catalog
+    // doc is the kept export's path, which an npm install does not carry.
+    const fixture = JSON.parse(
+      read("conformance/lint/channel-restricted-action/fail-third-party-transfer.json"),
+    ) as FailFixture;
+    const found = lint(docsOf(fixture)).filter((f) => f.rule === "channel-restricted-action");
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toMatch(
+      / https:\/\/github\.com\/flow-as-code\/flow-as-code\/blob\/main\/conformance\/flow-language\/exports\/transfer-participant-to-third-party\.json$/,
+    );
+  });
 });
 
 describe("the demo flow", () => {
