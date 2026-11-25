@@ -1,0 +1,80 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "callback-line",
+  "description": "Invokes a module deployed with it by its current content, and a released module through an alias.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "offer",
+    "Actions": [
+      {
+        "Identifier": "offer",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:offer-callback}"
+        },
+        "Transitions": {
+          "NextAction": "survey",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "survey"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "survey",
+        "Type": "InvokeFlowModule",
+        "Parameters": {
+          "FlowModuleId": "${cdref:module:after-call-survey@prod}"
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 540,
+      "y": 20
+    },
+    "offer": {
+      "x": 20,
+      "y": 20
+    },
+    "survey": {
+      "x": 280,
+      "y": 20
+    }
+  },
+  "refs": [
+    {
+      "token": "${cdref:module:after-call-survey@prod}",
+      "type": "module",
+      "name": "after-call-survey",
+      "alias": "prod"
+    },
+    {
+      "token": "${cdref:module:offer-callback}",
+      "type": "module",
+      "name": "offer-callback"
+    }
+  ]
+}

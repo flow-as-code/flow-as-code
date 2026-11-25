@@ -59,6 +59,9 @@ const CONDITIONS = {
 };
 
 function kindOf(p) {
+  if (p.kind === "ref" && p.ref === "module") {
+    return "reference key (`module:<name>`, or `module:<name>@<alias>` through an alias)";
+  }
   if (p.kind === "ref") return `reference key (\`${p.ref}:<name>\`)`;
   if (p.kind === "enum") return p.values.map((v) => `\`"${v}"\``).join(", ");
   return KIND[p.kind] ?? p.kind;

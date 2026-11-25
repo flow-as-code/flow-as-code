@@ -129,7 +129,8 @@ flow of actions the builder does not model, with tokens inside parameters
 and since tasks/D04 two forms of modeled Types that their classes do not
 write, `CompleteOutboundCall` with `VoiceConnector` and
 `StartOutboundChatContact`'s WhatsApp form), a module invoking another module by alias
-(`after-call-survey`), a flow where Compare is the only
+(`after-call-survey`), a flow invoking one module without an alias, its
+current content, and another through one (`module-unaliased`, task C16), a flow where Compare is the only
 user of `jsonPath` (`compare-only`, so the import is emitted for it), the
 same Compare with a `NextAction` that is a condition's target rather than
 the `NoMatchingCondition` copy the class writes, which the service accepts

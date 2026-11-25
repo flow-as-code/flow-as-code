@@ -446,7 +446,10 @@ resource "flowascode_contact_flow_module_alias" "survey_prod" {
     version an alias points at ("Cannot delete version '1' tied to one
     alias", observed 2026-09-28), so the replacement is created and the alias
     moved before the old version is destroyed. `version`, `alias_id` and
-    `arn` are computed. A view binds to `data.flowascode_view.<label>.arn`.
+    `arn` are computed. A module a flow invokes without an alias
+    (`module:survey`) binds to the module resource's own `arn`, the bare ARN,
+    and so runs the module's current content (`roundtrip/module-unaliased`,
+    task C16). A view binds to `data.flowascode_view.<label>.arn`.
 
 ## Emitting a set
 

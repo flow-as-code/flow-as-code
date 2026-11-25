@@ -470,18 +470,15 @@ function refSource(value: unknown, type: RefType, ctx: Ctx): Raw | undefined {
   const entry = parseToken(value);
   if (entry !== undefined) {
     if (entry.type !== type) return undefined;
-    if (type === "module") {
-      if (entry.alias === undefined) return undefined; // Refs.module requires an alias
-      ctx.refs = true;
-      return new Raw(`Refs.module(${quoteString(entry.name)}, ${quoteString(entry.alias)})`);
-    }
-    if (type === "view") {
-      // The alias slot holds the view version, and a view need not pin one.
+    if (type === "module" || type === "view") {
+      // The alias slot holds a module's alias or a view's version, and neither
+      // need be pinned: an unaliased module ref is the module's current content
+      // (docs/01-flowdoc-spec.md, task C16), an unpinned view its latest.
       ctx.refs = true;
       return new Raw(
         entry.alias === undefined
-          ? `Refs.view(${quoteString(entry.name)})`
-          : `Refs.view(${quoteString(entry.name)}, ${quoteString(entry.alias)})`,
+          ? `Refs.${type}(${quoteString(entry.name)})`
+          : `Refs.${type}(${quoteString(entry.name)}, ${quoteString(entry.alias)})`,
       );
     }
     if (entry.alias !== undefined) return undefined; // only module and view refs carry aliases
