@@ -63,15 +63,20 @@ The subpath exists because two tools emit this file and must emit it identically
 
 ## Peer dependencies
 
-`aws-cdk-lib ^2.267.0` and `constructs ^10.8.1`, both optional. A project that
+`aws-cdk-lib ^2.278.0` and `constructs ^10.8.1`, both optional. A project that
 has them pinned below that floor gets an ERESOLVE from npm 7 and later rather
 than a silent mismatch; a project that has neither installs neither. The floor
-is deliberate: `FlowSet` builds `CfnContactFlowModuleVersion` and
+is deliberate. `FlowSet` builds `CfnContactFlowModuleVersion` and
 `CfnContactFlowModuleAlias` (see the versioning model below), which are recent
-additions to `aws-cdk-lib/aws-connect`, and 2.267 is the version this package is
-developed and tested against. Lowering it means finding the release that
-introduced both L1s and running the `aws-cdk-lib/assertions` tests against it,
-not just widening the range.
+additions to `aws-cdk-lib/aws-connect`; 2.267 already had both and was the
+floor until 2026-11-25. It was raised to 2.278.0, the first release that
+bundles `minimatch` 11 (GHSA-g3hv-75wg-m249) and a `brace-expansion` of
+5.0.12 or later (GHSA-q2hr-2g5m-vwhr), so that the version this repository
+develops and tests against carries neither advisory and the floor is a version
+it has tested. The tests run against the version the lockfile resolves, which
+a dependency update may move above the floor. Lowering the floor means running
+the `aws-cdk-lib/assertions` tests against the lower release, not just widening
+the range.
 
 They are optional because the CDK entry is not the only entry. `@flow-as-code/cli` and
 the studio reach this package for `@flow-as-code/cdk/scaffold` alone,
@@ -91,7 +96,7 @@ absent throws:
 @flow-as-code/cdk needs the CDK at runtime, but aws-cdk-lib is not
 installed. It and constructs are optional peers so that a CLI-only install
 stays small, which means npm does not warn about them at install time. Install
-them with: npm install aws-cdk-lib@^2.267.0 constructs@^10.8.1
+them with: npm install aws-cdk-lib@^2.278.0 constructs@^10.8.1
 ```
 
 The entry checks for the peer before it loads `FlowSet`, so this replaces the

@@ -266,7 +266,7 @@ describe("cdk's CDK peers do not reach a CLI-only install", () => {
 
   it("still enforces the version floor for FlowSet users", () => {
     expect(manifest.peerDependencies).toEqual({
-      "aws-cdk-lib": "^2.267.0",
+      "aws-cdk-lib": "^2.278.0",
       constructs: "^10.8.1",
     });
   });

@@ -72,7 +72,7 @@ npm ci && npm run build
 
 `@aws-sdk/client-connect` is an optional peer of `@flow-as-code/cli`, needed
 only by `export`, `simulate`, and `diff`. `@flow-as-code/cdk` peers on
-`aws-cdk-lib ^2.267` and `constructs ^10.8`, also optional: the CLI reaches it
+`aws-cdk-lib ^2.278` and `constructs ^10.8`, also optional: the CLI reaches it
 only for its scaffold generator, which loads neither, so a CLI-only install is
 25 MB rather than 193 MB. Import `FlowSet` and both peers must be present at
 the stated floor; because optional peers draw no install-time warning,

@@ -28,7 +28,7 @@ export { bindRef, type TokenBinder } from "./binder.js";
 export type { FlowSetProps };
 
 /** Peer floor, kept in step with peerDependencies in package.json. */
-const CDK_PEERS = "aws-cdk-lib@^2.267.0 constructs@^10.8.1";
+const CDK_PEERS = "aws-cdk-lib@^2.278.0 constructs@^10.8.1";
 
 function assertCdkPeersInstalled(): void {
   try {
