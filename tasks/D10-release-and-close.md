@@ -21,10 +21,13 @@ be published before the npm set that writes them.
 1. The provider minor that reads FlowDoc 0.3, released from the provider's
    main, which carries the Phase C re-vendor (`feat/revendor-phase-c`, head
    `34dda2f`, reviewed, merged unreleased) and every Phase D re-vendor on
-   top of it.
+   top of it. Amended 2026-11-25: by owner decision on 2026-11-24, the
+   re-vendors owed for D09 (#52, merged at `ba9cf10`) and C16 (#64, merged
+   at `c3b090c`) were not made per group; the final re-vendor carries them,
+   with their oracles re-recorded.
 2. The npm minor, one `changeset version` on `main` consuming every pending
    changeset: Phase C's (the ones already there when Phase C started and
-   the ones C03 to C06 and C12 to C15 added) and Phase D's (D01's and each
+   the ones C03 to C06 and C12 to C16 added) and Phase D's (D01's and each
    group's).
 3. The showcase repositories (`hollow-hour-example-typescript` and
    `hollow-hour-example-terraform`) move their pins to both released

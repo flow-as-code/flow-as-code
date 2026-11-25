@@ -92,14 +92,14 @@ Status only where it changes what you should do. The work record is `tasks/`.
   C16) was planned on 2026-09-30; the plan is the Phase C section of
   `tasks/README.md`. Its code tasks C02 to C06 and C12 to C15 merged on
   2026-10-05. C16 (an unaliased module reference, issue #41) was added on
-  2026-11-24 and merged through #64; Phase C is code complete and only C07 to C09 remain. By owner
-  decision on 2026-10-05, C11 is folded into D10 and the next release is
-  one aggregated minor carrying Phase C and Phase D together, the provider
-  minor that reads FlowDoc 0.3 published first (`tasks/README.md`, Phase D,
-  owner decision 9). The showcase itself is built in its own
-  repository, `flow-as-code/hollow-hour-example-typescript`; nothing of it is
-  vendored here until C07, and C07 to C09 wait on a commit (and, for C09, a
-  public tag) there.
+  2026-11-24 and merged through #64; Phase C is code complete and only C07
+  to C09 remain. By owner decision on 2026-10-05, C11 is folded into D10
+  and the next release is one aggregated minor carrying Phase C and Phase D
+  together, the provider minor that reads FlowDoc 0.3 published first
+  (`tasks/README.md`, Phase D, owner decision 9). The showcase itself is
+  built in its own repository, `flow-as-code/hollow-hour-example-typescript`;
+  nothing of it is vendored here until C07, and C07 to C09 wait on a commit
+  (and, for C09, a public tag) there.
 - Phase D (every Connect flow action modeled, tasks D00 to D10) was planned
   on 2026-10-04; the plan is the Phase D section of `tasks/README.md`.
 
