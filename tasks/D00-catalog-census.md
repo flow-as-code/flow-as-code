@@ -230,3 +230,10 @@ unchanged). It has no doc-prefix check. Then`scripts/sync-conformance.sh <merge 
 ## Status
 
 - Provider re-vendor landed: terraform-provider-flowascode #10, merge commit d69bd14 (2026-10-06), vendoring flow-as-code 78b0a87 (conformance identical to main at fe3e3d6), unit and sandbox acceptance lanes green. Unreleased by owner decision: it ships with Phase D as the next minor (D10).
+- D08 (2026-11-25, rule 48): `StartVoiceIdStream` modeled, accepted at
+  create on the sandbox with no parameters, its next and the catch-all.
+  `CheckVoiceId` counts in the denominator as not modeled: refused
+  2026-10-05 and 2026-11-25, "Invalid Action property value. Path:
+  Actions[0].Transitions.Conditions", with `channels` `["VOICE"]` recorded
+  on its catalog entry. The Developer Guide pages' modeled count is 55 of
+  56, the denominator's 57 of 61.

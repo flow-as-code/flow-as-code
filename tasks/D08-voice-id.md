@@ -119,3 +119,38 @@ stays `modeled: false`, counted in D00's census as "not modeled: refused
 2026-10-05, Invalid Action property value. Path:
 Actions[0].Transitions.Conditions", with `channels` recorded and the refusal
 noted in the catalog, unless an older export surfaces with the shape.
+
+## Record (2026-11-25)
+
+The sweep the 2026-10-05 record left owed ran on the sandbox (us-west-2)
+with `scripts/probe-create.mjs`, 2026-11-25 19:52 to 20:12 UTC, owner
+approved; actions.md rule 48 is the reading, `probes/48/` (renamed from
+`d08-voice-id`, as probes/README.md says) the inputs, and
+`results-2026-11-25-us-west-2.json` the results. Every accepted flow was
+deleted and the deletion confirmed; a `ListContactFlows` afterwards found
+no `hh-probe-*` flow.
+
+- `StartVoiceIdStream`: the required set accepted; without the catch-all,
+  without `NextAction`, and with a parameter the page does not list, each
+  refused naming what is wrong; every flow type FlowDoc models accepted
+  but the two hold flows, which were refused as the page says. Modeled
+  per the checklist (lines 1 to 10): the catalog entry (`flowTypes` without
+  the hold flows, `channels` `["VOICE"]`, no parameters), the 0.3 clause
+  refusing any parameter, the class and its inverter, four lint fixtures
+  (`channel-restricted-action`, `action-allowed-in-flow-type` fail and pass,
+  `error-branches`), `conformance/roundtrip/voice-id` and its HCL golden
+  (`awaits-provider`), the studio palette entry labeled "(ended)", the
+  skill reference and SPEC.md's count. Deployable and not exercisable.
+- `CheckVoiceId`: refused again in all six shapes. Not modeled; its entry
+  carries `channels` `["VOICE"]` (the one key an unmodeled entry may add),
+  and actions.md rule 48 and D00's status carry the refusal.
+- The passthrough fixture `unknown-actions` held `StartVoiceIdStream` as
+  its one unmodeled Type; it now holds `CheckVoiceId` in its page's shape,
+  which the service refuses (no unmodeled Type has an accepted create), and
+  the `generic-only` HCL golden follows. The Terraform cookbook's generic
+  recipe moved to `CreateTask` with `References`, after a probe of that
+  exact form was accepted (`probes/42`, `task-references-flow-jsonpath`).
+- `UpdateContactData`'s Voice ID fields get the same note in rule 48,
+  cross-referenced to rules 30 and 37.
+- Provider (lines 11 to 14): waits for D10's final re-vendor by owner
+  decision of 2026-11-24, as D10's list records.
