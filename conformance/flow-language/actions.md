@@ -147,7 +147,7 @@ is never interpolated into a longer string.
 | `StartOutboundChatContact` | `ContactFlowArn` | `flow` |
 | `CheckHoursOfOperation` | `HoursOfOperationId` | `hours` |
 | `InvokeLambdaFunction` | `LambdaFunctionARN` | `lambda` |
-| `InvokeFlowModule` | `FlowModuleId` | `module` (carries an alias) |
+| `InvokeFlowModule` | `FlowModuleId` | `module` (an optional alias; without one, the module's current content) |
 | `TransferToFlow` | `ContactFlowId` | `flow` |
 | `MessageParticipant` | `PromptId` | `prompt` |
 | `GetParticipantInput` | `PromptId` | `prompt` |

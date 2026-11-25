@@ -1,0 +1,5 @@
+{
+  "description": "A flow invoking a module without an alias, bound to the module resource's own arn (its current content), and another through an alias, bound to the alias resource (task C16).",
+  "doc": "../../../roundtrip/module-unaliased/doc.flowdoc.json",
+  "validate": "pass"
+}

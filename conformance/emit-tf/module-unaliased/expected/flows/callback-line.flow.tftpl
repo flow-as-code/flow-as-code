@@ -1,0 +1,72 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "offer",
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "bye": {
+        "Position": {
+          "x": 540,
+          "y": 20
+        }
+      },
+      "offer": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "survey": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "offer",
+      "Type": "InvokeFlowModule",
+      "Parameters": {
+        "FlowModuleId": "${module_offer_callback_arn}"
+      },
+      "Transitions": {
+        "NextAction": "survey",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "survey"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "survey",
+      "Type": "InvokeFlowModule",
+      "Parameters": {
+        "FlowModuleId": "${module_after_call_survey_prod_arn}"
+      },
+      "Transitions": {
+        "NextAction": "bye",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "bye"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "bye",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

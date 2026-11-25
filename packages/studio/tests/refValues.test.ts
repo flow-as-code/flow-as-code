@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 // Token construction for the picker: a view may pin a version in the alias
-// slot, the way a module names its alias, and nothing else takes one.
+// slot, the way a module may name its alias, and nothing else takes one.
 
 import { describe, expect, it } from "vitest";
 import { makeToken } from "../src/model/refValues.js";
@@ -16,8 +16,14 @@ describe("makeToken", () => {
     expect(makeToken("view", "form", "v 1").ok).toBe(false);
   });
 
-  it("still requires a module alias and ignores one on other types", () => {
-    expect(makeToken("module", "survey").ok).toBe(false);
+  it("takes a module alias or none, and ignores one on other types", () => {
+    // No alias is the module's current content (task C16).
+    expect(makeToken("module", "survey")).toEqual({ ok: true, value: "${cdref:module:survey}" });
+    expect(makeToken("module", "survey", "")).toEqual({
+      ok: true,
+      value: "${cdref:module:survey}",
+    });
+    expect(makeToken("module", "survey", "Prod").ok).toBe(false);
     expect(makeToken("module", "survey", "prod")).toEqual({
       ok: true,
       value: "${cdref:module:survey@prod}",

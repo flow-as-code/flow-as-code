@@ -86,8 +86,16 @@ export const Refs = {
   lex: (name: string): Ref<"lex"> => token("lex", name),
   prompt: (name: string): Ref<"prompt"> => token("prompt", name),
   flow: (name: string): Ref<"flow"> => token("flow", name),
-  /** Module references carry an alias so a flow can pin which version it invokes. */
-  module: (name: string, alias: string): Ref<"module"> => token("module", name, alias),
+  /**
+   * A module, optionally through an alias. With an alias
+   * (`${cdref:module:survey@prod}`) the flow runs the version the alias points
+   * at; without one (`${cdref:module:survey}`) it runs the module's current
+   * content, the bare module ARN, which suits a module deployed with the flows
+   * that invoke it. Connect runs `<module ARN>:<alias id>` as the alias and the
+   * bare ARN as the current content (tasks/B04-terraform-provider.md; task C16).
+   * https://docs.aws.amazon.com/connect/latest/adminguide/contact-flow-modules.html
+   */
+  module: (name: string, alias?: string): Ref<"module"> => token("module", name, alias),
   /**
    * A view, optionally pinned to a version. The console writes the version
    * into the ARN (`arn:aws:connect:<region>:aws:view/after-contact-work:1`),

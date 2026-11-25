@@ -237,8 +237,9 @@ describe("flowascode export (B05b)", () => {
     expect(
       unmappedTokens(caseDocs("demo-incomplete-map"), caseMap("demo-incomplete-map"), "flowascode"),
     ).toHaveLength(2);
-    // Only the flowascode emitter resolves an in-set module invoked without an
-    // alias, so the two targets disagree here and the scan must ask the right one.
+    // Both emitters resolve an in-set module invoked without an alias to the
+    // module resource (task C16; tf left it to the map before), so neither
+    // reports it unmapped. The scan still asks the target's own emitter.
     const invoker: FlowDoc = {
       ...newDoc("invoker", "flow"),
       content: {
@@ -265,8 +266,11 @@ describe("flowascode export (B05b)", () => {
       },
     };
     const set = [invoker, newDoc("helper", "module")];
-    expect(unmappedTokens(set, {}, "tf")).toEqual(["${cdref:module:helper}"]);
+    expect(unmappedTokens(set, {}, "tf")).toEqual([]);
     expect(unmappedTokens(set, {}, "flowascode")).toEqual([]);
+    // Outside the set it is unmapped for both.
+    expect(unmappedTokens([invoker], {}, "tf")).toEqual(["${cdref:module:helper}"]);
+    expect(unmappedTokens([invoker], {}, "flowascode")).toEqual(["${cdref:module:helper}"]);
     // The set resolves its own modules, so nothing about them is unmapped.
     expect(unmappedTokens(caseDocs("module-set"), {}, "flowascode")).toEqual([
       "${cdref:queue:appointments}",

@@ -84,13 +84,17 @@ describe("ref picker validation (same rules as lint)", () => {
     expect(checkRefValue("queue", "$.Attributes.queueId").ok).toBe(true);
   });
 
-  it("builds tokens from validated slugs, alias required for modules", () => {
+  it("builds tokens from validated slugs, a module's alias optional (task C16)", () => {
     expect(makeToken("queue", "front-desk")).toEqual({
       ok: true,
       value: "${cdref:queue:front-desk}",
     });
     expect(makeToken("queue", "Front Desk").ok).toBe(false);
-    expect(makeToken("module", "consent").ok).toBe(false);
+    expect(makeToken("module", "consent")).toEqual({
+      ok: true,
+      value: "${cdref:module:consent}",
+    });
+    expect(makeToken("module", "Consent").ok).toBe(false);
     expect(makeToken("module", "consent", "prod")).toEqual({
       ok: true,
       value: "${cdref:module:consent@prod}",

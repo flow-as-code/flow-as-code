@@ -1,0 +1,4 @@
+{
+  "module:after-call-survey@prod": "flowascode_contact_flow_module_alias.after_call_survey_prod.arn",
+  "module:offer-callback": "flowascode_contact_flow_module.offer_callback.arn"
+}

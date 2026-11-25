@@ -60,6 +60,16 @@ describe("token", () => {
     expect(token("module", "survey", "prod")).toBe(Refs.module("survey", "prod"));
   });
 
+  it("builds a module ref with or without an alias (task C16)", () => {
+    expect(Refs.module("survey", "prod")).toBe("${cdref:module:survey@prod}");
+    expect(Refs.module("survey")).toBe("${cdref:module:survey}");
+    expect(parseToken(Refs.module("survey"))).toEqual({
+      token: "${cdref:module:survey}",
+      type: "module",
+      name: "survey",
+    });
+  });
+
   it("round-trips through parseToken", () => {
     const built = token("module", "survey", "prod");
     const parsed = parseToken(built)!;

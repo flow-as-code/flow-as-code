@@ -107,6 +107,9 @@ Rules:
 - A module invoked through an alias binds `module:<name>@<alias>` to
   `flowascode_contact_flow_module_alias.<label>.arn`, never to the module's own
   ARN (that would run the module's latest content, not the release).
+- A module invoked without an alias binds `module:<name>` to the module's own
+  `flowascode_contact_flow_module.<label>.arn` and runs its current content:
+  the form for a module applied together with the flows that invoke it.
 
 ## Branches Connect requires
 

@@ -16,6 +16,7 @@ import {
   Flow,
   GenericBlock,
   GetParticipantInput,
+  InvokeFlowModule,
   jsonPath,
   MessageParticipant,
   Refs,
@@ -3862,5 +3863,64 @@ describe("TransferParticipantToThirdParty inverts the kept export's form", () =>
       { NextAction: "bye", Condition: { Operator: "Equals", Operands: ["Busy"] } },
     ];
     generic(withCondition);
+  });
+});
+
+describe("InvokeFlowModule module references (task C16)", () => {
+  const docInvoking = (moduleId: string): FlowDoc => ({
+    flowdoc: "0.3",
+    kind: "flow",
+    name: "invoker",
+    connectType: "CONTACT_FLOW",
+    content: {
+      Version: "2019-10-30",
+      StartAction: "run",
+      Actions: [
+        {
+          Identifier: "run",
+          Type: "InvokeFlowModule",
+          Parameters: { FlowModuleId: moduleId },
+          Transitions: {
+            NextAction: "bye",
+            Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+            Conditions: [],
+          },
+        },
+        { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+      ],
+    },
+  });
+
+  it.each([
+    ["${cdref:module:survey}", 'module: Refs.module("survey")'],
+    ["${cdref:module:survey@prod}", 'module: Refs.module("survey", "prod")'],
+    ["$.Attributes.moduleId", 'module: jsonPath("$.Attributes.moduleId")'],
+  ])("reads %s back as a typed block", (moduleId, expected) => {
+    const out = codegen(docInvoking(moduleId));
+    expect(out).toContain("new InvokeFlowModule({");
+    expect(out).toContain(expected);
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("leaves a token of another type generic", () => {
+    const out = codegen(docInvoking("${cdref:flow:survey}"));
+    expect(out).toContain('type: "InvokeFlowModule"');
+    expect(out).not.toContain("new InvokeFlowModule(");
+  });
+
+  it("synthesizes Refs.module(name) to the unaliased token", () => {
+    const doc = synth(
+      new Flow({ name: "invoker", connectType: "CONTACT_FLOW" }).add(
+        new InvokeFlowModule({
+          id: "run",
+          module: Refs.module("survey"),
+          next: "bye",
+          onError: "bye",
+        }),
+        new DisconnectParticipant({ id: "bye" }),
+      ),
+    );
+    expect(doc.content.Actions[0]!.Parameters).toEqual({ FlowModuleId: "${cdref:module:survey}" });
+    expect(doc.refs).toEqual([{ token: "${cdref:module:survey}", type: "module", name: "survey" }]);
   });
 });

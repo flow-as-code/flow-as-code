@@ -1,0 +1,50 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "offer",
+  "Settings": {},
+  "Metadata": {
+    "EntryPointPosition": {
+      "x": 0,
+      "y": 20
+    },
+    "ActionMetadata": {
+      "done": {
+        "Position": {
+          "x": 280,
+          "y": 20
+        }
+      },
+      "offer": {
+        "Position": {
+          "x": 20,
+          "y": 20
+        }
+      }
+    }
+  },
+  "Actions": [
+    {
+      "Identifier": "offer",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "We can call you back when an agent is free."
+      },
+      "Transitions": {
+        "NextAction": "done",
+        "Errors": [
+          {
+            "ErrorType": "NoMatchingError",
+            "NextAction": "done"
+          }
+        ],
+        "Conditions": []
+      }
+    },
+    {
+      "Identifier": "done",
+      "Type": "EndFlowModuleExecution",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

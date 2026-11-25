@@ -189,6 +189,28 @@ describe("reference resolution", () => {
     );
   });
 
+  it("resolves an unaliased module reference to the module resource itself (task C16)", () => {
+    const files = emitTf([
+      flow("caller", { FlowModuleId: "${cdref:module:survey}" }),
+      module("survey"),
+    ]).files;
+    expect(files["flow_refs.tf"]).toContain(
+      "module_survey_arn = aws_connect_contact_flow_module.survey.arn",
+    );
+    // No alias is published for it: the bare ARN runs the current content.
+    expect(files["flows.tf"]).not.toContain("awscc_connect_contact_flow_module_alias");
+  });
+
+  it("falls back to the address map for an unaliased module outside the set", () => {
+    const result = emitTf([flow("caller", { FlowModuleId: "${cdref:module:survey}" })], {
+      addressMap: { "module:survey": "data.aws_ssm_parameter.survey.value" },
+    });
+    expect(result.files["flow_refs.tf"]).toContain(
+      "module_survey_arn = data.aws_ssm_parameter.survey.value",
+    );
+    expect(result.unbound).toEqual([]);
+  });
+
   it("emits one alias resource per referenced alias, sorted", () => {
     const files = emitTf([
       flow("caller", { FlowModuleId: "${cdref:module:survey@prod}" }),

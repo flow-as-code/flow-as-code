@@ -80,3 +80,44 @@ the same apply.
 ## Not done here
 
 - Changing `@flow-as-code/cdk`'s `DEFAULT_MODULE_ALIAS` (decision 2).
+
+## Done (2026-11-25, #64)
+
+Against the criteria above:
+
+- docs/01: an unaliased module ref is the module's current content (the bare
+  ARN), with the B04 evidence. It says that `@flow-as-code/cdk` binds it to
+  `live` instead, and that changing that default is its own decision.
+- `Refs.module(name, alias?)`: done; calls with an alias are unchanged.
+- Codegen: an unaliased `InvokeFlowModule` reads back as
+  `Refs.module("<name>")` through the same branch as an unpinned view. The
+  export golden `conformance/export/module-alias/expected/survey-line.flow.ts`
+  held its `$LATEST` invocation as a `GenericBlock` and now holds it typed.
+- `@flow-as-code/tf` resolves an unaliased in-set module. The resource is
+  `aws_connect_contact_flow_module.<name>.arn` (hashicorp/aws), not the
+  `awscc_` resource the criterion named: the emitter writes the module itself
+  with hashicorp/aws and only its version and aliases with awscc. An address
+  map entry for such a reference is now shadowed, with the comment an aliased
+  one gets; the tf changeset says so, since a map that bound one changes
+  behavior. A module outside the set still binds through the map.
+- Fixtures: `conformance/roundtrip/module-unaliased`; its HCL golden under
+  `conformance/hcl/roundtrip/module-unaliased`; `conformance/emit-tf/module-unaliased`
+  and its `hcl/emit` twin, each with a bogus map entry for the unaliased
+  module that `tofu validate` would fail on if it were used. All three
+  validate locally against the published flowascode 0.1.1, so they are
+  `"validate": "pass"`, not `awaits-provider`. Unit tests in core (refs,
+  codegen, synth), tf (in-set and external) and studio (`makeToken` and the
+  picker); the tf in-set test and both studio tests fail on the old code.
+- Studio: "new reference…" on a module takes a blank alias. Cancel on the
+  alias prompt now abandons the new reference, where before it fell through
+  to the alias check.
+- Catalog and skills: `actions.md`'s reference table and HCL contract rule 27
+  describe the optional alias; the skill reference generator writes
+  `module:<name>`, or `module:<name>@<alias>` through an alias, and the HCL
+  authoring skill has the unaliased binding.
+- Changesets: `core`, `tf` and `studio`; `cdk` is unchanged.
+- Pending: the provider re-vendor of these fixtures, which by owner decision
+  (2026-11-24) waits for D10 with the rest of Phase C and D's.
+- The studio export scan's comment and test (`unmappedTokens`) had relied on
+  tf leaving this form unbound; both now say the two emitters agree, and the
+  scan still asks the target's own emitter.

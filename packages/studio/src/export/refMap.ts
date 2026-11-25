@@ -144,9 +144,10 @@ const MISSING_MARKER = /TODO: no terraform address for (\S+?)\.$/gm;
 /**
  * Tokens the emitter still has no address for, asked of the emitter the
  * target uses. Both write the same TODO line, @flow-as-code/tf in flow_refs.tf
- * and @flow-as-code/hcl above a null refs value in flows.tf, and they resolve
- * different references from the set itself (hcl also resolves a module invoked
- * without an alias), so the question goes to the one that will write the
+ * and @flow-as-code/hcl above a null refs value in flows.tf. Each resolves
+ * references to what the set emits by its own rules, which agree today (both
+ * resolve an in-set module invoked without an alias since task C16) but are
+ * two implementations, so the question goes to the one that will write the
  * export. A token used by two documents is one missing address.
  *
  * This computes bytes and throws them away: nothing leaves the studio, so it

@@ -330,6 +330,60 @@ describe("a Lex bot's alias is picked as one key of LexV2Bot", () => {
   });
 });
 
+describe("a module reference is picked with an alias or none (task C16)", () => {
+  it("writes an unaliased token for a blank alias, and nothing on cancel", async () => {
+    const relative = ["conformance", "roundtrip", "module-unaliased", "doc.flowdoc.json"];
+    const candidates = [
+      join(process.cwd(), ...relative),
+      join(process.cwd(), "..", "..", ...relative),
+    ];
+    const file = candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+    const doc = JSON.parse(readFileSync(file, "utf8")) as FlowDoc;
+    function ModuleProbe() {
+      const { state } = useStudio();
+      const a = state.doc?.content.Actions.find((x) => x.Identifier === "survey");
+      return <span data-testid="module-probe">{JSON.stringify(a?.Parameters.FlowModuleId)}</span>;
+    }
+    await renderDoc(
+      doc,
+      <>
+        <Canvas />
+        <Inspector />
+        <ModuleProbe />
+      </>,
+    );
+    await click(present('[data-testid="node-survey"]'));
+    const picker = (): HTMLSelectElement =>
+      [...document.querySelectorAll('[data-testid="inspector"] select')].find((s) =>
+        [...(s as HTMLSelectElement).options].some((o) => o.value === "__new__"),
+      ) as HTMLSelectElement;
+    // Both existing refs are listed, the unaliased one by its name alone.
+    const labels = [...picker().options].map((o) => o.textContent);
+    expect(labels).toContain("after-call-survey@prod");
+    expect(labels).toContain("offer-callback");
+
+    const prompts: string[] = [];
+    let answers: (string | null)[] = ["front-callback", ""];
+    window.prompt = (message?: string) => {
+      prompts.push(message ?? "");
+      return answers.shift() ?? null;
+    };
+    await selectOption(picker(), "__new__");
+    expect(prompts[1]).toContain("Module alias");
+    expect(testId("module-probe").textContent).toBe(
+      JSON.stringify("${cdref:module:front-callback}"),
+    );
+
+    // Cancel on the alias prompt abandons the new reference.
+    answers = ["other-callback", null];
+    await selectOption(picker(), "__new__");
+    expect(testId("module-probe").textContent).toBe(
+      JSON.stringify("${cdref:module:front-callback}"),
+    );
+    expect(document.querySelector('[data-testid="demoted-banner"]')).toBeNull();
+  });
+});
+
 describe("the recording block's two JSON fields replace each other", () => {
   it("setting screen recording clears voice recording and keeps the block typed", async () => {
     const relative = ["conformance", "roundtrip", "recording-analytics", "doc.flowdoc.json"];

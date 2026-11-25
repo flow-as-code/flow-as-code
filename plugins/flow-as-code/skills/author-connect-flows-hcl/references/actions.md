@@ -167,9 +167,9 @@ Block `invoke_flow_module`. [Action page](https://docs.aws.amazon.com/connect/la
 - Error branches: `NoMatchingError` (required).
 - Conditions: none.
 
-| HCL attribute    | Flow language key | Value                           | Required |
-| ---------------- | ----------------- | ------------------------------- | -------- |
-| `flow_module_id` | `FlowModuleId`    | reference key (`module:<name>`) | yes      |
+| HCL attribute    | Flow language key | Value                                                                        | Required |
+| ---------------- | ----------------- | ---------------------------------------------------------------------------- | -------- |
+| `flow_module_id` | `FlowModuleId`    | reference key (`module:<name>`, or `module:<name>@<alias>` through an alias) | yes      |
 
 ## StartOutboundChatContact
 
