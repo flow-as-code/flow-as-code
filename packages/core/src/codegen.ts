@@ -3022,15 +3022,35 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
   [ActionType.UpdateCustomerProfile]: (a) =>
     invertProfileFields(a, "UpdateCustomerProfile", (c) => new UpdateCustomerProfile(c)),
   // RoutingCriteria holding only Steps: steps whose Expression the helpers
-  // write and whose Expiry is the decimal string the class writes. The
-  // service refuses Steps as a JSONPath and accepts the whole RoutingCriteria
-  // as one (an AWS sample's form, actions.md rule 45); neither has a place in
-  // the class, so both stay generic.
+  // write and whose Expiry is the decimal string the class writes. Or the
+  // whole RoutingCriteria as a JSONPath, an AWS sample's form, which the
+  // service accepts (actions.md rule 45, routing-criteria-jsonpath) and the
+  // class takes as `criteria`. The service refuses Steps as a JSONPath, which
+  // has no place in the class and stays generic.
   [ActionType.UpdateContactRoutingCriteria]: (a, ctx) => {
     const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
     if (w === undefined) return undefined;
     if (!paramKeysAre(a.Parameters, ["RoutingCriteria"])) return undefined;
     const criteria = a.Parameters.RoutingCriteria;
+    if (typeof criteria === "string") {
+      if (!/^\$\.[A-Za-z0-9_$.[\]'-]+$/.test(criteria)) return undefined;
+      ctx.jsonPath = true;
+      return {
+        cls: "UpdateContactRoutingCriteria",
+        entries: [
+          ["id", a.Identifier],
+          ["criteria", new Raw(`jsonPath(${quoteString(criteria)})`)],
+          ["next", w.next],
+          ["onError", w.onError],
+        ],
+        block: new UpdateContactRoutingCriteria({
+          id: a.Identifier,
+          criteria: cast<never>(criteria),
+          next: w.next,
+          onError: w.onError,
+        }),
+      };
+    }
     if (!keysAre(criteria, ["Steps"])) return undefined;
     const source = criteria.Steps;
     if (!Array.isArray(source)) return undefined;
