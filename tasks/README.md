@@ -164,7 +164,7 @@ Settled by the owner on 2026-09-30; do not re-ask them.
 | C13 | Emit: per-flow outputs for a promotion gate                             | emitters     | none                          | merged, #32 into C12, main via #39 |
 | C14 | Simulate: a library entry point and an offline dry run                  | simulate     | none                          | merged, #31 `4ef9c91`              |
 | C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio  | none                          | merged, #35 `78b0a87`              |
-| C16 | Builder and codegen: an unaliased module reference (#41)                | core, studio | none                          | merged, #64                        |
+| C16 | Builder and codegen: an unaliased module reference (#41)                | core, studio | none                          | merged, #64 `c3b090c`              |
 | C11 | Release and close                                                       | release      | C01 to C09, C12 to C16        | folded into D10 (2026-10-05)       |
 
 C12 to C15 were added after the plan's first draft, from the showcase's build
