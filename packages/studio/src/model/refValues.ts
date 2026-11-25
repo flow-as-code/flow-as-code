@@ -45,14 +45,19 @@ export function checkRefValue(refType: RefType, raw: string): RefValueCheck {
   };
 }
 
-/** Builds a token for a new reference. Module refs require an alias. */
+/**
+ * Builds a token for a new reference. A module may name the alias it is
+ * invoked through and a view the version it pins, both in the token's alias
+ * slot; without one, a module ref is the module's current content (task C16)
+ * and a view ref its latest. No other type takes one.
+ */
 export function makeToken(refType: RefType, name: string, alias?: string): RefValueCheck {
   if (!SLUG_PATTERN.test(name)) {
     return { ok: false, error: `"${name}" is not a slug (lowercase words separated by hyphens).` };
   }
-  if (refType === "module") {
-    if (alias === undefined || !SLUG_PATTERN.test(alias)) {
-      return { ok: false, error: "Module references need a slug alias, e.g. prod." };
+  if (refType === "module" && alias !== undefined && alias !== "") {
+    if (!SLUG_PATTERN.test(alias)) {
+      return { ok: false, error: "A module alias is a slug, e.g. prod, or blank for none." };
     }
     return { ok: true, value: `\${cdref:module:${name}@${alias}}` };
   }

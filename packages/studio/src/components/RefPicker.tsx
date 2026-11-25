@@ -68,12 +68,18 @@ export function RefPicker({ doc, refType, value, optional, onChange }: RefPicker
     } else if (selected === NEW_REF) {
       const name = window.prompt(`New ${refType} reference name (slug, e.g. front-desk):`);
       if (name === null) return;
-      const alias =
-        refType === "module"
-          ? (window.prompt("Module alias (slug, e.g. prod):") ?? undefined)
-          : refType === "view"
-            ? (window.prompt("View version (slug, e.g. 1; leave blank for none):") ?? undefined)
-            : undefined;
+      let alias: string | undefined;
+      if (refType === "module") {
+        // Blank means no alias: the flow runs the module's current content.
+        // Cancel abandons the new reference rather than choosing that.
+        const answer = window.prompt(
+          "Module alias (slug, e.g. prod; leave blank to run the module's current content):",
+        );
+        if (answer === null) return;
+        alias = answer;
+      } else if (refType === "view") {
+        alias = window.prompt("View version (slug, e.g. 1; leave blank for none):") ?? undefined;
+      }
       const result = makeToken(refType, name.trim(), alias?.trim());
       if (result.ok) {
         setCustom(false);
