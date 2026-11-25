@@ -120,7 +120,12 @@ a `json` expression inside typed steps, stands.
 - `Steps` is not `dynamic`. The service refused `Steps` as a JSONPath and
   accepted the whole of `RoutingCriteria` as one. A list attribute could
   not hold either; the whole-criteria form is a `generic` block in HCL and
-  a GenericBlock in codegen, as the `Steps` JSONPath form was.
+  a GenericBlock in codegen, as the `Steps` JSONPath form was. Amended
+  2026-11-25: the TypeScript class takes the whole-criteria form as
+  `criteria: jsonPath(...)` and codegen reads it back typed, so the studio
+  can switch a typed block to it (tasks/D09, the follow-up). The catalog
+  and HCL are unchanged: an `object` is still never `dynamic`, the form is
+  still `generic` in HCL, and the provider owes nothing for it.
 - The builder writes no OR. The service refused an `OrExpression` at the
   top of a step, the only place `or(...)` wrote one (the admin guide: OR
   only "when setting attributes dynamically"), and accepted one inside an
