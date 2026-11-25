@@ -219,5 +219,18 @@
     "recordedBy": "scripts/probe-create.mjs",
     "result": "accepted",
     "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-with-parameter",
+    "description": "Rule 48: StartVoiceIdStream with a parameter the page does not list (its parameter object is empty), to learn whether the service refuses a key.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T20:12:35Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.SpeakerId"
+    ]
   }
 ]
