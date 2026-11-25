@@ -125,12 +125,13 @@ non-terminal action, `{}` transitions on terminal actions, sorted keys, and a
 executes it, synthesizes the result, and must get the same document back
 (ignoring `meta`). The cases cover the demo flow (`appointment-line`), a
 flow of actions the builder does not model, with tokens inside parameters
-(`unknown-actions`: one unmodeled Type, `StartVoiceIdStream`, since tasks/D09,
+(`unknown-actions`: one unmodeled Type, `CheckVoiceId` in its page's shape, which the service refuses, since tasks/D08,
 and since tasks/D04 two forms of modeled Types that their classes do not
 write, `CompleteOutboundCall` with `VoiceConnector` and
 `StartOutboundChatContact`'s WhatsApp form), a module invoking another module by alias
 (`after-call-survey`), a flow invoking one module without an alias, its
-current content, and another through one (`module-unaliased`, task C16), a flow where Compare is the only
+current content, and another through one (`module-unaliased`, task C16), a flow
+starting a Voice ID stream as the call connects (`voice-id`, tasks/D08), a flow where Compare is the only
 user of `jsonPath` (`compare-only`, so the import is emitted for it), the
 same Compare with a `NextAction` that is a condition's target rather than
 the `NoMatchingCondition` copy the class writes, which the service accepts

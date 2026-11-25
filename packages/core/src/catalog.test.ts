@@ -1131,18 +1131,17 @@ describe("catalogProblems is proven able to fail", () => {
   it("on an unmodeled entry carrying a key outside the whitelist", () => {
     expect(
       mutate((c) => {
-        (c.actions as Record<string, { block?: string }>).StartVoiceIdStream!.block =
-          "start_voice_id_stream";
+        (c.actions as Record<string, { block?: string }>).CheckVoiceId!.block = "check_voice_id";
       }),
     ).toContainEqual(
       expect.stringContaining(
-        "StartVoiceIdStream: unmodeled entry carries block,category,doc,modeled",
+        "CheckVoiceId: unmodeled entry carries block,category,channels,doc,modeled",
       ),
     );
     // channels is whitelisted on an unmodeled entry (FlowDoc 0.3 vocabulary).
     expect(
       mutate((c) => {
-        (c.actions as Record<string, { channels?: string[] }>).StartVoiceIdStream!.channels = [
+        (c.actions as Record<string, { channels?: string[] }>).RouteContactToAgent!.channels = [
           "VOICE",
         ];
       }),

@@ -1,0 +1,45 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "voice-id-whisper",
+  "description": "A Voice ID stream in a customer whisper flow, which the service accepted (actions.md, rule 48).",
+  "connectType": "CUSTOMER_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "start-voice-id",
+    "Actions": [
+      {
+        "Identifier": "start-voice-id",
+        "Type": "StartVoiceIdStream",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "done": {
+      "x": 280,
+      "y": 20
+    },
+    "start-voice-id": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

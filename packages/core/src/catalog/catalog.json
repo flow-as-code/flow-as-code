@@ -2828,7 +2828,10 @@
     "CheckVoiceId": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-checkvoiceid.html",
-      "modeled": false
+      "modeled": false,
+      "channels": [
+        "VOICE"
+      ]
     },
     "Compare": {
       "category": "flowControl",
@@ -3009,7 +3012,35 @@
     "StartVoiceIdStream": {
       "category": "flowControl",
       "doc": "https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html",
-      "modeled": false
+      "modeled": true,
+      "block": "start_voice_id_stream",
+      "terminal": false,
+      "flowTypes": [
+        "CONTACT_FLOW",
+        "AGENT_TRANSFER",
+        "QUEUE_TRANSFER",
+        "CUSTOMER_WHISPER",
+        "AGENT_WHISPER",
+        "OUTBOUND_WHISPER",
+        "CUSTOMER_QUEUE",
+        "MODULE"
+      ],
+      "channels": [
+        "VOICE"
+      ],
+      "parameters": [],
+      "refs": [],
+      "transitions": {
+        "next": "required",
+        "conditions": "none",
+        "errors": [
+          {
+            "type": "NoMatchingError",
+            "required": true,
+            "builder": true
+          }
+        ]
+      }
     },
     "TransferToFlow": {
       "category": "flowControl",

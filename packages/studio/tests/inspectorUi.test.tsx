@@ -802,3 +802,17 @@ describe("the outbound call's optional caller ID (tasks/D04)", () => {
     });
   });
 });
+
+describe("the Voice ID block in the palette (tasks/D08)", () => {
+  it("is labeled ended, and adds a typed block with no fields", async () => {
+    await renderApp();
+    const button = present('button[title="Add StartVoiceIdStream (ended)"]');
+    expect(testId("palette-note-StartVoiceIdStream").textContent).toBe("(ended)");
+    // No other palette entry carries a note.
+    expect(document.querySelectorAll('[data-testid^="palette-note-"]')).toHaveLength(1);
+    await click(button);
+    await click(present('[data-testid="node-start-voice-id"]'));
+    expect(query('[data-testid="raw-json"]')).toBeNull();
+    expect(query('[data-testid="raw-button-start-voice-id"]')).toBeNull();
+  });
+});

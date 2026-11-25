@@ -60,7 +60,25 @@ resource "flowascode_contact_flow" "unknown_actions" {
     id   = "hand-off"
     next = "dial-connector"
     generic {
-      type = "StartVoiceIdStream"
+      type = "CheckVoiceId"
+      parameters = jsonencode({
+        CheckVoiceIdOption = "enrollmentStatus"
+      })
+    }
+    condition {
+      operator = "Equals"
+      operands = ["Enrolled"]
+      next     = "dial-connector"
+    }
+    condition {
+      operator = "Equals"
+      operands = ["Not enrolled"]
+      next     = "dial-connector"
+    }
+    condition {
+      operator = "Equals"
+      operands = ["Opted out"]
+      next     = "dial-connector"
     }
     error {
       type = "NoMatchingError"

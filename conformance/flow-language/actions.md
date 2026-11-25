@@ -113,6 +113,7 @@ The two differ, and the console name is what task A01 originally listed.
 | Send message (SMS) | `StartOutboundChatContact` | contact | [doc](https://docs.aws.amazon.com/connect/latest/devguide/contact-actions-startoutboundchatcontact.html) |
 | Get stored content | `LoadContactContent` | other | [doc](https://docs.aws.amazon.com/connect/latest/adminguide/get-stored-content.html) (admin guide; no Developer Guide page) |
 | Transfer to phone number | `TransferParticipantToThirdParty` | other | [export](exports/transfer-participant-to-third-party.json), [block](https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html) (no page documents the Type) |
+| Set Voice ID (start streaming) | `StartVoiceIdStream` | flow control | [doc](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html) (deployable, not exercisable: Voice ID ended 2026-05-20; rule 48) |
 
 ## Reference-bearing parameters
 
@@ -3007,6 +3008,65 @@ is read rather than when the type is modeled.
         all. The form stays untyped; typing it, and exempting it from the
         shapes, waits for a rerun with `"True"` and `"False"`.
 
+48. Voice ID (tasks/D08; the Developer Guide pages read 2026-10-04 and
+    2026-11-25). Voice ID ended on 2026-05-20 ("After May 20, 2026, you will
+    no longer be able to use Amazon Connect Customer Voice ID",
+    https://docs.aws.amazon.com/connect/latest/adminguide/amazonconnect-voiceid-end-of-support.html),
+    and no Voice ID domain can be created since, so the sandbox has none and
+    never had one. The question was whether the service still accepts the
+    two Types at create; it accepts one. The inputs are in `probes/48/`
+    (recorded as `d08-voice-id`): `results.json` is a hand run on
+    2026-10-05 16:49 to 16:51 UTC in us-east-1 on the showcase's dev
+    instance, before the runner existed, and
+    `results-2026-11-25-us-west-2.json` the runner's sweep on the sandbox,
+    2026-11-25 19:52 to 20:12 UTC. Every accepted flow was deleted and the
+    deletion confirmed.
+    - `StartVoiceIdStream`, modeled. The page: "Sends audio to Connect
+      Customer Voice ID to verify the caller's identity and match against
+      fraudsters in watchlist, as soon as the call is connected to a flow";
+      an empty parameter object; "None. No conditions are supported";
+      "NoMatchingError if no condition matches"; "Only supported for the
+      voice channel. If used with the chat or task channels, the action
+      takes the Error branch. Not supported in hold flows."
+      https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html
+      The service: `start-required` (empty `Parameters`, a `NextAction`,
+      the catch-all) accepted, as `start-stream` was on 2026-10-05;
+      `start-no-catch-all` refused "Action is missing required error.
+      Error: NoMatchingError", `start-no-next` refused "Action is missing
+      required property. Path: Actions[0].Transitions.NextAction", and
+      `start-with-parameter` (a key the page does not list) refused
+      "Invalid Action property name. Path: Actions[0].Parameters.SpeakerId";
+      accepted in a customer queue, customer whisper, agent whisper,
+      outbound whisper, transfer to agent and transfer to queue flow and a
+      module, and refused in a customer hold and an agent hold flow
+      ("Action with identifier probe is not supported in contact flow type
+      customerHold", and `agentHold`). The catalog takes no parameters
+      (the 0.3 clause refuses any), the catch-all required and wired by
+      the builder, `next` required, every flow type but the two hold flows,
+      `channels` `["VOICE"]`. The type is deployable and not exercisable:
+      what it does at run time without a Voice ID domain is not known, and
+      the studio's palette labels it ended.
+    - `CheckVoiceId`, not modeled, with `channels` `["VOICE"]` from its
+      page. Refused in every shape tried, on both runs:
+      `check-enrollment` (one `Equals` `Enrolled` condition with
+      `NoMatchingError` and `NoMatchingCondition`) "Invalid Action error.
+      Error: NoMatchingCondition, Path: Actions[0]" and "Invalid Action
+      property value. Path: Actions[0].Transitions.Conditions"; with the
+      catch-all alone, empty `Conditions` (`cv-noconds`), `Enrolled`
+      (`cv-enrolled`), `ENROLLED` (`cv-upper`), the page's three operands
+      (`cv-full-page`) and their upper-case forms (`cv-full-upper`), each
+      "Invalid Action property value. Path:
+      Actions[0].Transitions.Conditions". The service validates
+      `Conditions` against operands no tried spelling matches, and the empty
+      list is refused too; no export can show the spelling, since the
+      console cannot build the block without a domain. It stays generic,
+      and since D08 it is the passthrough fixture's one unmodeled Type
+      ("Unmodeled actions" below).
+    - `UpdateContactData`'s six Voice ID fields (rule 37 records that they
+      were refused on an instance without Voice ID, and rule 30 that they
+      are modeled as the page documents them) take the same note: deployable
+      as far as the page goes, not exercisable since 2026-05-20.
+
 ## Per-action parameter shapes
 
 Recorded verbatim from the pages linked above.
@@ -3127,6 +3187,7 @@ StartOutboundChatContact { SourceEndpoint: { Address: phonenumber, Type: "CONNEC
                            ContactFlowArn: flow, ContactSubtype: "connect:SMS",
                            InitialSystemMessage?: { Content }, RelatedContact?: "CURRENT" }
 LoadContactContent       { ContentType: "EmailMessage" }   // required (rule 47); email only
+StartVoiceIdStream       {}   // no parameter is taken (rule 48); voice only, not in hold flows
 TransferParticipantToThirdParty { ThirdPartyPhoneNumber,   // a JSONPath in the builder; the service also takes a static one
                            ThirdPartyConnectionTimeLimitSeconds,   // decimal string, 1 or more, or a JSONPath
                            ContinueFlowExecution: "True" | "False" }   // "True": CallFailed and
@@ -3376,19 +3437,36 @@ to `CompleteOutboundCall`. The flow token stays in
 in the two generic forms of modeled types, and `StartVoiceIdStream` is the
 one unmodeled type left. The Terraform cookbook's generic recipe moved from
 `TransferParticipantToThirdParty` to `StartVoiceIdStream` the same day.
+On 2026-11-25, when D08 modeled `StartVoiceIdStream`, the fixture took
+`CheckVoiceId` in its place, in its page's shape (`CheckVoiceIdOption`
+`enrollmentStatus`, the page's three operands `Enrolled`, `Not enrolled`
+and `Opted out`, each back to `CompleteOutboundCall`, a `NextAction` and
+the catch-all). No Type left unmodeled has a create the service accepted
+(rules 40, 47 and 48), so this is the first time the fixture holds an
+action the service refuses: `CheckVoiceId` in exactly this shape is the
+probe `cv-full-page`, refused at its `Conditions`. Passthrough is a
+property of the tools, not of the service, so the fixture still does its
+job; its claim to hold only console-shaped actions ends here. Owner
+decision 10 (a synthetic Type) applies once every Type is modeled. The
+cookbook's generic recipe moved to `CreateTask` with `References`, a form
+the TypeScript builder leaves generic and the published provider has no
+typed block for, which the service accepted with its flow as a JSONPath
+(`probes/42`, `task-references-flow-jsonpath`, 2026-11-25).
 
 | Part of the count       | Types | Modeled | Where                                                       |
 | ----------------------- | ----- | ------- | ----------------------------------------------------------- |
-| Developer Guide pages   | 56    | 54      | the four category lists in `catalog.json`                   |
+| Developer Guide pages   | 56    | 55      | the four category lists in `catalog.json`                   |
 | Administrator Guide     | 4     | 1       | `catalog.json` category `other`, `source` `adminguide`      |
 | Console export          | 1     | 1       | `catalog.json` category `other`, `source` `console-export`  |
-| Denominator             | 61    | 56      |                                                             |
+| Denominator             | 61    | 57      |                                                             |
 | Console-only blocks     | 5     |         | awaiting an export (owner decision 8); listed below, no Type |
 
 Types outside the Developer Guide (rule 40 has the page quotes and the
 2026-10-05 create probes, rule 47 what D09 modeled and why the rest wait;
 `LoadContactContent` and `TransferParticipantToThirdParty` are modeled,
-the other three are `modeled: false`.
+the other three are `modeled: false`; `CheckVoiceId`, on a Developer Guide
+page, is the census's fourth unmodeled Type, refused in every shape tried
+(rule 48).
 Of the five, the service accepted `LoadContactContent` and
 `TransferParticipantToThirdParty`, refused `AuthenticateParticipant` naming
 its required keys and branch, and refused `CheckSegmentMembership` and

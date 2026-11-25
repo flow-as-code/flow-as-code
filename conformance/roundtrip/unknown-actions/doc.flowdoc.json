@@ -57,8 +57,10 @@
       },
       {
         "Identifier": "hand-off",
-        "Type": "StartVoiceIdStream",
-        "Parameters": {},
+        "Type": "CheckVoiceId",
+        "Parameters": {
+          "CheckVoiceIdOption": "enrollmentStatus"
+        },
         "Transitions": {
           "NextAction": "dial-connector",
           "Errors": [
@@ -67,7 +69,35 @@
               "NextAction": "dial-connector"
             }
           ],
-          "Conditions": []
+          "Conditions": [
+            {
+              "NextAction": "dial-connector",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Enrolled"
+                ]
+              }
+            },
+            {
+              "NextAction": "dial-connector",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Not enrolled"
+                ]
+              }
+            },
+            {
+              "NextAction": "dial-connector",
+              "Condition": {
+                "Operator": "Equals",
+                "Operands": [
+                  "Opted out"
+                ]
+              }
+            }
+          ]
         }
       }
     ]

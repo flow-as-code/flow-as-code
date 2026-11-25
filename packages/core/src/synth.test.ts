@@ -65,6 +65,7 @@ import {
   serializeContent,
   ShowView,
   StartOutboundChatContact,
+  StartVoiceIdStream,
   synth,
   TagContact,
   TransferContactToAgent,
@@ -2966,6 +2967,27 @@ describe("the census additions", () => {
       Transitions: {
         NextAction: "n",
         Errors: [{ ErrorType: "NoMatchingError", NextAction: "e" }],
+        Conditions: [],
+      },
+    });
+  });
+});
+
+describe("StartVoiceIdStream (tasks/D08)", () => {
+  it("writes no parameters, its next and the catch-all", () => {
+    const doc = synth(
+      new Flow({ name: "voice-id", connectType: "CONTACT_FLOW" }).add(
+        new StartVoiceIdStream({ id: "start", next: "bye", onError: "bye" }),
+        new DisconnectParticipant({ id: "bye" }),
+      ),
+    );
+    expect(doc.content.Actions[0]).toEqual({
+      Identifier: "start",
+      Type: "StartVoiceIdStream",
+      Parameters: {},
+      Transitions: {
+        NextAction: "bye",
+        Errors: [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
         Conditions: [],
       },
     });

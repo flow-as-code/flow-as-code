@@ -2568,6 +2568,25 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "Type": {
+                "const": "StartVoiceIdStream"
+              }
+            },
+            "required": [
+              "Type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "Parameters": {
+                "maxProperties": 0
+              }
+            }
+          }
         }
       ]
     },

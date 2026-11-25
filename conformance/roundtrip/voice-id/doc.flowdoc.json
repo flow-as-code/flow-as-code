@@ -1,0 +1,66 @@
+{
+  "flowdoc": "0.3",
+  "kind": "flow",
+  "name": "voice-id",
+  "description": "Starts a Voice ID stream as the call connects, then greets the caller; the stream is deployable but not exercisable since Voice ID ended on 2026-05-20.",
+  "connectType": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "start-voice-id",
+    "Actions": [
+      {
+        "Identifier": "start-voice-id",
+        "Type": "StartVoiceIdStream",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "greet",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "greet"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "greet",
+        "Type": "MessageParticipant",
+        "Parameters": {
+          "Text": "Thanks for calling."
+        },
+        "Transitions": {
+          "NextAction": "bye",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "bye"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "bye",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  },
+  "layout": {
+    "bye": {
+      "x": 540,
+      "y": 20
+    },
+    "greet": {
+      "x": 280,
+      "y": 20
+    },
+    "start-voice-id": {
+      "x": 20,
+      "y": 20
+    }
+  },
+  "refs": []
+}

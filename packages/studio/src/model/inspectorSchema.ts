@@ -1254,6 +1254,7 @@ export function fieldsFor(type: string): FieldDesc[] | undefined {
     case ActionType.TransferContactToQueue:
     case ActionType.ResumeContact:
     case ActionType.LoadContactContent:
+    case ActionType.StartVoiceIdStream:
       return [];
     default:
       // Unmodeled: GenericBlock, read-only raw JSON.
