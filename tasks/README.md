@@ -164,7 +164,7 @@ Settled by the owner on 2026-09-30; do not re-ask them.
 | C13 | Emit: per-flow outputs for a promotion gate                             | emitters     | none                          | merged, #32 into C12, main via #39 |
 | C14 | Simulate: a library entry point and an offline dry run                  | simulate     | none                          | merged, #31 `4ef9c91`              |
 | C15 | CLI and studio gaps from the showcase's first tier                      | cli, studio  | none                          | merged, #35 `78b0a87`              |
-| C16 | Builder and codegen: an unaliased module reference (#41)                | core, studio | none                          | open (added 2026-11-24)            |
+| C16 | Builder and codegen: an unaliased module reference (#41)                | core, studio | none                          | in review, #64                     |
 | C11 | Release and close                                                       | release      | C01 to C09, C12 to C16        | folded into D10 (2026-10-05)       |
 
 C12 to C15 were added after the plan's first draft, from the showcase's build
@@ -272,7 +272,9 @@ releases and closes.
 
 Amended 2026-11-24: C16 (issue #41) was added and is open. It needs no
 satellite commit, so it is the one Phase C code task that can land before the
-showcase's tag; Phase C is code complete again when it merges.
+showcase's tag; Phase C is code complete again when it merges. Its pull
+request is #64 (2026-11-25); its provider re-vendor waits for D10 like the
+rest.
 
 Amended later on 2026-10-05, by owner decision: Phase C and all of Phase D
 ship together as the next minor release, so C11 is folded into D10 and
