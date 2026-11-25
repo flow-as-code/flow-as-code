@@ -1,0 +1,49 @@
+{
+  "expect": [
+    {
+      "rule": "error-branches",
+      "blockId": "start-voice-id",
+      "messageIncludes": "StartVoiceIdStream does not wire its \"NoMatchingError\" branch"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "voice-id-no-catch-all",
+    "description": "A Voice ID stream without its catch-all, which the service refused (actions.md, rule 48).",
+    "connectType": "CONTACT_FLOW",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "start-voice-id",
+      "Actions": [
+        {
+          "Identifier": "start-voice-id",
+          "Type": "StartVoiceIdStream",
+          "Parameters": {},
+          "Transitions": {
+            "NextAction": "bye",
+            "Errors": [],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "bye",
+          "Type": "DisconnectParticipant",
+          "Parameters": {},
+          "Transitions": {}
+        }
+      ]
+    },
+    "layout": {
+      "bye": {
+        "x": 280,
+        "y": 20
+      },
+      "start-voice-id": {
+        "x": 20,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

@@ -71,6 +71,7 @@ export const ActionType = {
   StartOutboundChatContact: "StartOutboundChatContact",
   LoadContactContent: "LoadContactContent",
   TransferParticipantToThirdParty: "TransferParticipantToThirdParty",
+  StartVoiceIdStream: "StartVoiceIdStream",
 } as const;
 
 export type ModeledActionType = (typeof ActionType)[keyof typeof ActionType];
@@ -741,6 +742,17 @@ export const FLOW_TYPE_RESTRICTIONS: Readonly<Record<string, readonly string[]>>
     ...TRANSFER,
     ...IN_MODULE,
   ],
+  // "Not supported in hold flows." The service accepted every other flow type
+  // and a module, and refused a customer hold and an agent hold flow ("not
+  // supported in contact flow type"; rule 48, 2026-11-25).
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html
+  [ActionType.StartVoiceIdStream]: [
+    ...INBOUND,
+    ...TRANSFER,
+    ...WHISPER,
+    ...CUSTOMER_QUEUE,
+    ...IN_MODULE,
+  ],
 };
 
 /**
@@ -821,6 +833,10 @@ export const CHANNEL_RESTRICTIONS: Readonly<Record<string, readonly Channel[]>> 
   // task and email "No - Error branch". No page documents the action.
   // https://docs.aws.amazon.com/connect/latest/adminguide/transfer-to-phone-number.html
   [ActionType.TransferParticipantToThirdParty]: ["VOICE"],
+  // "Only supported for the voice channel. If used with the chat or task
+  // channels, the action takes the Error branch."
+  // https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html
+  [ActionType.StartVoiceIdStream]: ["VOICE"],
 };
 
 /**

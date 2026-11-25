@@ -75,6 +75,7 @@ export const CATEGORY_BY_TYPE: Readonly<Record<ModeledActionType, PaletteCategor
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "Integrate",
   [ActionType.LoadContactContent]: "Set",
   [ActionType.TransferParticipantToThirdParty]: "Terminate",
+  [ActionType.StartVoiceIdStream]: "Set",
   [ActionType.CheckHoursOfOperation]: "Branch",
   [ActionType.Compare]: "Branch",
   [ActionType.Loop]: "Branch",
@@ -102,6 +103,15 @@ export const PALETTE_GROUPS: readonly {
     (t) => CATEGORY_BY_TYPE[t] === category,
   ),
 }));
+
+/**
+ * A word the palette shows beside a type's name. Voice ID ended on
+ * 2026-05-20: Connect still accepts StartVoiceIdStream at create (actions.md,
+ * rule 48), so the block is offered, but nothing can exercise it (tasks/D08).
+ */
+export const PALETTE_NOTES: Readonly<Partial<Record<ModeledActionType, string>>> = {
+  [ActionType.StartVoiceIdStream]: "ended",
+};
 
 export function isModeled(type: string): type is ModeledActionType {
   return type in CATEGORY_BY_TYPE;
@@ -166,6 +176,7 @@ export const ID_SLUG_BY_TYPE: Readonly<Record<ModeledActionType, string>> = {
   [ActionType.GetCalculatedAttributesForCustomerProfile]: "calculated-attributes",
   [ActionType.LoadContactContent]: "get-stored-content",
   [ActionType.TransferParticipantToThirdParty]: "transfer-to-phone",
+  [ActionType.StartVoiceIdStream]: "start-voice-id",
   [ActionType.InvokeFlowModule]: "invoke-module",
   [ActionType.EndFlowModuleExecution]: "end-module",
   [ActionType.InvokeLambdaFunction]: "invoke-lambda",
@@ -396,6 +407,10 @@ export function defaultParameters(type: ModeledActionType): Record<string, unkno
       // instance's own predefined attribute.
       // https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
       return { RoutingCriteria: { Steps: [{ Expression: DEFAULT_ROUTING_EXPRESSION }] } };
+    case ActionType.StartVoiceIdStream:
+      // The page's parameter object is empty, and the service refused a key
+      // it does not list (actions.md, rule 48).
+      return {};
     case ActionType.LoadContactContent:
       // The block's one option, Email message (Plain text), as the admin
       // guide's Flow language example writes it.

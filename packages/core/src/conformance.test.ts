@@ -1945,3 +1945,25 @@ describe("FlowDoc migration", () => {
     expect(validate03(doc)).toBe(false);
   });
 });
+
+// tasks/D08: StartVoiceIdStream's parameter object is empty on its page, and
+// the service refused a key it does not list ("Invalid Action property name";
+// actions.md, rule 48, probe start-with-parameter), so the 0.3 clause refuses
+// any parameter at all.
+describe("FlowDoc schema rejections: Voice ID", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const raw = read("conformance/roundtrip/voice-id/doc.flowdoc.json");
+  const withParameters = (parameters: Record<string, unknown>): FlowDoc => {
+    const d = JSON.parse(raw) as FlowDoc;
+    d.content.Actions.find((a) => a.Identifier === "start-voice-id")!.Parameters = parameters;
+    return d;
+  };
+
+  it("accepts the fixture as committed", () => {
+    expect(validate(JSON.parse(raw))).toBe(true);
+  });
+
+  it("refuses a parameter on StartVoiceIdStream, which the service refused", () => {
+    expect(validate(withParameters({ SpeakerId: "$.Attributes.speakerId" }))).toBe(false);
+  });
+});

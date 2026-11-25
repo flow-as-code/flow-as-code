@@ -129,6 +129,7 @@ import {
   GetCustomerProfileObject,
   LoadContactContent,
   TransferParticipantToThirdParty,
+  StartVoiceIdStream,
   GetMetricData,
   GetParticipantInput,
   InvokeFlowModule,
@@ -2547,6 +2548,21 @@ const INVERTERS: Record<string, (a: FlowAction, ctx: Ctx) => Inversion | undefin
           ...wiring,
         }),
       ),
+    };
+  },
+  // No parameters, the catch-all and a next: the only shape the service
+  // accepted (rule 48). An action carrying any parameter stays generic.
+  [ActionType.StartVoiceIdStream]: (a) => {
+    const w = wiredTransitions(a.Transitions, NO_MATCHING_ERROR);
+    if (w === undefined || !paramKeysAre(a.Parameters, [])) return undefined;
+    return {
+      cls: "StartVoiceIdStream",
+      entries: [
+        ["id", a.Identifier],
+        ["next", w.next],
+        ["onError", w.onError],
+      ],
+      block: new StartVoiceIdStream({ id: a.Identifier, next: w.next, onError: w.onError }),
     };
   },
 

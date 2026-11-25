@@ -42,6 +42,7 @@ const EXPECTED_CHANNELS: Record<string, string[]> = {
   CompleteOutboundCall: ["VOICE"],
   LoadContactContent: ["EMAIL"],
   TransferParticipantToThirdParty: ["VOICE"],
+  StartVoiceIdStream: ["VOICE"],
 };
 
 const ALL_CONNECT_TYPES: readonly ConnectType[] = [
@@ -169,6 +170,17 @@ const EXPECTED: Record<string, string[]> = {
     "CUSTOMER_QUEUE",
     "AGENT_TRANSFER",
     "QUEUE_TRANSFER",
+    "MODULE",
+  ],
+  // Every flow type but the two hold flows (actions.md, rule 48).
+  StartVoiceIdStream: [
+    "CONTACT_FLOW",
+    "AGENT_TRANSFER",
+    "QUEUE_TRANSFER",
+    "CUSTOMER_WHISPER",
+    "AGENT_WHISPER",
+    "OUTBOUND_WHISPER",
+    "CUSTOMER_QUEUE",
     "MODULE",
   ],
   UpdateContactMediaStreamingBehavior: [

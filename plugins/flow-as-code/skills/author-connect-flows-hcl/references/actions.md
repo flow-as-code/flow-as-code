@@ -33,7 +33,7 @@ with the nested attributes listed under it; a map is `attr = { key = "value" }`.
 refuses a flow without; they were checked against the service on 2026-09-29.
 Where a branch depends on a parameter, the shape says so.
 
-56 modeled types follow. Any other type (5: `CheckVoiceId`, `StartVoiceIdStream`, `RouteContactToAgent`, `AuthenticateParticipant`, `CheckSegmentMembership`) is written as a `generic` block:
+57 modeled types follow. Any other type (4: `CheckVoiceId`, `RouteContactToAgent`, `AuthenticateParticipant`, `CheckSegmentMembership`) is written as a `generic` block:
 
 ```hcl
 generic {
@@ -714,6 +714,18 @@ Block `loop`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/
 | HCL attribute | Flow language key | Value  | Required |
 | ------------- | ----------------- | ------ | -------- |
 | `loop_count`  | `LoopCount`       | number | yes      |
+
+## StartVoiceIdStream
+
+Block `start_voice_id_stream`. [Action page](https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html).
+
+- Legal in: CONTACT_FLOW, AGENT_TRANSFER, QUEUE_TRANSFER, CUSTOMER_WHISPER, AGENT_WHISPER, OUTBOUND_WHISPER, CUSTOMER_QUEUE, MODULE.
+- Channels: VOICE only; lint warns wherever it appears, since a flow's channel is the contact's, not the document's.
+- `next`: required.
+- Error branches: `NoMatchingError` (required).
+- Conditions: none.
+
+No parameters: `start_voice_id_stream {}`.
 
 ## TransferToFlow
 

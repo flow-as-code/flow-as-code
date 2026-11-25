@@ -1,0 +1,33 @@
+{
+  "description": "Rule 48: StartVoiceIdStream with a parameter the page does not list (its parameter object is empty), to learn whether the service refuses a key.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "StartVoiceIdStream",
+        "Parameters": {
+          "SpeakerId": "$.Attributes.speakerId"
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

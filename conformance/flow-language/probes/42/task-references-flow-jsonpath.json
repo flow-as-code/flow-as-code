@@ -1,0 +1,40 @@
+{
+  "description": "Rule 42 (2026-11-25, for the Terraform cookbook's generic recipe): CreateTask with its flow as a JSONPath and References in the object form, the two accepted forms (task-flow-jsonpath, task-references-object) together; the builder leaves References generic.",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "CreateTask",
+        "Parameters": {
+          "ContactFlowId": "$.Attributes.taskFlowArn",
+          "Name": "Order follow-up",
+          "References": {
+            "order": {
+              "Type": "URL",
+              "Value": "https://example.com/orders/1"
+            }
+          }
+        },
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

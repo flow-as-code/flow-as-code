@@ -1,0 +1,5 @@
+{
+  "description": "StartVoiceIdStream as its typed sub-block, start_voice_id_stream {} with no attributes, its next and its catch-all (tasks/D08, rule 48). No published flowascode provider carries the block until D10's release.",
+  "doc": "../../../roundtrip/voice-id/doc.flowdoc.json",
+  "validate": "awaits-provider"
+}

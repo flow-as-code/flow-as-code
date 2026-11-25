@@ -13,9 +13,10 @@ probes/<rule>/results*.json     what the service said, one entry per probe run
 `<rule>` is the number of the `actions.md` rule the inputs are evidence for
 (`40`, the catalog census). A set recorded before its rule is written takes
 the id of the task that will write it, and that task renames the directory to
-the number when the rule lands: `d08-voice-id` is such a set, because its
-rule is D08's to write and the numbers free when it was recorded (39, 40)
-went to C04's stored-input rule and D00's census.
+the number when the rule lands: `48` was such a set, recorded as
+`d08-voice-id` on 2026-10-05 because its rule was D08's to write and the
+numbers free then (39, 40) went to C04's stored-input rule and D00's census,
+and renamed when D08 wrote rule 48.
 
 A set written before it can be run (its sandbox prerequisites not yet in
 place) carries `PENDING.md` instead of a results file, saying why and what

@@ -717,28 +717,39 @@ resource "flowascode_contact_flow" "invoke_module" {
 
 ## Use an action the tooling does not model
 
-A `generic` block carries any action type as its Flow language `Type` and its `Parameters` as `jsonencode(...)`, unchanged. The provider checks nothing inside it beyond what Connect checks, so prefer a typed block where one exists. `StartVoiceIdStream` takes no parameters, so `parameters` is left out.
+A `generic` block carries any action type as its Flow language `Type` and its `Parameters` as `jsonencode(...)`, unchanged. The provider checks nothing inside it beyond what Connect checks, so prefer a typed block where one exists. `CreateTask` has no typed block in the published provider; the provider release that carries Phase D adds one. Unlike the other recipes, this one was not applied through the provider: Connect accepted the action at create on 2026-11-25 (the probe `task-references-flow-jsonpath`).
 
 `unmodeled-action.tf`:
 
 ```hcl
-# An action type the tooling does not model yet still has a home: a generic
-# block carries its Type and its Parameters as JSON, unchanged. Nothing about it
-# is checked beyond what Connect checks, so prefer a typed block when one
-# exists; the catalog lists which do. StartVoiceIdStream takes no parameters,
-# so the block names only the type. Connect accepted it with a NextAction and
-# the catch-all on a development instance (2026-10-05, the probe start-stream
-# under conformance/flow-language/probes/).
+# An action the provider does not type yet still has a home: a generic block
+# carries its Type and its Parameters as JSON, unchanged. Nothing about it is
+# checked beyond what Connect checks, so prefer a typed block when one exists;
+# the catalog lists which do. CreateTask has no typed block in the published
+# provider, and its References map has no typed form in the TypeScript builder
+# either. Connect accepted this action, the task's flow as a JSONPath and one
+# URL reference, on a development instance (2026-11-25, the probe
+# task-references-flow-jsonpath under conformance/flow-language/probes/42/).
 resource "flowascode_contact_flow" "unmodeled_action" {
   instance_id = var.connect_instance_id
   name        = "unmodeled-action"
   type        = "CONTACT_FLOW"
 
   action {
-    id   = "start-voice-id"
+    id   = "follow-up"
     next = "hang-up"
     generic {
-      type = "StartVoiceIdStream"
+      type = "CreateTask"
+      parameters = jsonencode({
+        ContactFlowId = "$.Attributes.taskFlowArn"
+        Name          = "Order follow-up"
+        References = {
+          order = {
+            Type  = "URL"
+            Value = "https://example.com/orders/1"
+          }
+        }
+      })
     }
     error {
       type = "NoMatchingError"

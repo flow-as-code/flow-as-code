@@ -8,7 +8,7 @@
 
 import type { FlowDoc, Point } from "@flow-as-code/core";
 import { MAX_ACTIONS_PER_FLOW } from "@flow-as-code/core";
-import { PALETTE_GROUPS } from "../model/palette.js";
+import { PALETTE_GROUPS, PALETTE_NOTES } from "../model/palette.js";
 import { MutationRefused, addBlock, canAddBlock } from "../model/mutations.js";
 import { useStudio } from "../state/studio.js";
 
@@ -46,7 +46,11 @@ export function Palette() {
                   type="button"
                   disabled={doc === null || full}
                   className="w-full truncate rounded border border-neutral-200 px-2 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-100 disabled:opacity-40 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                  title={`Add ${type}`}
+                  title={
+                    PALETTE_NOTES[type] === undefined
+                      ? `Add ${type}`
+                      : `Add ${type} (${PALETTE_NOTES[type]})`
+                  }
                   onClick={() => {
                     if (doc === null) return;
                     try {
@@ -62,6 +66,14 @@ export function Palette() {
                   }}
                 >
                   {type}
+                  {PALETTE_NOTES[type] !== undefined && (
+                    <span
+                      data-testid={`palette-note-${type}`}
+                      className="ml-1 text-neutral-400 dark:text-neutral-500"
+                    >
+                      ({PALETTE_NOTES[type]})
+                    </span>
+                  )}
                 </button>
               </li>
             ))}

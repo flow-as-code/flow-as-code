@@ -122,7 +122,8 @@ describe("committed probe sets", () => {
     .sort();
 
   it("has at least the first set", () => {
-    expect(sets).toContain("d08-voice-id");
+    // Recorded as d08-voice-id on 2026-10-05 and renamed when D08 wrote rule 48.
+    expect(sets).toContain("48");
   });
 
   for (const set of sets) {

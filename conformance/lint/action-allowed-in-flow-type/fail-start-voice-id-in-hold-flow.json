@@ -1,0 +1,63 @@
+{
+  "expect": [
+    {
+      "rule": "action-allowed-in-flow-type",
+      "blockId": "start-voice-id",
+      "messageIncludes": "StartVoiceIdStream is not allowed in a CUSTOMER_HOLD"
+    }
+  ],
+  "doc": {
+    "flowdoc": "0.3",
+    "kind": "flow",
+    "name": "voice-id-hold",
+    "description": "A Voice ID stream in a customer hold flow, which the page excludes and the service refused (actions.md, rule 48).",
+    "connectType": "CUSTOMER_HOLD",
+    "content": {
+      "Version": "2019-10-30",
+      "StartAction": "start-voice-id",
+      "Actions": [
+        {
+          "Identifier": "start-voice-id",
+          "Type": "StartVoiceIdStream",
+          "Parameters": {},
+          "Transitions": {
+            "NextAction": "hold-music",
+            "Errors": [
+              {
+                "ErrorType": "NoMatchingError",
+                "NextAction": "hold-music"
+              }
+            ],
+            "Conditions": []
+          }
+        },
+        {
+          "Identifier": "hold-music",
+          "Type": "MessageParticipantIteratively",
+          "Parameters": {
+            "Messages": [
+              {
+                "Text": "Please hold."
+              }
+            ]
+          },
+          "Transitions": {
+            "Errors": [],
+            "Conditions": []
+          }
+        }
+      ]
+    },
+    "layout": {
+      "hold-music": {
+        "x": 280,
+        "y": 20
+      },
+      "start-voice-id": {
+        "x": 20,
+        "y": 20
+      }
+    },
+    "refs": []
+  }
+}

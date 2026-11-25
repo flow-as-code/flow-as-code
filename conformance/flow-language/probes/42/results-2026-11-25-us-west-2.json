@@ -1,0 +1,12 @@
+[
+  {
+    "probe": "task-references-flow-jsonpath",
+    "description": "Rule 42 (2026-11-25, for the Terraform cookbook's generic recipe): CreateTask with its flow as a JSONPath and References in the object form, the two accepted forms (task-flow-jsonpath, task-references-object) together; the builder leaves References generic.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T20:11:30Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  }
+]

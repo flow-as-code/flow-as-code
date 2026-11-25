@@ -3722,6 +3722,45 @@ export class TransferParticipantToThirdParty extends Block {
 }
 
 // ---------------------------------------------------------------------------
+// Voice ID (tasks/D08)
+// ---------------------------------------------------------------------------
+
+/**
+ * "Sends audio to Connect Customer Voice ID to verify the caller's identity
+ * and match against fraudsters in watchlist, as soon as the call is
+ * connected to a flow." No parameters, no conditions, one error, the
+ * catch-all, and a next. Voice only (chat and task take the Error branch);
+ * not in hold flows.
+ *
+ * Deployable, not exercisable: Voice ID ended on 2026-05-20 ("After May 20,
+ * 2026, you will no longer be able to use Amazon Connect Customer Voice ID"),
+ * and no Voice ID domain can be created since. The service still accepts the
+ * action at create on an instance without one (actions.md, rule 48,
+ * 2026-11-25), so a flow exported before the end keeps a typed block; what it
+ * does at run time is not known. `CheckVoiceId`, its companion, is refused in
+ * every shape tried and stays unmodeled.
+ * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-startvoiceidstream.html
+ * https://docs.aws.amazon.com/connect/latest/adminguide/amazonconnect-voiceid-end-of-support.html
+ */
+export type StartVoiceIdStreamConfig = Wired;
+
+export class StartVoiceIdStream extends Block {
+  readonly type = ActionType.StartVoiceIdStream;
+
+  constructor(private readonly config: StartVoiceIdStreamConfig) {
+    super(config.id);
+  }
+
+  protected parameters(): Record<string, unknown> {
+    return {};
+  }
+
+  protected transitions(): Transitions {
+    return wire(this.config.next, [[NO_MATCHING_ERROR, this.config.onError]]);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Passthrough
 // ---------------------------------------------------------------------------
 
@@ -3729,7 +3768,7 @@ export class TransferParticipantToThirdParty extends Block {
  * Any Action the builder does not model. Preserved verbatim through synth,
  * codegen, the studio, and both emitters. This is what keeps a small modeled
  * set survivable: 61 action types are in the catalog (56 on the Developer
- * Guide's category pages, 5 documented elsewhere) and the builder models 56.
+ * Guide's category pages, 5 documented elsewhere) and the builder models 57.
  */
 export interface GenericBlockConfig {
   id: string;

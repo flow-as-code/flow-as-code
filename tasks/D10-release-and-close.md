@@ -133,7 +133,12 @@ No catalog change. The registry reads and run URLs are the record.
       re-vendor, release, both registries read. With the final re-vendor:
       `rule_channel_restricted_action.go` writes a catalog `doc` that is a
       repository path as its URL on main, as the TypeScript rule does since
-      #66, or the re-recorded lint oracle fails.
+      #66, or the re-recorded lint oracle fails. For D08: the typed
+      `start_voice_id_stream {}` block, the four new lint fixtures and the
+      re-authored `unknown-actions` fixture in the oracles, the acceptance
+      fake refusing the type in a hold flow, and the unmodeled entry for
+      `CheckVoiceId`, which now carries `channels` (check that the
+      provider's unmodeled catalog struct takes the key).
 - [ ] flow-as-code: constraint, hcl validate pins and cache key raised,
       every `awaits-provider` case flipped to `pass`, emit-tf case added,
       the older-provider negative check recorded, docs/06 row completed,

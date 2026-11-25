@@ -1,0 +1,31 @@
+{
+  "description": "Rule 48: StartVoiceIdStream in an agent whisper flow, which the page does not exclude.",
+  "type": "AGENT_WHISPER",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "StartVoiceIdStream",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "EndFlowExecution",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

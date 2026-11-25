@@ -162,6 +162,7 @@ describe("addBlock", () => {
       "StartOutboundChatContact",
       "LoadContactContent",
       "TransferParticipantToThirdParty",
+      "StartVoiceIdStream",
     ] as const) {
       doc = addBlock(doc, type, { x: 0, y: 0 }).doc;
     }

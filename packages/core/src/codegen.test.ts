@@ -3955,3 +3955,46 @@ describe("InvokeFlowModule module references (task C16)", () => {
     expect(doc.refs).toEqual([{ token: "${cdref:module:survey}", type: "module", name: "survey" }]);
   });
 });
+
+describe("StartVoiceIdStream (tasks/D08)", () => {
+  const docWith = (action: FlowAction): FlowDoc => ({
+    flowdoc: "0.3",
+    kind: "flow",
+    name: "voice-id",
+    connectType: "CONTACT_FLOW",
+    content: {
+      Version: "2019-10-30",
+      StartAction: "start",
+      Actions: [
+        action,
+        { Identifier: "bye", Type: "DisconnectParticipant", Parameters: {}, Transitions: {} },
+      ],
+    },
+  });
+  const stream = (
+    parameters: Record<string, unknown> = {},
+    errors = [{ ErrorType: "NoMatchingError", NextAction: "bye" }],
+  ): FlowAction => ({
+    Identifier: "start",
+    Type: "StartVoiceIdStream",
+    Parameters: parameters,
+    Transitions: { NextAction: "bye", Errors: errors, Conditions: [] },
+  });
+
+  it("reads the only accepted shape back as the typed block", () => {
+    const out = codegen(docWith(stream()));
+    expect(out).toContain(
+      'new StartVoiceIdStream({\n      id: "start",\n      next: "bye",\n      onError: "bye",\n    })',
+    );
+    expect(out).not.toContain("GenericBlock");
+  });
+
+  it("leaves generic a parameter the page does not list, or a missing catch-all", () => {
+    // The service refused both (actions.md, rule 48).
+    for (const action of [stream({ SpeakerId: "$.Attributes.speakerId" }), stream({}, [])]) {
+      const out = codegen(docWith(action));
+      expect(out).toContain('type: "StartVoiceIdStream"');
+      expect(out).not.toContain("new StartVoiceIdStream(");
+    }
+  });
+});

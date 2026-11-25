@@ -1,0 +1,31 @@
+{
+  "description": "Rule 48: StartVoiceIdStream with empty Parameters, a NextAction and the catch-all, the required set the page gives, on the sandbox (the 2026-10-05 start-stream ran on another instance).",
+  "type": "CONTACT_FLOW",
+  "content": {
+    "Version": "2019-10-30",
+    "StartAction": "probe",
+    "Actions": [
+      {
+        "Identifier": "probe",
+        "Type": "StartVoiceIdStream",
+        "Parameters": {},
+        "Transitions": {
+          "NextAction": "done",
+          "Errors": [
+            {
+              "ErrorType": "NoMatchingError",
+              "NextAction": "done"
+            }
+          ],
+          "Conditions": []
+        }
+      },
+      {
+        "Identifier": "done",
+        "Type": "DisconnectParticipant",
+        "Parameters": {},
+        "Transitions": {}
+      }
+    ]
+  }
+}

@@ -1,0 +1,236 @@
+[
+  {
+    "probe": "check-enrollment",
+    "description": "CheckVoiceId enrollmentStatus with one Equals Enrolled condition, NoMatchingError and NoMatchingCondition.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:52:59Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action error. Error: NoMatchingCondition, Path: Actions[0]",
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-enrolled",
+    "description": "CheckVoiceId enrollmentStatus with one Equals Enrolled condition and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-full-page",
+    "description": "CheckVoiceId enrollmentStatus with the page's three operands (Enrolled, Not enrolled, Opted out) and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-full-upper",
+    "description": "CheckVoiceId enrollmentStatus with the operands spelled ENROLLED, NOT_ENROLLED and OPTED_OUT, and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-noconds",
+    "description": "CheckVoiceId enrollmentStatus with Conditions empty and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "cv-upper",
+    "description": "CheckVoiceId enrollmentStatus with one Equals ENROLLED condition and NoMatchingError only.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property value. Path: Actions[0].Transitions.Conditions"
+    ]
+  },
+  {
+    "probe": "start-agent-hold",
+    "description": "Rule 48: StartVoiceIdStream in an agent hold flow, which the page excludes (\"not hold flows\").",
+    "flowType": "AGENT_HOLD",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:00Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type agentHold, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "start-customer-hold",
+    "description": "Rule 48: StartVoiceIdStream in a customer hold flow, which the page excludes (\"not hold flows\").",
+    "flowType": "CUSTOMER_HOLD",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:01Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action with identifier probe is not supported in contact flow type customerHold, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "start-customer-queue",
+    "description": "Rule 48: StartVoiceIdStream in a customer queue flow, which the page does not exclude.",
+    "flowType": "CUSTOMER_QUEUE",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:01Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-module",
+    "description": "Rule 48: StartVoiceIdStream in a flow module, which the page does not name.",
+    "flowType": "MODULE",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:02Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlowModule returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-no-catch-all",
+    "description": "Rule 48: StartVoiceIdStream without NoMatchingError, which the page lists; the removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:03Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required error. Error: NoMatchingError, Path: Actions[0]"
+    ]
+  },
+  {
+    "probe": "start-no-next",
+    "description": "Rule 48: StartVoiceIdStream without NextAction; the removal alone.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:03Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Action is missing required property. Path: Actions[0].Transitions.NextAction"
+    ]
+  },
+  {
+    "probe": "start-outbound-whisper",
+    "description": "Rule 48: StartVoiceIdStream in an outbound whisper flow, which the page does not exclude.",
+    "flowType": "OUTBOUND_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:03Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-required",
+    "description": "Rule 48: StartVoiceIdStream with empty Parameters, a NextAction and the catch-all, the required set the page gives, on the sandbox (the 2026-10-05 start-stream ran on another instance).",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:04Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-stream",
+    "description": "StartVoiceIdStream with empty Parameters, a NextAction and NoMatchingError.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T19:53:05Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-agent-transfer",
+    "description": "Rule 48: StartVoiceIdStream in a transfer to agent flow, which the page does not exclude.",
+    "flowType": "AGENT_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-11-25T20:04:54Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-agent-whisper",
+    "description": "Rule 48: StartVoiceIdStream in an agent whisper flow, which the page does not exclude.",
+    "flowType": "AGENT_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-11-25T20:04:55Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-customer-whisper",
+    "description": "Rule 48: StartVoiceIdStream in a customer whisper flow, which the page does not exclude.",
+    "flowType": "CUSTOMER_WHISPER",
+    "region": "us-west-2",
+    "at": "2026-11-25T20:04:56Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-queue-transfer",
+    "description": "Rule 48: StartVoiceIdStream in a transfer to queue flow, which the page does not exclude.",
+    "flowType": "QUEUE_TRANSFER",
+    "region": "us-west-2",
+    "at": "2026-11-25T20:04:58Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "accepted",
+    "cleanup": "deleted; DescribeContactFlow returned ResourceNotFoundException"
+  },
+  {
+    "probe": "start-with-parameter",
+    "description": "Rule 48: StartVoiceIdStream with a parameter the page does not list (its parameter object is empty), to learn whether the service refuses a key.",
+    "flowType": "CONTACT_FLOW",
+    "region": "us-west-2",
+    "at": "2026-11-25T20:12:35Z",
+    "recordedBy": "scripts/probe-create.mjs",
+    "result": "refused",
+    "exception": "InvalidContactFlowException",
+    "problems": [
+      "Invalid Action property name. Path: Actions[0].Parameters.SpeakerId"
+    ]
+  }
+]
