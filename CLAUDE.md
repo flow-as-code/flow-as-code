@@ -138,7 +138,7 @@ Status only where it changes what you should do. The work record is `tasks/`.
 
 ## Stack
 
-TypeScript 5.9, Node 22.12 or later (CI runs 22, 24, and 26), npm workspaces, Vitest 4, ESLint 10 (flat config) + Prettier 3. Studio: React 18, @xyflow/react 12, Vite 8, Tailwind 4 (@tailwindcss/vite), happy-dom for component tests. `@flow-as-code/cdk` peers on aws-cdk-lib ^2.267 and constructs ^10.8. No jsii yet (docs/adr/0001-defer-jsii.md: deferred until the API stabilizes).
+TypeScript 5.9, Node 22.12 or later (CI runs 22, 24, and 26), npm workspaces, Vitest 4, ESLint 10 (flat config) + Prettier 3. Studio: React 18, @xyflow/react 12, Vite 8, Tailwind 4 (@tailwindcss/vite), happy-dom for component tests. `@flow-as-code/cdk` peers on aws-cdk-lib ^2.278 (raised from ^2.267 on 2026-11-25) and constructs ^10.8. No jsii yet (docs/adr/0001-defer-jsii.md: deferred until the API stabilizes).
 
 ## Working agreements
 
