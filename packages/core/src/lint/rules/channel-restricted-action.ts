@@ -28,8 +28,12 @@ import type { Rule } from "../types.js";
  */
 function pageUrl(doc: string): string {
   if (doc === "" || /^https?:\/\//.test(doc)) return doc;
-  return `https://github.com/flow-as-code/flow-as-code/blob/main/${doc}`;
+  // `new URL`, not a template literal, so the studio bundle carries the base
+  // as one exact string its offline scan can allow (tests/offlineScan.ts).
+  return new URL(doc, REPOSITORY_BLOB).href;
 }
+
+const REPOSITORY_BLOB = "https://github.com/flow-as-code/flow-as-code/blob/main/";
 
 export const channelRestrictedAction: Rule = {
   id: "channel-restricted-action",

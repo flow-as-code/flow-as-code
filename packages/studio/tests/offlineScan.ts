@@ -82,6 +82,11 @@ export const ALLOWED_URLS = new Set([
   "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/connect_contact_flow_module",
   "https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/connect_contact_flow_module_alias",
   "https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/connect_contact_flow_module_version",
+  // The base of the link channel-restricted-action WRITES into its message
+  // for a catalog doc that is a repository path, the kept console export
+  // (packages/core/src/lint/rules/channel-restricted-action.ts). The studio
+  // bundles the lint rules, so it travels as message text; nothing loads it.
+  "https://github.com/flow-as-code/flow-as-code/blob/main/",
   // Library error-message links and license banners.
   "https://reactflow.dev/",
   "https://reactflow.dev?utm_source=attribution",
