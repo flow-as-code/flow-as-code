@@ -130,7 +130,10 @@ No catalog change. The registry reads and run URLs are the record.
 
 - [ ] Provider: `feat/revendor-phase-c` merged to main unreleased (the
       lead opens that PR), then D01's and each group's re-vendor, the final
-      re-vendor, release, both registries read.
+      re-vendor, release, both registries read. With the final re-vendor:
+      `rule_channel_restricted_action.go` writes a catalog `doc` that is a
+      repository path as its URL on main, as the TypeScript rule does since
+      #66, or the re-recorded lint oracle fails.
 - [ ] flow-as-code: constraint, hcl validate pins and cache key raised,
       every `awaits-provider` case flipped to `pass`, emit-tf case added,
       the older-provider negative check recorded, docs/06 row completed,

@@ -262,7 +262,10 @@ What the run settled without a change:
   repository path, which an npm install does not carry. Fixed on
   2026-11-25: the rule writes it as the file's URL on main, as the skill
   reference does, held by a test in `lint.test.ts`. The fixture matches the
-  message's start only, so the provider's port owes nothing for it.
+  message's start only, but the provider's lint oracle records every
+  fixture's full output, so its Go port
+  (`internal/lint/rule_channel_restricted_action.go`) must write the same
+  URL when D10's re-vendor re-records the oracle.
 - The provider re-vendor and oracles (checklist lines 11 to 14), after the
   merge commit exists (`ba9cf10`, #52); by owner decision on 2026-11-24 it
   waits for D10's final re-vendor rather than running per group; the provider's typed blocks for the two Types come
