@@ -2271,9 +2271,12 @@ is read rather than when the type is modeled.
       and `MODULE` (a module by the note above `IN_MODULE` in
       `actions.ts`), on every channel, `next` required and the catch-all
       required and wired by the builder. The whole of `RoutingCriteria` as
-      a JSONPath has no catalog form (an `object` is never `dynamic`); a
-      document holding it is generic in every view, and the schema clause
-      admits it. The `Name` and `Value` bounds, the five levels, the one
+      a JSONPath has no catalog form (an `object` is never `dynamic`), so a
+      document holding it is a `generic` block in HCL, and the schema clause
+      admits it; since 2026-11-25 the TypeScript class takes it as
+      `criteria: jsonPath(...)` and codegen reads it back typed (the D09
+      follow-up), so the studio's "all of the routing criteria from a
+      JSONPath" works on a typed block. The `Name` and `Value` bounds, the five levels, the one
       operator and the admin guide's limits (eight in an AND, three in an
       OR, OR at the top, an expiry on every step but the last) are not in
       the catalog or the schema, which hold JSON types only, recursively
@@ -2366,7 +2369,8 @@ is read rather than when the type is modeled.
         is gone, `Steps` lost `dynamic` and the class's JSONPath form, and
         codegen leaves either generic. The whole of `RoutingCriteria` as a
         JSONPath (`routing-criteria-jsonpath`) was accepted, and is the
-        group fixture's Lambda form, generic. An OR inside an AND
+        group fixture's Lambda form, generic (typed in TypeScript since
+        2026-11-25, still `generic` in HCL). An OR inside an AND
         (`routing-or-inside-and`) was accepted, against the admin guide's
         "OR at the top level"; the builder writes no OR, and codegen leaves
         it generic. A static `NotAttributeCondition` was refused, as the

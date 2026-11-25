@@ -11,6 +11,7 @@ import type {
   GetParticipantInputConfig,
   InvokeLambdaFunctionConfig,
   MessageParticipantConfig,
+  RoutingStep,
   UpdateContactAttributesConfig,
   UpdateContactTargetQueueConfig,
 } from "./index.js";
@@ -2577,7 +2578,7 @@ describe("the routing criteria action", () => {
 
   it("refuses no steps, a step before the last without an expiry, a bad expiry, and steps as a JSONPath", () => {
     const expression = attributeCondition("Language", "English", 1);
-    const make = (steps: ConstructorParameters<typeof UpdateContactRoutingCriteria>[0]["steps"]) =>
+    const make = (steps: RoutingStep[]) =>
       new UpdateContactRoutingCriteria({ id: "r", steps, next: "n", onError: "e" });
     expect(() => make([])).toThrow(/needs at least one step/);
     expect(() => make([{ expression }, { expression }])).toThrow(

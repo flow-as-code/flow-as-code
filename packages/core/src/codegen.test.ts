@@ -22,6 +22,7 @@ import {
   Refs,
   synth,
   UpdateContactAttributes,
+  UpdateContactRoutingCriteria,
 } from "./index.js";
 
 const demoDoc = (): FlowDoc =>
@@ -3430,10 +3431,40 @@ describe("UpdateContactRoutingCriteria inverts to the expression helpers", () =>
     expect(codegen(doc)).toContain("export function flowAttributeCondition(): Flow");
   });
 
+  it("writes the whole of RoutingCriteria as a JSONPath as criteria", () => {
+    // An AWS sample's form, which the service accepted (actions.md, rule 45,
+    // routing-criteria-jsonpath).
+    const out = typed(routing("$.External.RoutingCriteria"));
+    expect(out).toContain('criteria: jsonPath("$.External.RoutingCriteria")');
+    expect(out).not.toContain("steps:");
+    // Not a JSONPath: generic, as any other string.
+    generic(routing("External.RoutingCriteria"));
+  });
+
+  it("refuses steps and criteria together, and a criteria that is not a JSONPath", () => {
+    const base = { id: "r", next: "bye", onError: "bye" };
+    expect(
+      () =>
+        new UpdateContactRoutingCriteria({
+          ...base,
+          criteria: jsonPath("$.External.RoutingCriteria"),
+          steps: [],
+        } as never),
+    ).toThrow(/steps or criteria, not both/);
+    expect(() => new UpdateContactRoutingCriteria({ ...base, criteria: "nope" as never })).toThrow(
+      /criteria must be a JSONPath/,
+    );
+    const doc = synth(
+      new Flow({ name: "from-lambda", connectType: "CONTACT_FLOW" }).add(
+        new UpdateContactRoutingCriteria({ ...base, criteria: jsonPath("$.External.c") }),
+        new DisconnectParticipant({ id: "bye" }),
+      ),
+    );
+    expect(doc.content.Actions[0]!.Parameters).toEqual({ RoutingCriteria: "$.External.c" });
+  });
+
   it("leaves generic what the helpers would not write", () => {
-    // The whole of RoutingCriteria as a JSONPath, an AWS sample's form, and
-    // Steps as one, which the service refuses (actions.md, rule 45).
-    generic(routing("$.External.RoutingCriteria"));
+    // Steps as a JSONPath, which the service refuses (actions.md, rule 45).
     generic(routing({ Steps: "$.External.routingSteps" }));
     // A level the page does not list, or spelled as a string.
     generic(steps({ Expression: condition("Language", "English", 2.5) }));

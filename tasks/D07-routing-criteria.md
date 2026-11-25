@@ -255,7 +255,10 @@ refused; `results.json` holds both runs `PENDING.md` asked for, and
   codegen leaves either form generic. The group fixture's Lambda form is
   now the whole of `RoutingCriteria` as a JSONPath, which the service
   accepted, as a generic block, and its first step an AND in place of the
-  OR. ADR 0009 carries an amendment saying so.
+  OR. ADR 0009 carries an amendment saying so. Amended 2026-11-25: the
+  class takes that form as `criteria: jsonPath(...)` and codegen reads it
+  back typed (tasks/D09, the studio follow-up); in HCL it is still a
+  `generic` block.
 - What the 0.3 clause now holds, each refused: no criteria, no or empty
   steps, a step without its `Expression`, a NOT at the top of a step, an
   empty or JSONPath expiry, and the levels 0.5 and 5.5.

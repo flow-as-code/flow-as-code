@@ -713,6 +713,29 @@ describe("routing criteria steps (tasks/D07)", () => {
     );
     expect(await savedCriteria(store, "from-lambda")).toBe("$.External.otherCriteria");
   });
+
+  it("switches a typed block to all of the routing criteria from a JSONPath and back (D09 follow-up)", async () => {
+    // The class takes the JSONPath form since the D09 follow-up, so the guard
+    // lets a typed block move to it; it used to refuse, the form having been
+    // generic.
+    const store = await openFixture();
+    await click(present('[data-testid="node-by-proficiency"]'));
+    await selectOption(testId<HTMLSelectElement>("steps-RoutingCriteria-mode"), "criteria");
+    expect(query('[data-testid="mutation-notice"]')?.textContent ?? "").not.toContain(
+      "read-only generic block",
+    );
+    expect(testId<HTMLInputElement>("steps-RoutingCriteria-criteria").value).toBe(
+      "$.External.RoutingCriteria",
+    );
+    expect(await savedCriteria(store, "by-proficiency")).toBe("$.External.RoutingCriteria");
+    await selectOption(testId<HTMLSelectElement>("steps-RoutingCriteria-mode"), "list");
+    expect(query('[data-testid="mutation-notice"]')?.textContent ?? "").not.toContain(
+      "read-only generic block",
+    );
+    const back = (await savedCriteria(store, "by-proficiency")) as { Steps: unknown[] };
+    expect(Object.keys(back)).toEqual(["Steps"]);
+    expect(back.Steps).toHaveLength(1);
+  });
 });
 
 describe("the routing step edits, as functions", () => {

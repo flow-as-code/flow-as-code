@@ -1744,8 +1744,10 @@ export interface RoutingStep {
  * "Sets the routing criteria for the contact." `RoutingCriteria.Steps` is a
  * list of steps, "set statically or dynamically" on the page, but the
  * service refuses `Steps` as a JSONPath and accepts the whole of
- * `RoutingCriteria` as one (actions.md, rule 45), so `steps` is a list, and
- * a document reading the criteria from a Lambda's response stays generic.
+ * `RoutingCriteria` as one (actions.md, rule 45, `routing-criteria-jsonpath`),
+ * so the class takes either `steps`, a list, or `criteria`, a JSONPath for
+ * the whole criteria, the form an AWS sample writes for criteria read from a
+ * Lambda's response.
  * Each step's `Expiry.DurationInSeconds` "Can be set only
  * statically", written as a decimal string, the spelling the console gives
  * every other seconds field. One error, the catch-all; no conditions.
@@ -1756,9 +1758,8 @@ export interface RoutingStep {
  * https://docs.aws.amazon.com/connect/latest/devguide/flow-control-actions-updateroutingcriteria.html
  * https://docs.aws.amazon.com/connect/latest/adminguide/set-routing-criteria.html
  */
-export interface UpdateContactRoutingCriteriaConfig extends Wired {
-  steps: RoutingStep[];
-}
+export type UpdateContactRoutingCriteriaConfig = Wired &
+  ({ steps: RoutingStep[]; criteria?: never } | { criteria: JsonPath; steps?: never });
 
 export class UpdateContactRoutingCriteria extends Block {
   readonly type = ActionType.UpdateContactRoutingCriteria;
@@ -1766,6 +1767,17 @@ export class UpdateContactRoutingCriteria extends Block {
   constructor(private readonly config: UpdateContactRoutingCriteriaConfig) {
     super(config.id);
     const where = `UpdateContactRoutingCriteria "${config.id}"`;
+    if (config.criteria !== undefined) {
+      if (config.steps !== undefined) {
+        throw new Error(`${where} takes steps or criteria, not both.`);
+      }
+      if (typeof config.criteria !== "string" || !JSON_PATH.test(config.criteria)) {
+        throw new Error(
+          `${where} criteria must be a JSONPath such as $.External.RoutingCriteria, built with jsonPath().`,
+        );
+      }
+      return;
+    }
     const steps = config.steps;
     if (!Array.isArray(steps) || steps.length === 0) {
       throw new Error(`${where} needs at least one step.`);
@@ -1785,6 +1797,7 @@ export class UpdateContactRoutingCriteria extends Block {
   }
 
   protected parameters(): Record<string, unknown> {
+    if (this.config.criteria !== undefined) return { RoutingCriteria: this.config.criteria };
     return {
       RoutingCriteria: {
         Steps: this.config.steps.map((step) =>

@@ -253,10 +253,14 @@ What the run settled without a change:
   review below covers this branch, not the groups D03 to D07 it follows).
 - The studio's "all of the routing criteria from a JSONPath" option on a
   typed `UpdateContactRoutingCriteria` goes through the guarded `setParam`,
-  which refuses the demotion to a generic block, so it only works on a
+  which refused the demotion to a generic block, so it only worked on a
   block already generic (`packages/studio/src/components/Inspector.tsx`,
-  `onCommitWhole`; predates this branch, reported by the 2026-11-23 review
-  and not reproduced).
+  `onCommitWhole`; predates this branch, reported by the 2026-11-23 review).
+  Reproduced and fixed on 2026-11-25 by owner decision: the class takes the
+  form as `criteria: jsonPath(...)` and codegen reads it back typed, so the
+  guard allows the switch both ways (a test in `inspectorUi.test.tsx` that
+  fails on the old core). The catalog and HCL keep it `generic`, so the
+  provider owes nothing for it (docs/adr/0009, amendment).
 - `channel-restricted-action`'s message for
   `TransferParticipantToThirdParty` ended with the kept export's
   repository path, which an npm install does not carry. Fixed on
