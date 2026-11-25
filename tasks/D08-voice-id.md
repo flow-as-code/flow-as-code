@@ -80,7 +80,7 @@ the difference does not bear on the reading. Every probe was a `CONTACT_FLOW`
 named `hh-probe-voiceid-*`, deleted at once; a `ListContactFlows` after the
 run found none left (no describe call was made, which the runner now does).
 The inputs and `results.json` are under
-`conformance/flow-language/probes/d08-voice-id/`, the first set under the
+`conformance/flow-language/probes/48/` (recorded as `d08-voice-id`), the first set under the
 convention of tasks/README.md, "The evidence rule for this phase"; they carry
 no ids, so nothing was replaced. The directory takes the rule's number when
 this task writes it.
